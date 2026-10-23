@@ -366,3 +366,108 @@ test( 'Bulletin and Minute Full story cards use the accent tint and border', () 
 		}
 	}
 } );
+
+/**
+ * Each visible New label with the block that directly holds it, and that
+ * block's parent.
+ *
+ * @param {Object[]} nodes The blocks.
+ * @return {Object[]} The labels with their parent and grandparent.
+ */
+function visibleLabelsWithParents(
+	nodes: TemplateNode[]
+): { label: TemplateNode; parent: TemplateNode; grandparent?: TemplateNode }[] {
+	const found: {
+		label: TemplateNode;
+		parent: TemplateNode;
+		grandparent?: TemplateNode;
+	}[] = [];
+	const walk = ( node: TemplateNode, parent?: TemplateNode ) => {
+		for ( const child of node.innerBlocks ) {
+			if (
+				isNewLabel( child ) &&
+				! hasClass( child, 'screen-reader-text' )
+			) {
+				found.push( {
+					label: child,
+					parent: node,
+					grandparent: parent,
+				} );
+			}
+
+			walk( child, node );
+		}
+	};
+
+	nodes.forEach( ( node ) => walk( node ) );
+
+	return found;
+}
+
+const layoutOf = ( node?: TemplateNode ) =>
+	( node?.attributes.layout ?? {} ) as {
+		type?: string;
+		orientation?: string;
+		justifyContent?: string;
+	};
+
+const isFlexColumn = ( node: TemplateNode ) =>
+	layoutOf( node ).type === 'flex' &&
+	layoutOf( node ).orientation === 'vertical';
+
+const isFlexRow = ( node: TemplateNode ) =>
+	layoutOf( node ).type === 'flex' &&
+	layoutOf( node ).orientation !== 'vertical';
+
+test( 'a New label on a line of its own sits directly in a vertical flex group, so clearing it closes the gap', () => {
+	const wrong: string[] = [];
+
+	for ( const { slug } of LAYOUTS ) {
+		for ( const { parent } of visibleLabelsWithParents(
+			layoutNodes( slug )
+		) ) {
+			if ( ! isFlexColumn( parent ) && ! isFlexRow( parent ) ) {
+				wrong.push(
+					`${ slug }: in ${ parent.name } with ${ JSON.stringify(
+						parent.attributes.layout ?? null
+					) }`
+				);
+			}
+		}
+	}
+
+	expect( wrong ).toEqual( [] );
+} );
+
+test( 'a New label that shares a line is the last item on it, so clearing it moves nothing', () => {
+	const wrong: string[] = [];
+
+	for ( const { slug } of LAYOUTS ) {
+		for ( const { label, parent, grandparent } of visibleLabelsWithParents(
+			layoutNodes( slug )
+		) ) {
+			if ( ! isFlexRow( parent ) ) {
+				continue;
+			}
+
+			const isLast = parent.innerBlocks.at( -1 ) === label;
+			// A row packed at the far end of a space-between row keeps what follows the label where it is.
+			const packedAtEnd =
+				!! grandparent &&
+				isFlexRow( grandparent ) &&
+				layoutOf( grandparent ).justifyContent === 'space-between' &&
+				grandparent.innerBlocks.at( -1 ) === parent;
+
+			if ( ! isLast && ! packedAtEnd ) {
+				wrong.push(
+					`${ slug }: followed by ${ parent.innerBlocks
+						.slice( parent.innerBlocks.indexOf( label ) + 1 )
+						.map( ( node ) => node.name )
+						.join( ', ' ) }`
+				);
+			}
+		}
+	}
+
+	expect( wrong ).toEqual( [] );
+} );

@@ -1918,9 +1918,9 @@ function ruledRow(
 
 /**
  * A Clock entry's row: the time set large in a narrow column with the
- * relative date below it, under the New label and, on the pinned card and
- * the Full Story Entry (which so takes pinned entries too), the pinned row
- * in the accent color, then the title and content, or the breakout post's
+ * relative date below it, under the New label (after it on phones, see
+ * style.scss) and, on the pinned card and the Full Story Entry (which so
+ * takes pinned entries too), the pinned row in the accent color, then the title and content, or the breakout post's
  * box for a Full Story Entry, and the author's avatar and name with Share
  * beside it, with an arrow at that row's far end in the box.
  *
@@ -1940,19 +1940,21 @@ function clockRow(
 			...( kind === 'entry'
 				? []
 				: [ pinnedRow( { color: READABLE_ACCENT } ) ] ),
-			newLabel(),
-			[
-				'core/post-date',
-				{
-					...POST_DATE_ATTRIBUTES,
-					format: siteTimeFormat(),
-					fontSize: themeFontSize( sizes, 'x-large', 'large' ),
-					style: {
-						color: { text: CONTRAST },
-						typography: { fontWeight: '300' },
+			stack( __( 'Time', 'newspack-rolling-coverage' ), [
+				newLabel(),
+				[
+					'core/post-date',
+					{
+						...POST_DATE_ATTRIBUTES,
+						format: siteTimeFormat(),
+						fontSize: themeFontSize( sizes, 'x-large', 'large' ),
+						style: {
+							color: { text: CONTRAST },
+							typography: { fontWeight: '300' },
+						},
 					},
-				},
-			],
+				],
+			] ),
 			[
 				'core/post-date',
 				{
@@ -2706,12 +2708,14 @@ function flashBar( feed: TemplateItem ): TemplateItem {
 }
 
 /**
- * The Flash layout's per-entry template: the time, the New label in the
- * bar's text color, and the entry's text on one line, the text cut short to
- * fit. Phones hide the time. The pinned card matches the regular entry,
- * since a capped feed ignores pinning. A Full Story Entry shows the time,
- * the Full story label in capitals and in the bar's text color, the post's
- * title and its summary, cut short to fit.
+ * The Flash layout's per-entry template: the time, the entry's text and the
+ * New label in the bar's text color on one line, the text cut short to fit.
+ * The label keeps its room while it's hidden (see style.scss), so the text
+ * never moves when it clears. Phones hide the time. The pinned card matches
+ * the regular entry, since a capped feed ignores pinning. A Full Story Entry
+ * shows the time, the Full story label in capitals and in the bar's text
+ * color, the post's title and its summary, cut short to fit, then the New
+ * label.
  *
  * @return {TemplateItem[]} The template.
  */
@@ -2759,7 +2763,7 @@ function flashEntryTemplate(): TemplateItem[] {
 			...group,
 			metadata: { name },
 		},
-		[ date, marker, excerpt ],
+		[ date, excerpt, marker ],
 	];
 
 	return [
@@ -2774,7 +2778,6 @@ function flashEntryTemplate(): TemplateItem[] {
 		fullStoryGroup(
 			[
 				date,
-				marker,
 				[
 					labelName,
 					{
@@ -2796,6 +2799,7 @@ function flashEntryTemplate(): TemplateItem[] {
 					},
 				],
 				excerpt,
+				marker,
 			],
 			group
 		),
