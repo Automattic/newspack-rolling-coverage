@@ -11,7 +11,7 @@ use Newspack_Rolling_Coverage\Slack_Config;
 
 /**
  * Entries show their author's avatar and name, except while the Slack bot
- * is the author, and the avatar column goes when the site hides avatars.
+ * is the author, whatever the site's Avatar Display says.
  */
 class Test_Byline extends Rolling_Coverage_TestCase {
 
@@ -109,20 +109,19 @@ class Test_Byline extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Turning avatars off removes the column that holds only the avatar.
+	 * With Avatar Display off, the feed still shows the avatar in its column.
 	 */
-	public function test_the_avatar_column_goes_when_avatars_are_off() {
+	public function test_the_feed_shows_avatars_when_avatars_are_off() {
+		update_option( 'show_avatars', 0 );
 		$coverage_id = self::create_coverage();
 		self::create_entry( $coverage_id, [ 'post_author' => self::factory()->user->create( [ 'display_name' => 'Jane Reporter' ] ) ] );
 		$attributes = [ 'coverageId' => $coverage_id ];
 		$block      = new WP_Block( parse_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' -->' . self::ROW_MARKUP . '<!-- /wp:newspack-rolling-coverage/rolling-coverage -->' )[0] );
 
-		$this->assertSame( 2, self::count_columns( Rolling_Coverage_Block::render_block( $attributes, '', $block ) ) );
-
-		update_option( 'show_avatars', 0 );
 		$html = Rolling_Coverage_Block::render_block( $attributes, '', $block );
 
-		$this->assertSame( 1, self::count_columns( $html ) );
+		$this->assertSame( 2, self::count_columns( $html ) );
+		$this->assertStringContainsString( 'wp-block-avatar__image', $html );
 		$this->assertStringContainsString( 'Jane Reporter', $html );
 	}
 
@@ -192,15 +191,63 @@ class Test_Byline extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * With avatars off, the empty avatar wrapper is dropped, leaving the name.
+	 * Outside an entry, avatars follow Avatar Display as core renders them.
 	 */
-	public function test_an_entry_drops_the_empty_avatar_when_avatars_are_off() {
+	public function test_an_avatar_outside_a_feed_follows_avatar_display() {
 		update_option( 'show_avatars', 0 );
+		$post_id = self::factory()->post->create( [ 'post_author' => self::factory()->user->create() ] );
 
-		$html = self::render( self::factory()->user->create( [ 'display_name' => 'Jane Reporter' ] ), self::BYLINE_MARKUP );
+		$block = new WP_Block(
+			parse_blocks( '<!-- wp:avatar {"size":40} /-->' )[0],
+			[
+				'postId'   => $post_id,
+				'postType' => 'post',
+			]
+		);
 
-		$this->assertStringNotContainsString( 'wp-block-avatar', $html );
-		$this->assertStringContainsString( 'Jane Reporter', $html );
+		$this->assertStringNotContainsString( '<img', $block->render() );
+	}
+
+	/**
+	 * With Avatar Display off, only the layout's avatar shows a picture: a
+	 * block in the entry's own content that shows one still follows the
+	 * setting.
+	 *
+	 * @dataProvider entry_content_avatar_provider
+	 *
+	 * @param string $content Entry content holding a block that shows an avatar.
+	 */
+	public function test_avatars_in_entry_content_follow_avatar_display( $content ) {
+		update_option( 'show_avatars', 0 );
+		$coverage_id = self::create_coverage();
+		self::create_entry(
+			$coverage_id,
+			[
+				'post_author'  => self::factory()->user->create(),
+				'post_content' => $content,
+			]
+		);
+		$attributes = [ 'coverageId' => $coverage_id ];
+		$block      = new WP_Block( parse_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' --><!-- wp:avatar {"size":40} /--><!-- wp:post-content /--><!-- /wp:newspack-rolling-coverage/rolling-coverage -->' )[0] );
+
+		$html = Rolling_Coverage_Block::render_block( $attributes, '', $block );
+
+		$this->assertSame( 1, substr_count( $html, '<img' ), 'Only the layout avatar should show.' );
+		$this->assertStringContainsString( 'avatar-40', $html );
+		$this->assertSame( 1, preg_match_all( '/class="wp-block-avatar[ "]/', $html ), 'No empty avatar wrapper should be left.' );
+	}
+
+	/**
+	 * Entry content holding a block that shows the author's avatar.
+	 *
+	 * @return array[]
+	 */
+	public function entry_content_avatar_provider() {
+		return [
+			'post author'   => [ '<!-- wp:post-author {"showAvatar":true} /-->' ],
+			'avatar'        => [ '<!-- wp:avatar {"size":96} /-->' ],
+			'linked avatar' => [ '<!-- wp:avatar {"size":96,"isLink":true} /-->' ],
+		];
 	}
 
 	/**

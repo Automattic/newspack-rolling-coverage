@@ -12,7 +12,7 @@ import { __, _x } from '@wordpress/i18n';
  * Internal dependencies
  */
 import { receiveBreakoutPreviews } from './breakout-previews';
-import { ENTRY_POST_TYPE, SAMPLE_AVATAR_URLS, SHOW_AVATARS } from './config';
+import { ENTRY_POST_TYPE, SAMPLE_AVATAR_URLS } from './config';
 import type { BreakoutPreview, EntryContext } from './types';
 
 const AUTHORS = [
@@ -221,8 +221,7 @@ function loadSampleRecords(): void {
 	};
 
 	const users = AUTHORS.map( ( { id, name, slug, initials } ) => {
-		const avatar =
-			SHOW_AVATARS && SAMPLE_AVATAR_URLS?.[ initials.toLowerCase() ];
+		const avatar = SAMPLE_AVATAR_URLS?.[ initials.toLowerCase() ];
 
 		return {
 			id,

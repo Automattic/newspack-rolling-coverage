@@ -101,7 +101,6 @@ import {
 	withoutCheckUpdatesButtons,
 	withoutLoadMoreButtons,
 	withAuthorSettings,
-	withoutAvatarColumns,
 	blockIdsOfType,
 	holdsBlockType,
 	hiddenAuthorBlockIds,
@@ -119,7 +118,6 @@ import {
 	NEWSPACK_ADS_PLACEMENT_ENABLED,
 	ONESIGNAL_CONFIGURED,
 	MIN_POLL_INTERVAL,
-	SHOW_AVATARS,
 	STATUS_LABELS,
 } from './config';
 import { COVERAGE_ID_CONTEXT } from '../shared/entry-bindings';
@@ -1327,9 +1325,7 @@ export default function Edit( {
 		() =>
 			loadMoreInsetStyle(
 				withAuthorSettings(
-					SHOW_AVATARS
-						? templateBlocks
-						: withoutAvatarColumns( templateBlocks ),
+					templateBlocks,
 					showAuthor !== false,
 					showAvatar !== false
 				)
@@ -1471,8 +1467,7 @@ export default function Edit( {
 		templateBlocks,
 		'core/post-author-name'
 	);
-	const offersAvatar =
-		SHOW_AVATARS && holdsBlockType( templateBlocks, 'core/avatar' );
+	const offersAvatar = holdsBlockType( templateBlocks, 'core/avatar' );
 	const checksOnRequest = useMemo( () => {
 		const parts = layoutParts(
 			isSynced ? feedItems( syncedBlocks ) : allBlocks
@@ -1720,7 +1715,7 @@ export default function Edit( {
 			...hiddenAuthorBlockIds(
 				layoutParts( allBlocks ).template,
 				showAuthor !== false,
-				SHOW_AVATARS && showAvatar !== false
+				showAvatar !== false
 			),
 		];
 
