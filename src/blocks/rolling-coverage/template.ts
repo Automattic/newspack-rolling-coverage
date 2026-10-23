@@ -3112,8 +3112,9 @@ const SPLIT_PINNED_STYLE = {
  * Rolling_Coverage_Block::for_entry_kind()), each headed by the New label
  * on a line of its own. It spans the feed's full length
  * and sticks as the reader scrolls where the theme supports it, by its foot
- * once it's taller than the viewport (see view.ts); above the entries on
- * tablets and phones.
+ * once it's taller than the viewport (see view.ts). On tablets and phones it
+ * sits above the entries and scrolls with the page (see
+ * Rolling_Coverage_Block::with_stable_position()).
  *
  * @param {string[]} slugs The palette's color slugs.
  * @return {TemplateItem} The group.
@@ -3126,6 +3127,7 @@ function splitPinnedStack( slugs: string[] ): TemplateItem {
 	};
 	const stacked = {
 		layout: { ...SPLIT_STACKED_PLACEMENT.layout, rowSpan: 1 },
+		position: { type: '' },
 	};
 
 	return [

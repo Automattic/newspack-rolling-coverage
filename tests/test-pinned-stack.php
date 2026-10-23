@@ -16,7 +16,7 @@ use Newspack_Rolling_Coverage\Rolling_Coverage_Block;
  */
 class Test_Pinned_Stack extends Rolling_Coverage_TestCase {
 
-	const STACKED = '{"layout":{"columnStart":1,"columnSpan":1,"rowSpan":1}}';
+	const STACKED = '{"layout":{"columnStart":1,"columnSpan":1,"rowSpan":1},"position":{"type":""}}';
 
 	/**
 	 * A Load More block, as the editor saves it.
@@ -287,7 +287,8 @@ class Test_Pinned_Stack extends Rolling_Coverage_TestCase {
 
 	/**
 	 * On a theme supporting sticky blocks the group sticks, under a stable
-	 * class.
+	 * class, except on tablets and phones, where it stacks above the entries
+	 * and its style keeps it in the flow.
 	 */
 	public function test_group_sticks_where_the_theme_supports_it() {
 		$coverage_id = self::create_coverage();
@@ -298,11 +299,23 @@ class Test_Pinned_Stack extends Rolling_Coverage_TestCase {
 
 		add_filter( 'wp_theme_json_data_theme', [ $this, 'with_sticky_support' ] );
 		wp_clean_theme_json_cache();
+		WP_Style_Engine_CSS_Rules_Store::remove_all_stores();
 
 		$parts = self::placement( self::render( $coverage_id ) );
 
 		$this->assertStringContainsString( 'is-position-sticky', $parts['stack'] );
 		$this->assertMatchesRegularExpression( '/newspack-rolling-coverage-position-[0-9a-f]+/', $parts['stack'] );
+
+		preg_match( '/newspack-rolling-coverage-position-[0-9a-f]+/', $parts['stack'], $position );
+
+		$selector = '.wp-block-newspack-rolling-coverage-rolling-coverage .' . $position[0];
+		$css      = wp_style_engine_get_stylesheet_from_context( 'block-supports', [ 'prettify' => false ] );
+
+		$this->assertStringContainsString( $selector . '{top:calc(0px + var(--newspack-rolling-coverage-top-bars, var(--wp-admin--admin-bar--position-offset, 0px)));position:sticky;z-index:10;}', $css );
+
+		foreach ( WP_Theme_JSON::get_viewport_media_queries( wp_get_global_settings( [ 'viewport' ] ) ) as $media_query ) {
+			$this->assertStringContainsString( $media_query . '{' . $selector . '{position:static;z-index:auto;}}', $css );
+		}
 	}
 
 	/**
