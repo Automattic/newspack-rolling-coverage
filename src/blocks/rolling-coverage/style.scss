@@ -183,6 +183,15 @@ $accent: var(--newspack-rolling-coverage-accent, var(--wp--preset--color--accent
 		animation: newspack-rolling-coverage-fade-in motion.$enter motion.$ease-out;
 	}
 
+	.newspack-rolling-coverage-archived-entry-content::details-content {
+		opacity: 0;
+		transition: opacity motion.$enter motion.$ease-out, content-visibility motion.$enter allow-discrete;
+	}
+
+	.newspack-rolling-coverage-archived-entry-content[open]::details-content {
+		opacity: 1;
+	}
+
 	body.admin-bar & .newspack-rolling-coverage-new-entries:not([hidden]) {
 		top: var(--newspack-rolling-coverage-control-top, calc(48px + env(safe-area-inset-top, 0px)));
 
