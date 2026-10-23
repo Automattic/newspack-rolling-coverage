@@ -314,7 +314,7 @@ test( 'no other layout hides its New label', () => {
 	}
 } );
 
-test( "Flash's New label takes the bar's text colour, not the accent", () => {
+test( "Flash's New label takes the bar's text color, not the accent", () => {
 	const labels = findNodes( layoutNodes( 'flash' ), isNewLabel );
 
 	expect( labels.length ).toBeGreaterThan( 0 );
@@ -325,7 +325,7 @@ test( "Flash's New label takes the bar's text colour, not the accent", () => {
 	}
 } );
 
-test( 'Bulletin, Minute and Rail pinned entries use the grey background', () => {
+test( 'Bulletin, Minute and Rail pinned entries use the gray background', () => {
 	for ( const slug of [ 'default', 'minute', 'rail' ] ) {
 		const [ card ] = findNodes( layoutNodes( slug ), isPinnedCard );
 		const backgrounds = findNodes(
