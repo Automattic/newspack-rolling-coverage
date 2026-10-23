@@ -76,7 +76,8 @@ const ENTRY_GROUP =
 // Where an entry's closing separator sits: at the end of the entry, of its
 // entry group or Full Story Entry group, or of the group's inner container.
 // The server leaves it off the last entry and off a pinned card
-// (Rolling_Coverage_Block::shape_entry_template()).
+// (Rolling_Coverage_Block::shape_entry_template()). style.scss hides the same
+// separators above a pinned card or Full Story Entry, so keep the two in step.
 const SEPARATOR_PARENTS = [
 	':scope',
 	`:scope > ${ ENTRY_GROUP }:last-child`,
@@ -1203,14 +1204,15 @@ function initBlock( root: HTMLElement ): void {
 		entriesList.appendChild( entry );
 
 		// The last entry was rendered without its closing separator, which
-		// the entry now below it brings, unless it is a pinned card. One
-		// entry can be a Full Story entry and the other not, so the
-		// separator goes where the last entry's own group would hold it.
+		// the entry now below it brings, unless it is a pinned card or a
+		// Full Story entry, which have none. One entry can be a Full Story
+		// entry and the other not, so the separator goes where the last
+		// entry's own group would hold it.
 		if (
 			last &&
 			! last.querySelector( CLOSING_SEPARATOR ) &&
 			! last.querySelector(
-				':scope > .newspack-rolling-coverage-pinned-card'
+				':scope > :is(.newspack-rolling-coverage-pinned-card, .newspack-rolling-coverage-breakout-entry)'
 			)
 		) {
 			for ( const parent of SEPARATOR_PARENTS ) {
