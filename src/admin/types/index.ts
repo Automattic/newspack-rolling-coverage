@@ -810,8 +810,12 @@ interface SyncPollContext {
 	coverageIdRef: MutableRefObject< number | null >;
 	rowsRef: MutableRefObject< EntryViewRow[] | null >;
 	pageRef: MutableRefObject< number >;
+	/** A one-entry page of the list's current view, which a poll fetches to recount it. */
+	totalsUrlRef: MutableRefObject< string | null >;
 	isMountedRef: MutableRefObject< boolean >;
 	setRows: Dispatch< SetStateAction< EntryViewRow[] | null > >;
+	setTotalItems: Dispatch< SetStateAction< number > >;
+	setTotalPages: Dispatch< SetStateAction< number > >;
 	setSyncNotices: Dispatch< SetStateAction< SyncNotice[] > >;
 }
 

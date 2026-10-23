@@ -12,6 +12,7 @@ import { handleApiError } from './api-error';
 import type {
 	CreateEntryResult,
 	Entry,
+	EntryPageResponse,
 	EntrySyncDelta,
 	EntryViewRow,
 	SyncNotice,
@@ -301,8 +302,55 @@ function mergeSyncDelta(
 }
 
 /**
+ * Recounts the list after a poll that changed entries. A poll reports every
+ * changed entry in the coverage whatever the list's filters, so only the
+ * server can tell how many the list counts now: a new entry the search
+ * leaves out, an entry trashed out of view, one that lands on another page.
+ * A one-entry page of the same view carries the count without the rows.
+ *
+ * @param {SyncPollContext} ctx The shared context for the poll.
+ * @return {Promise<void>} Resolves when the totals are set, or left as they were.
+ */
+async function refreshTotals( ctx: SyncPollContext ): Promise< void > {
+	const {
+		perPage,
+		totalsUrlRef,
+		isMountedRef,
+		setTotalItems,
+		setTotalPages,
+	} = ctx;
+
+	const url = totalsUrlRef.current;
+
+	if ( ! url ) {
+		return;
+	}
+
+	try {
+		const response = await apiFetch< EntryPageResponse >( {
+			url,
+			method: 'GET',
+		} );
+
+		// The list moved to other filters or another coverage meanwhile; the
+		// page fetch for those sets their totals.
+		if ( ! isMountedRef.current || totalsUrlRef.current !== url ) {
+			return;
+		}
+
+		setTotalItems( response.totalItems );
+		setTotalPages(
+			Math.max( 1, Math.ceil( response.totalItems / perPage ) )
+		);
+	} catch {
+		// Silent: the next poll that changes entries recounts.
+	}
+}
+
+/**
  * Executes a single sync poll: fetches the delta from the endpoint, merges
- * it into the rows state, and dispatches snackbar notices.
+ * it into the rows state, dispatches snackbar notices, and recounts the
+ * list when anything changed.
  *
  * @param {SyncPollContext} ctx The shared context for the poll.
  * @return {Promise<void>} Resolves when the poll completes or is skipped.
@@ -365,6 +413,8 @@ async function pollSync( ctx: SyncPollContext ): Promise< void > {
 		} );
 
 		setSyncNotices( notices );
+
+		await refreshTotals( ctx );
 	} catch {
 		// Silent: transient sync errors are retried on the next interval.
 	}

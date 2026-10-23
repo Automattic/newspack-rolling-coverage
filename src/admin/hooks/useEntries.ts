@@ -28,9 +28,9 @@ import { buildPageUrl, pollSync, SYNC_INTERVAL_MS } from '../utils/entries-api';
  * Page mode fetches a full page whenever coverageId, page, search, sort, or
  * refreshKey changes, and stores the response cursor for subsequent sync
  * polls. Sync mode polls every 10 seconds using the latest cursor, merging
- * changed rows (upsert by id) and removing trashed IDs, and exposes a
- * syncNotices array describing the last sync cycle for the consumer to
- * render as snackbars.
+ * changed rows (upsert by id) and recounting the totals when anything
+ * changed, and exposes a syncNotices array describing the last sync cycle
+ * for the consumer to render as snackbars.
  *
  * Polling pauses when the tab is hidden and resumes (with an immediate
  * poll) when visible. The interval and listeners are cancelled on unmount
@@ -77,6 +77,7 @@ function useEntries( options: UseEntriesOptions ): UseEntriesResult {
 	const [ error, setError ] = useState< string | null >( null );
 
 	const cursorRef = useRef< string | null >( null );
+	const totalsUrlRef = useRef< string | null >( null );
 	const rowsRef = useRef< EntryViewRow[] | null >( null );
 	const hasAttemptedRef = useRef( false );
 	const coverageIdRef = useRef< number | null >( coverageId );
@@ -114,6 +115,7 @@ function useEntries( options: UseEntriesOptions ): UseEntriesResult {
 			setTotalItems( 0 );
 			setTotalPages( 0 );
 			cursorRef.current = null;
+			totalsUrlRef.current = null;
 			setSyncNotices( [] );
 			return;
 		}
@@ -132,29 +134,31 @@ function useEntries( options: UseEntriesOptions ): UseEntriesResult {
 			setIsResolving( true );
 			setError( null );
 
-			const url = buildPageUrl(
-				baseUrl,
-				coverageId,
-				page,
-				perPage,
-				orderBy,
-				order,
-				search,
-				status,
-				statusExclude,
-				source,
-				sourceExclude,
-				author,
-				title,
-				postId,
-				breakoutStatus,
-				breakoutStatusExclude,
-				archived,
-				categorySearch,
-				tagSearch,
-				dateFilter,
-				modifiedFilter
-			);
+			const urlFor = ( pageNumber: number, pageSize: number ) =>
+				buildPageUrl(
+					baseUrl,
+					coverageId,
+					pageNumber,
+					pageSize,
+					orderBy,
+					order,
+					search,
+					status,
+					statusExclude,
+					source,
+					sourceExclude,
+					author,
+					title,
+					postId,
+					breakoutStatus,
+					breakoutStatusExclude,
+					archived,
+					categorySearch,
+					tagSearch,
+					dateFilter,
+					modifiedFilter
+				);
+			const url = urlFor( page, perPage );
 
 			apiFetch< EntryPageResponse >( { url, method: 'GET' } )
 				.then( ( response ) => {
@@ -166,6 +170,7 @@ function useEntries( options: UseEntriesOptions ): UseEntriesResult {
 					setTotalItems( response.totalItems );
 					setTotalPages( response.totalPages );
 					cursorRef.current = response.cursor;
+					totalsUrlRef.current = urlFor( 1, 1 );
 					setHasResolved( true );
 					setError( null );
 					setSyncNotices( [] );
@@ -226,8 +231,11 @@ function useEntries( options: UseEntriesOptions ): UseEntriesResult {
 			coverageIdRef,
 			rowsRef,
 			pageRef,
+			totalsUrlRef,
 			isMountedRef,
 			setRows,
+			setTotalItems,
+			setTotalPages,
 			setSyncNotices,
 		};
 

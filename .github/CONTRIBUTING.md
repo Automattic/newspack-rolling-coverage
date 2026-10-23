@@ -144,7 +144,7 @@ src/
   blocks/                        Block editor + frontend view sources (edit.tsx, view.ts, block.json)
   entry-editor/                  Entry editor script (Push Notifications panel, back-to-coverage link)
   breakout-editor/               Full story label field in a breakout post's settings sidebar
-tests/                           PHPUnit suite; tests/js/ holds the poll cursor and layout template checks `npm test` runs
+tests/                           PHPUnit suite; tests/js/ holds the poll cursor, layout template and entries list sync checks `npm test` runs
 ```
 
 All PHP classes live under the `Newspack_Rolling_Coverage` namespace and are loaded via Composer's `classmap` autoloader over `./includes`. The admin app is compiled by webpack to `dist/admin.js` / `dist/admin.css`, the editor scripts to `dist/entry-editor.js` and `dist/breakout-editor.js`, and blocks to `dist/blocks/<slug>/`.
