@@ -11,6 +11,7 @@ $accent: var(--newspack-rolling-coverage-accent, var(--wp--preset--color--accent
 .wp-block-newspack-rolling-coverage-rolling-coverage {
 	--nrc-color-text: var(--wp--preset--color--contrast, #000);
 	--newspack-rolling-coverage-new-tint: color-mix(in srgb, var(--wp--preset--color--base-2, var(--newspack-theme-color-bg-light, #f0f0f0)) 50%, transparent);
+	--newspack-rolling-coverage-new-tint-bleed: var(--wp--preset--spacing--30, 1rem);
 
 	.newspack-rolling-coverage-feed:not(.is-layout-grid) {
 		display: flex;
@@ -96,7 +97,8 @@ $accent: var(--newspack-rolling-coverage-accent, var(--wp--preset--color--accent
 				content: "";
 				position: absolute;
 				inset-block: var(--newspack-rolling-coverage-new-tint-start, 0) var(--newspack-rolling-coverage-new-tint-end, 0);
-				inset-inline: 0;
+				left: calc(-1 * min(var(--newspack-rolling-coverage-new-tint-bleed), var(--newspack-rolling-coverage-new-tint-room-left, 0px)));
+				right: calc(-1 * min(var(--newspack-rolling-coverage-new-tint-bleed), var(--newspack-rolling-coverage-new-tint-room-right, 0px)));
 				z-index: -1;
 				border-radius: inherit;
 				background: var(--newspack-rolling-coverage-new-tint);
