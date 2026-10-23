@@ -68,7 +68,10 @@ describe( 'hiddenNewLabelIds', () => {
 		const paragraph = {
 			name: 'core/paragraph',
 			clientId: 'card-paragraph',
-			attributes: { content: 'New' },
+			attributes: {
+				className: 'newspack-rolling-coverage-new-label',
+				content: 'New',
+			},
 			innerBlocks: [],
 		};
 

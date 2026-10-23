@@ -16,7 +16,7 @@ For how publishers use the block, see `README.md` in this directory. For where t
 
 `New_Label_Block::render_block()`:
 
-- While an entry renders (`Rolling_Coverage_Block::is_rendering_entry()`), outputs a `<p>` with the block's wrapper attributes (the supports' classes and styles, `className`, and `screen-reader-text` when `visuallyHidden`), `hidden`, and `data-rc-new-marker` (`Entry_Bindings::NEW_MARKER_ATTR`). It renders the same on every entry, so the label never shows where the view script doesn't run, Lite Site pages included. The text is `content` with its tags stripped and its entities decoded, escaped with `esc_html()`, or the translated "New" when that leaves nothing.
+- While an entry renders (`Rolling_Coverage_Block::is_rendering_entry()`), outputs a `<p>` with the block's wrapper attributes (the supports' classes and styles, `className`, and `screen-reader-text` when `visuallyHidden`), `hidden`, and `data-rc-new-marker` (`Entry_Bindings::NEW_MARKER_ATTR`). It renders the same on every entry, so the label never shows where the view script doesn't run, Lite Site pages included. The text is `content` with its tags stripped, escaped with `esc_html()`, or the translated "New" when that leaves nothing or only spaces (no-break spaces included). `content` is already HTML, so its entities aren't decoded: a typed `&lt;` is stored as `&amp;lt;` and renders as typed, and `esc_html()` doesn't encode an entity twice.
 - In a syndication feed (`is_feed()`), renders nothing, since no script runs there to manage the label and a reader may ignore `hidden`.
 - Anywhere else, such as among the coverage-level blocks or outside a feed, renders nothing.
 
@@ -30,6 +30,7 @@ The tint fills the entry's row, from separator to separator, so its top and bott
 
 ## Editor
 
+- `RichText` has `disableLineBreaks`, so the label stays on one line. While `content` is empty, `editor.scss` shows the "New" placeholder at full strength rather than core's dimmed placeholder, so the canvas matches the site; the text isn't stored, so it follows the site's language.
 - `newLabel()` in `template.ts` builds the block for the built-in layouts: `use-header-font`, the `small` font size, weight 700, the readable accent as the text color unless `color: null` (Flash), an optional text alignment, and `visuallyHidden` for Minute. It leaves `content` empty, so the layouts' server copies carry no text to translate.
 - `isNewLabel()` matches the block by name (`NEW_LABEL_BLOCK_NAME`). `withoutNewLabel()` (`layout.ts`'s previews) and `hiddenNewLabelIds()` (`edit.tsx`) use it to show the label only on the sample previewing the newest unpinned entry.
 - `ENTRY_ALLOWED_BLOCKS` (`template.ts`) lets the block into the Feed group.

@@ -11,6 +11,7 @@ import { getBlockCategory } from '../shared/category';
 import { blockIcon } from '../shared/icon';
 import metadata from './block.json';
 import Edit from './edit';
+import './editor.scss';
 
 registerBlockType( metadata, {
 	category: getBlockCategory(),

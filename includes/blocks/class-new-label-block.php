@@ -51,18 +51,24 @@ class New_Label_Block {
 	}
 
 	/**
-	 * The label's text: the block's own as plain text, or the translated
-	 * "New" when it has none.
+	 * The label's text: the block's own with its tags stripped, or the
+	 * translated "New" when that leaves only spaces. The stored text is
+	 * already HTML, so it isn't decoded and its entities render as typed.
 	 *
 	 * @param array $attributes Block attributes.
 	 * @return string
 	 */
 	private static function text( array $attributes ): string {
 		$content = $attributes['content'] ?? '';
-		$text    = is_string( $content ) ? html_entity_decode( wp_strip_all_tags( $content ), ENT_QUOTES | ENT_HTML5, 'UTF-8' ) : '';
+		$text    = is_string( $content ) ? wp_strip_all_tags( $content ) : '';
 
-		/* translators: Label on a coverage entry published while the reader has the page open. */
-		return '' !== $text ? $text : __( 'New', 'newspack-rolling-coverage' );
+		// Decoded only to test for spaces, as the editor can store a no-break space, which trim() leaves.
+		if ( 1 === preg_match( '/^[\s\x{00A0}]*$/u', html_entity_decode( $text, ENT_QUOTES | ENT_HTML5, 'UTF-8' ) ) ) {
+			/* translators: Label on a coverage entry published while the reader has the page open. */
+			return __( 'New', 'newspack-rolling-coverage' );
+		}
+
+		return $text;
 	}
 
 	/**

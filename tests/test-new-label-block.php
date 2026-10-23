@@ -117,22 +117,26 @@ class Test_New_Label_Block extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * The block's own text shows, as plain, escaped text.
+	 * The block's own text shows as plain text, its entities as typed: the
+	 * editor stores a typed "&lt;" as `&amp;lt;`, which must not render as "<".
 	 */
 	public function test_custom_text_is_escaped() {
-		$html = self::render_in_entry( self::create_entry( self::create_coverage() ), [ 'content' => 'Fresh & <em>hot</em>' ] );
+		$entry_id = self::create_entry( self::create_coverage() );
+		$html     = self::render_in_entry( $entry_id, [ 'content' => 'Fresh &amp; <em>hot</em>' ] );
 
 		$this->assertStringContainsString( '>Fresh &amp; hot</p>', $html );
 		$this->assertStringNotContainsString( '<em>', $html );
+		$this->assertStringContainsString( '>&amp;lt;b&amp;gt;</p>', self::render_in_entry( $entry_id, [ 'content' => '&amp;lt;b&amp;gt;' ] ) );
 	}
 
 	/**
-	 * Empty text, or only spaces, shows the translated "New".
+	 * Empty text, or only spaces, no-break spaces included, shows the
+	 * translated "New".
 	 */
 	public function test_empty_text_shows_new() {
 		$entry_id = self::create_entry( self::create_coverage() );
 
-		foreach ( [ [], [ 'content' => '' ], [ 'content' => '  ' ] ] as $attributes ) {
+		foreach ( [ [], [ 'content' => '' ], [ 'content' => '  ' ], [ 'content' => "\u{00A0}" ], [ 'content' => ' &nbsp; ' ] ] as $attributes ) {
 			$this->assertStringContainsString( '>New</p>', self::render_in_entry( $entry_id, $attributes ) );
 		}
 	}
