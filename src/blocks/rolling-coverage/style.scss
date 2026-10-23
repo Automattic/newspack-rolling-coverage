@@ -479,6 +479,26 @@ $accent: var(--newspack-rolling-coverage-accent, var(--wp--preset--color--accent
 		-webkit-line-clamp: none;
 		line-clamp: none;
 	}
+
+	// The time and labels such as Full story stay whole, and the post's
+	// title gives way before them, so the row keeps to one line.
+	> :where(.wp-block-post-date, .wp-block-paragraph) {
+		flex-shrink: 0;
+		white-space: nowrap;
+	}
+
+	> :where(.wp-block-post-title):where(:not([class*="wp-container-content-"])) {
+		min-width: 0;
+		overflow: hidden;
+		white-space: nowrap;
+		text-overflow: ellipsis;
+	}
+}
+
+// Core makes the title's link an inline block, which is cut off whole rather
+// than ending in the ellipsis.
+.wp-block-newspack-rolling-coverage-rolling-coverage .newspack-rolling-coverage-feed.is-layout-flex:not(.is-vertical) :is(.newspack-rolling-coverage-pinned-card, .newspack-rolling-coverage-regular-entry, .newspack-rolling-coverage-breakout-entry).is-layout-flex.is-nowrap:not(.is-vertical) > .wp-block-post-title > a {
+	display: inline;
 }
 
 @property --newspack-rolling-coverage-rule-row {
@@ -561,8 +581,31 @@ $accent: var(--newspack-rolling-coverage-accent, var(--wp--preset--color--accent
 	:focus-visible {
 		outline-offset: -2px;
 	}
+}
 
-	@media (max-width: 782px) {
+// How many entries fit side by side depends on the room the Feed has, which
+// in a sidebar or content column is far less than the screen's width.
+.wp-block-newspack-rolling-coverage-rolling-coverage .newspack-rolling-coverage-feed.is-layout-flex.is-nowrap:not(.is-vertical, .newspack-rolling-coverage-ruled) {
+	container: newspack-rolling-coverage-strip / inline-size;
+}
+
+@container newspack-rolling-coverage-strip (width < 56rem) {
+
+	.wp-block-newspack-rolling-coverage-rolling-coverage .newspack-rolling-coverage-feed.is-layout-flex.is-nowrap:not(.is-vertical, .newspack-rolling-coverage-ruled) > .newspack-rolling-coverage-entries {
+
+		&:has(> :nth-child(3)) {
+			--nrc-visible-entries: 2;
+		}
+
+		> :nth-child(n+3) {
+			visibility: hidden;
+		}
+	}
+}
+
+@container newspack-rolling-coverage-strip (width < 36rem) {
+
+	.wp-block-newspack-rolling-coverage-rolling-coverage .newspack-rolling-coverage-feed.is-layout-flex.is-nowrap:not(.is-vertical, .newspack-rolling-coverage-ruled) > .newspack-rolling-coverage-entries {
 
 		&,
 		&:has(> :nth-child(2)),
