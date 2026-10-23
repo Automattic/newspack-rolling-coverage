@@ -260,6 +260,7 @@ class Post_Type {
 		add_action( 'before_delete_post', [ __CLASS__, 'on_delete_post' ] );
 		add_filter( 'rest_' . self::CPT_SLUG . '_query', [ __CLASS__, 'filter_rest_query' ], 10, 2 );
 		add_filter( 'rest_request_before_callbacks', [ __CLASS__, 'hide_entry_rest_record' ], 10, 3 );
+		add_filter( 'rest_request_before_callbacks', [ __CLASS__, 'hide_entry_seo_head' ], 10, 3 );
 		add_filter( 'posts_where', [ __CLASS__, 'hide_entries_from_main_query' ], 10, 2 );
 		add_filter( 'is_post_embeddable', [ __CLASS__, 'hide_entry_embed' ], 10, 2 );
 		add_filter( 'posts_where', [ __CLASS__, 'author_scope_where' ], 10, 2 );
@@ -481,8 +482,8 @@ class Post_Type {
 	 * until the cleanup removes them, so the ways readers reach an entry check
 	 * its coverage as well as its own status. The feed and the entries list
 	 * (filter_rest_query()) check it themselves, and hide_entries_from_main_query()
-	 * applies this rule in SQL. The entry's REST record and its oEmbed data
-	 * check it here.
+	 * applies this rule in SQL. The entry's REST record, its Yoast SEO head and
+	 * its oEmbed data check it here.
 	 *
 	 * @param WP_Post $entry Entry post.
 	 * @return bool
@@ -582,6 +583,36 @@ class Post_Type {
 		}
 
 		$entry = get_post( (int) $request->get_param( 'id' ) );
+
+		if ( ! $entry instanceof WP_Post || self::CPT_SLUG !== $entry->post_type || ! self::is_hidden_by_coverage( $entry ) ) {
+			return $response;
+		}
+
+		return new WP_Error(
+			'rest_post_invalid_id',
+			__( 'Invalid post ID.', 'newspack-rolling-coverage' ),
+			[ 'status' => 404 ]
+		);
+	}
+
+	/**
+	 * Answer Yoast SEO's public head route with a 404 for the permalink of an
+	 * entry hidden by its coverage. The route builds the entry's title and
+	 * description from Yoast's own stored copy of the entry, which trashing
+	 * the coverage doesn't change, and the description defaults to the start
+	 * of the entry's text.
+	 *
+	 * @param WP_REST_Response|WP_HTTP_Response|WP_Error|mixed $response Result so far.
+	 * @param array|mixed                                      $handler  Route handler used for the request.
+	 * @param WP_REST_Request|mixed                            $request  Request.
+	 * @return WP_REST_Response|WP_HTTP_Response|WP_Error|mixed
+	 */
+	public static function hide_entry_seo_head( $response, $handler, $request ) {
+		if ( is_wp_error( $response ) || ! $request instanceof WP_REST_Request || 0 !== strcasecmp( $request->get_route(), '/yoast/v1/get_head' ) ) {
+			return $response;
+		}
+
+		$entry = get_post( url_to_postid( (string) $request->get_param( 'url' ) ) ); // phpcs:ignore WordPressVIPMinimum.Functions.RestrictedFunctions.url_to_postid_url_to_postid -- Runs only for Yoast's head route.
 
 		if ( ! $entry instanceof WP_Post || self::CPT_SLUG !== $entry->post_type || ! self::is_hidden_by_coverage( $entry ) ) {
 			return $response;

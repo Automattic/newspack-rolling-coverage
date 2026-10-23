@@ -10,8 +10,9 @@ use Newspack_Rolling_Coverage\Taxonomy;
 
 /**
  * Trashing a coverage leaves its entries published, so the entry's permalink,
- * listings of entries, and the oEmbed data other sites read from the
- * permalink check the coverage too, as the feed and the entries REST route do.
+ * listings of entries, and what other sites read from the permalink (oEmbed
+ * data, Yoast SEO's head) check the coverage too, as the feed and the entries
+ * REST route do.
  */
 class Test_Entry_Permalink extends Rolling_Coverage_TestCase {
 
@@ -90,6 +91,43 @@ class Test_Entry_Permalink extends Rolling_Coverage_TestCase {
 		);
 
 		$this->assertEqualsCanonicalizing( [ $visible_entry_id, $post_id ], wp_list_pluck( $GLOBALS['wp_query']->posts, 'ID' ) );
+	}
+
+	/**
+	 * Yoast SEO's public head route is not found for a hidden entry's
+	 * permalink. The tests don't load Yoast, so a stand-in route answers for
+	 * it.
+	 */
+	public function test_seo_head_route_is_not_found_for_hidden_entries() {
+		add_action(
+			'rest_api_init',
+			static function () {
+				register_rest_route(
+					'yoast/v1',
+					'/get_head',
+					[
+						'methods'             => 'GET',
+						'callback'            => static fn() => new WP_REST_Response( [ 'head' => '<title>Entry</title>' ] ),
+						'permission_callback' => '__return_true',
+					]
+				);
+			}
+		);
+		$GLOBALS['wp_rest_server'] = null;
+
+		$get_head = static function ( int $entry_id ): int {
+			$request = new WP_REST_Request( 'GET', '/yoast/v1/get_head' );
+			$request->set_query_params( [ 'url' => get_permalink( $entry_id ) ] );
+
+			return rest_get_server()->dispatch( $request )->get_status();
+		};
+
+		try {
+			$this->assertSame( 200, $get_head( self::create_entry( self::create_coverage() ) ) );
+			$this->assertSame( 404, $get_head( self::create_entry( self::create_coverage( 'trash' ) ) ) );
+		} finally {
+			$GLOBALS['wp_rest_server'] = null;
+		}
 	}
 
 	/**
