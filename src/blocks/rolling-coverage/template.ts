@@ -81,7 +81,6 @@ function newLabel( {
 	return [
 		'core/paragraph',
 		{
-			// The Newspack Theme's class for its heading font, which it also gives the date.
 			className: `use-header-font ${ NEW_LABEL_CLASS }${
 				hidden ? ' screen-reader-text' : ''
 			}`,
