@@ -247,21 +247,28 @@ function runFade(
  * Pinned group, opens the group, which appeared with it. The entries given
  * to fade fade in as their space opens. They all open together, over a
  * duration set by the height they add between them (see openDuration()).
+ * Entries leaving to make room, as a capped feed drops its oldest, close
+ * their space over the same duration (see closeSpace()), so the list's
+ * height moves one way only, and are removed once closed.
  *
  * Nothing opens under reduced motion, without scripted animations, or where
- * the layout doesn't stack the elements in a column (a row or a grid).
+ * the layout doesn't stack the elements in a column (a row or a grid); an
+ * entry leaving whose space can't close is removed at once.
  *
- * @param {HTMLElement[]} elements Elements just inserted, entries and ads.
- * @param {HTMLElement[]} faded    The entries among them to fade in.
- * @param {HTMLElement}   list     The feed's entry list.
+ * @param {HTMLElement[]} elements  Elements just inserted, entries and ads.
+ * @param {HTMLElement[]} faded     The entries among them to fade in.
+ * @param {HTMLElement}   list      The feed's entry list.
+ * @param {HTMLElement[]} [leaving] Entries leaving to make room for them.
  * @return {HTMLElement[]} The entries left for the caller to fade in.
  */
 export function openSpace(
 	elements: HTMLElement[],
 	faded: HTMLElement[],
-	list: HTMLElement
+	list: HTMLElement,
+	leaving: HTMLElement[] = []
 ): HTMLElement[] {
 	if ( ! elements.length || ! canMove( elements[ 0 ] ) ) {
+		leaving.forEach( ( entry ) => entry.remove() );
 		return faded;
 	}
 
@@ -294,6 +301,12 @@ export function openSpace(
 		if ( space ) {
 			opens.get( target )?.cancel();
 			runOpen( target, space, duration );
+		}
+	} );
+
+	leaving.forEach( ( entry ) => {
+		if ( ! closeSpace( entry, () => entry.remove(), duration ) ) {
+			entry.remove();
 		}
 	} );
 
@@ -374,11 +387,18 @@ export function stopArrivalFade( element: HTMLElement ): number | null {
  * then calls back to remove it. Returns false, without calling back, where
  * the space can't close smoothly, so the caller removes the entry at once.
  *
- * @param {HTMLElement} element The entry.
- * @param {Function}    done    Called once the space has closed.
+ * @param {HTMLElement} element    The entry.
+ * @param {Function}    done       Called once the space has closed.
+ * @param {number}      [duration] How long the close takes, in milliseconds:
+ *                                 the open it makes room for, so the two
+ *                                 keep pace.
  * @return {boolean} True when the space is closing.
  */
-export function closeSpace( element: HTMLElement, done: () => void ): boolean {
+export function closeSpace(
+	element: HTMLElement,
+	done: () => void,
+	duration = OPEN_MS
+): boolean {
 	if ( ! canMove( element ) ) {
 		return false;
 	}
@@ -395,7 +415,7 @@ export function closeSpace( element: HTMLElement, done: () => void ): boolean {
 	fades.delete( element );
 
 	const close = element.animate( openKeyframes( space ).reverse(), {
-		duration: OPEN_MS,
+		duration,
 		easing: EASE_IN_OUT,
 		fill: 'forwards',
 	} );

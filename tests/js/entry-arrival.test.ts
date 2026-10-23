@@ -152,9 +152,10 @@ describe( 'openFadeDelay', () => {
 		);
 	} );
 
-	it( 'ends the fade before the longest open ends', () => {
-		expect( openFadeDelay( OPEN_MAX_MS ) + ENTER_MS ).toBeLessThan(
-			OPEN_MAX_MS
+	it( 'waits as far into the longest open as into one entry’s', () => {
+		expect( openFadeDelay( OPEN_MAX_MS ) / OPEN_MAX_MS ).toBeCloseTo(
+			OPEN_FADE_DELAY_MS / OPEN_MS,
+			2
 		);
 	} );
 } );
@@ -210,6 +211,61 @@ describe( 'openSpace', () => {
 		fades.forEach( ( fade ) =>
 			expect( fade.options.delay ).toBe( openFadeDelay( OPEN_MAX_MS ) )
 		);
+	} );
+
+	it( 'closes the entries leaving to make room over the same time', async () => {
+		const list = makeList( column );
+		const entries = Array.from( { length: 5 }, () => makeItem( 200 ) );
+		const leaving = Array.from( { length: 5 }, () => makeItem( 200 ) );
+		list.append( ...entries, ...leaving );
+
+		openSpace( entries, entries, list, leaving );
+
+		const closes = animations.filter(
+			( { target, keyframes } ) =>
+				leaving.includes( target as HTMLElement ) &&
+				keyframes[ 0 ].hasOwnProperty( 'marginBlockEnd' )
+		);
+		expect( closes ).toHaveLength( 5 );
+		closes.forEach( ( close ) =>
+			expect( close.options.duration ).toBe( OPEN_MAX_MS )
+		);
+
+		await Promise.resolve();
+		await Promise.resolve();
+
+		leaving.forEach( ( entry ) =>
+			expect( entry.isConnected ).toBe( false )
+		);
+	} );
+
+	it( 'closes one entry leaving for one arriving over one entry’s time', () => {
+		const list = makeList( column );
+		const entry = makeItem( 200 );
+		const leaving = makeItem( 200 );
+		list.append( entry, makeItem( 100 ), leaving );
+
+		openSpace( [ entry ], [ entry ], list, [ leaving ] );
+
+		const close = animations.find(
+			( { target, keyframes } ) =>
+				target === leaving &&
+				keyframes[ 0 ].hasOwnProperty( 'marginBlockEnd' )
+		);
+		expect( close?.options.duration ).toBe( OPEN_MS );
+	} );
+
+	it( 'removes the entries leaving at once where nothing can open', () => {
+		reducedMotion = true;
+		const list = makeList( column );
+		const entry = makeItem( 200 );
+		const leaving = makeItem( 200 );
+		list.append( entry, leaving );
+
+		openSpace( [ entry ], [ entry ], list, [ leaving ] );
+
+		expect( leaving.isConnected ).toBe( false );
+		expect( animations ).toHaveLength( 0 );
 	} );
 
 	it( 'opens the group an entry appeared alone in', () => {
@@ -340,6 +396,16 @@ describe( 'closeSpace', () => {
 		await Promise.resolve();
 
 		expect( done ).toHaveBeenCalled();
+	} );
+
+	it( 'takes the time it is given', () => {
+		const list = makeList( column );
+		const entry = makeItem( 200 );
+		list.append( makeItem( 100 ), entry );
+
+		closeSpace( entry, jest.fn(), OPEN_MAX_MS );
+
+		expect( animations[ 0 ].options.duration ).toBe( OPEN_MAX_MS );
 	} );
 
 	it( 'leaves removal to the caller where the space can’t close smoothly', () => {

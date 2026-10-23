@@ -30,12 +30,7 @@ import {
 import { isSharedReply, readSharedReply, startingAdCount } from './shared-poll';
 import { shareRequests } from './shared-requests';
 import { NewEntryMarks } from './new-entry-marks';
-import {
-	carryArrival,
-	closeSpace,
-	openSpace,
-	stopArrivalFade,
-} from './entry-arrival';
+import { carryArrival, openSpace, stopArrivalFade } from './entry-arrival';
 import { idsNewerThan, newIdsInReplace } from './new-entry-ids';
 import {
 	glideScrollTo,
@@ -1407,16 +1402,18 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 	/**
 	 * Removes the oldest entries beyond the cap of a capped feed, and stops
 	 * watching them for being seen. Making room for entries arriving at the
-	 * top, an entry that was already shown closes its space as it goes, so the
-	 * feed's height changes smoothly (see closeSpace()); while it closes it
-	 * can't be focused or read, and the script no longer finds it by its ID.
+	 * top, an entry that was already shown stays to close its space as they
+	 * open theirs, at their pace (see arrive()); until it goes it can't be
+	 * focused or read, and the script no longer finds it by its ID.
 	 *
 	 * @param {Element[]} [arriving] Elements just inserted at the top.
-	 * @return {void}
+	 * @return {HTMLElement[]} The entries left to close their space.
 	 */
-	function trimToLatestCap( arriving?: Element[] ): void {
+	function trimToLatestCap( arriving?: Element[] ): HTMLElement[] {
+		const leaving: HTMLElement[] = [];
+
 		if ( ! latestCap ) {
-			return;
+			return leaving;
 		}
 
 		const entries = entriesList.querySelectorAll< HTMLElement >(
@@ -1437,11 +1434,10 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 			entry.inert = true;
 			entry.setAttribute( 'aria-hidden', 'true' );
 			delete entry.dataset.entryId;
-
-			if ( ! closeSpace( entry, () => entry.remove() ) ) {
-				entry.remove();
-			}
+			leaving.push( entry );
 		}
+
+		return leaving;
 	}
 
 	/**
@@ -1530,15 +1526,18 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 	/**
 	 * Brings in elements just inserted at the top of the list: their space
 	 * opens, so the entries below glide down, and the entries among them fade
-	 * in as it opens (see openSpace()). Where the space can't open (under
-	 * reduced motion, or in a row or grid layout), the entries only fade in.
-	 * Call it once the entries are marked, since a New label adds to their
-	 * height. A Lite Site page has no motion, so there it does nothing.
+	 * in as it opens (see openSpace()). Entries a capped feed drops to make
+	 * room close their space over the same time, so the feed's height moves
+	 * one way only. Where the space can't open (under reduced motion, or in a
+	 * row or grid layout), the entries only fade in and the dropped ones go at
+	 * once. Call it once the entries are marked, since a New label adds to
+	 * their height. A Lite Site page has no motion, so there it does nothing.
 	 *
-	 * @param {HTMLElement[]} elements Elements just inserted, entries and ads.
+	 * @param {HTMLElement[]} elements  Elements just inserted, entries and ads.
+	 * @param {HTMLElement[]} [leaving] Entries dropped to make room for them.
 	 * @return {void}
 	 */
-	function arrive( elements: HTMLElement[] ): void {
+	function arrive( elements: HTMLElement[], leaving?: HTMLElement[] ): void {
 		if ( isLite ) {
 			return;
 		}
@@ -1547,7 +1546,8 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 			openSpace(
 				elements,
 				elements.filter( ( el ) => el.matches( '[data-entry-id]' ) ),
-				entriesList
+				entriesList,
+				leaving
 			)
 		);
 	}
@@ -1609,7 +1609,7 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 		];
 
 		entriesList.insertBefore( fragment, firstUnpinnedEntry() );
-		trimToLatestCap( insertedEls );
+		const leaving = trimToLatestCap( insertedEls );
 		dropLastSeparator();
 
 		marks?.markAll(
@@ -1622,7 +1622,8 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 			insertedEls.filter(
 				( el ): el is HTMLElement =>
 					el instanceof HTMLElement && el.isConnected
-			)
+			),
+			leaving
 		);
 
 		const shown = Math.min( entries.length, latestCap || entries.length );
