@@ -45,6 +45,32 @@ function getCoverageActions(
 	// may still navigate into the entries they can access.
 	const canManage = config.capabilities.canManageTerms;
 
+	// Shared by the Restore action and the Undo on the trash notice.
+	const restoreCoverages = async ( items: Coverage[] ) => {
+		const { failed, succeeded } = await runCoverageBulk( items, ( id ) =>
+			restoreCoverage( restNamespace, id )
+		);
+
+		if ( succeeded ) {
+			notifySuccess(
+				pluralize(
+					items.length,
+					__( 'Coverage restored.', 'newspack-rolling-coverage' ),
+					__( 'Coverages restored.', 'newspack-rolling-coverage' )
+				)
+			);
+			onActionPerformed();
+		} else {
+			notifyError(
+				failed[ 0 ].error ||
+					__(
+						'Failed to restore coverage.',
+						'newspack-rolling-coverage'
+					)
+			);
+		}
+	};
+
 	return [
 		{
 			id: 'edit-coverage',
@@ -169,7 +195,16 @@ function getCoverageActions(
 									'Coverages trashed.',
 									'newspack-rolling-coverage'
 								)
-							)
+							),
+							[
+								{
+									label: __(
+										'Undo',
+										'newspack-rolling-coverage'
+									),
+									onClick: () => restoreCoverages( items ),
+								},
+							]
 						);
 						onActionPerformed();
 					},
@@ -183,37 +218,7 @@ function getCoverageActions(
 			isEligible: ( coverage: Coverage ) =>
 				canManage &&
 				coverage.meta?.[ config.taxMeta.statusKey ] === 'trash',
-			callback: async ( items: Coverage[] ) => {
-				const { failed, succeeded } = await runCoverageBulk(
-					items,
-					( id ) => restoreCoverage( restNamespace, id )
-				);
-
-				if ( succeeded ) {
-					notifySuccess(
-						pluralize(
-							items.length,
-							__(
-								'Coverage restored.',
-								'newspack-rolling-coverage'
-							),
-							__(
-								'Coverages restored.',
-								'newspack-rolling-coverage'
-							)
-						)
-					);
-					onActionPerformed();
-				} else {
-					notifyError(
-						failed[ 0 ].error ||
-							__(
-								'Failed to restore coverage.',
-								'newspack-rolling-coverage'
-							)
-					);
-				}
-			},
+			callback: restoreCoverages,
 		},
 		{
 			id: 'delete-coverage',

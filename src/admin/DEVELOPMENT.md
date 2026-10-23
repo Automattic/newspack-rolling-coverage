@@ -42,6 +42,8 @@ At 782px and below, DataViews shows only the bulk actions that have an `icon`, a
 
 The header holds Settings and Add Coverage. Add Coverage and the Edit action open `CoverageDrawer` (`coverage-drawer.tsx`), a DataForm with Name, Description, Canonical URL, Status and Advertising. Status options are named after the site's status labels. Description is an internal note, which the core terms route returns only in the `edit` context; the coverages list asks for that context when the user has `canManageTerms`, as everyone who can open the drawer does. In Edit, Save stays disabled until a field changes. A successful save closes the drawer with a snackbar, "Changes saved." for an edit or "Coverage added." for a new coverage; a failed one keeps it open with the error. The drawer saves through the core terms route, served by `Coverage_REST_Controller`: core lets anyone who can assign coverages to entries (`edit_posts`) create one, since the taxonomy isn't hierarchical, so the controller also requires `manage_categories` to create. The drawer sends every field each time, so each meta key it sends must be writable by anyone who can edit a coverage. A stricter `auth_callback` on one of them fails those users' saves after the other fields are already written.
 
+The list opens without trashed coverages (Status is not Trash). While some are in the trash, the toolbar shows "Trash (N)", which switches the status filter to them; "All Coverages" switches it back. Both replace any other status filter and keep the rest of the view.
+
 Row actions live in `src/admin/actions/coverage-actions.ts`:
 
 | Action | Shown | Does |
@@ -50,8 +52,8 @@ Row actions live in `src/admin/actions/coverage-actions.ts`:
 | Entries | Always | Opens the coverage's entries. |
 | Placements | The coverage has placements | See [Placements](#placements). |
 | Slack Connection | `canManageOptions`, once Slack is configured | Opens `SlackConnectionDrawer`. |
-| Trash | `canManageTerms`, coverage not trashed | Confirms, then `POST rolling-coverage/v1/coverages/<id>/trash`. The coverage's status becomes `trash`, and its entries are hidden on the site until it is restored. |
-| Restore | `canManageTerms`, coverage trashed | `POST rolling-coverage/v1/coverages/<id>/restore`. |
+| Trash | `canManageTerms`, coverage not trashed | Confirms, then `POST rolling-coverage/v1/coverages/<id>/trash`. The coverage's status becomes `trash`, keeping the one it had in `rolling_coverage_status_before_trash`, and its entries are hidden on the site until it is restored. The "Coverage trashed." snackbar offers Undo, which restores what was just trashed as Restore does. |
+| Restore | `canManageTerms`, coverage trashed | `POST rolling-coverage/v1/coverages/<id>/restore`, which puts back the status the coverage had, so an ended coverage stays ended and keeps its end time. One with no status kept comes back Live. |
 | Delete Permanently | `canManageTerms`, coverage trashed | Confirms, then `DELETE rolling-coverage/v1/coverages/<id>`. Its entries are deleted too, apart from any already in the trash, by a cleanup cron event a minute later, in batches of 50. |
 
 The routes live in `Taxonomy` (`includes/class-taxonomy.php`).
@@ -239,6 +241,8 @@ Only messages a person writes become entries. `Slack_Ingestion_Service::should_f
 Every other subtype is skipped: bots' posts, edits, deletions, and the notices Slack posts in the channel, such as someone joining, setting the channel's description, or pinning a message. Slack adds notices over time, so a subtype missing from the list is skipped rather than published. A message with a `bot_id` is skipped whatever its subtype. The Monitor tab's line for a message this filter skips records its subtype.
 
 `SlackAdapter::shouldIngest()` in `src/admin/utils/slack-adapter.ts` keeps its own copy of the list. Change both together.
+
+A message for a coverage that has ended or is in the trash isn't saved (`Entry_Ingestion_Service::SKIP_ARCHIVED_COVERAGE` and `SKIP_TRASHED_COVERAGE`), and the Monitor tab logs which.
 
 Tests: `tests/test-slack-webhook.php`.
 

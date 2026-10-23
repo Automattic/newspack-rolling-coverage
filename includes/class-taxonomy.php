@@ -37,6 +37,9 @@ class Taxonomy {
 	const STATUS_PAUSED   = 'paused';
 	const STATUS_ARCHIVED = 'archived';
 
+	// Term meta key for the status a coverage had when it was trashed, so a restore puts it back as it was.
+	const STATUS_BEFORE_TRASH_META_KEY = 'rolling_coverage_status_before_trash';
+
 	// Term meta keys for created/modified timestamps.
 	const CREATED_AT_META_KEY  = 'created_at';
 	const MODIFIED_AT_META_KEY = 'modified_at';
@@ -422,9 +425,10 @@ class Taxonomy {
 	}
 
 	/**
-	 * Soft-delete a coverage: set status to 'trash'. Entries are left
-	 * as-is and access is restricted on the frontend via the coverage
-	 * status check in the block SSR and the entries REST endpoint.
+	 * Soft-delete a coverage: set status to 'trash', keeping the status it
+	 * had for a restore. Entries are left as-is and access is restricted on
+	 * the frontend via the coverage status check in the block SSR and the
+	 * entries REST endpoint.
 	 *
 	 * @param \WP_REST_Request $request Request object.
 	 * @return \WP_REST_Response|\WP_Error
@@ -435,6 +439,12 @@ class Taxonomy {
 
 		if ( is_wp_error( $term ) ) {
 			return $term;
+		}
+
+		// Trashing a coverage that is already in the trash keeps the status it had before.
+		$status = get_term_meta( $coverage_id, self::STATUS_META_KEY, true );
+		if ( 'trash' !== $status ) {
+			update_term_meta( $coverage_id, self::STATUS_BEFORE_TRASH_META_KEY, $status ? $status : self::STATUS_ACTIVE );
 		}
 
 		// Set coverage status to trash. Entries are not modified.
@@ -449,8 +459,10 @@ class Taxonomy {
 	}
 
 	/**
-	 * Restore a coverage from trash: set status to 'active'.
-	 * Entries remain trashed — each must be recovered individually.
+	 * Restore a coverage from trash to the status it had when it was
+	 * trashed, so an ended coverage stays ended. One with no status kept
+	 * comes back Live. Entries remain trashed — each must be recovered
+	 * individually.
 	 *
 	 * @param \WP_REST_Request $request Request object.
 	 * @return \WP_REST_Response|\WP_Error
@@ -473,7 +485,19 @@ class Taxonomy {
 			);
 		}
 
-		update_term_meta( $coverage_id, self::STATUS_META_KEY, 'active' );
+		$status = get_term_meta( $coverage_id, self::STATUS_BEFORE_TRASH_META_KEY, true );
+		if ( ! in_array( $status, [ self::STATUS_ACTIVE, self::STATUS_PAUSED, self::STATUS_ARCHIVED ], true ) ) {
+			$status = self::STATUS_ACTIVE;
+		}
+
+		// Ending a coverage snapshots its latest activity as its end time, so
+		// keep the end time it had rather than take a new one.
+		$end_time = get_term_meta( $coverage_id, self::END_TIME_META_KEY, true );
+		update_term_meta( $coverage_id, self::STATUS_META_KEY, $status );
+		if ( self::STATUS_ARCHIVED === $status && '' !== $end_time ) {
+			update_term_meta( $coverage_id, self::END_TIME_META_KEY, $end_time );
+		}
+		delete_term_meta( $coverage_id, self::STATUS_BEFORE_TRASH_META_KEY );
 
 		return new \WP_REST_Response(
 			[

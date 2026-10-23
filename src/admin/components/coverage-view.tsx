@@ -4,7 +4,7 @@
 import { useNavigate, useOutletContext } from 'react-router';
 import { useState, useCallback, useMemo } from '@wordpress/element';
 import { Button } from '@wordpress/components';
-import { __ } from '@wordpress/i18n';
+import { __, sprintf } from '@wordpress/i18n';
 import { Stack } from '@wordpress/ui';
 import type { View } from '@wordpress/dataviews';
 import { filterSortAndPaginate } from '@wordpress/dataviews/wp';
@@ -116,6 +116,66 @@ function CoverageView() {
 	const { data: filteredData, paginationInfo } = useMemo( () => {
 		return filterSortAndPaginate( records ?? [], view, fields );
 	}, [ records, view, fields ] );
+
+	// The list opens without trashed coverages, so it says how many there are
+	// and switches to them, and back.
+	const trashedCount = useMemo(
+		() =>
+			( records ?? [] ).filter(
+				( coverage ) =>
+					coverage.meta?.[ config.taxMeta.statusKey ] === 'trash'
+			).length,
+		[ records, config.taxMeta.statusKey ]
+	);
+	const isTrashView = ( view.filters ?? [] ).some(
+		( filter ) =>
+			filter.field === 'status' &&
+			filter.operator === 'is' &&
+			filter.value === 'trash'
+	);
+	const showTrash = useCallback(
+		( show: boolean ) =>
+			handleChangeView( {
+				...view,
+				filters: [
+					...( view.filters ?? [] ).filter(
+						( filter ) => filter.field !== 'status'
+					),
+					{
+						field: 'status',
+						operator: show ? 'is' : 'isNot',
+						value: 'trash',
+					},
+				],
+			} ),
+		[ view, handleChangeView ]
+	);
+	let trashToggle: JSX.Element | null = null;
+	if ( isTrashView ) {
+		trashToggle = (
+			<Button
+				variant="tertiary"
+				size="compact"
+				onClick={ () => showTrash( false ) }
+			>
+				{ __( 'All Coverages', 'newspack-rolling-coverage' ) }
+			</Button>
+		);
+	} else if ( trashedCount > 0 ) {
+		trashToggle = (
+			<Button
+				variant="tertiary"
+				size="compact"
+				onClick={ () => showTrash( true ) }
+			>
+				{ sprintf(
+					/* translators: %d: number of trashed coverages. */
+					__( 'Trash (%d)', 'newspack-rolling-coverage' ),
+					trashedCount
+				) }
+			</Button>
+		);
+	}
 
 	const handleSettingsReady = useCallback(
 		() => setIsSettingsLoading( false ),
@@ -270,6 +330,7 @@ function CoverageView() {
 					onClickItem={ ( item ) =>
 						handleNavigateToEntries( item as Coverage )
 					}
+					header={ trashToggle ?? undefined }
 				/>
 			) }
 
