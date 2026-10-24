@@ -2199,10 +2199,14 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * A coverage that has ended takes no new entries, and its drafts are not
-	 * published from Slack.
+	 * A coverage that has ended, or is in the trash, takes no new entries,
+	 * and its drafts are not published from Slack.
+	 *
+	 * @dataProvider provide_closed_coverage_statuses
+	 *
+	 * @param string $status Coverage status.
 	 */
-	public function test_reactions_change_nothing_once_the_coverage_has_ended() {
+	public function test_reactions_change_nothing_once_the_coverage_is_closed( $status ) {
 		$this->silence_error_log();
 		$coverage_id = $this->link_emoji_trigger_channel();
 		self::react_to_message( [ 'reaction' => 'memo' ] );
@@ -2210,7 +2214,7 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 			'user' => 'U0REPORTER',
 			'text' => 'Turnout was 62%.',
 		];
-		update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, Taxonomy::STATUS_ARCHIVED );
+		update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, $status );
 
 		self::react_to_message();
 		self::react_to_message(
@@ -2224,6 +2228,18 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 		);
 
 		$this->assertSame( [ 'draft' ], wp_list_pluck( self::get_coverage_entries( $coverage_id ), 'post_status' ), 'The draft should stay a draft, and no entry should be added.' );
+	}
+
+	/**
+	 * Coverage statuses that take no new entries from Slack.
+	 *
+	 * @return array
+	 */
+	public function provide_closed_coverage_statuses() {
+		return [
+			'ended'   => [ Taxonomy::STATUS_ARCHIVED ],
+			'trashed' => [ 'trash' ],
+		];
 	}
 
 	/**

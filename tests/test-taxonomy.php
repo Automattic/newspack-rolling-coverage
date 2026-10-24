@@ -143,7 +143,8 @@ class Test_Taxonomy extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Restore brings a trashed coverage back as active.
+	 * Restore brings a trashed coverage with no status kept from before the
+	 * trash back as active.
 	 */
 	public function test_restoring_a_trashed_coverage_makes_it_active() {
 		self::log_in_as( 'editor' );
@@ -153,6 +154,71 @@ class Test_Taxonomy extends Rolling_Coverage_TestCase {
 
 		$this->assertSame( 200, $response->get_status(), 'The request should succeed.' );
 		$this->assertSame( Taxonomy::STATUS_ACTIVE, get_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, true ), 'The coverage should be active again.' );
+	}
+
+	/**
+	 * Restore puts a coverage back in the status it had when it was trashed,
+	 * so trashing and restoring an ended coverage doesn't reopen it.
+	 *
+	 * @dataProvider provide_statuses_before_trash
+	 *
+	 * @param string $status Status the coverage had before it was trashed.
+	 */
+	public function test_restore_brings_a_coverage_back_in_the_status_it_had( $status ) {
+		self::log_in_as( 'editor' );
+		$coverage_id = self::create_coverage( $status );
+
+		self::dispatch( 'POST', "/coverages/{$coverage_id}/trash" );
+		$response = self::dispatch( 'POST', "/coverages/{$coverage_id}/restore" );
+
+		$this->assertSame( 200, $response->get_status(), 'The request should succeed.' );
+		$this->assertSame( $status, get_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, true ), 'The coverage should be back in its status.' );
+		$this->assertFalse( metadata_exists( 'term', $coverage_id, Taxonomy::STATUS_BEFORE_TRASH_META_KEY ), 'The kept status should be cleared.' );
+	}
+
+	/**
+	 * Statuses a coverage can have when it is trashed.
+	 *
+	 * @return array
+	 */
+	public function provide_statuses_before_trash() {
+		return [
+			'live'   => [ Taxonomy::STATUS_ACTIVE ],
+			'paused' => [ Taxonomy::STATUS_PAUSED ],
+			'ended'  => [ Taxonomy::STATUS_ARCHIVED ],
+		];
+	}
+
+	/**
+	 * Trashing a coverage that is already in the trash keeps the status it had
+	 * before the first trash.
+	 */
+	public function test_trashing_a_trashed_coverage_keeps_its_earlier_status() {
+		self::log_in_as( 'editor' );
+		$coverage_id = self::create_coverage( Taxonomy::STATUS_ARCHIVED );
+
+		self::dispatch( 'POST', "/coverages/{$coverage_id}/trash" );
+		self::dispatch( 'POST', "/coverages/{$coverage_id}/trash" );
+		self::dispatch( 'POST', "/coverages/{$coverage_id}/restore" );
+
+		$this->assertSame( Taxonomy::STATUS_ARCHIVED, get_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, true ) );
+	}
+
+	/**
+	 * An ended coverage restored from the trash keeps its end time, though
+	 * its last activity changed while it was in the trash.
+	 */
+	public function test_restoring_an_ended_coverage_keeps_its_end_time() {
+		self::log_in_as( 'editor' );
+		$coverage_id = self::create_coverage();
+		update_term_meta( $coverage_id, Rolling_Coverage_Block::LAST_MODIFIED_META_KEY, '2026-01-01 20:00:00' );
+		update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, Taxonomy::STATUS_ARCHIVED );
+
+		self::dispatch( 'POST', "/coverages/{$coverage_id}/trash" );
+		update_term_meta( $coverage_id, Rolling_Coverage_Block::LAST_MODIFIED_META_KEY, '2026-01-03 08:00:00' );
+		self::dispatch( 'POST', "/coverages/{$coverage_id}/restore" );
+
+		$this->assertSame( '2026-01-01 20:00:00', get_term_meta( $coverage_id, Taxonomy::END_TIME_META_KEY, true ) );
 	}
 
 	/**
