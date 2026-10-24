@@ -1,13 +1,10 @@
 import type { ReactNode } from 'react';
-import { HomeLayout } from 'fumadocs-ui/layouts/home';
 import { RootProvider } from 'fumadocs-ui/provider/astro';
 import type { AstroProviderProps } from 'fumadocs-core/framework/astro';
 import { navigate } from 'astro:transitions/client';
-import { GITHUB_URL, NAV_LINKS, NAV_TITLE } from './docs';
 import SearchDialog from './search';
 import { SiteFooter } from './site-footer';
-import { SiteContainer } from './site-container';
-import { SiteHeader } from './site-header';
+import { SiteLayout } from './site-layout';
 
 export const ABOUT_DESCRIPTION =
 	'Why Newspack built Rolling Coverage, a free, open-source WordPress plugin for live coverage of a developing story.';
@@ -51,12 +48,7 @@ export function About( {
 			navigate={ navigate }
 			search={ { SearchDialog } }
 		>
-			<HomeLayout
-				nav={ { title: NAV_TITLE, url: '/' } }
-				githubUrl={ GITHUB_URL }
-				links={ NAV_LINKS }
-				slots={ { header: SiteHeader, container: SiteContainer } }
-			>
+			<SiteLayout>
 				<main>
 					<article className="mx-auto w-full max-w-6xl px-4 pt-14 pb-24 md:px-6 md:pt-24 md:pb-32">
 						<div className="max-w-[46rem]">
@@ -157,7 +149,7 @@ export function About( {
 					</article>
 				</main>
 				<SiteFooter />
-			</HomeLayout>
+			</SiteLayout>
 		</RootProvider>
 	);
 }
