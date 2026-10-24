@@ -1,0 +1,133 @@
+---
+title: Make a custom layout
+description: Design a layout with the site's own blocks, save it as a pattern, and use it on any coverage.
+---
+
+By the end of this page, you will have a custom layout that appears in the **Choose a layout** window next to the built-in ones.
+
+A custom layout is a synced pattern in the **Rolling Coverage** category. Its only block is a Rolling Coverage block.
+
+## Before you start
+
+The **Rolling Coverage** category appears once someone has picked a built-in layout on any page. If it isn't there yet, pick a layout on a page first, then come back.
+
+An empty pattern in the **Rolling Coverage** category opens with a Rolling Coverage block already in place, as an editable layout with sample entries, starting from Bulletin. A pattern that already has blocks keeps them. If you remove the Rolling Coverage block, it stays removed while you edit the pattern.
+
+<Callout type="warn" title="Keep the pattern to one block">
+Don't pick a coverage inside the pattern, and don't add other blocks beside the Rolling Coverage block. The pattern then no longer counts as a layout.
+</Callout>
+
+## On a block theme
+
+<Steps>
+<Step>
+
+### Add a pattern
+
+Go to **Appearance > Editor > Patterns**. Select **Add Pattern**, then **Add Pattern** in the menu.
+
+<Screenshot label="The Site Editor Patterns view for the Rolling Coverage category, with the Add Pattern button and its menu picked out" src="/screenshots/guides/custom-layouts-1.webp" width={3024} height={1964} />
+
+</Step>
+<Step>
+
+### Name it and set the category
+
+Enter a **Name**. In **Categories**, pick **Rolling Coverage**. Leave **Synced** on. Select **Add**. The pattern opens with a Rolling Coverage block showing the Bulletin layout.
+
+<Screenshot label="The Add Pattern dialog with the name Breaking news strip, the Rolling Coverage category, and Synced on" src="/screenshots/guides/custom-layouts-2.webp" width={3024} height={1964} />
+
+</Step>
+<Step>
+
+### Design the layout
+
+Edit the layout with the block settings and the blocks inside it.
+
+</Step>
+<Step>
+
+### Save it
+
+Select **Save**. The layout is ready to use.
+
+</Step>
+</Steps>
+
+To start from a built-in layout instead, open the **Rolling Coverage** category in **Patterns**. Open a layout's **Actions** menu and select **Duplicate**. The copy keeps the category and stays synced. Rename it, then select **Duplicate**.
+
+## On a classic theme
+
+<Steps>
+<Step>
+
+### Add a pattern
+
+Open the Patterns screen and select **Add Pattern**.
+
+</Step>
+<Step>
+
+### Name it
+
+Enter a **Name**, leave **Synced** on, and select **Create**.
+
+</Step>
+<Step>
+
+### Set the category
+
+In the **Settings** sidebar, under **Pattern Categories**, add **Rolling Coverage**. The category is in the sidebar only, not in the create dialog. A Rolling Coverage block showing the Bulletin layout appears in the pattern.
+
+<Screenshot label="The pattern editor sidebar, with the Rolling Coverage category shown under Pattern Categories" src="/screenshots/guides/custom-layouts-3.webp" width={3024} height={1964} />
+
+</Step>
+<Step>
+
+### Design the layout
+
+Edit the layout with the block settings and the blocks inside it.
+
+</Step>
+<Step>
+
+### Publish it
+
+Select **Publish**.
+
+</Step>
+</Steps>
+
+## Use the layout
+
+<Steps>
+<Step>
+
+### Open the layout window
+
+On the page that shows the coverage, select the Rolling Coverage block. Select **Choose**, or **Change Layout** in the **Layout** panel.
+
+</Step>
+<Step>
+
+### Pick the custom layout
+
+The custom layouts are listed after Alert, sorted by title. Select the custom layout. If it isn't listed, reload the page's editor.
+
+<Screenshot label="The Choose a layout window, with the custom Breaking news strip layout listed after Alert" src="/screenshots/guides/custom-layouts-4.webp" width={3024} height={1964} />
+
+</Step>
+</Steps>
+
+## Things to know
+
+- Picking a built-in layout also changes some block settings, such as **Show**, **Number of entries**, and **When ended**. A custom layout changes none of them. Set them on the block.
+- A built-in layout's entries have a Share button. To remove it from a custom layout, delete the Share block inside the layout.
+- Follow Coverage isn't part of any built-in layout. To offer it, add the block to the page or to a custom layout. See the [Follow Coverage block](/docs/blocks/follow-coverage/).
+- A custom layout, including a duplicate of a built-in one, keeps its design when the plugin updates. Only built-in layouts that nobody has edited change with it.
+- New entries show a label only where the layout holds a [New Label](/docs/blocks/new-label/) block in each entry. A new layout starts from Bulletin, which has one in each entry. Keep it, or add the block to an entry that lacks it.
+- A custom layout needs a Full Story Entry to show breakout posts as cards. Duplicating a built-in layout keeps it. See [Full stories](/docs/guides/full-stories/).
+
+## Next
+
+[Edit, detach, and restore a layout](/docs/guides/edit-a-layout/) covers changing a layout after it is saved.

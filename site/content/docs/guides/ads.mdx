@@ -1,0 +1,94 @@
+---
+title: Ads between entries
+description: Show ads between entries in a feed, set how often, and turn ads off for one coverage.
+---
+
+By the end of this page, a feed will show an ad every few entries, and you will know how to keep ads off a sensitive coverage.
+
+This needs the Newspack Ads plugin. Turning on the placement needs an Administrator account. Setting up a feed needs an Editor or Administrator account.
+
+## Turn on the ad placement
+
+<Steps>
+<Step>
+
+### Open Newspack Ads
+
+In the dashboard, go to **Advertising > Display Ads** and open the **Placements** tab.
+
+</Step>
+<Step>
+
+### Enable the Rolling Coverage placement
+
+Find **Rolling Coverage: Entry**, enable it, and pick an ad unit. Existing feeds start showing ads once the placement is enabled, unless their coverage has ads turned off.
+
+<Screenshot label="The Newspack Ads Placements tab, with the Rolling Coverage: Entry placement and its Enable button picked out" src="/screenshots/guides/ads-1.webp" width={3024} height={1964} />
+
+</Step>
+</Steps>
+
+## Set ads on a feed
+
+<Steps>
+<Step>
+
+### Open the Ads panel
+
+In the editor, select the Rolling Coverage block and open the **Ads** panel. It appears only when Newspack Ads is active.
+
+</Step>
+<Step>
+
+### Turn advertising on
+
+**Advertising** is **Enabled** by default. If it was turned off, set it back to **Enabled**. This isn't available when **Show** is set to **Latest**.
+
+</Step>
+<Step>
+
+### Choose how often
+
+Set **Ads interval**. The default is 4, which shows an ad after every fourth entry. Pinned entries count.
+
+<Screenshot label="The Rolling Coverage block settings, with the Ads panel showing Advertising and Ads interval" src="/screenshots/guides/ads-2.webp" width={3024} height={1964} />
+
+</Step>
+</Steps>
+
+The panel shows a warning when the placement isn't enabled, or when ads are off for the coverage.
+
+## How many ads show
+
+Up to three ads appear in the feed: across the entries that load with the page and the older entries readers load after them. With an interval of 4, ads follow entries 4, 8, and 12. No ads appear further down.
+
+New entries that arrive while the page is open keep that spacing, with an ad after every fourth entry and no limit.
+
+Feeds that show only the latest entries have no ads.
+
+## Turn ads off for one coverage
+
+For a sensitive story, such as an emergency, keep ads off.
+
+<Steps>
+<Step>
+
+### Edit the coverage
+
+In **Rolling Coverage > All Coverages**, open the coverage's row actions and select **Edit**.
+
+</Step>
+<Step>
+
+### Disable advertising
+
+Set **Advertising** to **Disabled**, then select **Save**. Feeds for this coverage show no ads.
+
+<Screenshot label="The Edit Coverage panel, with Advertising set to Disabled" src="/screenshots/guides/ads-3.webp" width={3024} height={1964} />
+
+</Step>
+</Steps>
+
+## Next
+
+[Push notifications](/docs/guides/push-notifications/).
