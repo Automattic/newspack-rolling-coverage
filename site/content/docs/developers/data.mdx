@@ -29,7 +29,7 @@ A coverage is a term in the `rolling_coverage` taxonomy.
 | `rolling_coverage_slack_channel_id`, `rolling_coverage_slack_channel_name` | The linked Slack channel. Writing them needs `manage_options`. |
 | `rolling_coverage_source`, `rolling_coverage_source_ref` | The linked chat platform (such as `slack`) and its conversation ID. Writing them needs `manage_options`. |
 
-Internal keys the plugin maintains, which other code should only read: `rolling_coverage_newest_entry`, `rolling_coverage_change_marker` (what open pages compare to know a coverage changed), and `rolling_coverage_template_hashes`.
+Internal keys the plugin maintains, which other code should only read: `rolling_coverage_newest_entry`, `rolling_coverage_change_marker` (what open pages compare to know a coverage changed), `rolling_coverage_status_before_trash` (the status a trashed coverage goes back to when restored), and `rolling_coverage_template_hashes`.
 
 ## Entries
 
