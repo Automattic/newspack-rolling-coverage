@@ -748,8 +748,8 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 	// whose first press can't tell entries its copy left out from ones
 	// published since. So does a feed the jump to the live feed restarted:
 	// the shared view counted the entries newer than the shared entry without
-	// showing them. A pinned one it did show still arrives marked when the
-	// live page's copy predates it.
+	// showing them. An entry it did show, such as the shared entry or a
+	// pinned one, still arrives marked when the live page's copy predates it.
 	let marksArrivals = !! newSince || canEditPosts || checksOnRequest;
 
 	// Whether a poll request is in flight. At most one poll is in flight or
