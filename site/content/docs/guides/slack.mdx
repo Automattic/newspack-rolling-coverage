@@ -112,7 +112,7 @@ In every mode, the bot reacts to each message it adds: a green circle when the e
 - Replies in a message's thread become entries too.
 - In **Auto-publish** and **Draft** channels, a message that starts with the ignore prefix stays in Slack, and so do its replies. The default prefix is `~~`. Change it under **Ignore Prefix** on the **Settings** tab.
 - Slack's own notices, such as someone joining the channel, and posts by bots stay in Slack.
-- Messages posted while the coverage has ended are ignored.
+- Messages and reactions posted while the coverage has ended or is in the trash are ignored. Restoring the coverage from the trash doesn't bring them in.
 
 Editing or deleting a Slack message after it became an entry doesn't change the entry. Edit the entry on the site instead.
 

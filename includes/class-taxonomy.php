@@ -37,6 +37,9 @@ class Taxonomy {
 	const STATUS_PAUSED   = 'paused';
 	const STATUS_ARCHIVED = 'archived';
 
+	// Term meta key for the status a coverage had when it was trashed, so a restore puts it back as it was.
+	const STATUS_BEFORE_TRASH_META_KEY = 'rolling_coverage_status_before_trash';
+
 	// Term meta keys for created/modified timestamps.
 	const CREATED_AT_META_KEY  = 'created_at';
 	const MODIFIED_AT_META_KEY = 'modified_at';
@@ -422,10 +425,10 @@ class Taxonomy {
 	}
 
 	/**
-	 * Soft-delete a coverage: set status to 'trash'. Entries are left
-	 * as-is; readers lose them through the coverage status checks in the
-	 * feed, in Post_Type::filter_rest_query() and in
-	 * Post_Type::is_hidden_by_coverage().
+	 * Soft-delete a coverage: set status to 'trash', keeping the status it
+	 * had for a restore. Entries are left as-is; readers lose them through
+	 * the coverage status checks in the feed, in
+	 * Post_Type::filter_rest_query() and in Post_Type::is_hidden_by_coverage().
 	 *
 	 * @param \WP_REST_Request $request Request object.
 	 * @return \WP_REST_Response|\WP_Error
@@ -436,6 +439,12 @@ class Taxonomy {
 
 		if ( is_wp_error( $term ) ) {
 			return $term;
+		}
+
+		// Trashing a coverage that is already in the trash keeps the status it had before.
+		$status = get_term_meta( $coverage_id, self::STATUS_META_KEY, true );
+		if ( 'trash' !== $status ) {
+			update_term_meta( $coverage_id, self::STATUS_BEFORE_TRASH_META_KEY, $status ? $status : self::STATUS_ACTIVE );
 		}
 
 		// Set coverage status to trash. Entries are not modified.
@@ -450,8 +459,41 @@ class Taxonomy {
 	}
 
 	/**
-	 * Restore a coverage from trash: set status to 'active'.
-	 * Entries remain trashed — each must be recovered individually.
+	 * The status a trashed coverage goes back to: the one it had when it was
+	 * trashed, or Live when none was kept.
+	 *
+	 * @param int $coverage_id Coverage term ID.
+	 * @return string Status value.
+	 */
+	public static function status_before_trash( int $coverage_id ): string {
+		$status = get_term_meta( $coverage_id, self::STATUS_BEFORE_TRASH_META_KEY, true );
+
+		return in_array( $status, [ self::STATUS_ACTIVE, self::STATUS_PAUSED, self::STATUS_ARCHIVED ], true ) ? $status : self::STATUS_ACTIVE;
+	}
+
+	/**
+	 * Bring a trashed coverage back in the status it had when it was
+	 * trashed, so an ended coverage stays ended with its end time. Shared
+	 * by the coverage's Restore and the restore of one of its entries.
+	 *
+	 * @param int $coverage_id Coverage term ID.
+	 */
+	public static function restore_coverage( int $coverage_id ): void {
+		$status = self::status_before_trash( $coverage_id );
+
+		// Ending a coverage snapshots its latest activity as its end time, so
+		// keep the end time it had rather than take a new one.
+		$end_time = get_term_meta( $coverage_id, self::END_TIME_META_KEY, true );
+		update_term_meta( $coverage_id, self::STATUS_META_KEY, $status );
+		if ( self::STATUS_ARCHIVED === $status && '' !== $end_time ) {
+			update_term_meta( $coverage_id, self::END_TIME_META_KEY, $end_time );
+		}
+		delete_term_meta( $coverage_id, self::STATUS_BEFORE_TRASH_META_KEY );
+	}
+
+	/**
+	 * Restore a coverage from trash (see restore_coverage()). Entries remain
+	 * trashed — each must be recovered individually.
 	 *
 	 * @param \WP_REST_Request $request Request object.
 	 * @return \WP_REST_Response|\WP_Error
@@ -474,7 +516,7 @@ class Taxonomy {
 			);
 		}
 
-		update_term_meta( $coverage_id, self::STATUS_META_KEY, 'active' );
+		self::restore_coverage( $coverage_id );
 
 		return new \WP_REST_Response(
 			[
