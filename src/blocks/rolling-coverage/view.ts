@@ -3549,7 +3549,6 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 
 			if ( data ) {
 				minPollInterval = Number( data.minPollInterval ) || 0;
-				failedPolls = 0;
 				outcome = 'ok';
 				canReport = canReport && ! data.overflow;
 
@@ -3623,6 +3622,7 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 				cursor = data.cursor || cursor;
 				polledCount = data.polledCount ?? polledCount;
 				isForwardPollHealthy = true;
+				failedPolls = 0;
 
 				// Last, so its announcement isn't replaced by the entries'.
 				if ( data.status === 'archived' ) {
