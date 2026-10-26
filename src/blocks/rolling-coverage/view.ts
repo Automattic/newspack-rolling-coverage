@@ -30,6 +30,10 @@ import {
 import { isSharedReply, readSharedReply, startingAdCount } from './shared-poll';
 import { shareRequests } from './shared-requests';
 import { pollWait } from './poll-backoff';
+import {
+	allowsOverflowReload,
+	OVERFLOW_RELOAD_RETRY_MS,
+} from './overflow-reload';
 import { NewEntryMarks } from './new-entry-marks';
 import { carryArrival, openSpace, stopArrivalFade } from './entry-arrival';
 import { idsNewerThan, newIdsInReplace } from './new-entry-ids';
@@ -99,12 +103,6 @@ const SEPARATOR_PARENTS = [
 const CLOSING_SEPARATOR = SEPARATOR_PARENTS.map(
 	( parent ) => `${ parent } > .wp-block-separator:last-child`
 ).join( ', ' );
-
-// How long an overflow holds back another reload into the same cursor. The
-// reload can land on a page cache copy from before the burst, which overflows
-// again on its next poll; without the wait the reader would reload on every
-// poll until that copy expires.
-const OVERFLOW_RELOAD_RETRY_MS = 60 * 1000;
 
 // How long a page polling its cursor waits before it asks the shared URL: one
 // that left shared polling, or one rendered without it. After a quiet spell the
@@ -3294,40 +3292,19 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 	}
 
 	/**
-	 * Decides whether an overflow reloads the page now. A reload that lands on
-	 * a page cache copy from before the burst starts from the same cursor and
-	 * overflows again, so a repeat reload for that cursor waits until
-	 * OVERFLOW_RELOAD_RETRY_MS has passed. Polling carries on meanwhile.
-	 * Without session storage there's no record of the last reload, so the
-	 * page reloads only once it has been open that long: its first poll, as
-	 * it starts, would otherwise reload it again on every load.
+	 * Decides whether an overflow reloads the page now (see
+	 * allowsOverflowReload()). Polling carries on meanwhile.
 	 *
 	 * @return {boolean} True if the page should reload now.
 	 */
 	function shouldReloadForOverflow(): boolean {
-		const storageKey = `newspack-rolling-coverage-overflow-reload-${ coverageId }`;
-
-		try {
-			const lastReload = JSON.parse(
-				window.sessionStorage.getItem( storageKey ) || 'null'
-			);
-
-			if (
-				lastReload?.cursor === cursor &&
-				Date.now() - lastReload.time < OVERFLOW_RELOAD_RETRY_MS
-			) {
-				return false;
-			}
-
-			window.sessionStorage.setItem(
-				storageKey,
-				JSON.stringify( { cursor, time: Date.now() } )
-			);
-		} catch {
-			return performance.now() >= OVERFLOW_RELOAD_RETRY_MS;
-		}
-
-		return true;
+		return allowsOverflowReload(
+			() => window.sessionStorage,
+			`newspack-rolling-coverage-overflow-reload-${ coverageId }`,
+			cursor,
+			Date.now(),
+			performance.now()
+		);
 	}
 
 	/**
