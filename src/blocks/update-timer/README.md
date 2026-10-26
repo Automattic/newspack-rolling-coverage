@@ -34,7 +34,7 @@ It stays hidden while there is nothing to count down to:
 
 - The coverage is paused or has ended. If it pauses while the page is open and goes live again, the timer comes back.
 - The Rolling Coverage block holds a [Check for Updates](../check-updates/README.md) button, so it checks only when readers ask.
-- The reader has switched to another tab. When they come back, the page checks at once and the timer shows it.
+- The reader has switched to another tab. When they come back, the page checks at once and the timer shows it, unless a failed check left a wait that is still running: then the timer counts down the rest of it.
 - There is no Rolling Coverage block for its coverage on the page.
 
 It doesn't appear on Lite Site's text-only pages.
