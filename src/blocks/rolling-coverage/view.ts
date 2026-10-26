@@ -29,6 +29,7 @@ import {
 } from './entry-name';
 import { isSharedReply, readSharedReply, startingAdCount } from './shared-poll';
 import { shareRequests } from './shared-requests';
+import { pollWait } from './poll-backoff';
 import { NewEntryMarks } from './new-entry-marks';
 import { carryArrival, openSpace, stopArrivalFade } from './entry-arrival';
 import { idsNewerThan, newIdsInReplace } from './new-entry-ids';
@@ -111,6 +112,12 @@ const OVERFLOW_RELOAD_RETRY_MS = 60 * 1000;
 // page to its cursor can predate the site turning shared polling back on, as
 // can a page cache copy of the page itself.
 const SHARED_POLL_RETRY_MS = 60 * 1000;
+
+// How much of a doubled wait between failing polls this page keeps (see
+// pollWait()). Drawn once per page, so pages that failed together come back
+// at different moments, while the feeds on one page keep polling together and
+// sharing their requests.
+const POLL_BACKOFF_SPREAD = 0.5 + Math.random() / 2;
 
 // How long the jump to the live feed waits for the page before it navigates instead.
 const JUMP_TIMEOUT_MS = 8000;
@@ -748,6 +755,14 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 	// episode (healthy->failing transition) instead of one per failed interval.
 	let isForwardPollHealthy = true;
 
+	// Polls in a row that ended without a reply the page could apply, which
+	// lengthen the wait before the next (pollWait()). One whose request fails
+	// while the browser reports itself offline doesn't count.
+	let failedPolls = 0;
+
+	// When the scheduled poll is due, in milliseconds.
+	let nextPollAt = 0;
+
 	// Edits the poll delivered for entries not yet on the page, latest HTML by
 	// entry ID: entries load more hasn't brought, and new ones waiting
 	// behind the new-entries control. No later poll sends them again, and a
@@ -934,15 +949,28 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 
 	/**
 	 * Schedules the next poll, at the block's interval or the site's minimum,
-	 * whichever is longer, in place of any poll already scheduled. Schedules
-	 * none while a poll is in flight, as that poll schedules the next, or
-	 * while the page is hidden, as showing it polls at once, or once the
-	 * coverage has ended: a reopen or a later edit shows on reload.
+	 * whichever is longer, in place of any poll already scheduled. After
+	 * failed polls the wait is longer (pollWait()). Schedules none while a
+	 * poll is in flight, as that poll schedules the next, or while the page
+	 * is hidden, as showing it polls (once any wait left by failed polls is
+	 * over), or once the coverage has ended: a reopen or a later edit shows
+	 * on reload.
 	 *
+	 * @param {number} [dueAt] When the poll is due, in epoch milliseconds, for a wait already under way.
 	 * @return {void}
 	 */
-	function schedulePoll(): void {
+	function schedulePoll( dueAt?: number ): void {
 		cancelPoll();
+
+		const interval = pollWait(
+			Math.max( pollInterval, minPollInterval ) * 1000,
+			failedPolls,
+			POLL_BACKOFF_SPREAD
+		);
+
+		// Set even when no poll is scheduled, so a page whose poll failed
+		// while it was hidden still waits once it shows.
+		nextPollAt = dueAt ?? Date.now() + interval;
 
 		if (
 			checksOnRequest ||
@@ -957,11 +985,9 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 			return;
 		}
 
-		const interval = Math.max( pollInterval, minPollInterval ) * 1000;
-
-		pollTimeoutId = setTimeout( poll, interval );
+		pollTimeoutId = setTimeout( poll, nextPollAt - Date.now() );
 		reportCheck( 'waiting', {
-			nextCheckAt: Date.now() + interval,
+			nextCheckAt: nextPollAt,
 			interval,
 		} );
 	}
@@ -3598,22 +3624,37 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 				cursor = data.cursor || cursor;
 				polledCount = data.polledCount ?? polledCount;
 				isForwardPollHealthy = true;
+				failedPolls = 0;
 
 				// Last, so its announcement isn't replaced by the entries'.
 				if ( data.status === 'archived' ) {
 					showEndedNotice( data.latestBreakoutUrl );
 				}
-			} else if ( isForwardPollHealthy ) {
-				trackPollError( 'poll' );
-				isForwardPollHealthy = false;
+			} else {
+				failedPolls++;
+
+				if ( isForwardPollHealthy ) {
+					trackPollError( 'poll' );
+					isForwardPollHealthy = false;
+				}
 			}
 		} catch ( error ) {
+			// A reply that throws while it applies is a failed check too.
+			outcome = 'failed';
+
+			// When the browser reports itself offline, the reader's own connection
+			// is down, so the failure says nothing about the site's load, and
+			// slowing down would only delay the first check once it reconnects.
+			if ( navigator.onLine !== false ) {
+				failedPolls++;
+			}
+
 			if ( isForwardPollHealthy ) {
 				trackPollError( 'poll' );
 				isForwardPollHealthy = false;
 			}
 
-			// Network hiccups shouldn't break the page; the next poll interval retries.
+			// Network hiccups shouldn't break the page; the next poll retries.
 			console.error( error ); // eslint-disable-line no-console
 		} finally {
 			isPolling = false;
@@ -4128,12 +4169,19 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 	}
 
 	// Resume polling when the user returns to the tab; cancel when they leave.
+	// A feed whose polls are failing waits out the rest of its wait instead of
+	// polling at once, so readers returning to a site that can't answer don't
+	// add to its load.
 	const onVisibilityChange = () => {
 		if ( document.hidden ) {
 			cancelPoll();
 			reportCheck( 'idle' );
 		} else if ( cursor && status === 'active' && ! checksOnRequest ) {
-			poll();
+			if ( failedPolls > 0 && nextPollAt > Date.now() ) {
+				schedulePoll( nextPollAt );
+			} else {
+				poll();
+			}
 		}
 	};
 	document.addEventListener( 'visibilitychange', onVisibilityChange );
@@ -4154,7 +4202,8 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 	);
 
 	// Resume polling after a BFCache restore, with the control ready again if
-	// the page was left during a jump.
+	// the page was left during a jump. A feed whose polls are failing keeps the
+	// wait it had, as it does when its tab shows again.
 	on( window, 'pageshow', ( event ) => {
 		if ( ! event.persisted ) {
 			return;
@@ -4163,7 +4212,7 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 		setJumping( false );
 
 		if ( cursor && status === 'active' ) {
-			schedulePoll();
+			schedulePoll( failedPolls > 0 ? nextPollAt : undefined );
 		}
 	} );
 

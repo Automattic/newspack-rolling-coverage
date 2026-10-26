@@ -125,7 +125,7 @@ Alignment, the HTML anchor, and the other usual block settings work as they do f
 
 ### Live updates
 
-The page checks for new entries every poll interval. It stops while the tab is in the background and checks again when the reader returns.
+The page checks for new entries every poll interval. It stops while the tab is in the background and checks again when the reader returns. When checks fail, as when the site is under heavy load, the page waits longer before each new try, up to 5 minutes, even when the reader returns to the tab, and goes back to the poll interval as soon as a check works. A check made while the reader's device has no network connection doesn't add to the wait.
 
 - A reader at the top of the feed sees new entries at once.
 - A reader who has scrolled down sees a button such as "3 new entries" instead. The page doesn't move. Selecting the button scrolls the page to the new entries, past any pinned entries above them, and brings them in. Readers whose device is set to reduce motion go straight there.

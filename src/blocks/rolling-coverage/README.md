@@ -116,7 +116,7 @@ Alignment and the HTML anchor are in the block toolbar and the Advanced section 
 
 ### Live updates
 
-The page checks for new entries every poll interval. It stops while the tab is in the background and checks again when the reader returns.
+The page checks for new entries every poll interval. It stops while the tab is in the background and checks again when the reader returns. When checks fail, as when the site is under heavy load, the page waits longer before each new try, up to 5 minutes, even when the reader returns to the tab, and goes back to the poll interval as soon as a check works. A check made while the reader's device has no network connection doesn't add to the wait.
 
 - If the reader is at the top, new entries appear at once.
 - If the reader has scrolled down, the page does not move. A button shows the count (for example "3 new entries"). Selecting it scrolls the page to the new entries, past any pinned entries above them, with the newest at the top of the screen, just below the site's header when the header stays in view, and they come in once the page gets there. Readers whose device is set to reduce motion go straight there instead. Edited entries update in place, and new entries waiting behind the button come in with their latest edits.
