@@ -3637,6 +3637,9 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 				}
 			}
 		} catch ( error ) {
+			// A reply that throws while it applies is a failed check too.
+			outcome = 'failed';
+
 			// A browser that reports itself offline never reached the site, so
 			// slowing down would only delay its first check once it reconnects.
 			if ( navigator.onLine !== false ) {
