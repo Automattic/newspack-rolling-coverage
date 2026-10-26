@@ -1,4 +1,4 @@
 module.exports = {
 	extends: [ './node_modules/newspack-scripts/.eslintrc.js' ],
-	ignorePatterns: [ 'dist/', 'node_modules/' ],
+	ignorePatterns: [ 'dist/', 'node_modules/', 'site/' ],
 };

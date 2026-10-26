@@ -1,0 +1,180 @@
+---
+title: Post from Slack
+description: Connect a Slack workspace and channel so messages become entries, and choose how they publish.
+---
+
+By the end of this page, a Slack channel will be connected to a coverage, and messages posted there will become entries.
+
+Connecting the workspace needs an Administrator account, and so does linking a channel from the dashboard. In Slack, anyone in a channel can connect it with the `/rolling-coverage-connect` command.
+
+## Connect the Slack workspace
+
+You do this once for the whole site.
+
+<Steps>
+<Step>
+
+### Open Slack Connection
+
+In the dashboard, go to **Rolling Coverage > Slack Connection**. The **Connect to Slack** page opens.
+
+<Screenshot label="The Slack Connection page, showing the Connect to Slack steps before a workspace is connected" src="/screenshots/guides/slack-1.webp" width={3024} height={1964} />
+
+</Step>
+<Step>
+
+### Copy the manifest
+
+Select **Copy Manifest**. The button reads "Copied!" once the manifest is on the clipboard.
+
+</Step>
+<Step>
+
+### Create the app in Slack
+
+Open api.slack.com/apps and create a new app from a manifest. Paste the manifest when Slack asks for one.
+
+</Step>
+<Step>
+
+### Install the app
+
+Install the new app to the Slack workspace.
+
+</Step>
+<Step>
+
+### Add the credentials
+
+In Slack, copy the **Bot User OAuth Token** from **OAuth & Permissions**. Copy the **Signing Secret** from **Basic Information**. Paste both into the fields on the Slack Connection page.
+
+<Screenshot label="The Slack Connection page, with the Bot User OAuth Token and Signing Secret fields picked out" src="/screenshots/guides/slack-2.webp" width={3024} height={1964} />
+
+</Step>
+<Step>
+
+### Verify
+
+Select **Verify & Connect**. The page shows the workspace as connected, and the site adds a Slack bot user that authors entries from Slack.
+
+</Step>
+</Steps>
+
+## Connect a channel
+
+<Steps>
+<Step>
+
+### Invite the bot
+
+In Slack, invite the bot to the channel with `/invite @Rolling Coverage`.
+
+</Step>
+<Step>
+
+### Link the channel to a coverage
+
+In **Rolling Coverage > All Coverages**, open the coverage's row actions and select **Slack Connection**. On the coverage's entries screen, the **Connect Slack** button does the same.
+
+Enter the **Channel**, as a name such as #general or a channel ID. Choose a **Publish Mode**. Select **Connect**.
+
+<Screenshot label="The Slack Connection panel for a coverage, with the Channel field and the Publish Mode choices" src="/screenshots/guides/slack-3.webp" width={3024} height={1964} />
+
+</Step>
+</Steps>
+
+You can also run `/rolling-coverage-connect` in the Slack channel and pick the coverage. Channels connected that way start in **Draft** mode.
+
+A channel connects to one coverage, and a coverage to one channel. `/rolling-coverage-status` shows a channel's connection, and `/rolling-coverage-unlink` removes it.
+
+To see every linked channel, open the **Channel Mappings** tab on the Slack Connection page. To unlink one, select **Disconnect**.
+
+## Choose a publish mode
+
+Each channel has a **Publish Mode**. Change it in the same panel, or on the **Channel Mappings** tab.
+
+| Mode | What happens to a message |
+| --- | --- |
+| **Auto-publish** | It publishes right away. |
+| **Draft** | It arrives as a draft for an editor to review. |
+| **Emoji trigger** | It becomes an entry only when someone reacts to it. |
+
+In **Emoji trigger** channels, the :mega: reaction publishes the message and :memo: saves it as a draft. Adding :mega: to a message already saved as a draft publishes it. Reactions on thread replies work too.
+
+Change the two emoji under **Publish Emoji** and **Draft Emoji** on the **Settings** tab.
+
+In every mode, the bot reacts to each message it adds: a green circle when the entry is published, a yellow circle when it is a draft. The reaction shows what happened at that moment. Later changes on the site don't update it.
+
+## Which messages become entries
+
+- Text keeps its formatting, links, emoji, and mentions.
+- Images go to the media library, with their Slack description as the alt text. Several images in one message become a gallery.
+- Replies in a message's thread become entries too.
+- In **Auto-publish** and **Draft** channels, a message that starts with the ignore prefix stays in Slack, and so do its replies. The default prefix is `~~`. Change it under **Ignore Prefix** on the **Settings** tab.
+- Slack's own notices, such as someone joining the channel, and posts by bots stay in Slack.
+- Messages posted while the coverage has ended are ignored.
+
+Editing or deleting a Slack message after it became an entry doesn't change the entry. Edit the entry on the site instead.
+
+If a message doesn't show up, open the **Monitor** tab. It lists incoming messages and what happened to each.
+
+## Add titles and headings
+
+Reporters can give an entry a title, and a long update some structure, by starting lines with `#` as in Markdown. This is off until the site picks a level.
+
+<Steps>
+<Step>
+
+### Open the Settings tab
+
+On the Slack Connection page, open the **Settings** tab. Find **Highest Heading** under **Formatting**.
+
+<Screenshot label="The Slack Connection Settings tab, with the Highest Heading field picked out under Formatting" src="/screenshots/guides/slack-4.webp" width={3024} height={1964} />
+
+</Step>
+<Step>
+
+### Pick a level
+
+Choose a level from **Heading 2** to **Heading 6**. Most layouts show entry titles as Heading 4, so **Heading 5** keeps headings below the titles. Select **Save**.
+
+</Step>
+</Steps>
+
+With a level chosen:
+
+- A first line that starts with `#`, `##`, or `###` and a space becomes the entry's title. If another heading in the message is at the same level or higher, it stays a heading instead.
+- Other lines that start that way become headings. The highest one takes the chosen level, and the rest follow below it.
+- Lines that only look like headings stay as text, such as `#1` or a channel name like `#newsroom`.
+
+Stream, Minute, and Flash show no titles of their own, but they show a title that came from Slack. Changing the setting doesn't change entries already posted.
+
+## Credit entries to reporters
+
+Entries from Slack are credited to the Slack bot unless the person who posted them is linked to a WordPress user. Entries credited to the bot show no name or picture in feeds.
+
+<Steps>
+<Step>
+
+### Find the reporter's Slack member ID
+
+In Slack, open the reporter's profile and select **More > Copy member ID**. A member ID is safer than a handle: it never changes, and nobody else can take it by renaming themselves.
+
+</Step>
+<Step>
+
+### Add it to their profile
+
+In the dashboard, open the reporter's user profile. In the **Rolling Coverage** section, paste the ID into **Slack handle**, then update the profile.
+
+<Screenshot label="A user profile, with the Slack handle field in the Rolling Coverage section picked out" src="/screenshots/guides/slack-5.webp" width={3024} height={1964} />
+
+</Step>
+</Steps>
+
+Only users who can write entries have this field. Two users can't share the same value.
+
+## Next
+
+- [Pinned entries](/docs/guides/pinned-entries/)
+- [Push notifications](/docs/guides/push-notifications/) covers how Slack entries notify followers.

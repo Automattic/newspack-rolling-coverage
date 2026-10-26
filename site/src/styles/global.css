@@ -1,0 +1,184 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/inter';
+@import 'fumadocs-ui/css/neutral.css';
+@import 'fumadocs-ui/css/preset.css';
+
+@font-face {
+	font-family: 'Inter Fallback';
+	src: local('Arial'), local('ArialMT'), local('Liberation Sans');
+	size-adjust: 108.19%;
+	ascent-override: 89.55%;
+	descent-override: 22.3%;
+	line-gap-override: 0%;
+}
+
+@theme {
+	--font-sans: 'Inter Variable', 'Inter Fallback', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+	--ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
+	--color-newspack-300: #6086c7;
+	--color-newspack-600: #003da5;
+}
+
+:root {
+	--color-fd-background: hsl(0, 0%, 99.5%);
+	--color-fd-primary: #003da5;
+	--color-fd-primary-foreground: hsl(0, 0%, 98%);
+	--color-fd-ring: #003da5;
+}
+
+.dark {
+	--color-fd-background: hsl(0, 0%, 7.04%);
+	--color-fd-primary: #8fb0ff;
+	--color-fd-primary-foreground: hsl(0, 0%, 9%);
+	--color-fd-ring: #8fb0ff;
+}
+
+:root {
+	--background: var(--color-fd-background);
+	--foreground: var(--color-fd-foreground);
+	--card: var(--color-fd-card);
+	--card-foreground: var(--color-fd-card-foreground);
+	--popover: var(--color-fd-popover);
+	--popover-foreground: var(--color-fd-popover-foreground);
+	--primary: var(--color-fd-primary);
+	--primary-foreground: var(--color-fd-primary-foreground);
+	--secondary: var(--color-fd-secondary);
+	--secondary-foreground: var(--color-fd-secondary-foreground);
+	--muted: var(--color-fd-muted);
+	--muted-foreground: var(--color-fd-muted-foreground);
+	--accent: var(--color-fd-accent);
+	--accent-foreground: var(--color-fd-accent-foreground);
+	--destructive: oklch(0.577 0.245 27.325);
+	--border: var(--color-fd-border);
+	--input: var(--color-fd-border);
+	--ring: var(--color-fd-ring);
+}
+
+.dark {
+	--destructive: oklch(0.704 0.191 22.216);
+}
+
+:root {
+	--animate-fd-fade-in: fd-fade-in 200ms ease;
+	--animate-fd-fade-out: fd-fade-out 200ms ease;
+	--animate-fd-dialog-in: fd-dialog-in 200ms cubic-bezier(0.16, 1, 0.3, 1);
+	--animate-fd-dialog-out: fd-dialog-out 200ms cubic-bezier(0.16, 1, 0.3, 1);
+	--animate-fd-sidebar-in: fd-sidebar-in 250ms cubic-bezier(0.32, 0.72, 0, 1);
+	--animate-fd-sidebar-out: fd-sidebar-out 250ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	:root {
+		--animate-fd-dialog-in: fd-fade-in 150ms ease;
+		--animate-fd-dialog-out: fd-fade-out 150ms ease;
+		--animate-fd-popover-in: fd-fade-in 100ms ease;
+		--animate-fd-popover-out: fd-fade-out 100ms ease;
+		--animate-fd-sidebar-in: fd-fade-in 150ms ease;
+		--animate-fd-sidebar-out: fd-fade-out 150ms ease;
+		--animate-fd-nav-menu-in: fd-fade-in 150ms ease;
+		--animate-fd-nav-menu-out: fd-fade-out 150ms ease;
+		--animate-fd-enterFromLeft: fd-fade-in 150ms ease;
+		--animate-fd-enterFromRight: fd-fade-in 150ms ease;
+		--animate-fd-exitToLeft: fd-fade-out 150ms ease;
+		--animate-fd-exitToRight: fd-fade-out 150ms ease;
+	}
+}
+
+@keyframes rc-on-air {
+	from {
+		opacity: 0.15;
+	}
+}
+
+@keyframes rc-on-air-replay {
+	from {
+		opacity: 0.15;
+	}
+}
+
+.rc-intro .rc-live-icon--on-air path {
+	animation: rc-on-air 420ms var(--ease-out-strong) 250ms both;
+}
+
+.rc-intro .rc-live-icon--on-air path:nth-child(2) {
+	animation-delay: 360ms;
+}
+
+.rc-intro .rc-live-icon--on-air path:nth-child(3) {
+	animation-delay: 470ms;
+}
+
+.rc-live-icon--replay path {
+	animation: rc-on-air-replay 300ms var(--ease-out-strong) both;
+}
+
+.rc-live-icon--replay path:nth-child(2) {
+	animation-delay: 60ms;
+}
+
+.rc-live-icon--replay path:nth-child(3) {
+	animation-delay: 120ms;
+}
+
+@keyframes rc-arrive-tint {
+	from {
+		background-color: color-mix(in oklab, var(--color-fd-primary) 12%, transparent);
+	}
+}
+
+.rc-arrived {
+	animation: rc-arrive-tint 1800ms ease 300ms both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.rc-live-icon--on-air path,
+	.rc-arrived {
+		animation: none !important;
+	}
+}
+
+.prose {
+	--tw-prose-links: var(--color-fd-primary);
+}
+
+#nd-subnav {
+	grid-column: 1 / -1;
+	contain: inline-size;
+}
+
+html:not([data-astro-transition]) body {
+	view-transition-name: none !important;
+}
+
+#nd-subnav[data-transparent='false'] {
+	background-color: color-mix(in oklab, var(--color-fd-background) 70%, transparent);
+	backdrop-filter: blur(12px) saturate(1.5);
+}
+
+#nd-page > *,
+#nd-page > astro-slot > * {
+	width: 100%;
+	max-width: 46rem;
+	margin-inline: auto;
+}
+
+@theme inline {
+	--color-ring: var(--ring);
+	--color-input: var(--input);
+	--color-border: var(--border);
+	--color-destructive: var(--destructive);
+	--color-accent-foreground: var(--accent-foreground);
+	--color-accent: var(--accent);
+	--color-muted-foreground: var(--muted-foreground);
+	--color-muted: var(--muted);
+	--color-secondary-foreground: var(--secondary-foreground);
+	--color-secondary: var(--secondary);
+	--color-primary-foreground: var(--primary-foreground);
+	--color-primary: var(--primary);
+	--color-popover-foreground: var(--popover-foreground);
+	--color-popover: var(--popover);
+	--color-card-foreground: var(--card-foreground);
+	--color-card: var(--card);
+	--color-foreground: var(--foreground);
+	--color-background: var(--background);
+}

@@ -89,6 +89,7 @@ When the OneSignal plugin is installed, configured, and v3-active, readers can f
 - **Share links.** The Share block shares the entry's permalink with `?rc_source={host_post_id}`, the page it was shared from. The entry page serves its own Open Graph tags to social crawlers, which don't run JavaScript, and a script sends visitors on to the host page.
 - **Plain permalinks.** When the entry's coverage has a canonical URL, a request for the entry's permalink without `rc_source` is redirected (302 by default) to that URL, for crawlers and visitors alike. Without a canonical URL, the entry page renders.
 - Both destinations carry `?rolling-coverage-entry={slug}` and the `#newspack-rolling-coverage-entry-{id}` anchor, so the feed opens at the entry.
+- **Entries hidden by their coverage.** When none of an entry's coverages exists outside the trash, its permalink answers with a 404 for every visitor, before either redirect. Front-end listings of entries, such as `?post_type=rolling_cov_entry` and its feed, leave it out, and so do oEmbed and Yoast SEO's head route (`Post_Type::is_hidden_by_coverage()`, `Post_Type::hide_entries_from_main_query()`).
 
 See [Share and Read more](../src/blocks/rolling-coverage/DEVELOPMENT.md#share-and-read-more).
 
@@ -250,7 +251,7 @@ Namespace: **`rolling-coverage/v1`** (constant `NEWSPACK_ROLLING_COVERAGE_REST_N
 | POST | `/slack/commands` | Slack signature | Slash commands. |
 | POST | `/slack/interactions` | Slack signature | Interactive components. |
 
-Core WordPress routes are also used: `/wp/v2/rolling-coverage` (coverages) and `/wp/v2/rolling-coverage-entries` (entries, including trash/force delete). Creating a coverage through the coverages route needs `manage_categories` (`Coverage_REST_Controller`), while assigning an entry to one needs only `edit_posts`. Outside edit context, the entries route leaves out entries whose coverage is trashed or deleted, on top of the request's own `rolling-coverage`, `categories` and `tags` filters (`Post_Type::filter_rest_query()`). The plugin adds these read-only fields to their responses:
+Core WordPress routes are also used: `/wp/v2/rolling-coverage` (coverages) and `/wp/v2/rolling-coverage-entries` (entries, including trash/force delete). Creating a coverage through the coverages route needs `manage_categories` (`Coverage_REST_Controller`), while assigning an entry to one needs only `edit_posts`. Outside edit context, the entries route leaves out entries whose coverage is trashed or deleted, on top of the request's own `rolling-coverage`, `categories` and `tags` filters (`Post_Type::filter_rest_query()`), and answers a request for one of them with a 404 (`Post_Type::hide_entry_rest_record()`). The plugin adds these read-only fields to their responses:
 
 | Route | Field | Context | Value |
 | :--- | :--- | :--- | :--- |

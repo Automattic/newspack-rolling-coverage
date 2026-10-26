@@ -1,0 +1,54 @@
+---
+title: New Label block
+description: Mark an entry that arrives while the reader has the page open, until they've seen it.
+---
+
+The New Label block marks an entry that arrives while the reader has the page open. The label shows on that entry until the reader has seen it, then fades away. Entries already on the page when it loads, older entries that load later, and entries published again never show it.
+
+## Where to use it
+
+It goes inside an entry in a Rolling Coverage layout: the Pinned Entry, the Entry, or the Full Story Entry. Every built-in layout except Alert holds one in each. The inserter offers it only inside a Rolling Coverage block, and among the blocks above or below the entries it shows nothing.
+
+When the label fades away, nothing else in the entry should jump:
+
+- On a line of its own, put it directly in a Stack.
+- Sharing a line with other blocks in a Row, make it the last block on that line.
+
+## Add the block
+
+You only add it to a layout that doesn't have one, or after you removed it. [Edit the layout](/docs/guides/edit-a-layout/), select the entry, add a block, and search for "New Label".
+
+<Screenshot label="The layout editor with the New Label block selected inside an entry" src="/screenshots/blocks/new-label-1.webp" width={3024} height={1964} />
+
+## Settings
+
+Type the label's text in place on the canvas. Left empty, it reads "New", in the site's language.
+
+The **Settings** panel holds one setting.
+
+| Setting | What it does |
+| --- | --- |
+| **Visually hidden** | Makes the label for screen readers only. Readers see a new entry arrive with no label. Minute has it on. Screen readers still announce new entries as new. |
+
+<Screenshot label="The New Label block settings, Settings panel, with Visually hidden picked out" src="/screenshots/blocks/new-label-2.webp" width={3024} height={1964} />
+
+In the **Styles** tab, the **Color** and **Typography** settings change the text color, size, font, appearance, line height, letter spacing, letter case, and alignment, like any text block. The built-in layouts show the label in the accent color, small and bold, in the theme's heading font. Flash shows it in the bar's text color.
+
+## Entries without a label
+
+An entry whose layout holds no New Label shows no mark, and screen readers still announce it as new. In an edited built-in layout, [restore the layout](/docs/guides/edit-a-layout/#restore-a-built-in-layout) to get the label back, or add the block yourself. In a custom layout, add the block to each entry that should show it.
+
+## In the editor
+
+The label shows only on the sample entry that previews the newest entry, as only new entries show it on the site. A visually hidden label doesn't show on the canvas. Select it in List View.
+
+## What readers see
+
+- An entry published while the page is open shows the label until the reader has seen it. Four seconds after the reader first sees it, the label fades away. Switching to another tab before then restarts the wait.
+- A label on a line of its own closes as it fades, and moves up what sits below it.
+- It covers new entries that the new entries button brings in. In a feed opened at a shared entry, it also covers the newer entries that "Jump to latest" brings in.
+- An edit keeps the label on an entry that has it.
+- Readers whose device is set to reduce motion still see the label fade away. A label on a line of its own closes at once.
+- The label never shows in RSS feeds or on [Lite Site](/docs/guides/lite-site/) pages.
+
+<Screenshot label="A page with a New label beside an entry that arrived while the page was open" src="/screenshots/blocks/new-label-3.webp" width={3024} height={1964} />
