@@ -4205,20 +4205,33 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 		}
 	}
 
+	/**
+	 * Polls again for a page coming back into view, from a background tab or
+	 * the back/forward cache, which has been away for however long. A feed
+	 * whose polls are failing waits out the rest of its wait instead, so
+	 * readers returning to a site that can't answer don't add to its load.
+	 *
+	 * @return {void}
+	 */
+	function resumePolling(): void {
+		if ( ! cursor || status !== 'active' || checksOnRequest ) {
+			return;
+		}
+
+		if ( failedPolls > 0 && nextPollAt > Date.now() ) {
+			schedulePoll( nextPollAt );
+		} else {
+			poll();
+		}
+	}
+
 	// Resume polling when the user returns to the tab; cancel when they leave.
-	// A feed whose polls are failing waits out the rest of its wait instead of
-	// polling at once, so readers returning to a site that can't answer don't
-	// add to its load.
 	const onVisibilityChange = () => {
 		if ( document.hidden ) {
 			cancelPoll();
 			reportCheck( 'idle' );
-		} else if ( cursor && status === 'active' && ! checksOnRequest ) {
-			if ( failedPolls > 0 && nextPollAt > Date.now() ) {
-				schedulePoll( nextPollAt );
-			} else {
-				poll();
-			}
+		} else {
+			resumePolling();
 		}
 	};
 	document.addEventListener( 'visibilitychange', onVisibilityChange );
@@ -4238,27 +4251,18 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 		{ once: true }
 	);
 
-	// Check again after a BFCache restore, as when the tab shows, since the
-	// page has been away for however long, with the control ready again if it
-	// was left during a jump. A feed whose polls are failing keeps the wait it
-	// had instead, as it does when its tab shows again. Where the restore also
-	// shows the tab, this and the visibilitychange handler send one poll
-	// between them, in either order: poll() skips while the tab is hidden or a
-	// poll is in flight.
+	// Resume polling after a BFCache restore, with the control ready again if
+	// the page was left during a jump. Where the restore also shows the tab,
+	// this and the visibilitychange handler send one poll between them, in
+	// either order: poll() skips while the tab is hidden or a poll is in
+	// flight.
 	on( window, 'pageshow', ( event ) => {
 		if ( ! event.persisted ) {
 			return;
 		}
 
 		setJumping( false );
-
-		if ( cursor && status === 'active' && ! checksOnRequest ) {
-			if ( failedPolls > 0 && nextPollAt > Date.now() ) {
-				schedulePoll( nextPollAt );
-			} else {
-				poll();
-			}
-		}
+		resumePolling();
 	} );
 
 	// The top of the bars the sticky cards were last fitted below.
