@@ -68,7 +68,7 @@ The timer stays hidden while there is nothing to count down to:
 
 The seconds count down once a second, and the ring fills steadily over the same wait. Readers whose device is set to reduce motion see the ring fill, but while the check runs it shows full and still. When the check ends, the timer shows what it found, then starts again.
 
-After a failed check, the page waits longer before it tries again, up to 5 minutes, and the timer counts down that longer wait.
+After a failed check, the page waits longer before it tries again, up to 5 minutes, and the timer counts down that longer wait. A check that fails because the reader is offline doesn't add to the wait.
 
 Screen readers don't hear the countdown or the ring. The Rolling Coverage block already announces new entries.
 

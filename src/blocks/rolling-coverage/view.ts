@@ -755,10 +755,12 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 	// episode (healthy->failing transition) instead of one per failed interval.
 	let isForwardPollHealthy = true;
 
-	// Polls in a row that ended without a reply the page could apply, apart
-	// from those sent while offline, which lengthen the wait before the next
-	// (pollWait()), and when the scheduled poll is due, in milliseconds.
+	// Polls in a row that ended without a reply the page could apply, which
+	// lengthen the wait before the next (pollWait()). One whose request fails
+	// while the browser reports itself offline doesn't count.
 	let failedPolls = 0;
+
+	// When the scheduled poll is due, in milliseconds.
 	let nextPollAt = 0;
 
 	// Edits the poll delivered for entries not yet on the page, latest HTML by
@@ -3640,8 +3642,9 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 			// A reply that throws while it applies is a failed check too.
 			outcome = 'failed';
 
-			// A browser that reports itself offline never reached the site, so
-			// slowing down would only delay its first check once it reconnects.
+			// When the browser reports itself offline, the reader's own connection
+			// is down, so the failure says nothing about the site's load, and
+			// slowing down would only delay the first check once it reconnects.
 			if ( navigator.onLine !== false ) {
 				failedPolls++;
 			}
@@ -3651,7 +3654,7 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 				isForwardPollHealthy = false;
 			}
 
-			// Network hiccups shouldn't break the page; the next poll interval retries.
+			// Network hiccups shouldn't break the page; the next poll retries.
 			console.error( error ); // eslint-disable-line no-console
 		} finally {
 			isPolling = false;
