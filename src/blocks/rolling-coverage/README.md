@@ -116,7 +116,7 @@ Alignment and the HTML anchor are in the block toolbar and the Advanced section 
 
 ### Live updates
 
-The page checks for new entries as soon as it opens, then every poll interval. The site's cache can hand a reader a copy of the page saved a few minutes earlier, and that first check brings it up to date. For people who can edit posts, the page is never a saved copy, so it waits one interval before its first check. It stops while the tab is in the background and checks again when the reader returns, to the tab or with the browser's Back button.
+The page checks for new entries as soon as it opens, then every poll interval. The site's cache can hand a reader a copy of the page saved a few minutes earlier, and that first check usually brings it up to date. On a page few readers have open, the check can find nothing newer than the page, and the page catches up at the next check instead. For people who can edit posts, the page is never a saved copy, so it waits one interval before its first check. It stops while the tab is in the background and checks again when the reader returns, to the tab or with the browser's Back button.
 
 - If the reader is at the top, new entries appear at once.
 - If the reader has scrolled down, the page does not move. A button shows the count (for example "3 new entries"). Selecting it scrolls the page to the new entries, past any pinned entries above them, with the newest at the top of the screen, just below the site's header when the header stays in view, and they come in once the page gets there. Readers whose device is set to reduce motion go straight there instead. Edited entries update in place, and new entries waiting behind the button come in with their latest edits.

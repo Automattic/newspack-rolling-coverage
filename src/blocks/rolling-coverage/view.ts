@@ -738,13 +738,16 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 	// poll a feed makes as it starts, or as it first shows when opened in a
 	// background tab: they are entries the page's copy left out, such as a
 	// cached copy older than they are, which a fresh render shows unmarked.
-	// That holds until a poll succeeds. A feed that doesn't poll as it starts
-	// marks from its first poll: an editor's page, which no cache serves, so
-	// its polls bring only entries published while it was open, and a feed
-	// that checks only on request, whose first press can't tell entries its
-	// copy left out from ones published since. So does a feed the jump to the
-	// live feed restarted, as its entries are newer than anything the reader
-	// saw in the shared view.
+	// That holds until a poll succeeds, including one the CDN answers with an
+	// expired reply as old as the page, as it can after a quiet spell: that
+	// poll brings nothing, and the next one marks what the copy left out.
+	//
+	// A feed that doesn't poll as it starts marks from its first poll: an
+	// editor's page, which no cache serves, so its polls bring only entries
+	// published while it was open, and a feed that checks only on request,
+	// whose first press can't tell entries its copy left out from ones
+	// published since. So does a feed the jump to the live feed restarted, as
+	// its entries are newer than anything the reader saw in the shared view.
 	let marksArrivals = !! newSince || canEditPosts || checksOnRequest;
 
 	// Whether a poll request is in flight. At most one poll is in flight or
@@ -4145,10 +4148,10 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 		} );
 	}
 
-	// A page cache or the CDN can serve a copy of the page minutes older than
-	// the coverage, so the feed checks as soon as it starts rather than a poll
-	// interval in. An editor's page skips both caches, so it waits the
-	// interval, and a page opened in a background tab checks once it shows.
+	// A page cache or the CDN can serve a copy of the page minutes behind the
+	// coverage, so the feed checks as soon as it starts. An editor's page
+	// skips both caches, so it waits the interval, and a page opened in a
+	// background tab checks once it shows.
 	if ( cursor && status === 'active' ) {
 		if ( canEditPosts || checksOnRequest || document.hidden ) {
 			schedulePoll();
@@ -4185,8 +4188,9 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 
 	// Check again after a BFCache restore, as when the tab shows, since the
 	// page has been away for however long, with the control ready again if it
-	// was left during a jump. Where the restore also shows the tab, its check
-	// is already in flight and this one does nothing.
+	// was left during a jump. Where the restore also shows the tab, this and
+	// the visibilitychange handler send one poll between them, in either
+	// order: poll() skips while the tab is hidden or a poll is in flight.
 	on( window, 'pageshow', ( event ) => {
 		if ( ! event.persisted ) {
 			return;
