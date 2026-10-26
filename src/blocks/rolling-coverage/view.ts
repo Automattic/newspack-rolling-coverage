@@ -755,9 +755,9 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 	// episode (healthy->failing transition) instead of one per failed interval.
 	let isForwardPollHealthy = true;
 
-	// Polls in a row that ended without a reply the page could apply, which
-	// lengthen the wait before the next (pollWait()), and when the scheduled
-	// poll is due, in milliseconds.
+	// Polls in a row that ended without a reply the page could apply, apart
+	// from those sent while offline, which lengthen the wait before the next
+	// (pollWait()), and when the scheduled poll is due, in milliseconds.
 	let failedPolls = 0;
 	let nextPollAt = 0;
 
