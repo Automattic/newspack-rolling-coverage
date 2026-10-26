@@ -1711,10 +1711,8 @@ class Slack_Webhook_Controller {
 	}
 
 	/**
-	 * Build an ephemeral Slack command response, with a line under the
-	 * message naming the site that answered. Another site's app installed
-	 * later in the workspace takes over commands that share its names (see
-	 * handle_command()), and its replies would otherwise read as this site's.
+	 * Build an ephemeral Slack command response, naming the site that
+	 * answered (see site_blocks()).
 	 *
 	 * @param string $text Message text.
 	 * @return \WP_REST_Response Response.
@@ -1724,31 +1722,46 @@ class Slack_Webhook_Controller {
 			[
 				'response_type' => 'ephemeral',
 				'text'          => $text,
-				'blocks'        => [
-					[
-						'type' => 'section',
-						'text' => [
-							'type' => 'mrkdwn',
-							'text' => $text,
-						],
-					],
-					[
-						'type'     => 'context',
-						'elements' => [
-							[
-								'type' => 'plain_text',
-								'text' => sprintf(
-									/* translators: %s: the site's name and address, such as "Example News (example.com)". */
-									__( 'From %s', 'newspack-rolling-coverage' ),
-									self::site_label()
-								),
-							],
-						],
-					],
-				],
+				'blocks'        => self::site_blocks( $text ),
 			],
 			200
 		);
+	}
+
+	/**
+	 * Blocks for a Slack message that names the site it came from: the text,
+	 * then a line such as "From Example News (example.com)". Another site's
+	 * app installed later in the workspace takes over commands that share its
+	 * names (see handle_command()), so command replies and the channel's
+	 * connect and unlink announcements would otherwise read the same from
+	 * every site.
+	 *
+	 * @param string $text Message text, as Slack mrkdwn.
+	 * @return array[] Slack blocks.
+	 */
+	private static function site_blocks( string $text ): array {
+		return [
+			[
+				'type' => 'section',
+				'text' => [
+					'type' => 'mrkdwn',
+					'text' => $text,
+				],
+			],
+			[
+				'type'     => 'context',
+				'elements' => [
+					[
+						'type' => 'plain_text',
+						'text' => sprintf(
+							/* translators: %s: the site's name and address, such as "Example News (example.com)". */
+							__( 'From %s', 'newspack-rolling-coverage' ),
+							self::site_label()
+						),
+					],
+				],
+			],
+		];
 	}
 
 	/**
@@ -1882,21 +1895,20 @@ class Slack_Webhook_Controller {
 		$term_name = $this->get_term_name( $term_id );
 		$mode_text = self::describe_publish_mode( $publish_mode );
 
-		$this->api_client->post_message(
-			$channel_id,
-			'' !== $term_name
-				? sprintf(
-					/* translators: 1: coverage name, 2: what happens to messages posted in the channel */
-					__( '✅ This channel is now connected to the "%1$s" coverage. %2$s', 'newspack-rolling-coverage' ),
-					$term_name,
-					$mode_text
-				)
-				: sprintf(
-					/* translators: %s: what happens to messages posted in the channel */
-					__( '✅ This channel is now connected to rolling coverage. %s', 'newspack-rolling-coverage' ),
-					$mode_text
-				)
-		);
+		$text = '' !== $term_name
+			? sprintf(
+				/* translators: 1: coverage name, 2: what happens to messages posted in the channel */
+				__( '✅ This channel is now connected to the "%1$s" coverage. %2$s', 'newspack-rolling-coverage' ),
+				$term_name,
+				$mode_text
+			)
+			: sprintf(
+				/* translators: %s: what happens to messages posted in the channel */
+				__( '✅ This channel is now connected to rolling coverage. %s', 'newspack-rolling-coverage' ),
+				$mode_text
+			);
+
+		$this->api_client->post_message( $channel_id, $text, self::site_blocks( $text ) );
 	}
 
 	/**
@@ -1932,16 +1944,15 @@ class Slack_Webhook_Controller {
 
 		// Announce the disconnection in the channel, referencing the coverage it
 		// was linked to.
-		$this->api_client->post_message(
-			$channel_id,
-			'' !== $term_name
-				? sprintf(
-					/* translators: 1: coverage name */
-					__( '🔌 This channel is no longer connected to the "%1$s" coverage.', 'newspack-rolling-coverage' ),
-					$term_name
-				)
-				: __( '🔌 This channel is no longer connected to rolling coverage.', 'newspack-rolling-coverage' )
-		);
+		$text = '' !== $term_name
+			? sprintf(
+				/* translators: 1: coverage name */
+				__( '🔌 This channel is no longer connected to the "%1$s" coverage.', 'newspack-rolling-coverage' ),
+				$term_name
+			)
+			: __( '🔌 This channel is no longer connected to rolling coverage.', 'newspack-rolling-coverage' );
+
+		$this->api_client->post_message( $channel_id, $text, self::site_blocks( $text ) );
 	}
 
 	/**

@@ -131,6 +131,14 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 	private $posted_messages = [];
 
 	/**
+	 * Blocks of the messages the bot posted to channels, in the order of
+	 * `$posted_messages`.
+	 *
+	 * @var array[]
+	 */
+	private $posted_blocks = [];
+
+	/**
 	 * Views the bot opened, such as the connect modal.
 	 *
 	 * @var array[]
@@ -161,6 +169,7 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 		$this->reaction_requests        = [];
 		$this->reaction_failure         = '';
 		$this->posted_messages          = [];
+		$this->posted_blocks            = [];
 		$this->opened_views             = [];
 		$this->during_message_read      = null;
 		$this->file_response            = [
@@ -259,7 +268,9 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 		}
 
 		if ( false !== strpos( $url, 'chat.postMessage' ) ) {
-			$this->posted_messages[] = (string) ( json_decode( (string) $parsed_args['body'], true )['text'] ?? '' );
+			$posted                  = json_decode( (string) $parsed_args['body'], true );
+			$this->posted_messages[] = (string) ( $posted['text'] ?? '' );
+			$this->posted_blocks[]   = $posted['blocks'] ?? [];
 			return $this->slack_api_response( [] );
 		}
 
@@ -2466,30 +2477,30 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Commands renamed in a site's Slack app, keeping their endings, and what
-	 * each answers.
+	 * Command names a site's Slack app can send, and what each answers.
 	 *
 	 * @return array[]
 	 */
-	public function renamed_command_provider() {
+	public function command_name_provider() {
 		return [
-			'status' => [ '/staging-coverage-status', 'Connected to "Election Night". New messages are saved as drafts.', true ],
-			'unlink' => [ '/staging-coverage-unlink', 'Disconnected from "Election Night".', false ],
+			'renamed status' => [ '/staging-coverage-status', 'Connected to "Election Night". New messages are saved as drafts.', true ],
+			'renamed unlink' => [ '/staging-coverage-unlink', 'Disconnected from "Election Night".', false ],
+			'another ending' => [ '/rolling-coverage-statuses', 'Unknown command.', true ],
 		];
 	}
 
 	/**
-	 * A command renamed in the site's Slack app works as long as its name
-	 * keeps the ending, so a site can move its commands off names another
-	 * site's app shares in the workspace.
+	 * A command is recognized by the end of its name, so a site can rename
+	 * its commands in its Slack app, off names another site's app shares in
+	 * the workspace, and keep them working.
 	 *
-	 * @dataProvider renamed_command_provider
+	 * @dataProvider command_name_provider
 	 *
 	 * @param string $command          Command name.
 	 * @param string $reply            The reply's text.
 	 * @param bool   $is_still_linked  Whether the channel is still linked afterwards.
 	 */
-	public function test_a_renamed_command_still_works( $command, $reply, $is_still_linked ) {
+	public function test_commands_are_recognized_by_their_ending( $command, $reply, $is_still_linked ) {
 		self::configure_slack();
 		Slack_Config::update_channel(
 			self::CHANNEL_ID,
@@ -2542,7 +2553,7 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 			'status of a linked channel'    => [ '/rolling-coverage-status', true, 'Connected to "Election Night". New messages are saved as drafts.' ],
 			'status of an unlinked channel' => [ '/rolling-coverage-status', false, 'This channel is not connected to any coverage.' ],
 			'unlink of an unlinked channel' => [ '/rolling-coverage-unlink', false, 'This channel is not connected to any coverage.' ],
-			'a name with no known ending'   => [ '/rolling-coverage-statuses', true, 'Unknown command.' ],
+			'an unknown command'            => [ '/rolling-coverage-statuses', true, 'Unknown command.' ],
 		];
 	}
 
@@ -2599,6 +2610,34 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 		$data = self::controller()->handle_command( self::webhook_request( $body, true, 'commands' ) )->get_data();
 
 		$this->assertSame( 'From example.org', $data['blocks'][1]['elements'][0]['text'] );
+	}
+
+	/**
+	 * The connect and unlink announcements in the channel name the site, for
+	 * channel members who didn't run the command and see only these.
+	 */
+	public function test_channel_announcements_name_the_site() {
+		self::configure_slack();
+		update_option( 'blogname', 'Election Desk' );
+		$request = new WP_REST_Request( 'POST', '/rolling-coverage/v1/slack/connect' );
+		$request->set_param( 'term_id', self::create_coverage( '', [ 'name' => 'Election Night' ] ) );
+		$request->set_param( 'channel', self::CHANNEL_ID );
+		$request->set_param( 'publish_mode', 'draft' );
+		self::controller()->connect_channel( $request );
+		$body = http_build_query(
+			[
+				'command'    => '/rolling-coverage-unlink',
+				'channel_id' => self::CHANNEL_ID,
+			]
+		);
+
+		self::controller()->handle_command( self::webhook_request( $body, true, 'commands' ) );
+
+		$this->assertCount( 2, $this->posted_blocks, 'The channel should hear about the connect and the unlink.' );
+		foreach ( $this->posted_blocks as $index => $blocks ) {
+			$this->assertSame( $this->posted_messages[ $index ], $blocks[0]['text']['text'], 'The announcement should come first.' );
+			$this->assertSame( 'From Election Desk (example.org)', $blocks[1]['elements'][0]['text'], 'The line under it should name the site.' );
+		}
 	}
 
 	/**
