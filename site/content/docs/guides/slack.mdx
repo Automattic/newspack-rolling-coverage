@@ -85,9 +85,43 @@ Enter the **Channel**, as a name such as #general or a channel ID. Choose a **Pu
 
 You can also run `/rolling-coverage-connect` in the Slack channel and pick the coverage. Channels connected that way start in **Draft** mode.
 
-A channel connects to one coverage, and a coverage to one channel. `/rolling-coverage-status` shows a channel's connection, and `/rolling-coverage-unlink` removes it.
+A channel connects to one coverage, and a coverage to one channel. `/rolling-coverage-status` shows a channel's connection, and `/rolling-coverage-unlink` removes it. Each reply names the site that answered, such as "From Example News (example.com)".
 
 To see every linked channel, open the **Channel Mappings** tab on the Slack Connection page. To unlink one, select **Disconnect**.
+
+## More than one site in a workspace
+
+Each site sets up its own Slack app, and every app comes with the same three commands. When one workspace has apps from more than one site, Slack sends the commands to the app installed most recently. The reply then names a different site, and the coverage list shows that site's coverages.
+
+Messages and reactions aren't affected. They reach every site whose bot is in the channel.
+
+To use the commands with each site, give each site's app its own command names. For a new app, change the names in the manifest before you paste it. For an app that already exists:
+
+<Steps>
+<Step>
+
+### Open the app's commands
+
+Open api.slack.com/apps and select the site's app. Open **Slash Commands**.
+
+</Step>
+<Step>
+
+### Rename each command
+
+Edit each command and change the start of its name, such as `/rolling-coverage-connect` to `/staging-coverage-connect`. Keep the end of the name: `-connect`, `-unlink`, or `-status`. Leave the **Request URL** as it is, and select **Save**.
+
+</Step>
+<Step>
+
+### Reinstall if Slack asks
+
+If Slack shows a notice asking to reinstall the app, reinstall it to the workspace.
+
+</Step>
+</Steps>
+
+Without the commands, everything they do is also on the Slack Connection page: link a channel as in [Connect a channel](#connect-a-channel), and check or unlink it on the **Channel Mappings** tab.
 
 ## Choose a publish mode
 
