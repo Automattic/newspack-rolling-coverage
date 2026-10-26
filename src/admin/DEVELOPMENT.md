@@ -301,7 +301,7 @@ Each site sets up its own app, and Slack doesn't keep command names apart by app
 - A command is recognized by the end of its name, `-connect`, `-unlink` or `-status`, so a site can rename its commands in its Slack app and keep them working. Any other name gets "Unknown command."
 - Every reply, and every message the bot posts in a channel, has a line under it naming the site it came from, such as "From Example News (example.com)" (`Slack_Webhook_Controller::site_blocks()`). The connect picker's label names the site too. The address tells apart two sites with the same name.
 
-Messages and reactions aren't affected, since Slack sends events to every app in the channel.
+Ingesting the channel's messages and reactions isn't affected, since Slack sends events to every app in the channel.
 
 Tests: `tests/test-slack-webhook.php`.
 
