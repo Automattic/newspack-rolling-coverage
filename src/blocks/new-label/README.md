@@ -1,6 +1,6 @@
 # New Label
 
-Marks an entry that arrives while the reader has the page open. The label shows on that entry until the reader has seen it, then fades away. Entries already on the page when it loads, entries brought in by the page's first check that works, on most feeds (see [Live updates](../rolling-coverage/README.md#live-updates)), and older entries that load later never show it.
+Marks an entry that arrives while the reader has the page open. The label shows on that entry until the reader has seen it, then fades away. Entries already on the page when it loads, entries brought in by the page's first check that works (on most feeds; see [Live updates](../rolling-coverage/README.md#live-updates)), older entries that load later, and entries published again never show it.
 
 ## Where to put it
 

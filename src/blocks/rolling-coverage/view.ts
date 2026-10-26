@@ -4183,8 +4183,8 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 	}
 
 	/**
-	 * Polls again for a page coming back into view, from a background tab or
-	 * the back/forward cache, which has been away for however long. A feed
+	 * Polls again for a page coming back into view from a background tab or
+	 * the back/forward cache, since it has been away for however long. A feed
 	 * whose polls are failing waits out the rest of its wait instead, so
 	 * readers returning to a site that can't answer don't add to its load.
 	 *
