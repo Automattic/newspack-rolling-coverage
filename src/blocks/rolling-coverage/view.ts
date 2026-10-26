@@ -150,9 +150,10 @@ const CONTROL_HEIGHT = 56;
 //
 // A site gated in front of the REST API refuses a request without credentials,
 // so sendEntriesRequest() moves the page to the browser's default on a refusal.
-let entriesCredentials: RequestCredentials = isConfigEnabled(
+const canEditPosts = isConfigEnabled(
 	window.newspackRollingCoverageFrontend?.canEditPosts
-)
+);
+let entriesCredentials: RequestCredentials = canEditPosts
 	? 'same-origin'
 	: 'omit';
 
@@ -739,6 +740,24 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 
 	// What the last poll found, for the next check report.
 	let checkResult: CheckResult | undefined;
+
+	// Whether new entries a poll brings get the New label. Not those of the
+	// poll a feed makes as it starts, or as it first shows when opened in a
+	// background tab: they are entries the page's copy left out, such as a
+	// cached copy older than they are, which a fresh render shows unmarked.
+	// That holds until a poll succeeds, including one the CDN answers with an
+	// expired reply as old as the page, as it can after a quiet spell: that
+	// poll brings nothing, and the next one marks what the copy left out.
+	//
+	// A feed that doesn't poll as it starts marks from its first poll: an
+	// editor's page, which no cache serves, so its polls bring only entries
+	// published while it was open, and a feed that checks only on request,
+	// whose first press can't tell entries its copy left out from ones
+	// published since. So does a feed the jump to the live feed restarted:
+	// the shared view counted the entries newer than the shared entry without
+	// showing them. An entry it did show, such as the shared entry or a
+	// pinned one, still arrives marked when the live page's copy predates it.
+	let marksArrivals = !! newSince || canEditPosts || checksOnRequest;
 
 	// Whether a poll request is in flight. At most one poll is in flight or
 	// scheduled at a time, so tab switches and back/forward navigation can't
@@ -1672,7 +1691,7 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 	 * mark of those it already showed. An entry taken down earlier that the
 	 * reply lists is back. Entries the feed didn't show fade in, and those
 	 * listed above the first one it already showed are marked as new (see
-	 * newIdsInReplace()).
+	 * newIdsInReplace()) once polls mark arrivals (see marksArrivals).
 	 *
 	 * @param {PollEntry[]} entries Removals, then the newest entries, newest first.
 	 * @return {void}
@@ -1802,7 +1821,11 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 			)
 		);
 		marks?.markAll(
-			keptEls.filter( ( el ) => newIds.has( el.dataset.entryId ?? '' ) ),
+			marksArrivals
+				? keptEls.filter( ( el ) =>
+						newIds.has( el.dataset.entryId ?? '' )
+					)
+				: [],
 			keptEls.filter( ( el ) => ! newIds.has( el.dataset.entryId ?? '' ) )
 		);
 		keptEls.forEach( ( el ) => {
@@ -3009,7 +3032,7 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 				el: entryEl,
 				adSlot: entry.adSlot,
 				adEl,
-				isNew: entry.type === 'insert',
+				isNew: marksArrivals && entry.type === 'insert',
 			} );
 		} );
 
@@ -3659,6 +3682,10 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 		} finally {
 			isPolling = false;
 
+			if ( outcome === 'ok' ) {
+				marksArrivals = true;
+			}
+
 			if ( isStopped || isDisposed ) {
 				checkResult = undefined;
 			} else if ( outcome === 'ok' ) {
@@ -4164,8 +4191,16 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 		} );
 	}
 
+	// A page cache or the CDN can serve a copy of the page minutes behind the
+	// coverage, so the feed checks as soon as it starts. An editor's page
+	// skips both caches, so it waits the interval, and a page opened in a
+	// background tab checks once it shows.
 	if ( cursor && status === 'active' ) {
-		schedulePoll();
+		if ( canEditPosts || checksOnRequest || document.hidden ) {
+			schedulePoll();
+		} else {
+			poll();
+		}
 	}
 
 	// Resume polling when the user returns to the tab; cancel when they leave.
@@ -4201,9 +4236,13 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 		{ once: true }
 	);
 
-	// Resume polling after a BFCache restore, with the control ready again if
-	// the page was left during a jump. A feed whose polls are failing keeps the
-	// wait it had, as it does when its tab shows again.
+	// Check again after a BFCache restore, as when the tab shows, since the
+	// page has been away for however long, with the control ready again if it
+	// was left during a jump. A feed whose polls are failing keeps the wait it
+	// had instead, as it does when its tab shows again. Where the restore also
+	// shows the tab, this and the visibilitychange handler send one poll
+	// between them, in either order: poll() skips while the tab is hidden or a
+	// poll is in flight.
 	on( window, 'pageshow', ( event ) => {
 		if ( ! event.persisted ) {
 			return;
@@ -4211,8 +4250,12 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 
 		setJumping( false );
 
-		if ( cursor && status === 'active' ) {
-			schedulePoll( failedPolls > 0 ? nextPollAt : undefined );
+		if ( cursor && status === 'active' && ! checksOnRequest ) {
+			if ( failedPolls > 0 && nextPollAt > Date.now() ) {
+				schedulePoll( nextPollAt );
+			} else {
+				poll();
+			}
 		}
 	} );
 
