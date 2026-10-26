@@ -1,0 +1,74 @@
+---
+title: Push notifications
+description: Let readers follow a coverage, and notify them when an entry is published.
+---
+
+By the end of this page, readers will be able to follow a coverage, and followers will get a push notification when an entry goes live.
+
+This needs the OneSignal plugin, version 3, set up with its App ID and key. Without it, the Follow Coverage button doesn't appear on the site.
+
+## Let readers follow
+
+<Steps>
+<Step>
+
+### Add the block
+
+Add the Follow Coverage block near the headline of a coverage page. It follows the coverage on that page, or one you pick. See the [Follow Coverage block](/docs/blocks/follow-coverage/).
+
+<Screenshot label="A coverage page in the editor, with the Follow Coverage block selected under the headline" src="/screenshots/guides/push-1.webp" width={3024} height={1964} />
+
+</Step>
+<Step>
+
+### Publish the page
+
+Publish or update the page. Readers see a **Follow** button. After they follow, it reads "Following". Selecting it again unfollows.
+
+</Step>
+</Steps>
+
+The browser asks for permission to send notifications the first time. If a reader has blocked them, a message tells them how to allow them.
+
+## Notify followers about an entry
+
+<Steps>
+<Step>
+
+### Open the full editor
+
+In the coverage's entries, open the row actions of an entry that isn't published yet and select **Edit**.
+
+</Step>
+<Step>
+
+### Tick the notification option
+
+In the **Push Notifications** panel, tick **Notify subscribers when this entry publishes**.
+
+<Screenshot label="The entry editor sidebar, with the notify option ticked in the Push Notifications panel" src="/screenshots/guides/push-2.webp" width={3024} height={1964} />
+
+</Step>
+<Step>
+
+### Publish
+
+Publish the entry. The notification goes out in the background, usually within a minute. A scheduled entry notifies when it goes live.
+
+</Step>
+</Steps>
+
+Only readers who follow that coverage are notified. The notification shows the entry's title, or the coverage name for an untitled entry, and its excerpt or first words. Each entry notifies once. An entry with no title and no words of its own sends no notification, even with **Notify subscribers when this entry publishes** ticked or when it comes from Slack.
+
+## Things to know
+
+- The notification links to the entry on the coverage's canonical URL, so the coverage needs one. Without it, the panel warns you and no notification is sent. See [Placements](/docs/guides/placements/).
+- Entries from Slack notify automatically, unless they contain only an image. See [Post from Slack](/docs/guides/slack/).
+- **Add Entry** and **Quick Edit** don't have the option. Entries published there send nothing, unless they came from Slack.
+- An entry behind a content gate or a password shows "Read the latest update." instead of its words.
+- When a coverage ends, the **Follow** button no longer appears.
+- The button doesn't appear on [Lite Site](/docs/guides/lite-site/) pages.
+
+## Next
+
+[Lite Site](/docs/guides/lite-site/).
