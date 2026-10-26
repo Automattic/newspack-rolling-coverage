@@ -4192,7 +4192,8 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 	);
 
 	// Resume polling after a BFCache restore, with the control ready again if
-	// the page was left during a jump.
+	// the page was left during a jump. A feed whose polls are failing keeps the
+	// wait it had, as it does when its tab shows again.
 	on( window, 'pageshow', ( event ) => {
 		if ( ! event.persisted ) {
 			return;
@@ -4201,7 +4202,7 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 		setJumping( false );
 
 		if ( cursor && status === 'active' ) {
-			schedulePoll();
+			schedulePoll( failedPolls > 0 ? nextPollAt : undefined );
 		}
 	} );
 
