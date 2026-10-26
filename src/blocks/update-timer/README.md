@@ -50,3 +50,4 @@ The ring and the text take the block's text color, with the ring's track at 30% 
 - Inside an Alert layout, or beside any feed that shows no entries, the timer never shows a count, since it can't tell what arrived.
 - Screen readers don't hear the countdown or the ring. The Rolling Coverage block already announces new entries.
 - If the site sets a minimum poll interval longer than the block's Poll interval, the timer counts down the longer one, as the page does.
+- After a failed check, the page waits longer before it tries again, up to 5 minutes, and the timer counts down that longer wait.
