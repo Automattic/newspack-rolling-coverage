@@ -1,6 +1,6 @@
 # New Label
 
-Marks an entry that arrives while the reader has the page open. The label shows on that entry until the reader has seen it, then fades away. Entries already on the page when it loads, entries its first check for new entries brings in, and older entries that load later, never show it.
+Marks an entry that arrives while the reader has the page open. The label shows on that entry until the reader has seen it, then fades away. Entries already on the page when it loads, entries brought in by the check the page makes as it opens, and older entries that load later never show it.
 
 ## Where to put it
 

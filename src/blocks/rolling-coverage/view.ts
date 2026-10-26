@@ -734,13 +734,18 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 	// What the last poll found, for the next check report.
 	let checkResult: CheckResult | undefined;
 
-	// Whether new entries a poll brings get the New label: not until a poll
-	// has brought the page up to date. Until then they are entries the page's
-	// copy left out, such as a cached copy older than they are, and a fresh
-	// render would show them unmarked. A feed the jump to the live feed
-	// restarted marks them from the start, as they are newer than anything
-	// the reader saw in the shared view.
-	let marksArrivals = !! newSince;
+	// Whether new entries a poll brings get the New label. Not those of the
+	// poll a feed makes as it starts, or as it first shows when opened in a
+	// background tab: they are entries the page's copy left out, such as a
+	// cached copy older than they are, which a fresh render shows unmarked.
+	// That holds until a poll succeeds. A feed that doesn't poll as it starts
+	// marks from its first poll: an editor's page, which no cache serves, so
+	// its polls bring only entries published while it was open, and a feed
+	// that checks only on request, whose first press can't tell entries its
+	// copy left out from ones published since. So does a feed the jump to the
+	// live feed restarted, as its entries are newer than anything the reader
+	// saw in the shared view.
+	let marksArrivals = !! newSince || canEditPosts || checksOnRequest;
 
 	// Whether a poll request is in flight. At most one poll is in flight or
 	// scheduled at a time, so tab switches and back/forward navigation can't
