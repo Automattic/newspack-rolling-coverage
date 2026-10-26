@@ -3654,20 +3654,35 @@ class Post_Type {
 	}
 
 	/**
-	 * Ensure a coverage term's status meta is 'active', flipping it
-	 * back from 'trash' if it was soft-deleted.
+	 * Bring an entry's trashed coverage back before the entry is restored,
+	 * in the status it had (Taxonomy::restore_coverage()).
 	 *
-	 * Reactivating a trashed coverage is an editorial action, so a user
-	 * without `manage_categories` gets a WP_Error instead.
+	 * A coverage that had ended stays in the trash with a WP_Error, since
+	 * its entries are locked and restoring one must not reopen it; everyone
+	 * gets that answer, as for an ended coverage outside the trash.
+	 * Restoring any other trashed coverage is an editorial action, so a
+	 * user without `manage_categories` gets a WP_Error instead.
 	 *
 	 * @param int $coverage_id Coverage term ID.
-	 * @return bool|\WP_Error True when active, WP_Error when it cannot be reactivated.
+	 * @return bool|\WP_Error True when the coverage isn't trashed, WP_Error when it cannot be restored.
 	 */
-	private static function ensure_coverage_active( int $coverage_id ): bool|\WP_Error {
+	private static function restore_trashed_coverage( int $coverage_id ): bool|\WP_Error {
 		$current_status = get_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, true );
 
 		if ( 'trash' !== $current_status ) {
 			return true;
+		}
+
+		if ( Taxonomy::STATUS_ARCHIVED === Taxonomy::status_before_trash( $coverage_id ) ) {
+			return new \WP_Error(
+				'rolling_coverage_entry_locked',
+				sprintf(
+					/* translators: %s: The status that ends a coverage, e.g. "Ended". */
+					__( 'This entry’s coverage is in the trash and was set to “%s”. Restore the coverage and change its status first.', 'newspack-rolling-coverage' ),
+					Status_Labels::get_all()[ Taxonomy::STATUS_ARCHIVED ]
+				),
+				[ 'status' => 403 ]
+			);
 		}
 
 		if ( ! current_user_can( 'manage_categories' ) ) {
@@ -3678,7 +3693,7 @@ class Post_Type {
 			);
 		}
 
-		update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, 'active' );
+		Taxonomy::restore_coverage( $coverage_id );
 
 		return true;
 	}
@@ -3688,9 +3703,11 @@ class Post_Type {
 	 *
 	 * Priority order for finding the coverage to assign to:
 	 * 1. If the entry still has a coverage term assigned (relationship
-	 *    intact), use that term and restore it to active if trashed.
+	 *    intact), use that term, bringing it back from the trash
+	 *    (restore_trashed_coverage()).
 	 * 2. If no term is assigned but META_ORIGINAL_COVERAGE_ID exists and
-	 *    the term still exists, reassign to it and restore to active.
+	 *    the term still exists, reassign to it, bringing it back from the
+	 *    trash the same way.
 	 * 3. If neither, create or reuse a "{name} - recovery" term.
 	 *
 	 * @param int   $entry_id       Entry post ID.
@@ -3739,10 +3756,10 @@ class Post_Type {
 			// Term relationship is intact — use the assigned coverage.
 			$coverage_id = (int) $terms[0]->term_id;
 
-			$active = self::ensure_coverage_active( $coverage_id );
+			$restored = self::restore_trashed_coverage( $coverage_id );
 
-			if ( is_wp_error( $active ) ) {
-				return $active;
+			if ( is_wp_error( $restored ) ) {
+				return $restored;
 			}
 		}
 
@@ -3754,10 +3771,10 @@ class Post_Type {
 				// Original coverage still exists — reassign the entry to it.
 				$coverage_id = $original_id;
 
-				$active = self::ensure_coverage_active( $coverage_id );
+				$restored = self::restore_trashed_coverage( $coverage_id );
 
-				if ( is_wp_error( $active ) ) {
-					return $active;
+				if ( is_wp_error( $restored ) ) {
+					return $restored;
 				}
 
 				wp_set_post_terms( $entry_id, [ $coverage_id ], Taxonomy::TAXONOMY_SLUG );

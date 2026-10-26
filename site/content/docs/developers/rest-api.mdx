@@ -177,11 +177,11 @@ These need `manage_categories`.
 
 ### `POST /coverages/{coverage_id}/trash`
 
-Moves a coverage to the trash by setting its status to `trash`. Its entries are left as they are, but readers stop seeing the coverage. Returns `{ "trashed": true }`.
+Moves a coverage to the trash by setting its status to `trash`, and keeps the status it had. Its entries are left as they are, but readers stop seeing the coverage. Returns `{ "trashed": true }`.
 
 ### `POST /coverages/{coverage_id}/restore`
 
-Brings a trashed coverage back as `active`. Its entries stay as they were. Returns `{ "restored": true }`, or `rolling_coverage_coverage_not_trashed` with status `400` if the coverage isn't in the trash.
+Brings a trashed coverage back in the status it had before the trash, or `active` if none was kept. An ended coverage keeps its end time. Its entries stay as they were. Returns `{ "restored": true }`, or `rolling_coverage_coverage_not_trashed` with status `400` if the coverage isn't in the trash.
 
 ### `DELETE /coverages/{coverage_id}`
 
