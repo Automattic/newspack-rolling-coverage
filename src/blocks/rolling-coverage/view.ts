@@ -3298,6 +3298,9 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 	 * a page cache copy from before the burst starts from the same cursor and
 	 * overflows again, so a repeat reload for that cursor waits until
 	 * OVERFLOW_RELOAD_RETRY_MS has passed. Polling carries on meanwhile.
+	 * Without session storage there's no record of the last reload, so the
+	 * page reloads only once it has been open that long: its first poll, as
+	 * it starts, would otherwise reload it again on every load.
 	 *
 	 * @return {boolean} True if the page should reload now.
 	 */
@@ -3321,8 +3324,7 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 				JSON.stringify( { cursor, time: Date.now() } )
 			);
 		} catch {
-			// Without session storage there's no record of the last reload, so
-			// reload as before.
+			return performance.now() >= OVERFLOW_RELOAD_RETRY_MS;
 		}
 
 		return true;
