@@ -1,0 +1,46 @@
+---
+title: Constants
+description: Settings a site can fix in wp-config.php to control how readers' pages check for new entries.
+---
+
+A constant is a setting written into `wp-config.php`, so it applies to the whole site and no one can change it from the dashboard. Rolling Coverage has two, and both are about how often readers' open pages ask the site for new entries.
+
+Open feed pages check for new entries on their own. On a busy site, that traffic can add up during a big story. These constants let a developer slow it down, or change how the requests are shared, without editing any block.
+
+Each constant sets the starting value for a filter of the same purpose, so a filter callback still wins. See [Hooks](/docs/developers/hooks/#polling).
+
+## `NEWSPACK_ROLLING_COVERAGE_MIN_POLL_INTERVAL`
+
+The slowest pace, in seconds, at which any feed on the site checks for new entries. It is for a site under load: every Rolling Coverage block checks at this interval or its own, whichever is longer. The site also keeps its answers cached for half this long.
+
+| | |
+| --- | --- |
+| Type | `int` |
+| Default | No minimum. Each block checks at its own interval. |
+| Filter | `newspack_rolling_coverage_min_poll_interval` |
+
+```php
+define( 'NEWSPACK_ROLLING_COVERAGE_MIN_POLL_INTERVAL', 60 );
+```
+
+A value that isn't a positive number counts as no minimum. Pages that are already open pick up a change on their next check, so it takes hold, and lifts, without a reload.
+
+## `NEWSPACK_ROLLING_COVERAGE_SHARED_POLLING`
+
+Whether open pages check one web address shared by every reader of the page, or each use their own. A shared address is one a page cache or CDN can keep answering right after a change, which suits a large audience. Turning it off sends pages back to their own address.
+
+| | |
+| --- | --- |
+| Type | `bool` |
+| Default | `true` |
+| Filter | `newspack_rolling_coverage_shared_polling` |
+
+```php
+define( 'NEWSPACK_ROLLING_COVERAGE_SHARED_POLLING', false );
+```
+
+The string `'false'` counts as false. This matters because `wp config set` writes a string unless it is given `--raw`. Pages that are already open switch on their next check.
+
+<Callout>
+The plugin also defines `NEWSPACK_ROLLING_COVERAGE_VERSION`, `NEWSPACK_ROLLING_COVERAGE_URL`, `NEWSPACK_ROLLING_COVERAGE_PLUGIN_DIR`, `NEWSPACK_ROLLING_COVERAGE_PLUGIN_FILE`, and `NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE` (`rolling-coverage/v1`). Those describe the plugin and are for reading in code. They are not settings.
+</Callout>

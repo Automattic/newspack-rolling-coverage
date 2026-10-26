@@ -17,11 +17,13 @@ import {
 	nextCheckLabel,
 	readEntryName,
 } from '../rolling-coverage/entry-name';
+import { idleRing, syncRing, type RingMotion } from './ring';
 import './style.scss';
 
 const TIMER_SELECTOR =
 	'.wp-block-newspack-rolling-coverage-update-timer[data-coverage-id]';
 const FEED_SELECTOR = '.wp-block-newspack-rolling-coverage-rolling-coverage';
+const RING_SELECTOR = '.newspack-rolling-coverage-update-timer__ring';
 const RESULT_MS = 3000;
 const TICK_MS = 250;
 
@@ -30,6 +32,7 @@ interface TimerState {
 	tickId: ReturnType< typeof setInterval > | null;
 	resultText: string;
 	resultUntil: number;
+	ring: RingMotion;
 }
 
 const states = new WeakMap< HTMLElement, TimerState >();
@@ -55,7 +58,13 @@ function stateOf( timer: HTMLElement ): TimerState {
 	let state = states.get( timer );
 
 	if ( ! state ) {
-		state = { feed: null, tickId: null, resultText: '', resultUntil: 0 };
+		state = {
+			feed: null,
+			tickId: null,
+			resultText: '',
+			resultUntil: 0,
+			ring: idleRing(),
+		};
 		states.set( timer, state );
 	}
 
@@ -136,7 +145,8 @@ function stopTick( state: TimerState ): void {
 /**
  * Draws a timer from its feed's state: hidden while the feed isn't counting
  * down, "Checking…" while it checks, and otherwise the seconds to the next
- * check, or the last result for a moment. The spinner turns throughout.
+ * check, or the last result for a moment. The ring fills toward the next
+ * check and spins while it runs.
  *
  * @param {HTMLElement} timer The timer's wrapper.
  * @return {void}
@@ -145,7 +155,7 @@ function render( timer: HTMLElement ): void {
 	const state = stateOf( timer );
 	const check = state.feed?.isConnected
 		? readCheck( state.feed )
-		: { state: 'idle' as const, nextCheckAt: 0 };
+		: { state: 'idle' as const, nextCheckAt: 0, interval: 0 };
 	const text = timer.querySelector< HTMLElement >(
 		'.newspack-rolling-coverage-update-timer__text'
 	);
@@ -153,6 +163,11 @@ function render( timer: HTMLElement ): void {
 	stopTick( state );
 	timer.dataset.checkState = check.state;
 	timer.hidden = check.state === 'idle';
+	syncRing(
+		timer.querySelector< SVGSVGElement >( RING_SELECTOR ),
+		state.ring,
+		check
+	);
 
 	if ( ! text || check.state === 'idle' ) {
 		return;

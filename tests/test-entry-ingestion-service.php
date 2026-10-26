@@ -88,16 +88,34 @@ class Test_Entry_Ingestion_Service extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * An archived coverage accepts no new entries, and says so distinctly so
-	 * the adapter can log the reason.
+	 * An archived coverage, or one in the trash, accepts no new entries, and
+	 * says which so the adapter can log the reason.
+	 *
+	 * @dataProvider provide_closed_coverage_statuses
+	 *
+	 * @param string $status Coverage status.
+	 * @param int    $skip   Skip result expected for it.
 	 */
-	public function test_archived_coverage_accepts_no_new_entries() {
-		$coverage_id = self::create_coverage( Taxonomy::STATUS_ARCHIVED );
+	public function test_closed_coverage_accepts_no_new_entries( $status, $skip ) {
+		$coverage_id = self::create_coverage( $status );
 
 		$result = self::ingest( self::payload(), $coverage_id );
 
-		$this->assertSame( Entry_Ingestion_Service::SKIP_ARCHIVED_COVERAGE, $result, 'The skip should be reported as an archived-coverage skip.' );
+		$this->assertSame( $skip, $result, 'The skip should name the coverage\'s status.' );
 		$this->assertSame( 0, self::count_entries(), 'No entry should be created.' );
+	}
+
+	/**
+	 * Coverage statuses that accept no new entries, with the skip result each
+	 * reports.
+	 *
+	 * @return array
+	 */
+	public function provide_closed_coverage_statuses() {
+		return [
+			'archived' => [ Taxonomy::STATUS_ARCHIVED, Entry_Ingestion_Service::SKIP_ARCHIVED_COVERAGE ],
+			'trashed'  => [ 'trash', Entry_Ingestion_Service::SKIP_TRASHED_COVERAGE ],
+		];
 	}
 
 	/**

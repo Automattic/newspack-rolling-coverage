@@ -45,6 +45,36 @@ function getCoverageActions(
 	// may still navigate into the entries they can access.
 	const canManage = config.capabilities.canManageTerms;
 
+	// Shared by the Restore action and the Undo on the trash notice.
+	const restoreCoverages = async ( items: Coverage[] ) => {
+		const { failed, succeeded } = await runCoverageBulk( items, ( id ) =>
+			restoreCoverage( restNamespace, id )
+		);
+
+		if ( succeeded ) {
+			notifySuccess(
+				pluralize(
+					items.length,
+					__( 'Coverage restored.', 'newspack-rolling-coverage' ),
+					__( 'Coverages restored.', 'newspack-rolling-coverage' )
+				)
+			);
+			onActionPerformed();
+		} else {
+			notifyError(
+				failed[ 0 ].error ||
+					__(
+						'Failed to restore coverage.',
+						'newspack-rolling-coverage'
+					)
+			);
+			// Some went through, so refresh the list to show them.
+			if ( failed.length < items.length ) {
+				onActionPerformed();
+			}
+		}
+	};
+
 	return [
 		{
 			id: 'edit-coverage',
@@ -122,17 +152,39 @@ function getCoverageActions(
 							items.length
 						)
 					),
-					description: pluralize(
-						items.length,
-						__(
-							'Its entries will be hidden from the frontend until the coverage is restored.',
-							'newspack-rolling-coverage'
+					description: [
+						pluralize(
+							items.length,
+							__(
+								'Its entries will be hidden from the frontend until the coverage is restored.',
+								'newspack-rolling-coverage'
+							),
+							__(
+								'Their entries will be hidden from the frontend until the coverages are restored.',
+								'newspack-rolling-coverage'
+							)
 						),
-						__(
-							'Their entries will be hidden from the frontend until the coverages are restored.',
-							'newspack-rolling-coverage'
+						// A trashed coverage takes no messages from its Slack channel.
+						items.some(
+							( coverage ) =>
+								!! coverage.meta
+									?.rolling_coverage_slack_channel_id
 						)
-					),
+							? pluralize(
+									items.length,
+									__(
+										'Messages posted in its linked Slack channel while it’s in the trash won’t become entries, and restoring it won’t bring them in.',
+										'newspack-rolling-coverage'
+									),
+									__(
+										'Messages posted in their linked Slack channels while they’re in the trash won’t become entries, and restoring them won’t bring them in.',
+										'newspack-rolling-coverage'
+									)
+								)
+							: '',
+					]
+						.filter( Boolean )
+						.join( ' ' ),
 					confirmLabel: __( 'Trash', 'newspack-rolling-coverage' ),
 					intent: 'irreversible',
 					onConfirm: async () => {
@@ -169,7 +221,16 @@ function getCoverageActions(
 									'Coverages trashed.',
 									'newspack-rolling-coverage'
 								)
-							)
+							),
+							[
+								{
+									label: __(
+										'Undo',
+										'newspack-rolling-coverage'
+									),
+									onClick: () => restoreCoverages( items ),
+								},
+							]
 						);
 						onActionPerformed();
 					},
@@ -183,37 +244,7 @@ function getCoverageActions(
 			isEligible: ( coverage: Coverage ) =>
 				canManage &&
 				coverage.meta?.[ config.taxMeta.statusKey ] === 'trash',
-			callback: async ( items: Coverage[] ) => {
-				const { failed, succeeded } = await runCoverageBulk(
-					items,
-					( id ) => restoreCoverage( restNamespace, id )
-				);
-
-				if ( succeeded ) {
-					notifySuccess(
-						pluralize(
-							items.length,
-							__(
-								'Coverage restored.',
-								'newspack-rolling-coverage'
-							),
-							__(
-								'Coverages restored.',
-								'newspack-rolling-coverage'
-							)
-						)
-					);
-					onActionPerformed();
-				} else {
-					notifyError(
-						failed[ 0 ].error ||
-							__(
-								'Failed to restore coverage.',
-								'newspack-rolling-coverage'
-							)
-					);
-				}
-			},
+			callback: restoreCoverages,
 		},
 		{
 			id: 'delete-coverage',

@@ -1,0 +1,13 @@
+{
+	"title": "Blocks",
+	"pages": [
+		"index",
+		"rolling-coverage",
+		"coverage-status",
+		"follow-coverage",
+		"update-timer",
+		"check-for-updates",
+		"load-more",
+		"new-label"
+	]
+}

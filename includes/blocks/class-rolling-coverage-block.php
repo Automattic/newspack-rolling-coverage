@@ -2922,7 +2922,11 @@ class Rolling_Coverage_Block {
 	 * doesn't take the admin bar offset away. The top offset is added to the
 	 * height of the bars the view script finds over the top of the viewport,
 	 * or the admin bar's until it measures them. As with core, a position
-	 * type the theme doesn't support renders nothing.
+	 * type the theme doesn't support renders nothing. Core has no
+	 * per-viewport position, so this reads one: at a viewport whose own
+	 * style sets a position other than sticky or fixed, such as Default
+	 * (`''`), the group stays in the flow, as Split's Pinned group does where
+	 * it stacks above the entries.
 	 *
 	 * @param array $group Parsed pinned card, entry group or Pinned group.
 	 * @return array
@@ -2938,6 +2942,23 @@ class Rolling_Coverage_Block {
 		}
 
 		unset( $group['attrs']['style']['position'] );
+
+		$media_queries = WP_Theme_JSON::get_viewport_media_queries( wp_get_global_settings( [ 'viewport' ] ) );
+		$in_flow       = [];
+
+		foreach ( array_keys( $media_queries ) as $breakpoint ) {
+			$viewport_position = $group['attrs']['style'][ $breakpoint ]['position'] ?? null;
+
+			if ( ! is_array( $viewport_position ) ) {
+				continue;
+			}
+
+			unset( $group['attrs']['style'][ $breakpoint ]['position'] );
+
+			if ( ! in_array( $viewport_position['type'] ?? '', [ 'sticky', 'fixed' ], true ) ) {
+				$in_flow[] = $breakpoint;
+			}
+		}
 
 		$opening = new WP_HTML_Tag_Processor( $content[ $first ] );
 
@@ -2964,15 +2985,28 @@ class Rolling_Coverage_Block {
 		$declarations['position'] = $type;
 		$declarations['z-index']  = '10';
 
-		$class = self::MARKUP_PREFIX . '-position-' . substr( md5( (string) wp_json_encode( $declarations ) ), 0, 8 );
+		$class    = self::MARKUP_PREFIX . '-position-' . substr( md5( (string) wp_json_encode( $in_flow ? [ $declarations, $in_flow ] : $declarations ) ), 0, 8 );
+		$selector = '.wp-block-newspack-rolling-coverage-rolling-coverage .' . $class;
+		$rules    = [
+			[
+				'selector'     => $selector,
+				'declarations' => $declarations,
+			],
+		];
+
+		foreach ( $in_flow as $breakpoint ) {
+			$rules[] = [
+				'selector'     => $selector,
+				'declarations' => [
+					'position' => 'static',
+					'z-index'  => 'auto',
+				],
+				'rules_group'  => $media_queries[ $breakpoint ],
+			];
+		}
 
 		wp_style_engine_get_stylesheet_from_css_rules(
-			[
-				[
-					'selector'     => '.wp-block-newspack-rolling-coverage-rolling-coverage .' . $class,
-					'declarations' => $declarations,
-				],
-			],
+			$rules,
 			[
 				'context'  => 'block-supports',
 				'prettify' => false,

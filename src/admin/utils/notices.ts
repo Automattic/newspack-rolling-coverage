@@ -9,11 +9,16 @@ import type { SyncNotice, SyncNoticeEntry } from '../types';
 /**
  * Dispatches a success snackbar notice.
  *
- * @param {string} message Notice message.
+ * @param {string}                                        message   Notice message.
+ * @param {Array<{ label: string, onClick: () => void }>} [actions] Buttons shown in the snackbar, such as Undo.
  */
-function notifySuccess( message: string ) {
+function notifySuccess(
+	message: string,
+	actions?: { label: string; onClick: () => void }[]
+) {
 	dispatch( noticesStore ).createSuccessNotice( message, {
 		type: 'snackbar',
+		...( actions ? { actions } : {} ),
 	} );
 }
 

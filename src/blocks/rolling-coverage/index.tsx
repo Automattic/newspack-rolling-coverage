@@ -15,6 +15,7 @@ import Save from './save';
 import './entry-date-preview';
 import './entry-gap-preview';
 import './feed-insertion';
+import './layout-pattern-start';
 import './pattern-insertion';
 import './share-preview';
 import './editor.scss';

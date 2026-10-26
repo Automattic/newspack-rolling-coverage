@@ -17,6 +17,7 @@ For the contribution process (bug reports, feature requests, pull requests, and 
   - [Advertising](#advertising)
   - [AI key takeaways](#ai-key-takeaways)
   - [Structured data](#structured-data)
+  - [Updated date](#updated-date)
 - [Architecture](#architecture)
 - [Data model](#data-model)
 - [REST API](#rest-api)
@@ -38,7 +39,7 @@ The Rolling Coverage admin menu holds the coverages list, each coverage's entrie
 
 ### Blocks
 
-Eight blocks ship with the plugin (namespace `newspack-rolling-coverage`). Each block's attributes are in its `block.json`.
+Nine blocks ship with the plugin (namespace `newspack-rolling-coverage`). Each block's attributes are in its `block.json`.
 
 | Block | Name | Purpose | Docs |
 | :--- | :--- | :--- | :--- |
@@ -50,16 +51,18 @@ Eight blocks ship with the plugin (namespace `newspack-rolling-coverage`). Each 
 | Check for Updates | `check-updates` | A button readers press to load new entries. A feed whose layout holds it stops checking for new entries on its own. | [README](../src/blocks/check-updates/README.md), [DEVELOPMENT](../src/blocks/check-updates/DEVELOPMENT.md) |
 | Update Timer | `update-timer` | Shows readers when the feed next checks for new entries, and what each check found. | [README](../src/blocks/update-timer/README.md), [DEVELOPMENT](../src/blocks/update-timer/DEVELOPMENT.md) |
 | Load More | `load-more` | The button that loads older entries, shown when the feed's Older entries setting is "Load more" button. | [README](../src/blocks/load-more/README.md), [DEVELOPMENT](../src/blocks/load-more/DEVELOPMENT.md) |
+| New Label | `new-label` | Marks an entry that arrives while the reader has the page open, until they've seen it. | [README](../src/blocks/new-label/README.md), [DEVELOPMENT](../src/blocks/new-label/DEVELOPMENT.md) |
 
 The feed also sends analytics events as readers see entries and when a poll fails (`coverage_entry_seen`, `coverage_poll_error`, in `src/blocks/rolling-coverage/analytics.ts`).
 
 ### Slack ingestion
 
-Connect a Slack channel to a coverage, from the Slack Connection page or with the `/rolling-coverage-connect` slash command, and its messages become entries. Each channel's Publish Mode publishes them right away, saves them as drafts, or waits for an emoji reaction. The Slack sections of [`src/admin/DEVELOPMENT.md`](../src/admin/DEVELOPMENT.md) cover which messages become entries, Publish Mode, how authors are matched, titles and headings, and webhooks. The rest:
+Connect a Slack channel to a coverage, from the Slack Connection page or with the `/rolling-coverage-connect` slash command, and its messages become entries. Each channel's Publish Mode publishes them right away, saves them as drafts, or waits for an emoji reaction. The Slack sections of [`src/admin/DEVELOPMENT.md`](../src/admin/DEVELOPMENT.md) cover which messages become entries, Publish Mode, how authors are matched, titles and headings, slash commands, and webhooks. The rest:
 
 - **Ignore prefix** — in Auto-publish and Draft channels, messages beginning with a configurable prefix (default `~~`) are skipped.
 - **Content conversion** — the message's Slack rich text (or its `mrkdwn` as the fallback) is converted to Gutenberg blocks, with user/channel/link mentions turned into readable text. Images uploaded with a message are imported into the media library and added as image blocks; other uploads are left out.
-- **Slash commands** — `/rolling-coverage-connect`, `/rolling-coverage-unlink`, `/rolling-coverage-status`.
+- **Slash commands** — `/rolling-coverage-connect`, `/rolling-coverage-unlink`, `/rolling-coverage-status`. They're recognized by the end of their names, so a site can rename them when another site's app in the workspace has the same ones, and every reply and every message the bot posts in a channel names the site it came from.
+- **Ended and trashed coverages** — messages for a coverage that has ended or is in the trash don't become entries, and the publish emoji leaves their drafts alone.
 - **Security** — every webhook request is authenticated with HMAC-SHA256 signature verification (timing-safe `hash_equals`) and a 5-minute replay window.
 - **Dedup** — a per-message mutex plus a unique source-reference meta key prevents duplicate entries on webhook retries.
 - **Setup guide and manifest** — the admin generates a ready-to-paste Slack app manifest with the required scopes and request URLs.
@@ -69,7 +72,7 @@ Connect a Slack channel to a coverage, from the Slack Connection page or with th
 
 ### Ending a coverage
 
-A coverage's status is Live (`active`), Paused (`paused`), or Ended (`archived`), and trashing it sets `trash`; sites can rename the three labels. Setting a coverage to Ended records an end time, hides the follow button, stops the feed from checking for new entries, and shows a notice at the top of the feed, set in the Rolling Coverage block's [Ended settings](../src/blocks/rolling-coverage/README.md#ended). `Archive_Mode` enforces the rest:
+A coverage's status is Live (`active`), Paused (`paused`), or Ended (`archived`), and trashing it sets `trash`; restoring it puts back the status it had. Sites can rename the three labels. Setting a coverage to Ended records an end time, hides the follow button, stops the feed from checking for new entries, and shows a notice at the top of the feed, set in the Rolling Coverage block's [Ended settings](../src/blocks/rolling-coverage/README.md#ended). `Archive_Mode` enforces the rest:
 
 - Entries in an ended coverage are **locked**: they cannot be trashed, restored, pinned, broken out, or reassigned, and the coverage takes no new entries. An individually archived entry is locked the same way. Content edits stay allowed.
 - Archiving a single entry also collapses its content behind a summary in the feed.
@@ -87,6 +90,7 @@ When the OneSignal plugin is installed, configured, and v3-active, readers can f
 - **Share links.** The Share block shares the entry's permalink with `?rc_source={host_post_id}`, the page it was shared from. The entry page serves its own Open Graph tags to social crawlers, which don't run JavaScript, and a script sends visitors on to the host page.
 - **Plain permalinks.** When the entry's coverage has a canonical URL, a request for the entry's permalink without `rc_source` is redirected (302 by default) to that URL, for crawlers and visitors alike. Without a canonical URL, the entry page renders.
 - Both destinations carry `?rolling-coverage-entry={slug}` and the `#newspack-rolling-coverage-entry-{id}` anchor, so the feed opens at the entry.
+- **Entries hidden by their coverage.** When none of an entry's coverages exists outside the trash, its permalink answers with a 404 for every visitor, before either redirect. Front-end listings of entries, such as `?post_type=rolling_cov_entry` and its feed, leave it out, and so do oEmbed and Yoast SEO's head route (`Post_Type::is_hidden_by_coverage()`, `Post_Type::hide_entries_from_main_query()`).
 
 See [Share and Read more](../src/blocks/rolling-coverage/DEVELOPMENT.md#share-and-read-more).
 
@@ -109,6 +113,10 @@ For the block's AI panel, see [AI](../src/blocks/rolling-coverage/README.md#ai).
 
 A Rolling Coverage block that shows all entries outputs schema.org `LiveBlogPosting` JSON-LD with a `liveBlogUpdate` array of `BlogPosting` items, including `coverageStartTime`/`coverageEndTime`, `datePublished`/`dateModified`, per-entry `BlogPosting` bodies, and authors. With Yoast SEO active, the page's first such coverage is merged into Yoast's Article instead, which keeps its type and adds `LiveBlogPosting`. Output is cached in the object cache for up to a week, and a change to the page, the coverage, or its entries starts a new cache entry. See [Live blog markup](../src/blocks/rolling-coverage/README.md#live-blog-markup).
 
+### Updated date
+
+While a post's coverage is live or paused, the post shows when it last changed: Newspack's "Updated" date in its byline, and the same date in place of the publish date on its Homepage Posts card, whatever the site's Last updated date setting says. The date is when an entry was last published or edited, or the post's own last edit when that came later. Once the coverage ends, the site's settings decide again. See [Updated date](../src/blocks/rolling-coverage/README.md#updated-date) and its [development notes](../src/blocks/rolling-coverage/DEVELOPMENT.md#updated-date).
+
 ## Architecture
 
 ```
@@ -125,6 +133,7 @@ includes/
   class-breakout.php             Breakout post creation, linking, status sync
   class-social-sharing.php       Canonical redirects, share URLs, deep-link query vars
   class-schema.php               LiveBlogPosting JSON-LD
+  class-updated-date.php         Newspack's "Updated" date on posts whose coverage hasn't ended
   class-push-notifications.php   OneSignal integration
   class-ads.php                  Newspack Ads placement
   class-admin.php                Admin menu, assets, localized config, block-editor bootstrap
@@ -134,7 +143,7 @@ includes/
     class-ai-settings.php        Prompt settings + REST route
     class-abilities.php          WordPress Abilities API registration
     class-key-takeaways-feature.php  AI plugin per-feature model config
-  blocks/                        Server render callbacks for the eight blocks, entry bindings, shared layouts and their server copies (`layouts/`), breakout cards, status labels, entry name, Jump to Latest and Full story label settings, Lite Site feed support
+  blocks/                        Server render callbacks for the nine blocks, entry bindings, shared layouts and their server copies (`layouts/`), breakout cards, status labels, entry name, Jump to Latest and Full story label settings, Lite Site feed support
   slack/                         Slack config, API client, content processor, media importer, author resolver, ingestion service, verifier, webhook controller, monitor
   sources/
     class-entry-ingestion-service.php  Generic ingestion + dedup/mutex
@@ -144,7 +153,7 @@ src/
   blocks/                        Block editor + frontend view sources (edit.tsx, view.ts, block.json)
   entry-editor/                  Entry editor script (Push Notifications panel, back-to-coverage link)
   breakout-editor/               Full story label field in a breakout post's settings sidebar
-tests/                           PHPUnit suite; tests/js/ holds the poll cursor and layout template checks `npm test` runs
+tests/                           PHPUnit suite; tests/js/ holds the poll cursor, layout template and entries list sync checks `npm test` runs
 ```
 
 All PHP classes live under the `Newspack_Rolling_Coverage` namespace and are loaded via Composer's `classmap` autoloader over `./includes`. The admin app is compiled by webpack to `dist/admin.js` / `dist/admin.css`, the editor scripts to `dist/entry-editor.js` and `dist/breakout-editor.js`, and blocks to `dist/blocks/<slug>/`.
@@ -162,7 +171,7 @@ All PHP classes live under the `Newspack_Rolling_Coverage` namespace and are loa
 
 - REST base `rolling-coverage`, non-hierarchical, not publicly queryable or shown in menus.
 - The term description is an internal note: REST responses outside the `edit` context leave it out (`Taxonomy::filter_rest_response()`).
-- Term meta: `rolling_coverage_status`, `rolling_coverage_canonical_url`, `created_at`, `modified_at`, `rolling_coverage_end_time`, `rolling_coverage_last_modified`, `rolling_coverage_slack_channel_id`, `rolling_coverage_slack_channel_name`, `rolling_coverage_source`, `rolling_coverage_source_ref`, `rolling_coverage_ads_disabled`, `rolling_coverage_template_hashes`, `rolling_coverage_newest_entry`, `rolling_coverage_change_marker`.
+- Term meta: `rolling_coverage_status`, `rolling_coverage_status_before_trash`, `rolling_coverage_canonical_url`, `created_at`, `modified_at`, `rolling_coverage_end_time`, `rolling_coverage_last_modified`, `rolling_coverage_slack_channel_id`, `rolling_coverage_slack_channel_name`, `rolling_coverage_source`, `rolling_coverage_source_ref`, `rolling_coverage_ads_disabled`, `rolling_coverage_template_hashes`, `rolling_coverage_newest_entry`, `rolling_coverage_change_marker`.
 
 ### Entry post meta
 
@@ -216,7 +225,7 @@ Namespace: **`rolling-coverage/v1`** (constant `NEWSPACK_ROLLING_COVERAGE_REST_N
 | POST | `/coverages/{coverage_id}/entries` | `create_posts` on the entry type | Start a new entry in the coverage, for Quick Edit. |
 | POST | `/coverages/{coverage_id}/generate-key-takeaways` | `edit_posts` | AI summary generation. |
 | POST | `/coverages/{coverage_id}/trash` | `manage_categories` | Soft-delete a coverage. |
-| POST | `/coverages/{coverage_id}/restore` | `manage_categories` | Restore a trashed coverage. |
+| POST | `/coverages/{coverage_id}/restore` | `manage_categories` | Restore a trashed coverage to the status it had. |
 | DELETE | `/coverages/{coverage_id}` | `manage_categories` | Permanently delete a coverage (schedules orphan cleanup). |
 | POST | `/entries/{entry_id}/pin` | `edit_others_posts` | Toggle pin. |
 | POST | `/entries/{entry_id}/restore` | `edit_post` | Restore one trashed entry. |
@@ -248,7 +257,7 @@ Namespace: **`rolling-coverage/v1`** (constant `NEWSPACK_ROLLING_COVERAGE_REST_N
 | POST | `/slack/commands` | Slack signature | Slash commands. |
 | POST | `/slack/interactions` | Slack signature | Interactive components. |
 
-Core WordPress routes are also used: `/wp/v2/rolling-coverage` (coverages) and `/wp/v2/rolling-coverage-entries` (entries, including trash/force delete). Creating a coverage through the coverages route needs `manage_categories` (`Coverage_REST_Controller`), while assigning an entry to one needs only `edit_posts`. Outside edit context, the entries route leaves out entries whose coverage is trashed or deleted, on top of the request's own `rolling-coverage`, `categories` and `tags` filters (`Post_Type::filter_rest_query()`). The plugin adds these read-only fields to their responses:
+Core WordPress routes are also used: `/wp/v2/rolling-coverage` (coverages) and `/wp/v2/rolling-coverage-entries` (entries, including trash/force delete). Creating a coverage through the coverages route needs `manage_categories` (`Coverage_REST_Controller`), while assigning an entry to one needs only `edit_posts`. Outside edit context, the entries route leaves out entries whose coverage is trashed or deleted, on top of the request's own `rolling-coverage`, `categories` and `tags` filters (`Post_Type::filter_rest_query()`), and answers a request for one of them with a 404 (`Post_Type::hide_entry_rest_record()`). The plugin adds these read-only fields to their responses:
 
 | Route | Field | Context | Value |
 | :--- | :--- | :--- | :--- |
@@ -290,6 +299,8 @@ The `entries-view` endpoint accepts `page`, `per_page`, `orderby` (`date`\|`modi
 | `newspack_rolling_coverage_shared_polling` | `(bool $enabled)` | Whether pages poll the URL every reader shares (default `true`). Returning false moves open pages to their own cursor on their next poll. |
 | `newspack_rolling_coverage_defer_notification` | `(bool $defer, WP_Post $post)` | Whether an entry's push notification is scheduled instead of sent during the request that published it. |
 | `onesignal_send_notification` | `(array $fields, int $post_id)` | Consumed to scope push notifications. |
+| `newspack_updated_date_override` | `(bool\|null $override, WP_Post $post)` | Consumed to show the updated date in a live post's byline. |
+| `newspack_blocks_display_updated_date` | `(bool $display, WP_Post $post)` | Consumed to show a live post's updated date on its Homepage Posts card. |
 | `newspack_ads_gam_bounds_selectors` | `(array $selectors, $ad_unit, $sizes)` | GAM bounds selectors for in-feed ad slots. |
 | `newspack_ads_gam_bounds_bleed` | `(int $bleed, $ad_unit, $sizes)` | GAM bounds bleed (default 40). |
 

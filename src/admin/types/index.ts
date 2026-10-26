@@ -810,8 +810,16 @@ interface SyncPollContext {
 	coverageIdRef: MutableRefObject< number | null >;
 	rowsRef: MutableRefObject< EntryViewRow[] | null >;
 	pageRef: MutableRefObject< number >;
+	/**
+	 * The view the list last loaded: the one-entry page a poll fetches to
+	 * recount it, and the page size to count pages by. Each page fetch that
+	 * lands stores a new object, so a recount in flight can tell it was replaced.
+	 */
+	totalsViewRef: MutableRefObject< { url: string; perPage: number } | null >;
 	isMountedRef: MutableRefObject< boolean >;
 	setRows: Dispatch< SetStateAction< EntryViewRow[] | null > >;
+	setTotalItems: Dispatch< SetStateAction< number > >;
+	setTotalPages: Dispatch< SetStateAction< number > >;
 	setSyncNotices: Dispatch< SetStateAction< SyncNotice[] > >;
 }
 
