@@ -2553,7 +2553,7 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 			'status of a linked channel'    => [ '/rolling-coverage-status', true, 'Connected to "Election Night". New messages are saved as drafts.' ],
 			'status of an unlinked channel' => [ '/rolling-coverage-status', false, 'This channel is not connected to any coverage.' ],
 			'unlink of an unlinked channel' => [ '/rolling-coverage-unlink', false, 'This channel is not connected to any coverage.' ],
-			'an unknown command'            => [ '/rolling-coverage-statuses', true, 'Unknown command.' ],
+			'an unknown command'            => [ '/rolling-coverage-help', true, 'Unknown command.' ],
 		];
 	}
 
@@ -2613,17 +2613,29 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * The connect and unlink announcements in the channel name the site, for
-	 * channel members who didn't run the command and see only these.
+	 * The bot's messages in a channel name the site, for channel members who
+	 * see only these and can't tell one site's bot from another's.
 	 */
-	public function test_channel_announcements_name_the_site() {
+	public function test_channel_messages_name_the_site() {
 		self::configure_slack();
 		update_option( 'blogname', 'Election Desk' );
+		Slack_Config::update_settings( [ 'slack_bot_user_id' => 'U0BOT' ] );
 		$request = new WP_REST_Request( 'POST', '/rolling-coverage/v1/slack/connect' );
 		$request->set_param( 'term_id', self::create_coverage( '', [ 'name' => 'Election Night' ] ) );
 		$request->set_param( 'channel', self::CHANNEL_ID );
 		$request->set_param( 'publish_mode', 'draft' );
 		self::controller()->connect_channel( $request );
+		self::controller()->update_channel_settings( self::channel_settings_request( 'POST', [ 'publish_mode' => 'publish' ] ) );
+		self::controller()->handle_event(
+			self::webhook_request(
+				self::message_event_body(
+					[
+						'type' => 'member_joined_channel',
+						'user' => 'U0BOT',
+					]
+				)
+			)
+		);
 		$body = http_build_query(
 			[
 				'command'    => '/rolling-coverage-unlink',
@@ -2633,7 +2645,7 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 
 		self::controller()->handle_command( self::webhook_request( $body, true, 'commands' ) );
 
-		$this->assertCount( 2, $this->posted_blocks, 'The channel should hear about the connect and the unlink.' );
+		$this->assertCount( 4, $this->posted_blocks, 'The channel should hear about the connect, the mode change, the bot joining and the unlink.' );
 		foreach ( $this->posted_blocks as $index => $blocks ) {
 			$this->assertSame( $this->posted_messages[ $index ], $blocks[0]['text']['text'], 'The announcement should come first.' );
 			$this->assertSame( 'From Election Desk (example.org)', $blocks[1]['elements'][0]['text'], 'The line under it should name the site.' );

@@ -807,15 +807,14 @@ class Slack_Webhook_Controller {
 
 		Slack_Config::update_channel( $channel_id, Slack_Config::publish_mode_fields( $publish_mode ) );
 
-		$this->api_client->post_message(
-			$channel_id,
-			sprintf(
-				/* translators: 1: publish mode name, 2: what happens to messages posted in the channel */
-				__( 'Publish mode is now %1$s. %2$s', 'newspack-rolling-coverage' ),
-				self::publish_mode_label( $publish_mode ),
-				self::describe_publish_mode( $publish_mode )
-			)
+		$text = sprintf(
+			/* translators: 1: publish mode name, 2: what happens to messages posted in the channel */
+			__( 'Publish mode is now %1$s. %2$s', 'newspack-rolling-coverage' ),
+			self::publish_mode_label( $publish_mode ),
+			self::describe_publish_mode( $publish_mode )
 		);
+
+		$this->api_client->post_message( $channel_id, $text, self::site_blocks( $text ) );
 
 		return new \WP_REST_Response(
 			[
@@ -1038,10 +1037,8 @@ class Slack_Webhook_Controller {
 			$channel_id   = (string) ( $event['channel'] ?? '' );
 
 			if ( '' !== $slack_bot_id && $slack_bot_id === $joining_user && '' !== $channel_id ) {
-				$this->api_client->post_message(
-					$channel_id,
-					__( '👋 I\'m now connected and will ingest messages for rolling coverage.', 'newspack-rolling-coverage' )
-				);
+				$text = __( '👋 I\'m now connected and will ingest messages for rolling coverage.', 'newspack-rolling-coverage' );
+				$this->api_client->post_message( $channel_id, $text, self::site_blocks( $text ) );
 			}
 		}
 
@@ -1732,9 +1729,9 @@ class Slack_Webhook_Controller {
 	 * Blocks for a Slack message that names the site it came from: the text,
 	 * then a line such as "From Example News (example.com)". Another site's
 	 * app installed later in the workspace takes over commands that share its
-	 * names (see handle_command()), so command replies and the channel's
-	 * connect and unlink announcements would otherwise read the same from
-	 * every site.
+	 * names (see handle_command()), and every site's bot has the same name,
+	 * so command replies and the bot's messages in a channel would otherwise
+	 * read the same from every site.
 	 *
 	 * @param string $text Message text, as Slack mrkdwn.
 	 * @return array[] Slack blocks.
