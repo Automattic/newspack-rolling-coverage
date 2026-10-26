@@ -1341,6 +1341,12 @@ class Slack_Webhook_Controller {
 	/**
 	 * POST /slack/commands — handle Slack slash commands.
 	 *
+	 * Every site sets up its own Slack app with the same command names, and
+	 * Slack sends a command to the most recently installed of the apps that
+	 * share its name. A site whose workspace has another site's app can
+	 * rename its commands in Slack, so a command is recognized by its ending
+	 * (`-connect`, `-unlink` or `-status`) rather than its full name.
+	 *
 	 * @param \WP_REST_Request $request Request object.
 	 * @return \WP_REST_Response Response.
 	 */
@@ -1377,12 +1383,14 @@ class Slack_Webhook_Controller {
 
 		Slack_Monitor::log( 'info', "Slash command received: {$command}", [ 'channel' => $channel_id ] );
 
-		switch ( $command ) {
-			case '/rolling-coverage-connect':
+		$action = preg_match( '/-(connect|unlink|status)$/', $command, $matches ) ? $matches[1] : '';
+
+		switch ( $action ) {
+			case 'connect':
 				return $this->handle_connect_command( $trigger_id, $channel_id, $channel_name );
-			case '/rolling-coverage-unlink':
+			case 'unlink':
 				return $this->handle_unlink_command( $channel_id );
-			case '/rolling-coverage-status':
+			case 'status':
 				return $this->handle_status_command( $channel_id );
 			default:
 				return $this->ephemeral( __( 'Unknown command.', 'newspack-rolling-coverage' ) );
@@ -1406,7 +1414,11 @@ class Slack_Webhook_Controller {
 				'block_id' => 'term_select_block',
 				'label'    => [
 					'type' => 'plain_text',
-					'text' => __( 'Select a Rolling Coverage', 'newspack-rolling-coverage' ),
+					'text' => sprintf(
+						/* translators: %s: the site's name and address, such as "Example News (example.com)". */
+						__( 'Select a Rolling Coverage on %s', 'newspack-rolling-coverage' ),
+						self::site_label()
+					),
 				],
 				'element'  => [
 					'type'             => 'external_select',
@@ -1699,7 +1711,10 @@ class Slack_Webhook_Controller {
 	}
 
 	/**
-	 * Build an ephemeral Slack command response.
+	 * Build an ephemeral Slack command response, with a line under the
+	 * message naming the site that answered. Another site's app installed
+	 * later in the workspace takes over commands that share its names (see
+	 * handle_command()), and its replies would otherwise read as this site's.
 	 *
 	 * @param string $text Message text.
 	 * @return \WP_REST_Response Response.
@@ -1709,9 +1724,50 @@ class Slack_Webhook_Controller {
 			[
 				'response_type' => 'ephemeral',
 				'text'          => $text,
+				'blocks'        => [
+					[
+						'type' => 'section',
+						'text' => [
+							'type' => 'mrkdwn',
+							'text' => $text,
+						],
+					],
+					[
+						'type'     => 'context',
+						'elements' => [
+							[
+								'type' => 'plain_text',
+								'text' => sprintf(
+									/* translators: %s: the site's name and address, such as "Example News (example.com)". */
+									__( 'From %s', 'newspack-rolling-coverage' ),
+									self::site_label()
+								),
+							],
+						],
+					],
+				],
 			],
 			200
 		);
+	}
+
+	/**
+	 * The site's name and address, such as "Example News (example.com)", for
+	 * Slack messages that say which site answered. The address tells apart
+	 * two sites with the same name, such as a site and its staging copy.
+	 *
+	 * @return string
+	 */
+	private static function site_label(): string {
+		$name    = trim( wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) );
+		$address = (string) preg_replace( '#^https?://#', '', untrailingslashit( home_url() ) );
+
+		if ( '' === $name ) {
+			return $address;
+		}
+
+		/* translators: 1: site name, 2: site address, such as example.com. */
+		return sprintf( __( '%1$s (%2$s)', 'newspack-rolling-coverage' ), $name, $address );
 	}
 
 	/**

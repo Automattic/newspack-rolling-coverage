@@ -131,6 +131,13 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 	private $posted_messages = [];
 
 	/**
+	 * Views the bot opened, such as the connect modal.
+	 *
+	 * @var array[]
+	 */
+	private $opened_views = [];
+
+	/**
 	 * Runs when a reacted message is read, to stand in for what another
 	 * request does meanwhile.
 	 *
@@ -154,6 +161,7 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 		$this->reaction_requests        = [];
 		$this->reaction_failure         = '';
 		$this->posted_messages          = [];
+		$this->opened_views             = [];
 		$this->during_message_read      = null;
 		$this->file_response            = [
 			'type' => 'image/png',
@@ -179,8 +187,8 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 	 * response, `conversations.history` answers from the channel's messages,
 	 * `conversations.replies` answers with a message and, for a reply, its
 	 * thread's first message, `conversations.info` describes a channel the
-	 * bot is in, reaction requests and posted messages are recorded, and
-	 * every other method answers with a `users.info` payload.
+	 * bot is in, reaction requests, posted messages and opened views are
+	 * recorded, and every other method answers with a `users.info` payload.
 	 *
 	 * @param false|array $response    Short-circuit value.
 	 * @param array       $parsed_args Request arguments.
@@ -252,6 +260,11 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 
 		if ( false !== strpos( $url, 'chat.postMessage' ) ) {
 			$this->posted_messages[] = (string) ( json_decode( (string) $parsed_args['body'], true )['text'] ?? '' );
+			return $this->slack_api_response( [] );
+		}
+
+		if ( false !== strpos( $url, 'views.open' ) ) {
+			$this->opened_views[] = json_decode( (string) $parsed_args['body'], true )['view'] ?? [];
 			return $this->slack_api_response( [] );
 		}
 
@@ -2450,6 +2463,142 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 		$text = self::controller()->handle_command( self::webhook_request( $body, true, 'commands' ) )->get_data()['text'];
 
 		$this->assertStringEndsWith( 'New messages are saved as drafts.', $text );
+	}
+
+	/**
+	 * Commands renamed in a site's Slack app, keeping their endings, and what
+	 * each answers.
+	 *
+	 * @return array[]
+	 */
+	public function renamed_command_provider() {
+		return [
+			'status' => [ '/staging-coverage-status', 'Connected to "Election Night". New messages are saved as drafts.', true ],
+			'unlink' => [ '/staging-coverage-unlink', 'Disconnected from "Election Night".', false ],
+		];
+	}
+
+	/**
+	 * A command renamed in the site's Slack app works as long as its name
+	 * keeps the ending, so a site can move its commands off names another
+	 * site's app shares in the workspace.
+	 *
+	 * @dataProvider renamed_command_provider
+	 *
+	 * @param string $command          Command name.
+	 * @param string $reply            The reply's text.
+	 * @param bool   $is_still_linked  Whether the channel is still linked afterwards.
+	 */
+	public function test_a_renamed_command_still_works( $command, $reply, $is_still_linked ) {
+		self::configure_slack();
+		Slack_Config::update_channel(
+			self::CHANNEL_ID,
+			[
+				'term_id'      => self::create_coverage( '', [ 'name' => 'Election Night' ] ),
+				'publish_mode' => Slack_Config::PUBLISH_MODE_DRAFT,
+			]
+		);
+		$body = http_build_query(
+			[
+				'command'    => $command,
+				'channel_id' => self::CHANNEL_ID,
+			]
+		);
+
+		$text = self::controller()->handle_command( self::webhook_request( $body, true, 'commands' ) )->get_data()['text'];
+
+		$this->assertSame( $reply, $text );
+		$this->assertSame( $is_still_linked, null !== Slack_Config::get_channel_settings( self::CHANNEL_ID ), 'The channel should be linked only when the command leaves it so.' );
+	}
+
+	/**
+	 * A renamed connect command opens the coverage picker, which names the
+	 * site the coverages are on.
+	 */
+	public function test_the_connect_picker_names_the_site() {
+		self::configure_slack();
+		update_option( 'blogname', 'Election Desk & More' );
+		$body = http_build_query(
+			[
+				'command'    => '/staging-coverage-connect',
+				'channel_id' => self::CHANNEL_ID,
+				'trigger_id' => '12345.98765.abcd',
+			]
+		);
+
+		self::controller()->handle_command( self::webhook_request( $body, true, 'commands' ) );
+
+		$this->assertCount( 1, $this->opened_views, 'The picker should open.' );
+		$this->assertSame( 'Select a Rolling Coverage on Election Desk & More (example.org)', $this->opened_views[0]['blocks'][0]['label']['text'] );
+	}
+
+	/**
+	 * Commands that reach the site, and the reply each gets.
+	 *
+	 * @return array[]
+	 */
+	public function command_reply_provider() {
+		return [
+			'status of a linked channel'    => [ '/rolling-coverage-status', true, 'Connected to "Election Night". New messages are saved as drafts.' ],
+			'status of an unlinked channel' => [ '/rolling-coverage-status', false, 'This channel is not connected to any coverage.' ],
+			'unlink of an unlinked channel' => [ '/rolling-coverage-unlink', false, 'This channel is not connected to any coverage.' ],
+			'a name with no known ending'   => [ '/rolling-coverage-statuses', true, 'Unknown command.' ],
+		];
+	}
+
+	/**
+	 * Every reply to a command names the site that answered, since Slack
+	 * sends a command to whichever site's app was installed last among those
+	 * that share its name.
+	 *
+	 * @dataProvider command_reply_provider
+	 *
+	 * @param string $command   Command name.
+	 * @param bool   $is_linked Whether the channel is linked to a coverage.
+	 * @param string $reply     The reply's text.
+	 */
+	public function test_command_replies_name_the_site( $command, $is_linked, $reply ) {
+		self::configure_slack();
+		update_option( 'blogname', 'Election Desk' );
+		if ( $is_linked ) {
+			Slack_Config::update_channel(
+				self::CHANNEL_ID,
+				[
+					'term_id'      => self::create_coverage( '', [ 'name' => 'Election Night' ] ),
+					'publish_mode' => Slack_Config::PUBLISH_MODE_DRAFT,
+				]
+			);
+		}
+		$body = http_build_query(
+			[
+				'command'    => $command,
+				'channel_id' => self::CHANNEL_ID,
+			]
+		);
+
+		$data = self::controller()->handle_command( self::webhook_request( $body, true, 'commands' ) )->get_data();
+
+		$this->assertSame( $reply, $data['text'], 'The fallback text should be the reply alone.' );
+		$this->assertSame( $reply, $data['blocks'][0]['text']['text'], 'The message should come first.' );
+		$this->assertSame( 'From Election Desk (example.org)', $data['blocks'][1]['elements'][0]['text'], 'The line under it should name the site.' );
+	}
+
+	/**
+	 * A site with no name is named by its address alone.
+	 */
+	public function test_a_site_with_no_name_is_named_by_its_address() {
+		self::configure_slack();
+		update_option( 'blogname', '' );
+		$body = http_build_query(
+			[
+				'command'    => '/rolling-coverage-status',
+				'channel_id' => self::CHANNEL_ID,
+			]
+		);
+
+		$data = self::controller()->handle_command( self::webhook_request( $body, true, 'commands' ) )->get_data();
+
+		$this->assertSame( 'From example.org', $data['blocks'][1]['elements'][0]['text'] );
 	}
 
 	/**
