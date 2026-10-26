@@ -10,6 +10,7 @@ namespace Newspack_Rolling_Coverage;
 use WP_Error;
 use WP_Post;
 use WP_Query;
+use WP_REST_Posts_Controller;
 use WP_REST_Request;
 use WP_REST_Response;
 use WP_REST_Server;
@@ -38,6 +39,9 @@ class Post_Type {
 
 	// Query var used to opt out of pinned-first ordering for a specific query.
 	const SKIP_PIN_ORDER_VAR = 'rolling_coverage_skip_pin_order';
+
+	// Query var hide_entries_from_main_query() sets to the terms cache version, so core's cached result of a main query for entries is renewed when coverages change.
+	const COVERAGES_VERSION_VAR = 'rolling_coverage_coverages_version';
 
 	// Source related meta key for any chat-source adapter (Slack now, others in future).
 	const META_ENTRY_SOURCE = 'rolling_coverage_entry_source';
@@ -258,6 +262,10 @@ class Post_Type {
 		add_action( 'trashed_post', [ __CLASS__, 'on_trash_post' ] );
 		add_action( 'before_delete_post', [ __CLASS__, 'on_delete_post' ] );
 		add_filter( 'rest_' . self::CPT_SLUG . '_query', [ __CLASS__, 'filter_rest_query' ], 10, 2 );
+		add_filter( 'rest_request_before_callbacks', [ __CLASS__, 'hide_entry_rest_record' ], 10, 3 );
+		add_filter( 'rest_request_before_callbacks', [ __CLASS__, 'hide_entry_seo_head' ], 10, 3 );
+		add_filter( 'posts_where', [ __CLASS__, 'hide_entries_from_main_query' ], 10, 2 );
+		add_filter( 'is_post_embeddable', [ __CLASS__, 'hide_entry_embed' ], 10, 2 );
 		add_filter( 'posts_where', [ __CLASS__, 'author_scope_where' ], 10, 2 );
 		add_action( self::CLEANUP_CRON_HOOK, [ __CLASS__, 'cleanup_orphaned_entries' ] );
 	}
@@ -467,6 +475,193 @@ class Post_Type {
 		$args['tax_query'] = $tax_query; // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
 
 		return $args;
+	}
+
+	/**
+	 * Whether an entry is hidden from readers because none of its coverages
+	 * exists outside the trash.
+	 *
+	 * Trashing a coverage leaves its entries published, as does deleting one
+	 * until the cleanup removes them, so the ways readers reach an entry check
+	 * its coverage as well as its own status. The feed and the entries list
+	 * (filter_rest_query()) check it themselves, and hide_entries_from_main_query()
+	 * applies this rule in SQL. The entry's REST record, its Yoast SEO head and
+	 * its oEmbed data check it here.
+	 *
+	 * @param WP_Post $entry Entry post.
+	 * @return bool
+	 */
+	public static function is_hidden_by_coverage( WP_Post $entry ): bool {
+		$coverages = get_the_terms( $entry, Taxonomy::TAXONOMY_SLUG );
+
+		if ( ! is_array( $coverages ) ) {
+			return true;
+		}
+
+		foreach ( $coverages as $coverage ) {
+			if ( 'trash' !== get_term_meta( $coverage->term_id, Taxonomy::STATUS_META_KEY, true ) ) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	/**
+	 * Leave entries hidden by their coverage out of every front-end main query
+	 * that can return entries. An entry's permalink then answers with a 404
+	 * for every visitor, as a post in the trash does, and listings such as
+	 * `?post_type=rolling_cov_entry`, alone or mixed with other post types,
+	 * and their feeds leave the entries out.
+	 *
+	 * The clause is is_hidden_by_coverage() in SQL, so the two change
+	 * together. Filtering the query rather than its results keeps a listing's
+	 * pagination right, and leaves the theme, the embed template
+	 * (`?embed=true`) and Social_Sharing::redirect_entry_to_canonical()
+	 * nothing to show or redirect for a hidden entry's permalink.
+	 *
+	 * Core caches a query's result under its query vars and SQL, renewed when
+	 * posts change. The clause also depends on which coverages an entry is
+	 * in, so the terms cache version joins the query vars, renewing the
+	 * cached result when a coverage or an entry's coverages change too.
+	 *
+	 * @param string   $where The query's WHERE clause.
+	 * @param WP_Query $query The query.
+	 * @return string Filtered WHERE clause.
+	 */
+	public static function hide_entries_from_main_query( string $where, WP_Query $query ): string {
+		if ( is_admin() || ! $query->is_main_query() || ! in_array( self::CPT_SLUG, (array) $query->get( 'post_type' ), true ) ) {
+			return $where;
+		}
+
+		$query->set( self::COVERAGES_VERSION_VAR, wp_cache_get_last_changed( 'terms' ) );
+
+		global $wpdb;
+
+		$trashed_ids = get_terms(
+			[
+				'taxonomy'   => Taxonomy::TAXONOMY_SLUG,
+				'fields'     => 'ids',
+				'hide_empty' => false,
+				'meta_query' => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+					[
+						'key'   => Taxonomy::STATUS_META_KEY,
+						'value' => 'trash',
+					],
+				],
+			]
+		);
+		$trashed_ids = is_array( $trashed_ids ) ? array_map( 'intval', $trashed_ids ) : [];
+		$not_trashed = $trashed_ids ? ' AND tt.term_id NOT IN (' . implode( ',', $trashed_ids ) . ')' : '';
+
+		$sql = " AND ( {$wpdb->posts}.post_type <> %s OR EXISTS (
+			SELECT 1 FROM {$wpdb->term_relationships} AS tr
+			INNER JOIN {$wpdb->term_taxonomy} AS tt ON tt.term_taxonomy_id = tr.term_taxonomy_id
+			WHERE tr.object_id = {$wpdb->posts}.ID AND tt.taxonomy = %s{$not_trashed}
+		) )";
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- The only dynamic values are the placeholders, core table names and a list of integer term IDs.
+		return $where . $wpdb->prepare( $sql, self::CPT_SLUG, Taxonomy::TAXONOMY_SLUG );
+	}
+
+	/**
+	 * Answer a request for one entry hidden by its coverage as if the entry
+	 * did not exist, outside the edit context the admin uses, matching what
+	 * filter_rest_query() leaves out of the entries list.
+	 *
+	 * Any posts controller's single-item handler is checked, not only the
+	 * entries route's: the others refuse an entry's ID anyway, and matching
+	 * the entries controller by instance would stop matching if the post type
+	 * were registered again. The ID is read the way core's handler reads it:
+	 * a query string `id` outranks the route's, and reading only the route's
+	 * would check one entry while core serves another.
+	 *
+	 * @param WP_REST_Response|WP_HTTP_Response|WP_Error|mixed $response Result so far.
+	 * @param array|mixed                                      $handler  Route handler used for the request.
+	 * @param WP_REST_Request|mixed                            $request  Request.
+	 * @return WP_REST_Response|WP_HTTP_Response|WP_Error|mixed
+	 */
+	public static function hide_entry_rest_record( $response, $handler, $request ) {
+		if ( is_wp_error( $response ) || ! is_array( $handler ) || ! $request instanceof WP_REST_Request || 'edit' === $request->get_param( 'context' ) ) {
+			return $response;
+		}
+
+		$callback = $handler['callback'] ?? null;
+
+		if ( ! is_array( $callback ) || ! ( $callback[0] ?? null ) instanceof WP_REST_Posts_Controller || 'get_item' !== ( $callback[1] ?? null ) ) {
+			return $response;
+		}
+
+		$entry = get_post( (int) $request->get_param( 'id' ) );
+
+		if ( ! $entry instanceof WP_Post || self::CPT_SLUG !== $entry->post_type || ! self::is_hidden_by_coverage( $entry ) ) {
+			return $response;
+		}
+
+		return new WP_Error(
+			'rest_post_invalid_id',
+			__( 'Invalid post ID.', 'newspack-rolling-coverage' ),
+			[ 'status' => 404 ]
+		);
+	}
+
+	/**
+	 * Answer Yoast SEO's public head route with a 404 for the permalink of an
+	 * entry hidden by its coverage. The route builds the entry's title and
+	 * description from Yoast's own stored copy of the entry, which trashing
+	 * the coverage doesn't change, and the description defaults to the start
+	 * of the entry's text.
+	 *
+	 * The route is recognized by its handler, not its path, which core also
+	 * dispatches with a trailing newline. The URL is read as Yoast reads it,
+	 * by host and path alone: url_to_postid() would otherwise answer for a
+	 * `p=` in the query string that Yoast ignores.
+	 *
+	 * @param WP_REST_Response|WP_HTTP_Response|WP_Error|mixed $response Result so far.
+	 * @param array|mixed                                      $handler  Route handler used for the request.
+	 * @param WP_REST_Request|mixed                            $request  Request.
+	 * @return WP_REST_Response|WP_HTTP_Response|WP_Error|mixed
+	 */
+	public static function hide_entry_seo_head( $response, $handler, $request ) {
+		$callback = is_array( $handler ) ? ( $handler['callback'] ?? null ) : null;
+
+		if ( is_wp_error( $response ) || ! $request instanceof WP_REST_Request || ! is_array( $callback ) || ! is_a( $callback[0] ?? null, 'Yoast\WP\SEO\Routes\Indexables_Head_Route' ) || 'get_head' !== ( $callback[1] ?? null ) ) {
+			return $response;
+		}
+
+		$url = wp_parse_url( esc_url_raw( utf8_uri_encode( (string) $request->get_param( 'url' ) ) ) );
+
+		if ( empty( $url['host'] ) || empty( $url['path'] ) ) {
+			return $response;
+		}
+
+		$entry = get_post( url_to_postid( '//' . $url['host'] . $url['path'] ) ); // phpcs:ignore WordPressVIPMinimum.Functions.RestrictedFunctions.url_to_postid_url_to_postid -- Runs only for Yoast's head route.
+
+		if ( ! $entry instanceof WP_Post || self::CPT_SLUG !== $entry->post_type || ! self::is_hidden_by_coverage( $entry ) ) {
+			return $response;
+		}
+
+		return new WP_Error(
+			'rest_post_invalid_id',
+			__( 'Invalid post ID.', 'newspack-rolling-coverage' ),
+			[ 'status' => 404 ]
+		);
+	}
+
+	/**
+	 * Keep an entry hidden by its coverage out of oEmbed, whose response
+	 * carries the entry's title.
+	 *
+	 * @param bool|mixed    $is_embeddable Whether the post can be embedded.
+	 * @param WP_Post|mixed $post          Post.
+	 * @return bool|mixed
+	 */
+	public static function hide_entry_embed( $is_embeddable, $post ) {
+		if ( ! $is_embeddable || ! $post instanceof WP_Post || self::CPT_SLUG !== $post->post_type ) {
+			return $is_embeddable;
+		}
+
+		return ! self::is_hidden_by_coverage( $post );
 	}
 
 	/**

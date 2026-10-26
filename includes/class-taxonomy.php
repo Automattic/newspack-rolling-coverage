@@ -423,8 +423,9 @@ class Taxonomy {
 
 	/**
 	 * Soft-delete a coverage: set status to 'trash'. Entries are left
-	 * as-is and access is restricted on the frontend via the coverage
-	 * status check in the block SSR and the entries REST endpoint.
+	 * as-is; readers lose them through the coverage status checks in the
+	 * feed, in Post_Type::filter_rest_query() and in
+	 * Post_Type::is_hidden_by_coverage().
 	 *
 	 * @param \WP_REST_Request $request Request object.
 	 * @return \WP_REST_Response|\WP_Error
