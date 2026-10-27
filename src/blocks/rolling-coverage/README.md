@@ -257,7 +257,7 @@ If a story points at a layout that was deleted, readers see the Bulletin layout,
 
 A built-in layout keeps up with the plugin until someone edits it, so a plugin update brings its new design to every story that uses it. Saving a change to the layout makes it the site's own, and updates no longer change it. Renaming it doesn't count as a change.
 
-To get the plugin's version of an edited layout back, remove the pattern, reload the editor, and pick the layout again. On block themes, use Delete in the Site Editor's Patterns, which can't be undone; on classic themes, use Trash on the Patterns screen (`wp-admin/edit.php?post_type=wp_block`). The site recreates the layout, which keeps up with the plugin again. Stories using the removed layout show Bulletin until they pick a layout again. An edited layout saved before the Full Story Entry existed has none: entries with a published breakout post show as normal entries in it until you restore the layout.
+To get the plugin's version of an edited layout back, remove its pattern. On block themes, use Delete in the Site Editor's Patterns, which can't be undone; on classic themes, use Trash on the Patterns screen (`wp-admin/edit.php?post_type=wp_block`). Every story that used the layout then shows the plugin's version, which keeps up with the plugin again. Reload any editor that was open before you removed it. An edited layout saved before the Full Story Entry existed has none: entries with a published breakout post show as normal entries in it until you restore the layout.
 
 ## Make a custom layout
 
