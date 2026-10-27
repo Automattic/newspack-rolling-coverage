@@ -1,0 +1,91 @@
+/**
+ * What a Rolling Coverage block's layout attributes point at
+ * (`layout-reference.ts`), as the editor reads them.
+ */
+import { layoutReferenceOf } from '../../src/blocks/rolling-coverage/layout-reference';
+import type { BuiltInLayoutSlug } from '../../src/blocks/rolling-coverage/layouts';
+
+const LAYOUT_IDS: Record< BuiltInLayoutSlug, number > = {
+	default: 0,
+	stream: 0,
+	rail: 0,
+	clock: 0,
+	margin: 0,
+	minute: 0,
+	byline: 0,
+	ticker: 50,
+	split: 0,
+	wire: 0,
+	digest: 0,
+	flash: 0,
+	alert: 0,
+};
+const REMOVED = { 40: 'ticker', 41: 'flash', 42: 'nope' };
+
+describe( 'layoutReferenceOf', () => {
+	it( 'reads a slug as its built-in layout, with the pattern it has now', () => {
+		expect( layoutReferenceOf( 0, 'ticker', LAYOUT_IDS, REMOVED ) ).toEqual(
+			{ kind: 'built-in', slug: 'ticker', patternId: 50 }
+		);
+		expect( layoutReferenceOf( 0, 'flash', LAYOUT_IDS, REMOVED ) ).toEqual(
+			{ kind: 'built-in', slug: 'flash', patternId: 0 }
+		);
+	} );
+
+	it( "reads a built-in layout's pattern ID as that layout", () => {
+		expect( layoutReferenceOf( 50, '', LAYOUT_IDS, REMOVED ) ).toEqual( {
+			kind: 'built-in',
+			slug: 'ticker',
+			patternId: 50,
+		} );
+	} );
+
+	it( "reads a removed built-in pattern's ID as its layout", () => {
+		expect( layoutReferenceOf( 40, '', LAYOUT_IDS, REMOVED ) ).toEqual( {
+			kind: 'built-in',
+			slug: 'ticker',
+			patternId: 50,
+		} );
+		expect( layoutReferenceOf( 41, '', LAYOUT_IDS, REMOVED ) ).toEqual( {
+			kind: 'built-in',
+			slug: 'flash',
+			patternId: 0,
+		} );
+	} );
+
+	it( 'reads any other pattern ID as that pattern', () => {
+		expect( layoutReferenceOf( 77, '', LAYOUT_IDS, REMOVED ) ).toEqual( {
+			kind: 'pattern',
+			id: 77,
+		} );
+		expect( layoutReferenceOf( 42, '', LAYOUT_IDS, REMOVED ) ).toEqual( {
+			kind: 'pattern',
+			id: 42,
+		} );
+	} );
+
+	it( 'lets the pattern ID decide when both are set', () => {
+		expect(
+			layoutReferenceOf( 77, 'ticker', LAYOUT_IDS, REMOVED )
+		).toEqual( { kind: 'pattern', id: 77 } );
+	} );
+
+	it( 'reads no reference, or a slug no layout has, as none', () => {
+		expect( layoutReferenceOf( 0, '', LAYOUT_IDS, REMOVED ) ).toEqual( {
+			kind: 'none',
+		} );
+		expect( layoutReferenceOf( 0, 'nope', LAYOUT_IDS, REMOVED ) ).toEqual( {
+			kind: 'none',
+		} );
+		expect(
+			layoutReferenceOf( 0, 'toString', LAYOUT_IDS, REMOVED )
+		).toEqual( { kind: 'none' } );
+	} );
+
+	it( 'reads an empty removed list, as PHP sends one', () => {
+		expect( layoutReferenceOf( 40, '', LAYOUT_IDS, [] ) ).toEqual( {
+			kind: 'pattern',
+			id: 40,
+		} );
+	} );
+} );
