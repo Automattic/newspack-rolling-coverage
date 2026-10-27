@@ -13,6 +13,8 @@ import { ENTRY_BINDINGS_SOURCE } from '../shared/entry-bindings';
 import { POST_DATE_ATTRIBUTES } from '../shared/post-date';
 import { blockGapCss } from './spacing';
 import { loadMoreButtonsTemplate } from '../shared/load-more-buttons';
+import { mutedTextColor } from '../shared/muted-color';
+import { themeFontSize } from '../shared/theme-font-size';
 import type { TemplateItem } from './types';
 
 /**
@@ -44,6 +46,56 @@ const PIN_ICON = 'newspack-rolling-coverage/pin-small';
  * Entry_Bindings::PINNED_LABEL_CLASS.
  */
 const PINNED_LABEL_CLASS = 'newspack-rolling-coverage-pinned-label';
+
+/**
+ * The New Label block, which marks an entry as new once it arrives,
+ * mirroring New_Label_Block::BLOCK_NAME.
+ */
+const NEW_LABEL_BLOCK_NAME = 'newspack-rolling-coverage/new-label';
+
+/**
+ * The New Label block, as a built-in layout places it. The site renders it
+ * hidden and the view script reveals it, so a layout places it where the
+ * mark should show. Its text is left empty, which shows the translated
+ * "New".
+ *
+ * @param {Object}      [options]                How the label shows.
+ * @param {string|null} [options.color]          The label's text color, or
+ *                                               null for the color of the
+ *                                               text around it. Default the
+ *                                               readable accent.
+ * @param {boolean}     [options.visuallyHidden] Whether the label is for
+ *                                               screen readers only, for a
+ *                                               layout whose entries already
+ *                                               look new. Default false.
+ * @param {string}      [options.textAlign]      The label's text alignment.
+ * @return {TemplateItem} The label.
+ */
+function newLabel( {
+	color = READABLE_ACCENT,
+	visuallyHidden = false,
+	textAlign,
+}: {
+	color?: string | null;
+	visuallyHidden?: boolean;
+	textAlign?: string;
+} = {} ): TemplateItem {
+	return [
+		NEW_LABEL_BLOCK_NAME,
+		{
+			className: 'use-header-font',
+			...( visuallyHidden ? { visuallyHidden } : {} ),
+			fontSize: 'small',
+			style: {
+				typography: {
+					...( textAlign ? { textAlign } : {} ),
+					fontWeight: '700',
+				},
+				...( color ? { color: { text: color } } : {} ),
+			},
+		},
+	];
+}
 
 /**
  * The pin icon and the pinned label in a row, shown only on pinned entries
@@ -113,6 +165,113 @@ function pinnedRow( {
 			],
 		],
 	];
+}
+
+/**
+ * Whether a block is the New Label block.
+ *
+ * @param {Object} block      The block.
+ * @param {string} block.name Block name.
+ * @return {boolean} Whether it's the New label.
+ */
+function isNewLabel( block: { name: string } ): boolean {
+	return block.name === NEW_LABEL_BLOCK_NAME;
+}
+
+/**
+ * The template without the New label, as the entries that aren't the newest
+ * preview, since only the newest entry shows as new.
+ *
+ * @param {Object[]} blocks The template blocks.
+ * @return {Object[]} The blocks without the label.
+ */
+function withoutNewLabel<
+	T extends { name: string; [ key: string ]: unknown },
+>( blocks: T[] ): T[] {
+	return blocks
+		.filter( ( block ) => ! isNewLabel( block ) )
+		.map( ( block ) =>
+			Array.isArray( block.innerBlocks ) && block.innerBlocks.length
+				? {
+						...block,
+						innerBlocks: withoutNewLabel(
+							block.innerBlocks as T[]
+						),
+					}
+				: block
+		);
+}
+
+/**
+ * Client IDs of the New label, at any depth.
+ *
+ * @param {Object[]} blocks The blocks.
+ * @return {string[]} Client IDs.
+ */
+function newLabelBlockIds(
+	blocks: { name: string; [ key: string ]: unknown }[]
+): string[] {
+	return blocks.flatMap( ( block ) => {
+		if ( isNewLabel( block ) ) {
+			return [ block.clientId as string ];
+		}
+
+		return Array.isArray( block.innerBlocks )
+			? newLabelBlockIds( block.innerBlocks as typeof blocks )
+			: [];
+	} );
+}
+
+/**
+ * Client IDs of the New labels to hide in the editable groups, so only the
+ * group previewing the newest sample shows one.
+ *
+ * @param {Object[]} entryGroupBlocks         The editable entry groups, including those in the Pinned stack.
+ * @param {Object[]} pinnedGroups             The groups inside the Pinned stack.
+ * @param {Object}   contexts                 The sample each kind of group previews.
+ * @param {*}        contexts.card            The Pinned card's.
+ * @param {*}        contexts.entry           The Entry's.
+ * @param {*}        contexts.fullStory       The Full Story Entry's.
+ * @param {*}        contexts.pinnedFullStory The Pinned group's Full Story Entry's.
+ * @param {Object}   newest                   The newest sample.
+ * @return {string[]} Client IDs.
+ */
+function hiddenNewLabelIds(
+	entryGroupBlocks: {
+		name: string;
+		attributes?: Record< string, unknown >;
+		[ key: string ]: unknown;
+	}[],
+	pinnedGroups: unknown[],
+	contexts: {
+		card?: unknown;
+		entry?: unknown;
+		fullStory?: unknown;
+		pinnedFullStory?: unknown;
+	},
+	newest: unknown
+): string[] {
+	return newLabelBlockIds(
+		entryGroupBlocks.filter( ( block ) => {
+			if ( isPinnedCard( block ) ) {
+				return contexts.card !== newest;
+			}
+
+			if ( isRegularEntry( block ) ) {
+				return contexts.entry !== newest;
+			}
+
+			if ( isBreakoutEntry( block ) ) {
+				return (
+					( pinnedGroups.includes( block )
+						? contexts.pinnedFullStory
+						: contexts.fullStory ) !== newest
+				);
+			}
+
+			return false;
+		} )
+	);
 }
 
 /**
@@ -327,31 +486,9 @@ function siteTimeFormat(): string {
  * @return {Object} The date's color attributes.
  */
 function mutedDateColor( slugs: string[] ): { textColor?: string } {
-	const slug = [ 'contrast-3', 'medium-gray' ].find( ( candidate ) =>
-		slugs.includes( candidate )
-	);
+	const slug = mutedTextColor( slugs );
 
 	return slug ? { textColor: slug } : {};
-}
-
-/**
- * A font size preset the theme defines: the preferred slug where the theme
- * has it, else its fallback. The Newspack Theme names its sizes Normal and
- * Huge where block themes have Medium and X-Large.
- *
- * @param {string[]} sizes     The theme's font size slugs.
- * @param {string}   preferred The preferred slug.
- * @param {string}   fallback  The slug to use where the theme lacks it.
- * @return {string} The slug.
- */
-function themeFontSize(
-	sizes: string[],
-	preferred: string,
-	fallback: string
-): string {
-	return ! sizes.includes( preferred ) && sizes.includes( fallback )
-		? fallback
-		: preferred;
 }
 
 /**
@@ -567,8 +704,8 @@ function fullStoryFooter( links: TemplateItem ): TemplateItem {
 
 /**
  * A "Read more" button linking to the breakout post, in the accent color
- * with the text color the theme pairs with it, as Bulletin's pinned card, or
- * quiet in gray where the entry sits on the page's own background.
+ * with the text color the theme pairs with it, or quiet in gray where the
+ * entry sits on the page's own background.
  *
  * @param {Object}  [options]              How the button looks.
  * @param {boolean} [options.muted]        Whether it's the quiet gray button.
@@ -966,7 +1103,8 @@ function fullStoryGroup(
 
 /**
  * A Bulletin entry's top row: its details, such as the time and "Share",
- * and on a pinned entry the pin, alone at the row's far end.
+ * then alone at the row's far end the New label, and on a pinned entry the
+ * pin after it.
  *
  * @param {TemplateItem[]} details    The row's details.
  * @param {boolean}        [withPin]  Whether the row ends with the pin.
@@ -991,22 +1129,26 @@ function bulletinMetaRow(
 		},
 		details,
 	];
-
-	if ( ! withPin ) {
-		return [
-			'core/group',
-			{
-				layout: {
-					type: 'flex',
-					flexWrap: 'wrap',
-					verticalAlignment: 'center',
+	const end: TemplateItem = withPin
+		? [
+				'core/group',
+				{
+					layout: {
+						type: 'flex',
+						flexWrap: 'nowrap',
+						verticalAlignment: 'center',
+					},
+					style: { spacing: { blockGap: 'var:preset|spacing|20' } },
+					metadata: {
+						name: __( 'Marks', 'newspack-rolling-coverage' ),
+					},
 				},
-				style: { spacing: { blockGap: 'var:preset|spacing|30' } },
-				metadata: { name: __( 'Meta', 'newspack-rolling-coverage' ) },
-			},
-			details,
-		];
-	}
+				[
+					newLabel(),
+					pinnedRow( { iconOnly: true, color: pinColor } ),
+				],
+			]
+		: newLabel();
 
 	return [
 		'core/group',
@@ -1020,14 +1162,15 @@ function bulletinMetaRow(
 			style: { spacing: { blockGap: 'var:preset|spacing|30' } },
 			metadata: { name: __( 'Meta', 'newspack-rolling-coverage' ) },
 		},
-		[ detailsGroup, pinnedRow( { iconOnly: true, color: pinColor } ) ],
+		[ detailsGroup, end ],
 	];
 }
 
 /**
  * What a Bulletin entry shows: a row with the time and "Share", or on the
- * pinned card the pin, with the Pinned label for screen readers only, the
- * relative date and "Share", then a large title and the content.
+ * pinned card the relative date and "Share", and the New label at its far
+ * end, before the pin on the pinned card, with the Pinned label for screen
+ * readers only, then a large title and the content.
  *
  * @param {boolean} isPinned Whether the blocks are the pinned card's.
  * @return {TemplateItem[]} The entry's blocks.
@@ -1041,7 +1184,6 @@ function bulletinEntryBlocks( isPinned: boolean ): TemplateItem[] {
 						...POST_DATE_ATTRIBUTES,
 						format: 'human-diff',
 						fontSize: 'small',
-						style: { color: { text: ACCENT_CONTRAST } },
 					},
 				],
 				shareLink(),
@@ -1066,11 +1208,12 @@ function bulletinEntryBlocks( isPinned: boolean ): TemplateItem[] {
 }
 
 /**
- * A Bulletin Full Story Entry's box, on a light gray panel with no border: a
- * row of the pin, shown only for a pinned entry, with the Pinned label for
- * screen readers only, the label, the time and "Share", then the post's
- * title, at the entries' title size, its summary and a "Read more" button,
- * with its image to their right, stacked on phones.
+ * A Bulletin Full Story Entry's box, outlined and tinted in the accent like
+ * the other layouts' boxes: a row of the label, the time and "Share", with
+ * the New label and the pin, shown only for a pinned entry, with the Pinned
+ * label for screen readers only, at its far end, then the post's title, at
+ * the entries' title size, its summary and a "Read more" button, with its
+ * image to their right, stacked on phones.
  *
  * @param {string[]} slugs The palette's color slugs.
  * @return {TemplateItem} The group.
@@ -1152,8 +1295,6 @@ function bulletinFullStoryBox( slugs: string[] ): TemplateItem {
 		{
 			gap: 'var:preset|spacing|30',
 			inset: 'var:preset|spacing|50',
-			outlined: false,
-			background: PINNED_BACKGROUND,
 		}
 	);
 }
@@ -1161,8 +1302,7 @@ function bulletinFullStoryBox( slugs: string[] ): TemplateItem {
 /**
  * The Bulletin layout's per-entry template, the default: a headline-led
  * entry closed by a separator, which the entry group's Block spacing spaces
- * like its other blocks. The pinned card is set in the accent color,
- * with its text, links and headings in the accent's contrast color. An
+ * like its other blocks. The pinned card is set on a light gray panel. An
  * entry whose breakout post is published, pinned or not, shows the post in
  * a box, with no separator, like the pinned card.
  *
@@ -1177,11 +1317,7 @@ function bulletinEntryTemplate( slugs: string[] ): TemplateItem[] {
 				className: PINNED_CARD_CLASS,
 				lock: LOCKED_IN_PLACE,
 				style: {
-					color: { background: ACCENT, text: ACCENT_CONTRAST },
-					elements: {
-						link: { color: { text: ACCENT_CONTRAST } },
-						heading: { color: { text: ACCENT_CONTRAST } },
-					},
+					color: { background: PINNED_BACKGROUND },
 					spacing: {
 						padding: CARD_PADDING,
 						blockGap: 'var:preset|spacing|30',
@@ -1219,7 +1355,8 @@ function bulletinEntryTemplate( slugs: string[] ): TemplateItem[] {
 }
 
 /**
- * A Stream entry's byline: the author's avatar, name and the relative date.
+ * A Stream entry's byline: the author's avatar, name, the relative date and
+ * the New label.
  *
  * @param {string[]} slugs The palette's color slugs.
  * @return {TemplateItem} The group.
@@ -1267,6 +1404,7 @@ function streamByline( slugs: string[] ): TemplateItem {
 							...mutedDateColor( slugs ),
 						},
 					],
+					newLabel(),
 				],
 			],
 		],
@@ -1507,18 +1645,18 @@ function railPin(): TemplateItem {
 }
 
 /**
- * A Rail entry's row: the time, under the pin on the pinned card, in a
- * narrow column, then the entry beside a vertical rule, which style.scss
- * runs up through the Feed's gap to the entry above, in this entry's color: the content, or the
- * breakout post's box for a Full Story Entry, then the author's avatar and
- * name beside Share, with an arrow at that row's far end in the box. The
- * entry is a vertical flex group, so its spacing also applies on the
- * Newspack Theme (see Rolling_Coverage_Block::apply_entry_block_gap()).
- * The pinned card's rule is in the accent color and its entry sits on a
- * panel in the accent color, with its text in the accent's contrast color,
- * like Bulletin's pinned card. A Full Story Entry's box is Clock's
- * (clockFullStoryBox()). With no pinned label, the site announces the entry as
- * pinned itself (see Rolling_Coverage_Block::render_entry()).
+ * A Rail entry's row: the time, under the New label and, on the pinned
+ * card, the pin, in a narrow column, then the entry beside a vertical rule,
+ * which style.scss runs up through the Feed's gap to the entry above, in
+ * this entry's color: the content, or the breakout post's box for a Full
+ * Story Entry, then the author's avatar and name beside Share, with an
+ * arrow at that row's far end in the box. The entry is a vertical flex
+ * group, so its spacing also applies on the Newspack Theme (see
+ * Rolling_Coverage_Block::apply_entry_block_gap()). The pinned card's rule
+ * is in the accent color and its entry sits on a light gray panel, like
+ * Bulletin's pinned card. A Full Story Entry's box is Clock's
+ * (clockFullStoryBox()). With no pinned label, the site announces the entry
+ * as pinned itself (see Rolling_Coverage_Block::render_entry()).
  *
  * @param {string[]}  slugs The palette's color slugs.
  * @param {EntryKind} kind  Which part of the template the row is.
@@ -1526,22 +1664,39 @@ function railPin(): TemplateItem {
  */
 function railRow( slugs: string[], kind: EntryKind ): TemplateItem {
 	const isPinned = kind === 'pinned';
-	const date: TemplateItem = [
-		'core/post-date',
+	const dates: TemplateItem = [
+		'core/group',
 		{
-			...POST_DATE_ATTRIBUTES,
-			format: siteTimeFormat(),
-			fontSize: 'small',
-			style: {
-				typography: { textAlign: 'right', fontWeight: '700' },
-				...( kind === 'entry'
-					? {}
-					: { spacing: { margin: { top: '0' } } } ),
+			layout: {
+				type: 'flex',
+				orientation: 'vertical',
+				justifyContent: 'stretch',
 			},
+			style: {
+				spacing: {
+					blockGap: DEFAULT_ENTRY_GAP,
+					...( kind === 'entry' ? {} : { margin: { top: '0' } } ),
+				},
+			},
+			metadata: { name: __( 'Dates', 'newspack-rolling-coverage' ) },
 		},
+		[
+			newLabel( { textAlign: 'right' } ),
+			[
+				'core/post-date',
+				{
+					...POST_DATE_ATTRIBUTES,
+					format: siteTimeFormat(),
+					fontSize: 'small',
+					style: {
+						typography: { textAlign: 'right', fontWeight: '700' },
+					},
+				},
+			],
+		],
 	];
 	const markers: TemplateItem[] =
-		kind === 'entry' ? [ date ] : [ railPin(), date ];
+		kind === 'entry' ? [ dates ] : [ railPin(), dates ];
 	const links = linksRow( [ authorGroup(), shareLink() ] );
 	const entry: TemplateItem[] =
 		kind === 'fullStory'
@@ -1611,22 +1766,9 @@ function railRow( slugs: string[], kind: EntryKind ): TemplateItem {
 								...( isPinned
 									? {
 											color: {
-												background: ACCENT,
-												text: ACCENT_CONTRAST,
+												background: PINNED_BACKGROUND,
 											},
 											border: { radius: RADIUS_MEDIUM },
-											elements: {
-												link: {
-													color: {
-														text: ACCENT_CONTRAST,
-													},
-												},
-												heading: {
-													color: {
-														text: ACCENT_CONTRAST,
-													},
-												},
-											},
 										}
 									: {} ),
 								spacing: {
@@ -1700,6 +1842,29 @@ function stack(
 }
 
 /**
+ * The time with the New label after it on its line, so clearing the label
+ * moves nothing.
+ *
+ * @param {TemplateItem} date The Post Date block.
+ * @return {TemplateItem} The row.
+ */
+function timeRow( date: TemplateItem ): TemplateItem {
+	return [
+		'core/group',
+		{
+			layout: {
+				type: 'flex',
+				flexWrap: 'nowrap',
+				verticalAlignment: 'center',
+			},
+			style: { spacing: { blockGap: 'var:preset|spacing|20' } },
+			metadata: { name: __( 'Time', 'newspack-rolling-coverage' ) },
+		},
+		[ date, newLabel() ],
+	];
+}
+
+/**
  * An entry's columns, ruled off from the entry above by a top border. The
  * space below the rule matches the Feed's Block spacing above it, and the
  * columns stack on narrow screens.
@@ -1741,11 +1906,11 @@ function ruledRow(
 
 /**
  * A Clock entry's row: the time set large in a narrow column with the
- * relative date below it, under the pinned row in the accent color on the
- * pinned card and the Full Story Entry (which so takes pinned entries too),
- * then the title and content, or the breakout post's box for a Full Story
- * Entry, and the author's avatar and name with Share beside it, with an
- * arrow at that row's far end in the box.
+ * relative date below it, under the New label (after it on phones, see
+ * style.scss) and, on the pinned card and the Full Story Entry (which so
+ * takes pinned entries too), the pinned row in the accent color, then the title and content, or the breakout post's
+ * box for a Full Story Entry, and the author's avatar and name with Share
+ * beside it, with an arrow at that row's far end in the box.
  *
  * @param {string[]}  slugs The palette's color slugs.
  * @param {string[]}  sizes The theme's font size slugs.
@@ -1763,18 +1928,21 @@ function clockRow(
 			...( kind === 'entry'
 				? []
 				: [ pinnedRow( { color: READABLE_ACCENT } ) ] ),
-			[
-				'core/post-date',
-				{
-					...POST_DATE_ATTRIBUTES,
-					format: siteTimeFormat(),
-					fontSize: themeFontSize( sizes, 'x-large', 'large' ),
-					style: {
-						color: { text: CONTRAST },
-						typography: { fontWeight: '300' },
+			stack( __( 'Time', 'newspack-rolling-coverage' ), [
+				newLabel(),
+				[
+					'core/post-date',
+					{
+						...POST_DATE_ATTRIBUTES,
+						format: siteTimeFormat(),
+						fontSize: themeFontSize( sizes, 'x-large', 'large' ),
+						style: {
+							color: { text: CONTRAST },
+							typography: { fontWeight: '300' },
+						},
 					},
-				},
-			],
+				],
+			] ),
 			[
 				'core/post-date',
 				{
@@ -1811,14 +1979,15 @@ function clockRow(
 }
 
 /**
- * A Margin entry's row: the time, under the pinned label on the pinned
- * card, the title, the author's avatar and name, then Share, stacked in a margin
- * column, and the content in the wider column beside it. The pinned card is
- * ruled off with a heavier rule. A Full Story Entry is ruled off as heavily
- * in the accent color, with the time and the breakout post's title in the
- * margin, and the Full story label, small like the Pinned label, its image,
- * cropped to 16:9, its summary and a Read more button in the content's place.
- * It takes pinned entries too, with the Pinned label above the time.
+ * A Margin entry's row: the time with the New label after it, under the
+ * pinned label on the pinned card, the title, the author's avatar and name,
+ * then Share, stacked in a margin column, and the content in the wider
+ * column beside it. The pinned card is ruled off with a heavier rule. A Full
+ * Story Entry is ruled off as heavily in the accent color, with the time and
+ * the breakout post's title in the margin, and the Full story label, small
+ * like the Pinned label, its image, cropped to 16:9, its summary and a Read
+ * more button in the content's place. It takes pinned entries too, with the
+ * Pinned label above the time.
  *
  * @param {string[]}  slugs The palette's color slugs.
  * @param {EntryKind} kind  Which part of the template the row is.
@@ -1827,14 +1996,14 @@ function clockRow(
 function marginRow( slugs: string[], kind: EntryKind ): TemplateItem {
 	const isPinned = kind === 'pinned';
 	const isFullStory = kind === 'fullStory';
-	const date: TemplateItem = [
+	const date = timeRow( [
 		'core/post-date',
 		{
 			...POST_DATE_ATTRIBUTES,
 			format: siteTimeFormat(),
 			fontSize: 'small',
 		},
-	];
+	] );
 	const title: TemplateItem = [
 		'core/post-title',
 		{ level: 4, fontSize: 'medium' },
@@ -1968,11 +2137,12 @@ function marginEntryTemplate( slugs: string[] ): TemplateItem[] {
 
 /**
  * The Minute layout's per-entry template: each entry is only its content,
- * ruled off from the one above, and so is a Full Story Entry. The pinned card is set in the accent color,
- * like Bulletin's, with its text in the accent's contrast color. An entry
- * whose breakout post is published shows the post's title and summary on a
- * gray card, with the pin before its label when pinned and an arrow at the
- * far end below the summary.
+ * ruled off from the one above, and so is a Full Story Entry. The pinned
+ * card is set on a light gray panel, like Bulletin's. An entry whose
+ * breakout post is published shows the post's title and summary in a box
+ * outlined and tinted in the accent, with the pin before its label when
+ * pinned and an arrow at the far end below the summary. Nothing shows an
+ * entry is new beyond its arrival; the New label is for screen readers only.
  *
  * @param {string[]} slugs The palette's color slugs.
  * @return {TemplateItem[]} The template.
@@ -2005,11 +2175,7 @@ function minuteEntryTemplate( slugs: string[] ): TemplateItem[] {
 				lock: LOCKED_IN_PLACE,
 				layout: flex,
 				style: {
-					color: { background: ACCENT, text: ACCENT_CONTRAST },
-					elements: {
-						link: { color: { text: ACCENT_CONTRAST } },
-						heading: { color: { text: ACCENT_CONTRAST } },
-					},
+					color: { background: PINNED_BACKGROUND },
 					spacing: {
 						blockGap: DEFAULT_ENTRY_GAP,
 						padding: {
@@ -2024,7 +2190,11 @@ function minuteEntryTemplate( slugs: string[] ): TemplateItem[] {
 					name: __( 'Pinned Entry', 'newspack-rolling-coverage' ),
 				},
 			},
-			[ pinnedRow(), postContent() ],
+			[
+				pinnedRow(),
+				newLabel( { visuallyHidden: true } ),
+				postContent(),
+			],
 		],
 		[
 			'core/group',
@@ -2037,57 +2207,52 @@ function minuteEntryTemplate( slugs: string[] ): TemplateItem[] {
 					name: __( 'Entry', 'newspack-rolling-coverage' ),
 				},
 			},
-			[ postContent() ],
+			[ newLabel( { visuallyHidden: true } ), postContent() ],
 		],
 		fullStoryGroup(
 			[
-				fullStoryBox(
+				fullStoryBox( [
 					[
-						[
-							'core/group',
-							{
-								layout: {
-									type: 'flex',
-									flexWrap: 'nowrap',
-									verticalAlignment: 'center',
-								},
-								style: { spacing: { blockGap: '0' } },
-								metadata: {
-									name: __(
-										'Meta',
-										'newspack-rolling-coverage'
-									),
-								},
+						'core/group',
+						{
+							layout: {
+								type: 'flex',
+								flexWrap: 'nowrap',
+								verticalAlignment: 'center',
 							},
-							[
-								pinnedRow( {
-									iconOnly: true,
-									color: READABLE_ACCENT,
-								} ),
-								fullStoryLabel(),
-							],
-						],
-						fullStoryTitle( 4 ),
-						fullStoryExcerpt( slugs, { asEntries: true } ),
-						[
-							'core/group',
-							{
-								layout: {
-									type: 'flex',
-									justifyContent: 'right',
-								},
-								metadata: {
-									name: __(
-										'Arrow',
-										'newspack-rolling-coverage'
-									),
-								},
+							style: { spacing: { blockGap: '0' } },
+							metadata: {
+								name: __( 'Meta', 'newspack-rolling-coverage' ),
 							},
-							[ fullStoryArrow() ],
+						},
+						[
+							pinnedRow( {
+								iconOnly: true,
+								color: READABLE_ACCENT,
+							} ),
+							fullStoryLabel(),
+							newLabel( { visuallyHidden: true } ),
 						],
 					],
-					{ outlined: false, background: PINNED_BACKGROUND }
-				),
+					fullStoryTitle( 4 ),
+					fullStoryExcerpt( slugs, { asEntries: true } ),
+					[
+						'core/group',
+						{
+							layout: {
+								type: 'flex',
+								justifyContent: 'right',
+							},
+							metadata: {
+								name: __(
+									'Arrow',
+									'newspack-rolling-coverage'
+								),
+							},
+						},
+						[ fullStoryArrow() ],
+					],
+				] ),
 			],
 			{ layout: flex, style: entryStyle }
 		),
@@ -2096,11 +2261,11 @@ function minuteEntryTemplate( slugs: string[] ): TemplateItem[] {
 
 /**
  * A Byline entry's row: the author's avatar in a narrow column that stays
- * beside the entry at every width, then the byline, title, content and
- * links. The pinned entry differs only by the pinned label at the end of its
- * byline row, and a Full Story Entry by the breakout post's box in place of
- * the title and content; it has the pinned label too, so it takes pinned
- * entries.
+ * beside the entry at every width, then the byline, ending with the New
+ * label, title, content and links. The pinned entry differs only by the
+ * pinned label at the end of its byline row, and a Full Story Entry by the
+ * breakout post's box in place of the title and content; it has the pinned
+ * label too, so it takes pinned entries.
  *
  * @param {string[]}  slugs The palette's color slugs.
  * @param {EntryKind} kind  Which part of the template the row is.
@@ -2147,6 +2312,7 @@ function bylineRow( slugs: string[], kind: EntryKind ): TemplateItem {
 								...mutedDateColor( slugs ),
 							},
 						],
+						newLabel(),
 					],
 				],
 				...( kind === 'entry'
@@ -2220,11 +2386,12 @@ function bylineEntryTemplate( slugs: string[] ): TemplateItem[] {
 }
 
 /**
- * The Wire layout's per-entry template: the time, headline and a short
- * excerpt, ruled off from the entry above. The pinned card matches the
- * regular entry, since a capped feed ignores pinning. A Full Story Entry
- * shows the time above Byline's card, without the image, its
- * title at the entries' size and its blocks spaced like an entry's.
+ * The Wire layout's per-entry template: the time, with the New label after
+ * it, headline and a short excerpt, ruled off from the entry above. The
+ * pinned card matches the regular entry, since a capped feed ignores
+ * pinning. A Full Story Entry shows the time above Byline's card, without
+ * the image, its title at the entries' size and its blocks spaced like an
+ * entry's.
  *
  * @param {string[]} slugs The palette's color slugs.
  * @param {string[]} sizes The theme's font size slugs.
@@ -2252,7 +2419,7 @@ function wireEntryTemplate( slugs: string[], sizes: string[] ): TemplateItem[] {
 			},
 		},
 	};
-	const date: TemplateItem = [
+	const date = timeRow( [
 		'core/post-date',
 		{
 			...POST_DATE_ATTRIBUTES,
@@ -2260,7 +2427,7 @@ function wireEntryTemplate( slugs: string[], sizes: string[] ): TemplateItem[] {
 			fontSize: 'small',
 			style: { typography: { fontWeight: '700' } },
 		},
-	];
+	] );
 	const entry = ( className: string, name: string ): TemplateItem => [
 		'core/group',
 		{
@@ -2381,8 +2548,9 @@ function digestFooter(): TemplateItem {
 }
 
 /**
- * A Digest entry's row: the time in a narrow column, then the headline over a
- * short excerpt, or for a Full Story Entry Wire's card.
+ * A Digest entry's row: the time under the New label in a narrow column,
+ * then the headline over a short excerpt, or for a Full Story Entry Wire's
+ * card.
  *
  * @param {string[]}  slugs The palette's color slugs.
  * @param {string[]}  sizes The theme's font size slugs.
@@ -2423,15 +2591,24 @@ function digestRow(
 				'core/column',
 				{ width: '5.5rem' },
 				[
-					[
-						'core/post-date',
-						{
-							...POST_DATE_ATTRIBUTES,
-							format: siteTimeFormat(),
-							fontSize: 'small',
-							style: { typography: { fontWeight: '700' } },
-						},
-					],
+					stack(
+						__( 'Dates', 'newspack-rolling-coverage' ),
+						[
+							newLabel(),
+							[
+								'core/post-date',
+								{
+									...POST_DATE_ATTRIBUTES,
+									format: siteTimeFormat(),
+									fontSize: 'small',
+									style: {
+										typography: { fontWeight: '700' },
+									},
+								},
+							],
+						],
+						TIGHT_GAP
+					),
 				],
 			],
 			[
@@ -2522,11 +2699,14 @@ function flashBar( feed: TemplateItem ): TemplateItem {
 }
 
 /**
- * The Flash layout's per-entry template: the time and the entry's text on one
- * line, the text cut short to fit. Phones hide the time. The pinned card
- * matches the regular entry, since a capped feed ignores pinning. A Full
- * Story Entry shows the time, the Full story label in capitals and in the
- * bar's text color, the post's title and its summary, cut short to fit.
+ * The Flash layout's per-entry template: the time, the entry's text and the
+ * New label in the bar's text color on one line, the text cut short to fit.
+ * The label keeps its room while it's hidden (see style.scss), so the text
+ * never moves when it clears. Phones hide the time. The pinned card matches
+ * the regular entry, since a capped feed ignores pinning. A Full Story Entry
+ * shows the time, the Full story label in capitals and in the bar's text
+ * color, the post's title and its summary, cut short to fit, then the New
+ * label.
  *
  * @return {TemplateItem[]} The template.
  */
@@ -2565,6 +2745,7 @@ function flashEntryTemplate(): TemplateItem[] {
 		string,
 		Record< string, unknown >,
 	];
+	const marker = newLabel( { color: null } );
 	const entry = ( className: string, name: string ): TemplateItem => [
 		'core/group',
 		{
@@ -2573,7 +2754,7 @@ function flashEntryTemplate(): TemplateItem[] {
 			...group,
 			metadata: { name },
 		},
-		[ date, excerpt ],
+		[ date, excerpt, marker ],
 	];
 
 	return [
@@ -2609,6 +2790,7 @@ function flashEntryTemplate(): TemplateItem[] {
 					},
 				],
 				excerpt,
+				marker,
 			],
 			group
 		),
@@ -2654,9 +2836,9 @@ function tickerHeader( sizes: string[] ): TemplateItem {
 }
 
 /**
- * The Ticker layout's per-entry template: the relative time over the
- * headline, which links to the entry. An entry without a title shows its
- * opening words as the headline (see
+ * The Ticker layout's per-entry template: the relative time, with the New
+ * label after it, over the headline, which links to the entry. An entry
+ * without a title shows its opening words as the headline (see
  * Entry_Bindings::untitled_fallback_title()). The pinned card matches the
  * regular entry, since a capped feed ignores pinning.
  *
@@ -2678,7 +2860,7 @@ function tickerEntryTemplate( slugs: string[] ): TemplateItem[] {
 			metadata: { name },
 		},
 		[
-			[
+			timeRow( [
 				'core/post-date',
 				{
 					...POST_DATE_ATTRIBUTES,
@@ -2686,7 +2868,7 @@ function tickerEntryTemplate( slugs: string[] ): TemplateItem[] {
 					fontSize: 'small',
 					...mutedDateColor( slugs ),
 				},
-			],
+			] ),
 			[
 				'core/post-title',
 				{
@@ -2787,9 +2969,10 @@ function splitFullStoryBlocks( slugs: string[] ): TemplateItem[] {
 
 /**
  * A Split entry's group: placed in the grid's other two columns, ruled off
- * from the entry above, the time it was posted beside the title, content,
- * and the author's avatar and name with the links, or above them on phones.
- * A Full Story Entry shows the breakout post beside its time instead (see
+ * from the entry above, the time it was posted, under the New label (after
+ * it on phones, see style.scss), beside the title, content, and the author's
+ * avatar and name with the links, or above them on phones. A Full Story
+ * Entry shows the breakout post beside its time instead (see
  * splitFullStoryBlocks()). Pinned entries show in the Pinned group instead
  * (see splitPinnedStack()).
  *
@@ -2848,17 +3031,20 @@ function splitEntryGroup(
 					},
 				},
 				[
-					[
-						'core/post-date',
-						{
-							...POST_DATE_ATTRIBUTES,
-							format: siteTimeFormat(),
-							fontSize: 'small',
-							style: {
-								typography: { fontWeight: '700' },
+					stack( __( 'Dates', 'newspack-rolling-coverage' ), [
+						newLabel(),
+						[
+							'core/post-date',
+							{
+								...POST_DATE_ATTRIBUTES,
+								format: siteTimeFormat(),
+								fontSize: 'small',
+								style: {
+									typography: { fontWeight: '700' },
+								},
 							},
-						},
-					],
+						],
+					] ),
 				],
 			],
 			[
@@ -2922,10 +3108,12 @@ const SPLIT_PINNED_STYLE = {
  * Split's Pinned group: the column beside the entries that holds every
  * pinned entry, one under another, as the pinned card or, for a pinned Full
  * Story entry, the Full Story Entry group inside it (see
- * Rolling_Coverage_Block::for_entry_kind()). It spans the feed's full length
+ * Rolling_Coverage_Block::for_entry_kind()), each headed by the New label
+ * on a line of its own. It spans the feed's full length
  * and sticks as the reader scrolls where the theme supports it, by its foot
- * once it's taller than the viewport (see view.ts); above the entries on
- * tablets and phones.
+ * once it's taller than the viewport (see view.ts). On tablets and phones it
+ * sits above the entries and scrolls with the page (see
+ * Rolling_Coverage_Block::with_stable_position()).
  *
  * @param {string[]} slugs The palette's color slugs.
  * @return {TemplateItem} The group.
@@ -2938,6 +3126,7 @@ function splitPinnedStack( slugs: string[] ): TemplateItem {
 	};
 	const stacked = {
 		layout: { ...SPLIT_STACKED_PLACEMENT.layout, rowSpan: 1 },
+		position: { type: '' },
 	};
 
 	return [
@@ -2975,6 +3164,7 @@ function splitPinnedStack( slugs: string[] ): TemplateItem {
 				},
 				[
 					pinnedRow( { icon: false, hidden: true } ),
+					newLabel(),
 					[ 'core/post-title', { level: 4 } ],
 					postContent(),
 					linksRow( [ authorGroup(), shareLink() ] ),
@@ -2983,6 +3173,7 @@ function splitPinnedStack( slugs: string[] ): TemplateItem {
 			fullStoryGroup(
 				[
 					pinnedRow( { icon: false, hidden: true } ),
+					newLabel(),
 					...splitFullStoryBlocks( slugs ),
 				],
 				{ layout: vertical, style: SPLIT_PINNED_STYLE },
@@ -3471,7 +3662,7 @@ function blockIdsOfType(
  *
  * @param {Object[]} blocks     The template blocks.
  * @param {boolean}  showAuthor The block's Author name setting.
- * @param {boolean}  showAvatar Whether avatars show: the block's Author avatar setting and the site's Avatar Display.
+ * @param {boolean}  showAvatar The block's Author avatar setting.
  * @return {string[]} Client IDs.
  */
 function hiddenAuthorBlockIds(
@@ -4971,24 +5162,6 @@ function withoutAuthorBlocks<
 }
 
 /**
- * The template without avatars, or the columns that hold only one, as the
- * site renders it with avatars turned off (see
- * Rolling_Coverage_Block::with_avatar_display()).
- *
- * @param {Object[]} blocks The template blocks.
- * @return {Object[]} The blocks without avatars.
- */
-function withoutAvatarColumns<
-	T extends { name: string; [ key: string ]: unknown },
->( blocks: T[] ): T[] {
-	return withoutAuthorBlocks( blocks, {
-		name: false,
-		avatars: true,
-		avatarColumns: true,
-	} );
-}
-
-/**
  * The template without the author's avatar and name, as an entry the Slack
  * bot wrote renders (see Rolling_Coverage_Block::render_entry()).
  * The avatar's column stays, so the entry's text lines up with the others.
@@ -5054,9 +5227,16 @@ const ENTRY_ALLOWED_BLOCKS = [
 	'core/button',
 	'newspack-rolling-coverage/breakout-post-link',
 	'newspack-rolling-coverage/share',
+	NEW_LABEL_BLOCK_NAME,
 ];
 
 export {
+	NEW_LABEL_BLOCK_NAME,
+	newLabel,
+	isNewLabel,
+	withoutNewLabel,
+	newLabelBlockIds,
+	hiddenNewLabelIds,
 	bulletinEntryTemplate,
 	streamEntryTemplate,
 	railEntryTemplate,
@@ -5087,7 +5267,9 @@ export {
 	ALL_UPDATES_CLASS,
 	BREAKOUT_ENTRY_CLASS,
 	BREAKOUT_BOX_CLASS,
+	ACCENT,
 	ACCENT_TINT,
+	PINNED_BACKGROUND,
 	FOLLOW_BLOCK_NAME,
 	CHECK_UPDATES_BLOCK_NAME,
 	LOAD_MORE_BLOCK_NAME,
@@ -5140,8 +5322,8 @@ export {
 	withShapedPinnedCard,
 	withCenteredTitleRows,
 	withoutPostTitle,
+	isEntryLinkTitle,
 	withEntryLinkTitleText,
-	withoutAvatarColumns,
 	withoutByline,
 	withAuthorSettings,
 	hiddenAuthorBlockIds,

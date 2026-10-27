@@ -55,6 +55,8 @@ interface AdminConfig {
 		editUser: string;
 		editTerm: string;
 		connectorApprovals: string;
+		aiSettings: string;
+		aiPlugin: string;
 	};
 	postType: string;
 	taxonomy: string;
@@ -69,6 +71,7 @@ interface AdminConfig {
 	aiAvailable: boolean;
 	/** True when AI is unavailable only because the plugin isn't approved for a connector. */
 	aiNeedsApproval: boolean;
+	aiPluginActive: boolean;
 	aiMaxPromptLength: number;
 	statusLabels: StatusLabels;
 	statusLabelDefaults: StatusLabels;
@@ -807,8 +810,16 @@ interface SyncPollContext {
 	coverageIdRef: MutableRefObject< number | null >;
 	rowsRef: MutableRefObject< EntryViewRow[] | null >;
 	pageRef: MutableRefObject< number >;
+	/**
+	 * The view the list last loaded: the one-entry page a poll fetches to
+	 * recount it, and the page size to count pages by. Each page fetch that
+	 * lands stores a new object, so a recount in flight can tell it was replaced.
+	 */
+	totalsViewRef: MutableRefObject< { url: string; perPage: number } | null >;
 	isMountedRef: MutableRefObject< boolean >;
 	setRows: Dispatch< SetStateAction< EntryViewRow[] | null > >;
+	setTotalItems: Dispatch< SetStateAction< number > >;
+	setTotalPages: Dispatch< SetStateAction< number > >;
 	setSyncNotices: Dispatch< SetStateAction< SyncNotice[] > >;
 }
 

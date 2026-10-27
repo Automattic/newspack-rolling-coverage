@@ -143,7 +143,8 @@ class Test_Taxonomy extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Restore brings a trashed coverage back as active.
+	 * Restore brings a trashed coverage with no status kept from before the
+	 * trash back as active.
 	 */
 	public function test_restoring_a_trashed_coverage_makes_it_active() {
 		self::log_in_as( 'editor' );
@@ -153,6 +154,71 @@ class Test_Taxonomy extends Rolling_Coverage_TestCase {
 
 		$this->assertSame( 200, $response->get_status(), 'The request should succeed.' );
 		$this->assertSame( Taxonomy::STATUS_ACTIVE, get_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, true ), 'The coverage should be active again.' );
+	}
+
+	/**
+	 * Restore puts a coverage back in the status it had when it was trashed,
+	 * so trashing and restoring an ended coverage doesn't reopen it.
+	 *
+	 * @dataProvider provide_statuses_before_trash
+	 *
+	 * @param string $status Status the coverage had before it was trashed.
+	 */
+	public function test_restore_brings_a_coverage_back_in_the_status_it_had( $status ) {
+		self::log_in_as( 'editor' );
+		$coverage_id = self::create_coverage( $status );
+
+		self::dispatch( 'POST', "/coverages/{$coverage_id}/trash" );
+		$response = self::dispatch( 'POST', "/coverages/{$coverage_id}/restore" );
+
+		$this->assertSame( 200, $response->get_status(), 'The request should succeed.' );
+		$this->assertSame( $status, get_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, true ), 'The coverage should be back in its status.' );
+		$this->assertFalse( metadata_exists( 'term', $coverage_id, Taxonomy::STATUS_BEFORE_TRASH_META_KEY ), 'The kept status should be cleared.' );
+	}
+
+	/**
+	 * Statuses a coverage can have when it is trashed.
+	 *
+	 * @return array
+	 */
+	public function provide_statuses_before_trash() {
+		return [
+			'live'   => [ Taxonomy::STATUS_ACTIVE ],
+			'paused' => [ Taxonomy::STATUS_PAUSED ],
+			'ended'  => [ Taxonomy::STATUS_ARCHIVED ],
+		];
+	}
+
+	/**
+	 * Trashing a coverage that is already in the trash keeps the status it had
+	 * before the first trash.
+	 */
+	public function test_trashing_a_trashed_coverage_keeps_its_earlier_status() {
+		self::log_in_as( 'editor' );
+		$coverage_id = self::create_coverage( Taxonomy::STATUS_ARCHIVED );
+
+		self::dispatch( 'POST', "/coverages/{$coverage_id}/trash" );
+		self::dispatch( 'POST', "/coverages/{$coverage_id}/trash" );
+		self::dispatch( 'POST', "/coverages/{$coverage_id}/restore" );
+
+		$this->assertSame( Taxonomy::STATUS_ARCHIVED, get_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, true ) );
+	}
+
+	/**
+	 * An ended coverage restored from the trash keeps its end time, though
+	 * its last activity changed while it was in the trash.
+	 */
+	public function test_restoring_an_ended_coverage_keeps_its_end_time() {
+		self::log_in_as( 'editor' );
+		$coverage_id = self::create_coverage();
+		update_term_meta( $coverage_id, Rolling_Coverage_Block::LAST_MODIFIED_META_KEY, '2026-01-01 20:00:00' );
+		update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, Taxonomy::STATUS_ARCHIVED );
+
+		self::dispatch( 'POST', "/coverages/{$coverage_id}/trash" );
+		update_term_meta( $coverage_id, Rolling_Coverage_Block::LAST_MODIFIED_META_KEY, '2026-01-03 08:00:00' );
+		self::dispatch( 'POST', "/coverages/{$coverage_id}/restore" );
+
+		$this->assertSame( '2026-01-01 20:00:00', get_term_meta( $coverage_id, Taxonomy::END_TIME_META_KEY, true ) );
 	}
 
 	/**
@@ -210,6 +276,53 @@ class Test_Taxonomy extends Rolling_Coverage_TestCase {
 
 		$this->assertSame( 403, $response->get_status(), 'The request should be refused.' );
 		$this->assertSame( Taxonomy::STATUS_ACTIVE, get_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, true ), 'The coverage should stay active.' );
+	}
+
+	/**
+	 * The taxonomy isn't hierarchical, so core lets anyone who can assign
+	 * coverages create one; creating needs manage_categories here, as in the
+	 * dashboard.
+	 *
+	 * @dataProvider provide_roles_without_manage_categories
+	 *
+	 * @param string $role User role.
+	 */
+	public function test_users_without_manage_categories_cannot_create_a_coverage( $role ) {
+		self::log_in_as( $role );
+
+		$response = self::save_coverage_via_rest( [] );
+
+		$this->assertSame( 403, $response->get_status(), 'The request should be refused.' );
+		$this->assertSame( 'rest_cannot_create', $response->as_error()->get_error_code(), 'The refusal should use core\'s error code.' );
+		$this->assertEmpty( term_exists( 'Election night', Taxonomy::TAXONOMY_SLUG ), 'No coverage should be created.' );
+	}
+
+	/**
+	 * Roles that write entries but don't manage coverages.
+	 *
+	 * @return array[]
+	 */
+	public function provide_roles_without_manage_categories() {
+		return [
+			'contributor' => [ 'contributor' ],
+			'author'      => [ 'author' ],
+		];
+	}
+
+	/**
+	 * Contributors still file their entries into a coverage.
+	 */
+	public function test_contributors_can_assign_an_entry_to_a_coverage() {
+		$coverage_id = self::create_coverage( Taxonomy::STATUS_ACTIVE );
+		self::log_in_as( 'contributor' );
+
+		$request = new WP_REST_Request( 'POST', '/wp/v2/' . Post_Type::REST_BASE );
+		$request->set_param( 'title', 'Polls close' );
+		$request->set_param( Taxonomy::REST_BASE, [ $coverage_id ] );
+		$response = rest_get_server()->dispatch( $request );
+
+		$this->assertSame( 201, $response->get_status(), 'The entry should be created.' );
+		$this->assertSame( [ $coverage_id ], wp_get_object_terms( $response->get_data()['id'], Taxonomy::TAXONOMY_SLUG, [ 'fields' => 'ids' ] ), 'The entry should be in the coverage.' );
 	}
 
 	/**
@@ -289,6 +402,23 @@ class Test_Taxonomy extends Rolling_Coverage_TestCase {
 		$edit_meta = self::get_coverage_via_rest( $coverage_id, 'edit' )['meta'];
 
 		$this->assertSame( 'C0TESTCHAN', $edit_meta[ Taxonomy::META_SLACK_CHANNEL_ID ], 'The edit context should include the linkage.' );
+	}
+
+	/**
+	 * The description is an internal note, so only edit-context responses
+	 * carry it.
+	 */
+	public function test_description_is_only_exposed_in_edit_context() {
+		$coverage_id = self::create_coverage( '', [ 'description' => 'Embargoed until 9pm.' ] );
+
+		wp_set_current_user( 0 );
+		$this->assertArrayNotHasKey( 'description', self::get_coverage_via_rest( $coverage_id, 'view' ), 'The description should be hidden from the public response.' );
+
+		self::log_in_as( 'author' );
+		$this->assertArrayNotHasKey( 'description', self::get_coverage_via_rest( $coverage_id, 'view' ), 'The description should be hidden from view-context responses for plugin users too.' );
+
+		self::log_in_as( 'editor' );
+		$this->assertSame( 'Embargoed until 9pm.', self::get_coverage_via_rest( $coverage_id, 'edit' )['description'], 'The edit context should include the description.' );
 	}
 
 	/**

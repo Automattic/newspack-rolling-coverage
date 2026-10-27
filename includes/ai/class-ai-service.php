@@ -148,11 +148,38 @@ class AI_Service {
 	}
 
 	/**
+	 * Whether the WordPress AI plugin is active.
+	 *
+	 * True even when the plugin's requirements aren't met and it hasn't
+	 * booted, since its classes still load.
+	 *
+	 * @return bool
+	 */
+	public static function is_ai_plugin_active(): bool {
+		return class_exists( '\WordPress\AI\Abstracts\Abstract_Feature' );
+	}
+
+	/**
+	 * URL of the AI plugin's settings screen, where an administrator turns key
+	 * takeaways on and finds the link to connect a provider, or '' when the
+	 * screen isn't registered for the current user.
+	 *
+	 * Reads the registered menu rather than building the URL, so a plugin
+	 * that is active but hasn't booted gets no link. Call it after
+	 * `admin_menu`.
+	 *
+	 * @return string Admin URL, or ''.
+	 */
+	public static function get_settings_url(): string {
+		return (string) menu_page_url( 'ai-wp-admin', false );
+	}
+
+	/**
 	 * URL of the AI plugin's Connector Approvals screen, or the Tools menu
 	 * when the Connector Approval experiment isn't active.
 	 *
-	 * Points the admin's AI-unavailable notice at the screen where an
-	 * administrator approves this plugin for a connector.
+	 * Points the AI page's empty state at the screen where an administrator
+	 * approves this plugin for a connector.
 	 *
 	 * @return string Admin URL.
 	 */

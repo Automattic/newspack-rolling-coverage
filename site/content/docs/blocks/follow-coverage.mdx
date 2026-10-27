@@ -1,0 +1,83 @@
+---
+title: Follow Coverage block
+description: Let readers follow a coverage and get a notification when new entries are published.
+---
+
+The Follow Coverage block adds a button that lets readers follow a coverage. Followers get a push notification when an entry that sends one is published.
+
+<Callout type="warn">
+Notifications go through the OneSignal plugin, set up with an App ID and a matching key. Without them, the button is hidden on the site. The editor shows "Push notifications aren't set up, so this button won't appear on the site."
+</Callout>
+
+## Where to use it
+
+Place it near the headline and the Live badge of a coverage page or story. It isn't part of any built-in layout, so add it yourself.
+
+- **Outside a Rolling Coverage block.** Add it to a page or template. It follows the coverage you pick, or the page's coverage.
+- **Inside a Rolling Coverage layout.** Add it to the feed or to a group at the coverage level, such as a footer. It follows that block's coverage. It can't go inside an entry or the pinned entry.
+
+## Add the block
+
+<Steps>
+<Step>
+
+### Insert the block
+
+Open the page, post, or template. Add a block and search for "Follow Coverage".
+
+<Screenshot label="The block inserter with Follow Coverage in the search results" src="/screenshots/blocks/follow-coverage-1.webp" width={3024} height={1964} />
+
+</Step>
+<Step>
+
+### Choose the coverage
+
+Outside a Rolling Coverage block, open the **Coverage** panel in the block settings. Choose **Automatic** or **Custom**. With **Custom**, pick the coverage from the list.
+
+<Screenshot label="The block settings, Coverage panel, with Automatic and Custom picked out" src="/screenshots/blocks/follow-coverage-2.webp" width={3024} height={1964} />
+
+</Step>
+<Step>
+
+### Style the button
+
+Select the button inside the block. Change its text, colors, and size like any other button.
+
+The text you set replaces "Follow". Once a reader follows, the button reads "Following". That text can't be changed.
+
+<Screenshot label="The Follow Coverage block in the editor with the Follow button selected" src="/screenshots/blocks/follow-coverage-3.webp" width={3024} height={1964} />
+
+</Step>
+</Steps>
+
+## Settings
+
+| Setting | What it does |
+| --- | --- |
+| **Automatic** | Follows the coverage on this page, or a breakout post's coverage. Uses the first Rolling Coverage block in the page's content, not one in the site's template. |
+| **Custom** | Always follows the coverage you pick. |
+
+The **Coverage** panel appears only outside a Rolling Coverage block. Automatic works on single posts and pages only, not on archives or password-protected posts. With no coverage to follow, the button doesn't appear.
+
+The **Settings** panel appears only when something stops the button from showing: push notifications aren't set up, or the coverage has ended.
+
+Leave the button in place. The block rebuilds it when the editor reloads.
+
+## What readers see
+
+- The button reads **Follow**, then **Following** after they follow. Selecting it again unfollows.
+- The browser asks for permission to send notifications the first time.
+- If the reader has blocked notifications, a message explains how to allow them, and the button returns to **Follow**.
+- If something fails, the button returns to its previous state and a message asks them to try again.
+- Once the coverage ends, the button no longer appears when the page loads.
+
+<Screenshot label="A page with the Follow button below the Live badge" src="/screenshots/blocks/follow-coverage-4.webp" width={3024} height={1964} />
+
+## Sending notifications
+
+A notification goes out when an entry is published and one of these is true:
+
+- **Notify subscribers when this entry publishes** is ticked in the entry's **Push Notifications** panel. The panel is in the full entry editor, and shows only on entries that aren't published yet.
+- The entry came from Slack, unless it holds only an image.
+
+Only readers who followed that coverage are notified. The notification links to the entry on the coverage's canonical URL, so the coverage needs one. Without it, the **Push Notifications** panel warns you and nothing is sent. An entry notifies once. An entry with no title and no words of its own sends no notification, even with **Notify subscribers when this entry publishes** ticked or when it comes from Slack.

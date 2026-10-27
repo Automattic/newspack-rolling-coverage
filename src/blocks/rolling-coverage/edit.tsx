@@ -35,6 +35,7 @@ import {
 	__experimentalToggleGroupControlOption as ToggleGroupControlOption,
 	Button,
 	Disabled,
+	ExternalLink,
 	Notice,
 	Placeholder,
 	SelectControl,
@@ -50,13 +51,14 @@ import {
 	useRef,
 } from '@wordpress/element';
 import { useDebounce, useInstanceId } from '@wordpress/compose';
+import { speak } from '@wordpress/a11y';
 import { useSelect, useDispatch, useRegistry } from '@wordpress/data';
 import { store as coreStore } from '@wordpress/core-data';
 import { store as editorStore } from '@wordpress/editor';
+import { store as noticesStore } from '@wordpress/notices';
 import { decodeEntities } from '@wordpress/html-entities';
 import { __, _n, _x, sprintf } from '@wordpress/i18n';
-import { copy as copyIcon, check } from '@wordpress/icons';
-import { Stack } from '@wordpress/ui';
+import { Stack, Text } from '@wordpress/ui';
 
 /**
  * Internal dependencies
@@ -95,11 +97,11 @@ import {
 	featuredImageBlockIds,
 	fullStoryTakesPinned,
 	pinnedRowBlockIds,
+	hiddenNewLabelIds,
 	withoutFollowButtons,
 	withoutCheckUpdatesButtons,
 	withoutLoadMoreButtons,
 	withAuthorSettings,
-	withoutAvatarColumns,
 	blockIdsOfType,
 	holdsBlockType,
 	hiddenAuthorBlockIds,
@@ -112,11 +114,11 @@ import {
 } from './template';
 import {
 	AI_AVAILABLE,
+	AI_SETTINGS_URL,
 	NEWSPACK_ADS_AVAILABLE,
 	NEWSPACK_ADS_PLACEMENT_ENABLED,
 	ONESIGNAL_CONFIGURED,
 	MIN_POLL_INTERVAL,
-	SHOW_AVATARS,
 	STATUS_LABELS,
 } from './config';
 import { COVERAGE_ID_CONTEXT } from '../shared/entry-bindings';
@@ -131,6 +133,7 @@ import LayoutPickerModal, {
 import {
 	getBuiltInLayouts,
 	builtInLayoutSlugFor,
+	isLayoutPatternPost,
 	switchLayoutAttributes,
 	type BuiltInLayoutSlug,
 } from './layouts';
@@ -138,6 +141,7 @@ import PinnedEntryContext from './pinned-entry-context';
 import FullStoryEntryContext, {
 	PinnedFullStoryEntryContext,
 } from './full-story-entry-context';
+import UntitledEntriesContext from './untitled-entry-title';
 import { receiveBreakoutPreviews } from './breakout-previews';
 import {
 	EntryPreviewsAnchorContext,
@@ -153,7 +157,6 @@ import {
 } from './layout';
 import type {
 	CoverageOption,
-	ApplyNotice,
 	EditProps,
 	EntryContext,
 	TemplateBlocks,
@@ -765,6 +768,74 @@ function clampEntriesPerPage( value: number ): number {
 	);
 }
 
+/**
+ * Copies text to the clipboard, falling back to the copy command where the
+ * Clipboard API is missing (pages served over http).
+ *
+ * @param text Text to copy.
+ * @return Whether the text was copied.
+ */
+async function copyText( text: string ): Promise< boolean > {
+	try {
+		if ( window.navigator.clipboard?.writeText ) {
+			await window.navigator.clipboard.writeText( text );
+			return true;
+		}
+		const { activeElement } = document;
+		const textarea = document.createElement( 'textarea' );
+		textarea.value = text;
+		textarea.setAttribute( 'readonly', '' );
+		textarea.style.position = 'fixed';
+		textarea.style.left = '-9999px';
+		document.body.appendChild( textarea );
+		textarea.select();
+		const isCopied = document.execCommand( 'copy' );
+		textarea.remove();
+		if ( activeElement instanceof HTMLElement ) {
+			activeElement.focus();
+		}
+		return isCopied;
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * Copies text that is still being fetched. The clipboard write starts at once,
+ * while the click that asked for it still counts as a user action: Safari and
+ * Firefox refuse a write that starts after an awaited request.
+ *
+ * @param text Text to copy, once it resolves. A rejection copies nothing.
+ * @return Whether the text was copied.
+ */
+async function copyTextWhenReady(
+	text: Promise< string >
+): Promise< boolean > {
+	const { clipboard } = window.navigator;
+	if ( clipboard?.write && typeof window.ClipboardItem === 'function' ) {
+		const isWritten = await clipboard
+			.write( [
+				new window.ClipboardItem( {
+					'text/plain': text.then(
+						( value ) =>
+							new Blob( [ value ], { type: 'text/plain' } )
+					),
+				} ),
+			] )
+			.then(
+				() => true,
+				() => false
+			);
+		if ( isWritten ) {
+			return true;
+		}
+	}
+	return text.then( copyText, () => false );
+}
+
+/** Shared id, so each AI message replaces the last one instead of stacking. */
+const AI_NOTICE_ID = 'newspack-rolling-coverage-ai-takeaways';
+
 export default function Edit( {
 	clientId,
 	attributes,
@@ -838,9 +909,11 @@ export default function Edit( {
 	);
 	const isLayoutPattern =
 		! coverageId &&
-		currentPostType === 'wp_block' &&
-		( ( patternCategories ?? [] ).includes( getLayoutCategoryId() ) ||
-			builtInLayoutSlugFor( currentPostId ) !== null );
+		isLayoutPatternPost(
+			currentPostType,
+			currentPostId,
+			patternCategories
+		);
 	// The pattern itself carries no cap, so its preview borrows the one picking the layout sets.
 	const patternLatest = isLayoutPattern
 		? getBuiltInLayouts().find(
@@ -916,7 +989,8 @@ export default function Edit( {
 	const [ entriesLoadedFor, setEntriesLoadedFor ] = useState( 0 );
 	const [ coverageLoadedFor, setCoverageLoadedFor ] = useState( 0 );
 	const [ isGenerating, setIsGenerating ] = useState( false );
-	const [ aiNotice, setAiNotice ] = useState< ApplyNotice | null >( null );
+	const { createSuccessNotice, createErrorNotice } =
+		useDispatch( noticesStore );
 	const [ generatedOutput, setGeneratedOutput ] = useState( '' );
 	const [ copied, setCopied ] = useState( false );
 	const copyTimer = useRef< ReturnType< typeof setTimeout > | null >( null );
@@ -1197,14 +1271,19 @@ export default function Edit( {
 		( showsSampleContexts
 			? allSampleContexts.length > sampleContexts.length
 			: hasMoreEntries );
-	const { headerBlocks, footerBlocks, templateBlocks, blocksForEntry } =
-		useLayoutPreview(
-			isSynced ? feedItems( syncedBlocks ) : allBlocks,
-			previewContexts,
-			pageSize,
-			! previewHasMore,
-			{ showAuthor, showAvatar }
-		);
+	const {
+		headerBlocks,
+		footerBlocks,
+		templateBlocks,
+		blocksForEntry,
+		untitledEntries,
+	} = useLayoutPreview(
+		isSynced ? feedItems( syncedBlocks ) : allBlocks,
+		previewContexts,
+		pageSize,
+		! previewHasMore,
+		{ showAuthor, showAvatar }
+	);
 	const emptyPreviewBlocks = useMemo(
 		() => forEntryKind( templateBlocks, false ),
 		[ templateBlocks ]
@@ -1256,9 +1335,7 @@ export default function Edit( {
 		() =>
 			loadMoreInsetStyle(
 				withAuthorSettings(
-					SHOW_AVATARS
-						? templateBlocks
-						: withoutAvatarColumns( templateBlocks ),
+					templateBlocks,
 					showAuthor !== false,
 					showAvatar !== false
 				)
@@ -1400,8 +1477,7 @@ export default function Edit( {
 		templateBlocks,
 		'core/post-author-name'
 	);
-	const offersAvatar =
-		SHOW_AVATARS && holdsBlockType( templateBlocks, 'core/avatar' );
+	const offersAvatar = holdsBlockType( templateBlocks, 'core/avatar' );
 	const checksOnRequest = useMemo( () => {
 		const parts = layoutParts(
 			isSynced ? feedItems( syncedBlocks ) : allBlocks
@@ -1434,20 +1510,25 @@ export default function Edit( {
 				( context ) => ! isFullStoryContext( context, takesPinned )
 			)
 		: previewContexts;
+	// The pinned card and the entry group prefer an entry with a title, as an
+	// untitled one previews without its Post Title (see
+	// untitled-entry-title.tsx).
+	const isTitled = ( context: EntryContext ) => context.hasTitle !== false;
+	const pinnedContexts = entryKindContexts.filter(
+		( context ) => context.pinned
+	);
 	const pinnedContext = hasBothKinds
-		? entryKindContexts.find( ( context ) => context.pinned )
+		? ( pinnedContexts.find( isTitled ) ?? pinnedContexts[ 0 ] )
 		: undefined;
 	const unpinnedContexts = entryKindContexts.filter(
 		( context ) => ! context.pinned
 	);
-	const titledContexts = unpinnedContexts.filter(
-		( context ) => context.hasTitle !== false
-	);
+	const titledContexts = unpinnedContexts.filter( isTitled );
 	const regularContext = hasBothKinds
 		? ( titledContexts.find( ( context ) => context.hasBreakout ) ??
 			titledContexts[ 0 ] ??
 			unpinnedContexts[ 0 ] )
-		: entryKindContexts[ 0 ];
+		: ( entryKindContexts.find( isTitled ) ?? entryKindContexts[ 0 ] );
 	const fullStoryContexts = hasFullStory
 		? previewContexts.filter(
 				( context ) =>
@@ -1596,6 +1677,9 @@ export default function Edit( {
 	const hidesEntryBreakout = regularContext
 		? ! regularContext.hasBreakout
 		: false;
+	const newestContext =
+		previewContexts.find( ( context ) => ! context.pinned ) ??
+		previewContexts[ 0 ];
 	const hiddenIds = useMemo( () => {
 		const ids = [
 			...( isFollowHidden ? followBlockIds( allBlocks ) : [] ),
@@ -1646,10 +1730,21 @@ export default function Edit( {
 			...( hidesFullStoryPin
 				? pinnedRowBlockIds( allBlocks.filter( isBreakoutEntry ) )
 				: [] ),
+			...hiddenNewLabelIds(
+				entryGroupBlocks,
+				pinnedGroups,
+				{
+					card: pinnedContext,
+					entry: regularContext,
+					fullStory: fullStoryContext,
+					pinnedFullStory: pinnedFullStoryContext,
+				},
+				newestContext
+			),
 			...hiddenAuthorBlockIds(
 				layoutParts( allBlocks ).template,
 				showAuthor !== false,
-				SHOW_AVATARS && showAvatar !== false
+				showAvatar !== false
 			),
 		];
 
@@ -1668,6 +1763,10 @@ export default function Edit( {
 		hidesPinnedFullStoryImage,
 		hidesFullStoryPin,
 		pinnedContext,
+		regularContext,
+		fullStoryContext,
+		pinnedFullStoryContext,
+		newestContext,
 		hidesCardBreakout,
 		hidesEntryBreakout,
 		showAuthor,
@@ -2084,54 +2183,97 @@ export default function Edit( {
 
 	const coverageAdsDisabled = currentCoverage?.adsDisabled ?? false;
 
+	const showCopied = useCallback( () => {
+		setCopied( true );
+		if ( copyTimer.current ) {
+			clearTimeout( copyTimer.current );
+		}
+		copyTimer.current = setTimeout( () => setCopied( false ), 2000 );
+	}, [] );
+
+	const coverageIdRef = useRef( coverageId );
+	useEffect( () => {
+		coverageIdRef.current = coverageId;
+	}, [ coverageId ] );
+
 	const handleGenerate = useCallback( async () => {
 		if ( ! coverageId ) {
 			return;
 		}
+		const requestedCoverageId = coverageId;
+		const isCurrentCoverage = () =>
+			coverageIdRef.current === requestedCoverageId;
 		setIsGenerating( true );
-		setAiNotice( null );
 
-		const result = await generateKeyTakeaways( coverageId );
+		const request = generateKeyTakeaways( requestedCoverageId );
+		// The write must start inside the click, before the request resolves.
+		// eslint-disable-next-line @wordpress/no-unused-vars-before-return
+		const copying = copyTextWhenReady(
+			request.then( ( response ) => {
+				if (
+					! response.success ||
+					! response.result ||
+					! isCurrentCoverage()
+				) {
+					throw new Error( 'Nothing to copy.' );
+				}
+				return response.result;
+			} )
+		);
+		const result = await request;
 
 		setIsGenerating( false );
 
-		if ( result.success && result.result ) {
-			setGeneratedOutput( result.result );
-			setAiNotice( {
-				type: 'success',
-				message: __(
-					'Key takeaways generated.',
-					'newspack-rolling-coverage'
-				),
-			} );
-		} else {
-			setAiNotice( {
-				type: 'error',
-				message:
-					result.error ||
+		if ( ! isCurrentCoverage() ) {
+			return;
+		}
+
+		if ( ! result.success || ! result.result ) {
+			createErrorNotice(
+				result.error ||
 					__(
 						'Failed to generate key takeaways.',
 						'newspack-rolling-coverage'
 					),
-			} );
-		}
-	}, [ coverageId ] );
-
-	const handleCopy = useCallback( async () => {
-		if ( ! generatedOutput ) {
+				{ type: 'snackbar', id: AI_NOTICE_ID, explicitDismiss: true }
+			);
 			return;
 		}
-		try {
-			await navigator.clipboard.writeText( generatedOutput );
-			setCopied( true );
-			if ( copyTimer.current ) {
-				clearTimeout( copyTimer.current );
-			}
-			copyTimer.current = setTimeout( () => setCopied( false ), 2000 );
-		} catch {
-			setCopied( false );
+
+		setGeneratedOutput( result.result );
+		const isCopied = await copying;
+		if ( isCopied ) {
+			showCopied();
 		}
-	}, [ generatedOutput ] );
+		createSuccessNotice(
+			isCopied
+				? __(
+						'Key takeaways copied. Paste them into the page.',
+						'newspack-rolling-coverage'
+					)
+				: /* translators: "Copy Generated Output" is the label of the button below Generated Output; use the same translation. */
+					__(
+						'Key takeaways generated. Select Copy Generated Output to copy them.',
+						'newspack-rolling-coverage'
+					),
+			{ type: 'snackbar', id: AI_NOTICE_ID }
+		);
+	}, [ coverageId, showCopied, createSuccessNotice, createErrorNotice ] );
+
+	const handleCopy = useCallback( async () => {
+		if ( await copyText( generatedOutput ) ) {
+			showCopied();
+			speak( __( 'Key takeaways copied.', 'newspack-rolling-coverage' ) );
+			return;
+		}
+		createErrorNotice(
+			__(
+				'The key takeaways could not be copied. Select the text in Generated Output and copy it.',
+				'newspack-rolling-coverage'
+			),
+			{ type: 'snackbar', id: AI_NOTICE_ID, explicitDismiss: true }
+		);
+	}, [ generatedOutput, showCopied, createErrorNotice ] );
 
 	const handleApplyCanonicalUrl = useCallback( async () => {
 		if ( ! coverageId ) {
@@ -2232,19 +2374,25 @@ export default function Edit( {
 	) : (
 		<InspectorControls>
 			<PanelBody title={ __( 'Layout', 'newspack-rolling-coverage' ) }>
-				<p>{ layoutDescription }</p>
-				{ canChangeLayout && (
-					<Button
-						variant="secondary"
-						isBusy={ isPickerLoading }
-						accessibleWhenDisabled
-						disabled={ isPickerLoading }
-						onClick={ () => setIsPickingLayout( true ) }
-						onKeyDownCapture={ closeLoadingPickerOnEscape }
-					>
-						{ __( 'Change Layout', 'newspack-rolling-coverage' ) }
-					</Button>
-				) }
+				<Stack direction="column" gap="lg">
+					<Text render={ <p /> }>{ layoutDescription }</Text>
+					{ canChangeLayout && (
+						<Button
+							className="newspack-rolling-coverage-centered-button"
+							variant="secondary"
+							isBusy={ isPickerLoading }
+							accessibleWhenDisabled
+							disabled={ isPickerLoading }
+							onClick={ () => setIsPickingLayout( true ) }
+							onKeyDownCapture={ closeLoadingPickerOnEscape }
+						>
+							{ __(
+								'Change Layout',
+								'newspack-rolling-coverage'
+							) }
+						</Button>
+					) }
+				</Stack>
 			</PanelBody>
 			<PanelBody title={ __( 'Coverage', 'newspack-rolling-coverage' ) }>
 				<Stack direction="column" gap="lg">
@@ -2272,12 +2420,9 @@ export default function Edit( {
 								) }
 							/>
 							{ ! latestOnly && (
-								<Stack
-									direction="column"
-									gap="sm"
-									align="flex-start"
-								>
+								<Stack direction="column" gap="sm">
 									<Button
+										className="newspack-rolling-coverage-centered-button"
 										variant="secondary"
 										onClick={ () =>
 											setPendingCanonicalUrl(
@@ -2922,25 +3067,29 @@ export default function Edit( {
 					title={ __( 'AI', 'newspack-rolling-coverage' ) }
 					initialOpen={ false }
 				>
-					{ aiNotice && (
-						<Notice
-							status={ aiNotice.type }
-							onRemove={ () => setAiNotice( null ) }
-						>
-							{ aiNotice.message }
-						</Notice>
-					) }
-					<div className="newspack-rolling-coverage-ai-panel">
-						<p className="newspack-rolling-coverage-ai-panel__help">
+					<Stack direction="column" gap="lg">
+						<Text render={ <p /> }>
 							{ __(
-								"Generate a summary of key takeaways from this coverage's entries. Prompts are configured by site administrators on the AI settings page.",
+								'Sums up the latest entries in this coverage as key takeaways and copies them, ready to paste into the page. Generate again as new entries come in.',
 								'newspack-rolling-coverage'
 							) }
-						</p>
+						</Text>
+						{ AI_SETTINGS_URL && (
+							<div>
+								<ExternalLink href={ AI_SETTINGS_URL }>
+									{ __(
+										'Edit the prompt',
+										'newspack-rolling-coverage'
+									) }
+								</ExternalLink>
+							</div>
+						) }
 						<Button
-							variant="primary"
+							className="newspack-rolling-coverage-centered-button"
+							variant="secondary"
 							onClick={ handleGenerate }
 							isBusy={ isGenerating }
+							accessibleWhenDisabled
 							disabled={ isGenerating }
 						>
 							{ __(
@@ -2950,20 +3099,21 @@ export default function Edit( {
 						</Button>
 						{ generatedOutput && (
 							<>
-								<TextareaControl
-									label={ __(
-										'Generated Output',
-										'newspack-rolling-coverage'
-									) }
-									value={ generatedOutput }
-									onChange={ () => {} }
-									rows={ 8 }
-									readOnly
-									className="newspack-rolling-coverage-ai-output"
-								/>
+								<div>
+									<TextareaControl
+										label={ __(
+											'Generated Output',
+											'newspack-rolling-coverage'
+										) }
+										value={ generatedOutput }
+										onChange={ () => {} }
+										rows={ 8 }
+										readOnly
+									/>
+								</div>
 								<Button
-									variant="secondary"
-									icon={ copied ? check : copyIcon }
+									className="newspack-rolling-coverage-centered-button"
+									variant="tertiary"
 									onClick={ handleCopy }
 								>
 									{ copied
@@ -2972,132 +3122,134 @@ export default function Edit( {
 												'newspack-rolling-coverage'
 											)
 										: __(
-												'Copy',
+												'Copy Generated Output',
 												'newspack-rolling-coverage'
 											) }
 								</Button>
 							</>
 						) }
-					</div>
+					</Stack>
 				</PanelBody>
 			) : null }
 
 			{ NEWSPACK_ADS_AVAILABLE && (
 				<PanelBody title={ __( 'Ads', 'newspack-rolling-coverage' ) }>
-					{ coverageAdsDisabled ? (
-						<Notice
-							className="newspack-rolling-coverage-ads-notice"
-							status="warning"
-							isDismissible={ false }
-						>
-							{ __(
-								'Ads are disabled for this coverage. Enable them in the coverage settings to configure ad settings here.',
-								'newspack-rolling-coverage'
-							) }
-						</Notice>
-					) : (
-						! NEWSPACK_ADS_PLACEMENT_ENABLED && (
-							<Notice
-								className="newspack-rolling-coverage-ads-notice"
-								status="warning"
-								isDismissible={ false }
-							>
+					<Stack direction="column" gap="lg">
+						{ coverageAdsDisabled ? (
+							<Notice status="warning" isDismissible={ false }>
 								{ __(
-									'Enable and configure the Rolling Coverage: Entry placement in Newspack Ads to show ads.',
+									'Ads are disabled for this coverage. Enable them in the coverage settings to configure ad settings here.',
 									'newspack-rolling-coverage'
 								) }
 							</Notice>
-						)
-					) }
-					<ToggleGroupControl
-						__next40pxDefaultSize
-						isBlock
-						label={ __(
-							'Advertising',
-							'newspack-rolling-coverage'
+						) : (
+							! NEWSPACK_ADS_PLACEMENT_ENABLED && (
+								<Notice
+									status="warning"
+									isDismissible={ false }
+								>
+									{ __(
+										'Enable and configure the Rolling Coverage: Entry placement in Newspack Ads to show ads.',
+										'newspack-rolling-coverage'
+									) }
+								</Notice>
+							)
 						) }
-						help={
-							latestOnly
-								? __(
-										'Not shown while the feed shows only the latest entries.',
-										'newspack-rolling-coverage'
-									)
-								: __(
-										'Shows ads at a regular interval in the feed.',
-										'newspack-rolling-coverage'
-									)
-						}
-						value={ enableAds ? 'enabled' : 'disabled' }
-						disabled={ coverageAdsDisabled || latestOnly }
-						onChange={ ( value ) =>
-							setAttributes( {
-								enableAds: value === 'enabled',
-							} )
-						}
-					>
-						<ToggleGroupControlOption
-							value="enabled"
-							label={ _x(
-								'Enabled',
-								'advertising',
-								'newspack-rolling-coverage'
-							) }
-							aria-label={
-								/* translators: Screen reader name for the “Enabled” option. Keep the word used to translate “Enabled”. */
-								__(
-									'Advertising enabled',
+						<div>
+							<ToggleGroupControl
+								__next40pxDefaultSize
+								isBlock
+								label={ __(
+									'Advertising',
 									'newspack-rolling-coverage'
-								)
-							}
-						/>
-						<ToggleGroupControlOption
-							value="disabled"
-							label={ _x(
-								'Disabled',
-								'advertising',
-								'newspack-rolling-coverage'
-							) }
-							aria-label={
-								/* translators: Screen reader name for the “Disabled” option. Keep the word used to translate “Disabled”. */
-								__(
-									'Advertising disabled',
-									'newspack-rolling-coverage'
-								)
-							}
-						/>
-					</ToggleGroupControl>
-					{ enableAds && ! coverageAdsDisabled && ! latestOnly && (
-						<TextControl
-							__next40pxDefaultSize
-							type="number"
-							label={ __(
-								'Ads interval',
-								'newspack-rolling-coverage'
-							) }
-							help={ sprintf(
-								/* translators: 1: the entry the first ad follows, 2: the entry the second ad follows, 3: the entry the third ad follows. */
-								__(
-									'Up to 3 ads, after entries %1$d, %2$d and %3$d. New entries that arrive while the page is open get one at this interval, with no limit.',
-									'newspack-rolling-coverage'
-								),
-								adsInterval,
-								adsInterval * 2,
-								adsInterval * 3
-							) }
-							value={ String( adsInterval ) }
-							min={ 1 }
-							onChange={ ( value: string ) =>
-								setAttributes( {
-									adsInterval: value
-										? Math.max(
-												1,
-												parseInt( value, 10 ) || 1
+								) }
+								help={
+									latestOnly
+										? __(
+												'Not shown while the feed shows only the latest entries.',
+												'newspack-rolling-coverage'
 											)
-										: 4,
-								} )
-							}
-						/>
-					) }
+										: __(
+												'Shows ads at a regular interval in the feed.',
+												'newspack-rolling-coverage'
+											)
+								}
+								value={ enableAds ? 'enabled' : 'disabled' }
+								disabled={ coverageAdsDisabled || latestOnly }
+								onChange={ ( value ) =>
+									setAttributes( {
+										enableAds: value === 'enabled',
+									} )
+								}
+							>
+								<ToggleGroupControlOption
+									value="enabled"
+									label={ _x(
+										'Enabled',
+										'advertising',
+										'newspack-rolling-coverage'
+									) }
+									aria-label={
+										/* translators: Screen reader name for the “Enabled” option. Keep the word used to translate “Enabled”. */
+										__(
+											'Advertising enabled',
+											'newspack-rolling-coverage'
+										)
+									}
+								/>
+								<ToggleGroupControlOption
+									value="disabled"
+									label={ _x(
+										'Disabled',
+										'advertising',
+										'newspack-rolling-coverage'
+									) }
+									aria-label={
+										/* translators: Screen reader name for the “Disabled” option. Keep the word used to translate “Disabled”. */
+										__(
+											'Advertising disabled',
+											'newspack-rolling-coverage'
+										)
+									}
+								/>
+							</ToggleGroupControl>
+						</div>
+						{ enableAds &&
+							! coverageAdsDisabled &&
+							! latestOnly && (
+								<TextControl
+									__next40pxDefaultSize
+									type="number"
+									label={ __(
+										'Ads interval',
+										'newspack-rolling-coverage'
+									) }
+									help={ sprintf(
+										/* translators: 1: the entry the first ad follows, 2: the entry the second ad follows, 3: the entry the third ad follows. */
+										__(
+											'Up to 3 ads, after entries %1$d, %2$d and %3$d. New entries that arrive while the page is open get one at this interval, with no limit.',
+											'newspack-rolling-coverage'
+										),
+										adsInterval,
+										adsInterval * 2,
+										adsInterval * 3
+									) }
+									value={ String( adsInterval ) }
+									min={ 1 }
+									onChange={ ( value: string ) =>
+										setAttributes( {
+											adsInterval: value
+												? Math.max(
+														1,
+														parseInt( value, 10 ) ||
+															1
+													)
+												: 4,
+										} )
+									}
+								/>
+							) }
+					</Stack>
 				</PanelBody>
 			) }
 		</InspectorControls>
@@ -3327,9 +3479,15 @@ export default function Edit( {
 																...coverageContext,
 															} }
 														>
-															<div
-																{ ...innerBlocksProps }
-															/>
+															<UntitledEntriesContext.Provider
+																value={
+																	untitledEntries
+																}
+															>
+																<div
+																	{ ...innerBlocksProps }
+																/>
+															</UntitledEntriesContext.Provider>
 														</BlockContextProvider>
 													</PinnedPreviewsContext.Provider>
 												</EntryPreviewsContext.Provider>

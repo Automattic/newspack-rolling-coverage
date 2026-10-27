@@ -45,6 +45,7 @@ import {
 	UPDATE_TIMER_BLOCK_NAME,
 	feedTemplate,
 	layoutParts,
+	withoutNewLabel,
 	withoutPinnedRow,
 	fullStoryTakesPinned,
 	withoutBreakoutLink,
@@ -55,7 +56,6 @@ import {
 	withCenteredTitleRows,
 	withoutPostTitle,
 	withEntryLinkTitleText,
-	withoutAvatarColumns,
 	withoutByline,
 	withAuthorSettings,
 	hasPinnedCard,
@@ -65,7 +65,6 @@ import {
 	forEntryKind,
 	withoutFeaturedImage,
 } from './template';
-import { SHOW_AVATARS } from './config';
 import type { EntryContext, TemplateBlocks, TemplateItem } from './types';
 
 export const BLOCK_NAME = metadata.name;
@@ -543,7 +542,7 @@ function isUntitled(
  * @param {Object}         settings            The block's Author name and Author avatar settings.
  * @param {boolean}        settings.showAuthor Whether entries show their author's name.
  * @param {boolean}        settings.showAvatar Whether entries show their author's avatar.
- * @return {Object} The header, footer and per-entry template blocks, and a getter for one entry's preview blocks.
+ * @return {Object} The header, footer and per-entry template blocks, a getter for one entry's preview blocks, and the untitled entries' opening words by post ID.
  */
 export function useLayoutPreview(
 	allBlocks: TemplateBlocks,
@@ -559,6 +558,7 @@ export function useLayoutPreview(
 	footerBlocks: TemplateBlocks;
 	templateBlocks: TemplateBlocks;
 	blocksForEntry: ( context: EntryContext ) => TemplateBlocks;
+	untitledEntries: ReadonlyMap< number, string >;
 } {
 	const { headerBlocks, templateBlocks, footerBlocks } = useMemo( () => {
 		const { header, template, footer } = layoutParts( allBlocks );
@@ -579,9 +579,7 @@ export function useLayoutPreview(
 	);
 	const previewTemplates = useMemo( () => {
 		const entryBlocks = withAuthorSettings(
-			SHOW_AVATARS
-				? templateBlocks
-				: withoutAvatarColumns( templateBlocks ),
+			templateBlocks,
 			showAuthor,
 			showAvatar
 		);
@@ -703,7 +701,14 @@ export function useLayoutPreview(
 		[ lastPreviewBlocks, previewTemplates ]
 	);
 
-	const blocksForEntry = useCallback(
+	const newestContext =
+		entryContexts.find( ( context ) => ! context.pinned ) ??
+		entryContexts[ 0 ];
+	const strippedBlocks = useMemo(
+		() => new WeakMap< TemplateBlocks, TemplateBlocks >(),
+		[]
+	);
+	const blocksWithNewLabel = useCallback(
 		( context: EntryContext ) => {
 			const untitled = isUntitled( context, hasFullStory, takesPinned );
 			const kept = untitled ? untitledBlocks.get( context ) : undefined;
@@ -752,5 +757,48 @@ export function useLayoutPreview(
 		]
 	);
 
-	return { headerBlocks, footerBlocks, templateBlocks, blocksForEntry };
+	const blocksForEntry = useCallback(
+		( context: EntryContext ) => {
+			const blocks = blocksWithNewLabel( context );
+
+			if ( context === newestContext ) {
+				return blocks;
+			}
+
+			let stripped = strippedBlocks.get( blocks );
+
+			if ( ! stripped ) {
+				stripped = withoutNewLabel( blocks );
+				strippedBlocks.set( blocks, stripped );
+			}
+
+			return stripped;
+		},
+		[ blocksWithNewLabel, newestContext, strippedBlocks ]
+	);
+
+	// An editable layout previews its own Post Title blocks, so it reads which
+	// entries are untitled from here (see untitled-entry-title.tsx).
+	const untitledEntries = useMemo(
+		() =>
+			new Map(
+				entryContexts
+					.filter( ( context ) =>
+						isUntitled( context, hasFullStory, takesPinned )
+					)
+					.map( ( context ) => [
+						context.postId,
+						context.fallbackTitle ?? '',
+					] )
+			),
+		[ entryContexts, hasFullStory, takesPinned ]
+	);
+
+	return {
+		headerBlocks,
+		footerBlocks,
+		templateBlocks,
+		blocksForEntry,
+		untitledEntries,
+	};
 }

@@ -274,7 +274,7 @@ $quick-edit-footer-clearance: 72px;
 		opacity: 1;
 
 		@media not (prefers-reduced-motion) {
-			animation: newspack-rolling-coverage-quick-edit-fade-in 0.2s ease-out;
+			animation: newspack-rolling-coverage-quick-edit-fade-in var(--wpds-motion-duration-md, 200ms) var(--wpds-motion-easing-subtle, cubic-bezier(0.15, 0, 0.15, 1));
 		}
 	}
 }

@@ -90,18 +90,21 @@ async function saveCoverage(
  * when the coverage is not already present in context state (e.g. on a
  * direct deep-link to the entries view).
  *
- * @param {string} restBaseCoverages - Full REST URL for the coverages collection (from config.restBaseUrls.coverages).
- * @param {number} id                - The coverage term ID.
+ * @param {string}  restBaseCoverages - Full REST URL for the coverages collection (from config.restBaseUrls.coverages).
+ * @param {number}  id                - The coverage term ID.
+ * @param {boolean} canManageTerms    - Whether the user can manage terms. Only the edit context returns the description, and it 403s for lower roles.
  * @return {Promise<Coverage | null>} The coverage term, or null on failure.
  */
 async function getCoverage(
 	restBaseCoverages: string,
-	id: number
+	id: number,
+	canManageTerms: boolean
 ): Promise< Coverage | null > {
 	try {
 		return await apiFetch< Coverage >( {
 			url: addQueryArgs( `${ restBaseCoverages }/${ id }`, {
 				_fields: COVERAGE_FIELDS,
+				context: canManageTerms ? 'edit' : 'view',
 			} ),
 			method: 'GET',
 		} );
@@ -111,8 +114,8 @@ async function getCoverage(
 }
 
 /**
- * Soft-deletes a coverage by setting its status to 'trash' and trashing
- * all its non-trashed entries.
+ * Soft-deletes a coverage by setting its status to 'trash'. Its entries
+ * keep their status and are hidden on the site until it is restored.
  *
  * @param {string} restNamespace - REST namespace URL (from config.restBaseUrls.restNamespace).
  * @param {number} id            - The coverage term ID.
@@ -134,8 +137,9 @@ async function trashCoverage(
 }
 
 /**
- * Restores a coverage from trash, setting its status back to 'active'.
- * Entries remain trashed and must be restored individually.
+ * Restores a coverage from trash, in the status it had when it was trashed.
+ * Entries trashed on their own remain trashed and must be restored
+ * individually.
  *
  * @param {string} restNamespace - REST namespace URL.
  * @param {number} id            - The coverage term ID.

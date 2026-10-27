@@ -13,6 +13,10 @@ The plugin's admin screens live in `src/admin/`: the coverages list, each covera
 | `#/connection/<tab>` | Slack Connection (`slack-settings-page.tsx`), with its tabs in `src/admin/utils/slack-tabs.ts` |
 | `#/ai` | AI prompt settings (`ai-page.tsx`) |
 
+When key takeaways can't run (`AI_Service::is_available()` is false), the AI page shows an empty state in place of the prompt, with what to set up next and a button to the screen for it. In order: Connector Approvals when approval is pending (`needs_connector_approval()`, which doesn't check credentials, so approving can lead on to the next state); Settings > AI when that screen is registered (`get_settings_url()`); no button when the AI plugin is active but hasn't booted; and otherwise the plugin installer, or Plugins for users who can only activate plugins (`adminUrls.aiPlugin`). Settings > AI links on to Settings > Connectors, where a provider is connected.
+
+On these screens, wp-admin notices printed above the app sit flush with no margin, so they line up with the page header. Inline notices, such as core's update nag, keep theirs.
+
 The app reads its config from `window.newspackRollingCoverageAdmin` (`Admin::get_script_data()`): REST URLs, labels, editor settings and a `capabilities` object. The capabilities only decide what the app shows; every route checks permissions again.
 
 | Capability | Check | Gates |
@@ -36,7 +40,9 @@ At 782px and below, DataViews shows only the bulk actions that have an `icon`, a
 
 ## All Coverages
 
-The header holds Settings and Add Coverage. Add Coverage and the Edit action open `CoverageDrawer` (`coverage-drawer.tsx`), a DataForm with Name, Description, Canonical URL, Status and Advertising. Status options are named after the site's status labels. In Edit, Save stays disabled until a field changes. A successful save closes the drawer with a snackbar, "Changes saved." for an edit or "Coverage added." for a new coverage; a failed one keeps it open with the error. The drawer saves through the core terms route and sends every field each time, so each meta key it sends must be writable by anyone who can edit a coverage. A stricter `auth_callback` on one of them fails those users' saves after the other fields are already written.
+The header holds Settings and Add Coverage. Add Coverage and the Edit action open `CoverageDrawer` (`coverage-drawer.tsx`), a DataForm with Name, Description, Canonical URL, Status and Advertising. Status options are named after the site's status labels. Description is an internal note, which the core terms route returns only in the `edit` context; the coverages list asks for that context when the user has `canManageTerms`, as everyone who can open the drawer does. In Edit, Save stays disabled until a field changes. A successful save closes the drawer with a snackbar, "Changes saved." for an edit or "Coverage added." for a new coverage; a failed one keeps it open with the error. The drawer saves through the core terms route, served by `Coverage_REST_Controller`: core lets anyone who can assign coverages to entries (`edit_posts`) create one, since the taxonomy isn't hierarchical, so the controller also requires `manage_categories` to create. The drawer sends every field each time, so each meta key it sends must be writable by anyone who can edit a coverage. A stricter `auth_callback` on one of them fails those users' saves after the other fields are already written.
+
+The list opens without trashed coverages (Status is not Trash). While some are in the trash, the toolbar shows "Trash (N)", which switches the status filter to them; "All Coverages" switches it back. Both replace any other status filter and keep the rest of the view. Add Coverage also leaves the Trash view, so the new coverage shows, including from the empty state after the last trashed coverage is deleted.
 
 Row actions live in `src/admin/actions/coverage-actions.ts`:
 
@@ -46,8 +52,8 @@ Row actions live in `src/admin/actions/coverage-actions.ts`:
 | Entries | Always | Opens the coverage's entries. |
 | Placements | The coverage has placements | See [Placements](#placements). |
 | Slack Connection | `canManageOptions`, once Slack is configured | Opens `SlackConnectionDrawer`. |
-| Trash | `canManageTerms`, coverage not trashed | Confirms, then `POST rolling-coverage/v1/coverages/<id>/trash`. The coverage's status becomes `trash`, and its entries are hidden on the site until it is restored. |
-| Restore | `canManageTerms`, coverage trashed | `POST rolling-coverage/v1/coverages/<id>/restore`. |
+| Trash | `canManageTerms`, coverage not trashed | Confirms, noting when a Slack channel is linked that messages posted while the coverage is in the trash won't become entries, then `POST rolling-coverage/v1/coverages/<id>/trash`. The coverage's status becomes `trash`, keeping the one it had in `rolling_coverage_status_before_trash`, and its entries are hidden on the site until it is restored. The "Coverage trashed." snackbar ("Coverages trashed." for several) offers Undo, which restores what was just trashed as Restore does. |
+| Restore | `canManageTerms`, coverage trashed | `POST rolling-coverage/v1/coverages/<id>/restore`, which puts back the status the coverage had, so an ended coverage stays ended and keeps its end time. One with no status kept comes back Live. |
 | Delete Permanently | `canManageTerms`, coverage trashed | Confirms, then `DELETE rolling-coverage/v1/coverages/<id>`. Its entries are deleted too, apart from any already in the trash, by a cleanup cron event a minute later, in batches of 50. |
 
 The routes live in `Taxonomy` (`includes/class-taxonomy.php`).
@@ -77,7 +83,7 @@ The list reads `GET rolling-coverage/v1/coverages/<id>/entries-view` (`Post_Type
 
 A row's `title`, and the `summary` an untitled entry is listed by, are plain text, which the list and its snackbars show as text: `Post_Type::plain_title()` removes a title's tags and decodes its entities. A title is stored with `&`, `<`, `>` and square brackets encoded or as typed, depending on where it was written: the editor's visual title field encodes `&` and `<`, kses encodes `&`, `<` and `>` for users who may not post unfiltered HTML, and a title from a Slack message has its square brackets encoded too. So the Title filter (`Post_Type::title_filter_where()`) compares the stored title with those characters decoded, and decodes the filter text as well, since `sanitize_text_field()` encodes a `<` in it. Tags stay in the comparison, so filter text that runs across a formatting tag in a title finds nothing: removing tags in SQL needs `REGEXP_REPLACE()`, which older MySQL versions that WordPress supports lack. Untitled entries are matched by their content, as typed and HTML-escaped.
 
-`useEntries` (`src/admin/hooks/useEntries.ts`) then polls the same route with a `since` cursor every 10 seconds (`SYNC_INTERVAL_MS`), and pauses while the tab is hidden. The route finds changes by modified date, which moves when cron publishes a scheduled entry too (`Post_Type::stamp_publish_modified_gmt()`). It merges the changed rows and shows a snackbar for each change, or one "N updates in the last 10s" snackbar for more than five. When too many entries changed for one response (`overflow`), it reloads the page.
+`useEntries` (`src/admin/hooks/useEntries.ts`) then polls the same route with a `since` cursor every 10 seconds (`SYNC_INTERVAL_MS`), and pauses while the tab is hidden. The route finds changes by modified date, which moves when cron publishes a scheduled entry too (`Post_Type::stamp_publish_modified_gmt()`). It merges the changed rows and shows a snackbar for each change, or one "N updates in the last 10s" snackbar for more than five. A poll that changed anything also recounts the list for the count beside the coverage's name and the "N items" footer (`refreshTotals()` in `entries-api.ts`), with a one-entry page of the same view: the poll returns every changed entry in the coverage whatever the filters, so only the server knows how many the view holds now. An entry moved to another coverage or deleted permanently never reaches this coverage's poll, so its row stays until the list fetches its page again, and the count until then or the next poll that changes something. When too many entries changed for one response (`overflow`), it reloads the page.
 
 The empty state replaces the table and its filters, so it shows only when the coverage has no entries at all, trashed ones included: the Trashed filter is the only way back to them.
 
@@ -99,7 +105,7 @@ An entry is locked when it is archived or its coverage has ended (`isEntryLocked
 | Archive, Unarchive | Yes | Editors; Archive on a published entry; the coverage hasn't ended | `POST rolling-coverage/v1/entries/<id>/archive` (`Archive_Mode`). |
 | Pin, Unpin | No | Editors, not locked | `POST rolling-coverage/v1/entries/<id>/pin`. |
 | Trash | Yes | Not trashed, not locked; Editors, or the author of an entry they can publish | Confirms, then `DELETE` on the core entries route. |
-| Restore | Yes | Trashed, the user can edit it | `POST rolling-coverage/v1/entries/restore`, in one request for all of them. An entry whose coverage no longer exists comes back in a recovery coverage, shared by entries from the same coverage; creating or reusing it needs `manage_categories`, so without it the entry stays in the trash with an error. Archived entries, and entries locked because their coverage ended, can't be restored. |
+| Restore | Yes | Trashed, the user can edit it | `POST rolling-coverage/v1/entries/restore`, in one request for all of them. An entry whose coverage no longer exists comes back in a recovery coverage, shared by entries from the same coverage; creating or reusing it needs `manage_categories`, so without it the entry stays in the trash with an error. An entry in a trashed coverage brings the coverage back in the status it had (`Taxonomy::restore_coverage()`, which needs `manage_categories`), unless it had ended. Archived entries, and entries locked because their coverage ended, trashed or not, can't be restored. |
 | Delete Permanently | Yes | Editors, trashed | Confirms, then `DELETE` on the core entries route with `force`. |
 
 Quick Edit and Edit ask for confirmation first on an archived entry, or one whose coverage is paused or ended, naming the coverage's status as the site labels it.
@@ -236,7 +242,9 @@ Every other subtype is skipped: bots' posts, edits, deletions, and the notices S
 
 `SlackAdapter::shouldIngest()` in `src/admin/utils/slack-adapter.ts` keeps its own copy of the list. Change both together.
 
-Tests: `tests/test-slack-webhook.php`.
+A message for a coverage that has ended or is in the trash isn't saved (`Entry_Ingestion_Service::SKIP_ARCHIVED_COVERAGE` and `SKIP_TRASHED_COVERAGE`), and the Monitor tab logs which.
+
+Tests: `tests/test-slack-webhook.php` and `tests/test-entry-ingestion-service.php`.
 
 ## Slack publish modes
 
@@ -255,7 +263,7 @@ Channels linked before publish modes stored only an `autopublish` flag. `Slack_C
 - The two emoji are site-wide: **Publish Emoji** and **Draft Emoji** in the Slack page's Settings tab, `mega` and `memo` by default. They are stored lowercase without colons and must differ. A skin-tone variant of either counts.
 - Slack sends every reaction in the bot's channels to the events route as `reaction_added`. `Slack_Webhook_Controller::handle_reaction()` drops the bot's own reactions, channels in other modes and other emoji before calling Slack. It then reads the message with `conversations.replies` (`Slack_API_Client::get_message_or_reply()`), since a reaction doesn't say which thread its message is in and `conversations.history` lists top-level messages only.
 - The entry is the message as it reads when the reaction arrives. The ignore prefix doesn't apply, since the reaction is the opt-in. A message event in an Emoji trigger channel returns before any Slack call.
-- When the message already has an entry, the publish emoji publishes it only if it is a draft that never went out. A draft an editor took down (`Post_Type::META_UNPUBLISHED_GMT`), an archived one or one in a coverage that has ended (`Archive_Mode::is_entry_locked()`), and one dated a minute or more ahead stay as they are.
+- When the message already has an entry, the publish emoji publishes it only if it is a draft that never went out. A draft an editor took down (`Post_Type::META_UNPUBLISHED_GMT`), an archived one or one in a coverage that has ended (`Archive_Mode::is_entry_locked()`), one in a coverage that is in the trash, and one dated a minute or more ahead stay as they are.
 - Publishing uses `wp_publish_post()`, which doesn't save the content again: a `wp_update_post()` save would run it through kses, as the webhook has no user. Because `wp_publish_post()` doesn't name the post, the draft gets the slug core gives a post saved as published (its ID, for an untitled entry) first, so its share and notification links work. The entry keeps the date the draft was created, as when it is published from the editor. When the entry is opted in to notify followers, the send goes out on the next cron run (`Push_Notifications::settle_rest_publish()`), not a minute later.
 - A trashed entry counts as the message's entry, so a later reaction, such as a colleague adding the same emoji, doesn't bring it back. A message that carries the bot's own reaction but still has no entry in this coverage when looked up again had one before, deleted for good or made for a coverage the channel was linked to earlier, so it isn't added again; when the draft emoji's entry turns up in that second lookup, the publish emoji publishes it. Any other reaction on a message with an entry changes nothing, and removing a reaction does nothing (the app doesn't subscribe to `reaction_removed`).
 - The publish emoji can arrive while the draft emoji's entry is still being saved. The handler then answers 503, so Slack sends the reaction again and it publishes the draft once it exists; when the draft was saved after its lookup, it publishes it straight away.
@@ -283,6 +291,19 @@ Reporters can mark a title and headings in a Slack message the way Markdown does
 - The mrkdwn fallback, used when a message's rich text renders nothing, makes titles and headings the same way. It has no code blocks, so a `#` line between ``` fences becomes a heading there.
 
 Tests: `tests/test-slack-content-processor.php`, `tests/test-entry-ingestion-service.php`, `tests/test-slack-config.php`, `tests/test-slack-webhook.php`.
+
+## Slack slash commands
+
+The manifest that Copy Manifest produces gives the app three commands, all sent to `/slack/commands` (`Slack_Webhook_Controller::handle_command()`): `/rolling-coverage-connect` opens a picker of the site's coverages and links the channel in Draft mode, `/rolling-coverage-status` says which coverage the channel is linked to and what happens to its messages, and `/rolling-coverage-unlink` removes the link.
+
+Each site sets up its own app, and Slack doesn't keep command names apart by app: when apps in one workspace share a command, Slack sends it to the one installed most recently. So:
+
+- A command is recognized by the end of its name, `-connect`, `-unlink` or `-status`, so a site can rename its commands in its Slack app and keep them working. Any other name gets "Unknown command."
+- Every reply, and every message the bot posts in a channel, has a line under it naming the site it came from, such as "From Example News (example.com)" (`Slack_Webhook_Controller::site_blocks()`). The connect picker's label names the site too. The address tells apart two sites with the same name.
+
+Ingesting the channel's messages and reactions isn't affected, since Slack sends events to every app in the channel.
+
+Tests: `tests/test-slack-webhook.php`.
 
 ## Slack webhooks on a password-protected site
 

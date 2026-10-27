@@ -19,12 +19,25 @@ defined( 'ABSPATH' ) || exit;
  * Keeps the shared layout in a synced pattern whose content is one Rolling
  * Coverage block, and hands that block's inner blocks to every Rolling
  * Coverage block pointing at it through its `layoutId` attribute.
+ *
+ * A built-in layout's pattern follows the plugin until someone edits it:
+ * while it still holds the content it last got from the plugin, the page and
+ * the editor get the layout this version of the plugin ships
+ * (`Layout_Templates`).
  */
 class Layout {
 
 	const BUILT_IN_SLUGS = [ 'default', 'stream', 'rail', 'clock', 'margin', 'minute', 'byline', 'ticker', 'split', 'wire', 'digest', 'flash', 'alert' ];
 
 	const SLUG_META_KEY = '_rolling_coverage_layout';
+
+	/**
+	 * Post meta holding the hash of the content a built-in layout's pattern
+	 * last got from the plugin: when it was created, or when a save wrote the
+	 * plugin's layout back unchanged. Content that no longer matches it was
+	 * edited.
+	 */
+	const HASH_META_KEY = '_rolling_coverage_layout_hash';
 
 	const PATTERN_CATEGORY = 'rolling-coverage';
 
@@ -41,6 +54,8 @@ class Layout {
 	public static function init() {
 		add_filter( 'render_block_data', [ __CLASS__, 'inject_layout' ], 10, 1 );
 		add_action( 'rest_api_init', [ __CLASS__, 'register_routes' ] );
+		add_filter( 'rest_prepare_wp_block', [ __CLASS__, 'prepare_pattern_response' ], 10, 2 );
+		add_action( 'post_updated', [ __CLASS__, 'record_unedited_save' ], 10, 3 );
 	}
 
 	/**
@@ -63,6 +78,16 @@ class Layout {
 			return null;
 		}
 
+		$slug = self::get_unedited_slug( $post );
+
+		if ( null !== $slug ) {
+			$blocks = Layout_Templates::get_blocks( $slug );
+
+			if ( null !== $blocks ) {
+				return $blocks;
+			}
+		}
+
 		foreach ( parse_blocks( $post->post_content ) as $block ) {
 			if ( Rolling_Coverage_Block::BLOCK_NAME === ( $block['blockName'] ?? '' ) ) {
 				return self::detach_nested_blocks( $block['innerBlocks'] ?? [] );
@@ -70,6 +95,102 @@ class Layout {
 		}
 
 		return null;
+	}
+
+	/**
+	 * The built-in layout a pattern follows: its slug while the pattern holds
+	 * the content it last got from the plugin (`HASH_META_KEY`), or null for a
+	 * custom layout or one someone edited. A pattern created before the hash was recorded
+	 * counts as unedited while it has never been updated, and its first update
+	 * records the hash (record_unedited_save()).
+	 *
+	 * @param WP_Post $post Pattern.
+	 * @return string|null Built-in layout slug, or null.
+	 */
+	public static function get_unedited_slug( WP_Post $post ): ?string {
+		$slug = (string) get_post_meta( $post->ID, self::SLUG_META_KEY, true );
+
+		if ( ! in_array( $slug, self::BUILT_IN_SLUGS, true ) ) {
+			return null;
+		}
+
+		$hash = (string) get_post_meta( $post->ID, self::HASH_META_KEY, true );
+
+		$is_unedited = '' === $hash
+			? $post->post_modified_gmt === $post->post_date_gmt
+			: hash_equals( $hash, md5( $post->post_content ) );
+
+		return $is_unedited ? $slug : null;
+	}
+
+	/**
+	 * Hands the editor an unedited built-in layout as the plugin ships it, so
+	 * its preview, Detach, and the pattern editor all start from the current
+	 * layout. A save that leaves that content as it is, such as a rename in
+	 * the pattern editor, keeps the layout following the plugin
+	 * (record_unedited_save()); any change to it makes the layout the site's
+	 * own.
+	 *
+	 * @param WP_REST_Response $response Response.
+	 * @param WP_Post          $post     Pattern.
+	 * @return WP_REST_Response
+	 */
+	public static function prepare_pattern_response( $response, $post ) {
+		if ( ! $response instanceof WP_REST_Response || ! $post instanceof WP_Post ) {
+			return $response;
+		}
+
+		$data = $response->get_data();
+
+		if ( ! isset( $data['content']['raw'] ) ) {
+			return $response;
+		}
+
+		$slug    = self::get_unedited_slug( $post );
+		$content = null !== $slug ? Layout_Templates::get_pattern_content( $slug ) : null;
+
+		if ( null !== $content ) {
+			$data['content']['raw'] = $content;
+			$response->set_data( $data );
+		}
+
+		return $response;
+	}
+
+	/**
+	 * Keeps a built-in layout following the plugin through saves that don't
+	 * change it. The pattern editor sends the content it was handed along with
+	 * any other change, a new title for one, so a save that stores the
+	 * plugin's layout as this save would store it records that content's
+	 * hash. A pattern from before the hash existed records the content it
+	 * held while unedited, so its first update doesn't end that on its own.
+	 *
+	 * @param int     $post_id     Post ID.
+	 * @param WP_Post $post_after  The pattern as saved.
+	 * @param WP_Post $post_before The pattern before the save.
+	 */
+	public static function record_unedited_save( $post_id, $post_after, $post_before ) {
+		if ( ! $post_after instanceof WP_Post || ! $post_before instanceof WP_Post || 'wp_block' !== $post_after->post_type ) {
+			return;
+		}
+
+		$slug = (string) get_post_meta( $post_id, self::SLUG_META_KEY, true );
+
+		if ( ! in_array( $slug, self::BUILT_IN_SLUGS, true ) ) {
+			return;
+		}
+
+		$layout = Layout_Templates::get_pattern_content( $slug );
+
+		// The layout as this save stores it: kses may have changed it for a user without unfiltered_html.
+		if ( null !== $layout && wp_unslash( sanitize_post_field( 'post_content', wp_slash( $layout ), $post_id, 'db' ) ) === $post_after->post_content ) {
+			update_post_meta( $post_id, self::HASH_META_KEY, md5( $post_after->post_content ) );
+			return;
+		}
+
+		if ( '' === (string) get_post_meta( $post_id, self::HASH_META_KEY, true ) && null !== self::get_unedited_slug( $post_before ) ) {
+			update_post_meta( $post_id, self::HASH_META_KEY, md5( $post_before->post_content ) );
+		}
 	}
 
 	/**
@@ -303,6 +424,8 @@ class Layout {
 
 			self::assign_pattern_category( $layout_id );
 			update_post_meta( $layout_id, self::SLUG_META_KEY, $slug );
+			// Hashed as stored, since kses may have changed what was posted.
+			update_post_meta( $layout_id, self::HASH_META_KEY, md5( (string) get_post_field( 'post_content', $layout_id, 'raw' ) ) );
 			update_option( self::option_name( $slug ), $layout_id, false );
 
 			return self::layout_response( $layout_id, 201 );

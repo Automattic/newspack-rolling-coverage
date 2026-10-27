@@ -13,6 +13,7 @@ A change that alters how something works updates its docs in the same pull reque
 - **Admin screens and the entry editor** (`src/admin/`, `src/entry-editor/`) share `src/admin/DEVELOPMENT.md`. Update the section for what you changed, or add one.
 - **PHP in `includes/`** updates the docs of the feature it serves: a block's docs for `includes/blocks/`, `src/admin/DEVELOPMENT.md` for everything else.
 - **`.github/CONTRIBUTING.md`** is the plugin-wide reference: it lists every REST route, hook, constant, option, meta key, cron event and capability, and summarizes each feature with links to its docs. Update it when you add, rename or remove one of those, or when a feature it summarizes changes what it does.
+- **The docs site** (`site/`) is where publishers read all of this. A change to something publishers see also updates the matching page in `site/content/docs/`. See "Docs site" below.
 - Describe the end state, not the history of the change. Rewrite or remove sentences the change makes untrue instead of appending to them.
 - Quote UI labels exactly as they appear on screen.
 
@@ -46,4 +47,38 @@ npm run fix:js       # Auto-fix JS (also format:scss, fix:php)
 Tests:
 
 - **PHP:** PHPUnit tests live in `tests/`. `npm run test:php` needs a WordPress test install, which `bin/install-wp-tests.sh <db-name> <db-user> <db-pass> [db-host] [wp-version]` sets up. Inside the Newspack workspace, run the workspace's `n test-php` from this directory instead.
-- **JS:** `npm test` runs `tests/js/shared-poll-check.ts`, which checks the view script's copy of the poll cursor rules against `tests/fixtures/poll-cursor-cases.json`, the cases PHPUnit checks the server's copy against. There is no JS test runner.
+- **JS:** `npm test` runs `tests/js/shared-poll-check.ts`, which checks the view script's copy of the poll cursor rules against `tests/fixtures/poll-cursor-cases.json`, the cases PHPUnit checks the server's copy against. It then runs the Jest tests in `tests/js/` (`npm run test:js`): the layout template checks, which fail when a built-in layout's template changes without `npm run build:layouts` rewriting the server copies in `includes/blocks/layouts/`, the entries list's live sync tests, and the check of when a new layout pattern gets its Rolling Coverage block (`tests/js/layout-start.test.ts`).
+
+## Docs site
+
+`site/` is the publisher documentation site: an [Astro](https://astro.build/) and [Fumadocs](https://fumadocs.dev/) static site with its own npm project, lockfile and `.nvmrc` (Node 24). The plugin's `npm ci`, lint, typecheck, build and CI never touch it, and it never ships in the plugin zip (`/site` in `.distignore`).
+
+```bash
+cd site
+npm ci
+npm run dev           # Local site at http://localhost:4321
+npm run build         # Static build in site/dist/
+npm test              # Content and color contrast checks
+npm run check:build   # Checks site/dist/ after a build
+```
+
+- Pages are MDX files in `site/content/docs/`; each folder's `meta.json` sets the sidebar order. The homepage is `site/src/components/home.tsx`, and the About page is `site/src/components/about.tsx`.
+- **Writing rules**, enforced by `npm test` where they can be:
+  - Publishers first: plain words, short steps, one action per step. US English, sentence-case headings, no em dashes.
+  - Technical words (hooks, REST API, attributes, meta) belong only in `site/content/docs/developers/`, which explains what each thing is for before how to use it.
+  - Quote UI labels exactly as they appear on screen, checked against the plugin source.
+  - Every step that changes what's on screen gets a `<Screenshot label="..." />` naming the screen and what's highlighted.
+- **Hosting:** Spacefast, in the Automattic team, at `https://rolling-coverage.space.fast/`. Spacefast builds the site from this repository (root directory `site`) whenever the deploy branch changes. The deploy branch is `trunk`.
+- **Updating the live site:** push to (or merge into) the deploy branch. Each build shows on the Space's Builds page in Spacefast and as the `Spacefast Builds` check on GitHub.
+- **When a build doesn't start** (it can sit queued), sign in to Spacefast as a member of the Automattic team and sync the repository, then retry the latest build:
+
+  ```bash
+  npx -y spacefast@latest git sync --space rolling-coverage --team automattic
+  npx -y spacefast@latest redeploy --space rolling-coverage --team automattic
+  ```
+
+  Don't publish `site/dist` by hand with `spacefast publish`: it uploads only part of the build, and the live site loses most of its pages.
+
+- **Access:** members of the Automattic team on Spacefast, plus a password for invited publishers. The password is managed in the Space's Access settings and never goes in this repository.
+- Spacefast's local `.spacefast/` folder is never committed (`site/.gitignore`).
+- The root `docs/` folder is gitignored and is not where the site goes.
