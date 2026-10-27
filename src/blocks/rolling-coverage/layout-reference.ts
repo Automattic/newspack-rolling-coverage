@@ -56,3 +56,22 @@ export function layoutReferenceOf(
 
 	return isBuiltIn( layoutSlug ) ? builtIn( layoutSlug ) : { kind: 'none' };
 }
+
+/**
+ * The attributes that move a block pointing at a built-in layout's pattern
+ * by ID to the layout's slug, or null when there's nothing to move. Named
+ * by slug, the block keeps following the layout if the pattern is deleted,
+ * and doesn't need the pattern to exist.
+ *
+ * @param {LayoutReference} reference What the block points at.
+ * @param {number}          layoutId  The block's `layoutId`.
+ * @return {Object|null} The attributes to set, or null.
+ */
+export function slugAttributesFor(
+	reference: LayoutReference,
+	layoutId: number
+): { layoutId: 0; layoutSlug: BuiltInLayoutSlug } | null {
+	return reference.kind === 'built-in' && layoutId > 0
+		? { layoutId: 0, layoutSlug: reference.slug }
+		: null;
+}

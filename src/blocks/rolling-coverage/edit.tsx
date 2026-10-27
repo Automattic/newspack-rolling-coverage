@@ -138,6 +138,7 @@ import {
 	switchLayoutAttributes,
 	type BuiltInLayoutSlug,
 } from './layouts';
+import { slugAttributesFor } from './layout-reference';
 import PinnedEntryContext from './pinned-entry-context';
 import FullStoryEntryContext, {
 	PinnedFullStoryEntryContext,
@@ -891,7 +892,7 @@ export default function Edit( {
 		},
 		[]
 	);
-	const { isNested, isPreviewMode } = useSelect(
+	const { isNested, isPreviewMode, isReadOnly } = useSelect(
 		( select ) => {
 			const blockEditor = select( blockEditorStore ) as unknown as {
 				getBlockParentsByBlockName: (
@@ -899,6 +900,7 @@ export default function Edit( {
 					name: string
 				) => string[];
 				getSettings: () => { isPreviewMode?: boolean };
+				getBlockEditingMode: ( id: string ) => string;
 			};
 			return {
 				isNested:
@@ -909,6 +911,15 @@ export default function Edit( {
 				isPreviewMode: Boolean(
 					blockEditor.getSettings().isPreviewMode
 				),
+				// Shown from somewhere else, such as a synced pattern, so a
+				// change here would change that instead.
+				isReadOnly:
+					blockEditor.getBlockEditingMode( clientId ) ===
+						'disabled' ||
+					blockEditor.getBlockParentsByBlockName(
+						clientId,
+						'core/block'
+					).length > 0,
 			};
 		},
 		[ clientId ]
@@ -1081,6 +1092,27 @@ export default function Edit( {
 		setAttributes( { layoutSlug: 'default' } );
 	}, [
 		needsDefaultLayout,
+		setAttributes,
+		__unstableMarkNextChangeAsNotPersistent,
+	] );
+
+	// A block still pointing at a built-in layout's pattern moves to the
+	// layout's slug, saved with the next save, so it keeps following the
+	// layout if the pattern is ever deleted.
+	const convertToSlug =
+		! isNested && ! isLayoutPattern && ! isPreviewMode && ! isReadOnly
+			? ( slugAttributesFor( reference, layoutId )?.layoutSlug ?? null )
+			: null;
+
+	useEffect( () => {
+		if ( ! convertToSlug ) {
+			return;
+		}
+
+		__unstableMarkNextChangeAsNotPersistent();
+		setAttributes( { layoutId: 0, layoutSlug: convertToSlug } );
+	}, [
+		convertToSlug,
 		setAttributes,
 		__unstableMarkNextChangeAsNotPersistent,
 	] );
