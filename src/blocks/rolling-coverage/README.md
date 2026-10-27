@@ -251,7 +251,7 @@ When a block uses a shared layout, the block toolbar shows Edit Layout and Detac
 - **Detach** copies the layout into this story. From then on, changes you make to this block affect this story only, and changes to the shared layout no longer reach it. The Layout panel reads "Uses its own layout, detached from the shared one."
 - **Change Layout** in the Layout panel opens "Choose a layout". Picking another layout replaces the current one, including a detached copy.
 
-If a story points at a layout that was deleted, readers see the Bulletin layout, and the editor asks you to Choose a layout again.
+If a story points at a custom layout that was deleted, readers see the Bulletin layout, and the editor asks you to Choose a layout again. A built-in layout whose pattern was deleted shows the plugin's version instead.
 
 ## Restore a built-in layout
 
