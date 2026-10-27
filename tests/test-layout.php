@@ -976,19 +976,22 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * A block that has both a pattern and a slug renders the pattern.
+	 * A block that has both a pattern and a slug renders the pattern, and
+	 * once that custom pattern is gone renders Bulletin, as the editor and
+	 * Placements read it, rather than the slug.
 	 */
 	public function test_layout_id_wins_over_slug() {
-		$layout_id = self::create_layout( self::layout_markup() );
+		$layout_id  = self::create_layout( self::layout_markup() );
+		$attributes = [
+			'layoutId'   => $layout_id,
+			'layoutSlug' => 'ticker',
+		];
 
-		$blocks = Layout::resolve_layout_blocks(
-			[
-				'layoutId'   => $layout_id,
-				'layoutSlug' => 'ticker',
-			]
-		);
+		$this->assertStringContainsString( self::MARKER, serialize_blocks( Layout::resolve_layout_blocks( $attributes ) ) );
 
-		$this->assertStringContainsString( self::MARKER, serialize_blocks( $blocks ) );
+		wp_delete_post( $layout_id, true );
+
+		$this->assertNull( Layout::resolve_layout_blocks( $attributes ) );
 	}
 
 	/**
@@ -1116,14 +1119,16 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 		wp_untrash_post( $restored_id );
 		wp_publish_post( $restored_id );
 
-		$this->assertEqualsCanonicalizing(
-			[
-				$flash_id => 'flash',
-				$rail_id  => 'rail',
-				$clock_id => 'clock',
-			],
-			Layout::get_unrendered_layouts()
-		);
+		$expected = [
+			$flash_id => 'flash',
+			$rail_id  => 'rail',
+			$clock_id => 'clock',
+		];
+		$actual   = Layout::get_unrendered_layouts();
+		ksort( $expected );
+		ksort( $actual );
+
+		$this->assertSame( $expected, $actual );
 		$this->assertArrayNotHasKey( $ticker_id, Layout::get_unrendered_layouts() );
 	}
 
@@ -1158,9 +1163,9 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * A removed pattern that's restored renders itself again, not the layout
-	 * its slug now resolves to: the record only counts for an ID that no
-	 * longer resolves.
+	 * A built-in layout's pattern that's restored renders itself again, not
+	 * the layout its slug now resolves to: a block's own pattern is tried
+	 * before its built-in layout.
 	 */
 	public function test_restored_pattern_renders_itself_not_its_slug() {
 		self::create_built_in( 'ticker' );

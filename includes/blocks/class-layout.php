@@ -111,10 +111,11 @@ class Layout {
 
 	/**
 	 * The layout blocks a block renders: its pattern's (`layoutId`), else the
-	 * built-in layout it names (`layoutSlug`). A built-in layout's pattern
-	 * that can't render (unpublished, deleted, or holding no layout) leaves
-	 * the block to that layout (get_built_in_slug()), and any other pattern
-	 * that no longer resolves to the block's own slug.
+	 * built-in layout it names (`layoutSlug`). `layoutId` decides when both
+	 * are set. A built-in layout's pattern that can't render (unpublished,
+	 * deleted, or holding no layout) leaves the block to that layout
+	 * (get_built_in_slug()); any other pattern that can't render leaves it
+	 * with none, as the editor and Placements read it.
 	 *
 	 * @param array $attrs Block attributes.
 	 * @return array[]|null Inner blocks, or null when the block names no layout that resolves.
@@ -127,10 +128,13 @@ class Layout {
 			return $blocks;
 		}
 
-		$slug = ( $layout_id > 0 ? self::get_built_in_slug( $layout_id ) : null )
-			?? ( is_string( $attrs['layoutSlug'] ?? null ) ? $attrs['layoutSlug'] : '' );
+		if ( $layout_id > 0 ) {
+			$slug = self::get_built_in_slug( $layout_id );
+		} else {
+			$slug = is_string( $attrs['layoutSlug'] ?? null ) ? $attrs['layoutSlug'] : null;
+		}
 
-		return '' === $slug ? null : self::get_slug_layout_blocks( $slug );
+		return null === $slug || '' === $slug ? null : self::get_slug_layout_blocks( $slug );
 	}
 
 	/**
