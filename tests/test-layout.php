@@ -1094,6 +1094,8 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 		self::create_built_in( 'ticker' );
 		$duplicate_id = self::create_layout( self::layout_markup() );
 		update_post_meta( $duplicate_id, Layout::SLUG_META_KEY, 'ticker' );
+		// Edited since it was created, so it renders its own content.
+		update_post_meta( $duplicate_id, Layout::HASH_META_KEY, md5( 'created' ) );
 
 		wp_trash_post( $duplicate_id );
 		wp_untrash_post( $duplicate_id );
