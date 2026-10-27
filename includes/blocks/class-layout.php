@@ -41,6 +41,15 @@ class Layout {
 	 */
 	const HASH_META_KEY = '_rolling_coverage_layout_hash';
 
+	/**
+	 * Option mapping the ID of each built-in layout's pattern that left the
+	 * site (unpublished, trashed or deleted) to the layout's slug, so blocks
+	 * still pointing at it follow the layout instead of falling back to
+	 * Bulletin. Entries stay: one is only read for an ID that no longer
+	 * resolves.
+	 */
+	const REMOVED_OPTION = 'rolling_coverage_removed_layouts';
+
 	const PATTERN_CATEGORY = 'rolling-coverage';
 
 	const PATTERN_TAXONOMY = 'wp_pattern_category';
@@ -58,6 +67,8 @@ class Layout {
 		add_action( 'rest_api_init', [ __CLASS__, 'register_routes' ] );
 		add_filter( 'rest_prepare_wp_block', [ __CLASS__, 'prepare_pattern_response' ], 10, 2 );
 		add_action( 'post_updated', [ __CLASS__, 'record_unedited_save' ], 10, 3 );
+		add_action( 'transition_post_status', [ __CLASS__, 'record_unpublished_pattern' ], 10, 3 );
+		add_action( 'before_delete_post', [ __CLASS__, 'record_deleted_pattern' ], 10, 2 );
 	}
 
 	/**
@@ -101,8 +112,10 @@ class Layout {
 
 	/**
 	 * The layout blocks a block renders: its pattern's (`layoutId`), else the
-	 * built-in layout it names (`layoutSlug`). A pattern that no longer
-	 * resolves leaves the block to its slug.
+	 * built-in layout it names (`layoutSlug`). A built-in layout's pattern
+	 * that left the site leaves the block to that layout's slug
+	 * (`REMOVED_OPTION`), and any other pattern that no longer resolves to the
+	 * block's own slug.
 	 *
 	 * @param array $attrs Block attributes.
 	 * @return array[]|null Inner blocks, or null when the block names no layout that resolves.
@@ -115,9 +128,89 @@ class Layout {
 			return $blocks;
 		}
 
-		$slug = is_string( $attrs['layoutSlug'] ?? null ) ? $attrs['layoutSlug'] : '';
+		$slug = ( $layout_id > 0 ? self::get_removed_slug( $layout_id ) : null )
+			?? ( is_string( $attrs['layoutSlug'] ?? null ) ? $attrs['layoutSlug'] : '' );
 
 		return '' === $slug ? null : self::get_slug_layout_blocks( $slug );
+	}
+
+	/**
+	 * The built-in layout a pattern that left the site was.
+	 *
+	 * @param int $layout_id Pattern ID.
+	 * @return string|null Built-in layout slug, or null.
+	 */
+	public static function get_removed_slug( int $layout_id ): ?string {
+		$slug = self::get_removed_layouts()[ $layout_id ] ?? null;
+
+		return in_array( $slug, self::BUILT_IN_SLUGS, true ) ? $slug : null;
+	}
+
+	/**
+	 * Every built-in layout pattern that left the site, by ID.
+	 *
+	 * @return array<int, string> Built-in layout slugs by pattern ID.
+	 */
+	public static function get_removed_layouts(): array {
+		$removed = get_option( self::REMOVED_OPTION, [] );
+
+		return is_array( $removed ) ? $removed : [];
+	}
+
+	/**
+	 * Records a built-in layout's pattern that stops being published, trashed
+	 * included: only published patterns render.
+	 *
+	 * @param string  $new_status New post status.
+	 * @param string  $old_status Old post status.
+	 * @param WP_Post $post       Post.
+	 */
+	public static function record_unpublished_pattern( $new_status, $old_status, $post ) {
+		if ( 'publish' === $old_status && 'publish' !== $new_status && $post instanceof WP_Post ) {
+			self::record_removed_pattern( $post );
+		}
+	}
+
+	/**
+	 * Records a built-in layout's pattern as it's deleted, while its slug is
+	 * still in its meta: the Site Editor deletes patterns without trashing
+	 * them first.
+	 *
+	 * @param int          $post_id Post ID.
+	 * @param WP_Post|null $post    Post.
+	 */
+	public static function record_deleted_pattern( $post_id, $post = null ) {
+		$post = $post instanceof WP_Post ? $post : get_post( $post_id );
+
+		if ( $post instanceof WP_Post ) {
+			self::record_removed_pattern( $post );
+		}
+	}
+
+	/**
+	 * Adds a pattern to `REMOVED_OPTION` when it's a built-in layout's.
+	 *
+	 * @param WP_Post $post Pattern.
+	 */
+	private static function record_removed_pattern( WP_Post $post ): void {
+		if ( 'wp_block' !== $post->post_type ) {
+			return;
+		}
+
+		$slug = (string) get_post_meta( $post->ID, self::SLUG_META_KEY, true );
+
+		if ( ! in_array( $slug, self::BUILT_IN_SLUGS, true ) ) {
+			return;
+		}
+
+		$removed = self::get_removed_layouts();
+
+		if ( ( $removed[ $post->ID ] ?? null ) === $slug ) {
+			return;
+		}
+
+		$removed[ $post->ID ] = $slug;
+		update_option( self::REMOVED_OPTION, $removed, false );
 	}
 
 	/**

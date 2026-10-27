@@ -1019,4 +1019,86 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 		$this->assertSame( Rolling_Coverage_Block::BLOCK_NAME, $blocks[1]['blockName'] );
 		$this->assertArrayNotHasKey( 'layoutSlug', $blocks[1]['attrs'] );
 	}
+
+	/**
+	 * Removing a built-in layout's pattern records which layout it was, by
+	 * trashing it, unpublishing it, or deleting it outright.
+	 *
+	 * @dataProvider pattern_removals
+	 *
+	 * @param callable $remove Removes the pattern, given its ID.
+	 */
+	public function test_removing_a_built_in_pattern_records_its_slug( callable $remove ) {
+		$layout_id = self::create_built_in( 'ticker' );
+
+		$remove( $layout_id );
+
+		$this->assertSame( 'ticker', Layout::get_removed_slug( $layout_id ) );
+		$this->assertSame( [ $layout_id => 'ticker' ], Layout::get_removed_layouts() );
+	}
+
+	/**
+	 * Ways a pattern leaves the site.
+	 *
+	 * @return array[]
+	 */
+	public function pattern_removals(): array {
+		return [
+			'trashed'          => [ 'wp_trash_post' ],
+			'unpublished'      => [
+				static fn( $id ) => wp_update_post(
+					[
+						'ID'          => $id,
+						'post_status' => 'draft',
+					]
+				),
+			],
+			'deleted outright' => [ static fn( $id ) => wp_delete_post( $id, true ) ],
+		];
+	}
+
+	/**
+	 * Only a pattern tagged with a built-in layout is recorded.
+	 */
+	public function test_only_built_in_patterns_are_recorded() {
+		$untagged = self::create_layout( self::layout_markup() );
+		$unknown  = self::create_layout( self::layout_markup() );
+		update_post_meta( $unknown, Layout::SLUG_META_KEY, 'nope' );
+
+		wp_trash_post( $untagged );
+		wp_delete_post( $unknown, true );
+
+		$this->assertNull( Layout::get_removed_slug( $untagged ) );
+		$this->assertNull( Layout::get_removed_slug( $unknown ) );
+		$this->assertSame( [], Layout::get_removed_layouts() );
+	}
+
+	/**
+	 * A block still pointing at a built-in layout's deleted pattern follows
+	 * the layout's slug instead of falling back to Bulletin.
+	 */
+	public function test_legacy_id_of_a_removed_pattern_follows_its_slug() {
+		$layout_id = self::create_built_in( 'ticker', self::MARKER );
+
+		wp_delete_post( $layout_id, true );
+
+		$this->assertSame( Layout_Templates::get_blocks( 'ticker' ), Layout::resolve_layout_blocks( [ 'layoutId' => $layout_id ] ) );
+	}
+
+	/**
+	 * A removed pattern that's restored renders itself again, not the layout
+	 * its slug now resolves to: the record only counts for an ID that no
+	 * longer resolves.
+	 */
+	public function test_restored_pattern_renders_itself_not_its_slug() {
+		self::create_built_in( 'ticker' );
+		$duplicate_id = self::create_layout( self::layout_markup() );
+		update_post_meta( $duplicate_id, Layout::SLUG_META_KEY, 'ticker' );
+
+		wp_trash_post( $duplicate_id );
+		wp_untrash_post( $duplicate_id );
+		wp_publish_post( $duplicate_id );
+
+		$this->assertStringContainsString( self::MARKER, serialize_blocks( Layout::resolve_layout_blocks( [ 'layoutId' => $duplicate_id ] ) ) );
+	}
 }
