@@ -96,10 +96,17 @@ describe( 'layoutReferenceOf', () => {
 } );
 
 describe( 'slugAttributesFor', () => {
-	const convert = ( layoutId: number, layoutSlug = '' ) =>
+	const STORY = {
+		isNested: false,
+		isLayoutPattern: false,
+		isPreviewMode: false,
+		isReadOnly: false,
+	};
+	const convert = ( layoutId: number, layoutSlug = '', where = STORY ) =>
 		slugAttributesFor(
 			layoutReferenceOf( layoutId, layoutSlug, LAYOUT_IDS, UNRENDERED ),
-			layoutId
+			layoutId,
+			where
 		);
 
 	it( "moves a block on a built-in layout's pattern to the layout's slug", () => {
@@ -112,6 +119,14 @@ describe( 'slugAttributesFor', () => {
 			layoutSlug: 'ticker',
 		} );
 		expect( convert( 41 ) ).toEqual( { layoutId: 0, layoutSlug: 'flash' } );
+	} );
+
+	it( "leaves a block it can't change here alone", () => {
+		for ( const flag of Object.keys( STORY ) ) {
+			expect(
+				convert( 50, '', { ...STORY, [ flag ]: true } )
+			).toBeNull();
+		}
 	} );
 
 	it( 'leaves slug blocks, other patterns and blocks without a layout alone', () => {

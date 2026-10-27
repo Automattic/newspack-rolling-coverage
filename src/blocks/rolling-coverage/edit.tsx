@@ -911,8 +911,9 @@ export default function Edit( {
 				isPreviewMode: Boolean(
 					blockEditor.getSettings().isPreviewMode
 				),
-				// Shown from somewhere else, such as a synced pattern, so a
-				// change here would change that instead.
+				// Shown from other content, such as a synced pattern or the
+				// template around a post, where a change here is dropped or
+				// lands in that content; its own editor handles the block.
 				isReadOnly:
 					blockEditor.getBlockEditingMode( clientId ) ===
 						'disabled' ||
@@ -1065,7 +1066,9 @@ export default function Edit( {
 				blocks: unknown[],
 				updateSelection?: boolean
 			) => void;
-			__unstableMarkNextChangeAsNotPersistent: () => void;
+			__unstableMarkNextChangeAsNotPersistent: ( options?: {
+				history?: string;
+			} ) => void;
 		};
 
 	const { invalidateResolution } = useDispatch( coreStore ) as unknown as {
@@ -1088,7 +1091,7 @@ export default function Edit( {
 			return;
 		}
 
-		__unstableMarkNextChangeAsNotPersistent();
+		__unstableMarkNextChangeAsNotPersistent( { history: 'ignore' } );
 		setAttributes( { layoutSlug: 'default' } );
 	}, [
 		needsDefaultLayout,
@@ -1097,19 +1100,21 @@ export default function Edit( {
 	] );
 
 	// A block still pointing at a built-in layout's pattern moves to the
-	// layout's slug, saved with the next save, so it keeps following the
-	// layout if the pattern is ever deleted.
+	// layout's slug, saved with the next save.
 	const convertToSlug =
-		! isNested && ! isLayoutPattern && ! isPreviewMode && ! isReadOnly
-			? ( slugAttributesFor( reference, layoutId )?.layoutSlug ?? null )
-			: null;
+		slugAttributesFor( reference, layoutId, {
+			isNested,
+			isLayoutPattern,
+			isPreviewMode,
+			isReadOnly,
+		} )?.layoutSlug ?? null;
 
 	useEffect( () => {
 		if ( ! convertToSlug ) {
 			return;
 		}
 
-		__unstableMarkNextChangeAsNotPersistent();
+		__unstableMarkNextChangeAsNotPersistent( { history: 'ignore' } );
 		setAttributes( { layoutId: 0, layoutSlug: convertToSlug } );
 	}, [
 		convertToSlug,
