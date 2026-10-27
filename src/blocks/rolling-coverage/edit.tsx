@@ -2091,7 +2091,9 @@ export default function Edit( {
 				( item ) => item.slug === choice.slug
 			);
 
-			if ( ! layout ) {
+			// The block's own built-in layout stays shared when its pattern
+			// couldn't be created, rather than turning into a detached copy.
+			if ( ! layout || ( isSynced && choice.slug === builtInSlug ) ) {
 				return;
 			}
 
