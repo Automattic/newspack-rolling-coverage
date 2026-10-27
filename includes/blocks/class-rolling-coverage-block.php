@@ -1626,7 +1626,7 @@ class Rolling_Coverage_Block {
 		}
 
 		// Only a shared layout takes it: a detached one's link is edited in place.
-		$all_updates_link_text = (int) ( $attributes['layoutId'] ?? 0 ) > 0 && is_string( $attributes['allUpdatesLinkText'] ?? null )
+		$all_updates_link_text = Layout::has_shared_layout( $attributes ) && is_string( $attributes['allUpdatesLinkText'] ?? null )
 			? trim( $attributes['allUpdatesLinkText'] )
 			: '';
 

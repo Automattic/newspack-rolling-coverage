@@ -18,12 +18,14 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Keeps the shared layout in a synced pattern whose content is one Rolling
  * Coverage block, and hands that block's inner blocks to every Rolling
- * Coverage block pointing at it through its `layoutId` attribute.
+ * Coverage block pointing at it through its `layoutId` attribute, or naming a
+ * built-in layout through its `layoutSlug` attribute.
  *
  * A built-in layout's pattern follows the plugin until someone edits it:
  * while it still holds the content it last got from the plugin, the page and
  * the editor get the layout this version of the plugin ships
- * (`Layout_Templates`).
+ * (`Layout_Templates`). A built-in layout without a pattern renders that way
+ * too.
  */
 class Layout {
 
@@ -95,6 +97,77 @@ class Layout {
 		}
 
 		return null;
+	}
+
+	/**
+	 * The layout blocks a block renders: its pattern's (`layoutId`), else the
+	 * built-in layout it names (`layoutSlug`). A pattern that no longer
+	 * resolves leaves the block to its slug.
+	 *
+	 * @param array $attrs Block attributes.
+	 * @return array[]|null Inner blocks, or null when the block names no layout that resolves.
+	 */
+	public static function resolve_layout_blocks( array $attrs ): ?array {
+		$layout_id = (int) ( $attrs['layoutId'] ?? 0 );
+		$blocks    = $layout_id > 0 ? self::get_layout_blocks( $layout_id ) : null;
+
+		if ( null !== $blocks ) {
+			return $blocks;
+		}
+
+		$slug = is_string( $attrs['layoutSlug'] ?? null ) ? $attrs['layoutSlug'] : '';
+
+		return '' === $slug ? null : self::get_slug_layout_blocks( $slug );
+	}
+
+	/**
+	 * A built-in layout's blocks: its pattern's once someone has edited it,
+	 * else the layout as this version of the plugin ships it.
+	 *
+	 * @param string $slug Built-in layout slug.
+	 * @return array[]|null Inner blocks, or null for a slug that names no built-in layout.
+	 */
+	public static function get_slug_layout_blocks( string $slug ): ?array {
+		if ( ! in_array( $slug, self::BUILT_IN_SLUGS, true ) ) {
+			return null;
+		}
+
+		$layout_id = self::get_stored_layout_id( $slug );
+		$blocks    = $layout_id ? self::get_layout_blocks( $layout_id ) : null;
+
+		return $blocks ?? Layout_Templates::get_blocks( $slug );
+	}
+
+	/**
+	 * A built-in layout's pattern ID as its option stores it, when that names
+	 * a published pattern. Unlike get_layout_id(), it never searches for a
+	 * pattern tagged with the slug, which would cost a query on every page
+	 * showing a built-in layout that has no pattern.
+	 *
+	 * @param string $slug Built-in layout slug.
+	 * @return int Pattern ID, or 0.
+	 */
+	public static function get_stored_layout_id( string $slug ): int {
+		$layout_id = (int) get_option( self::option_name( $slug ), 0 );
+
+		if ( $layout_id <= 0 ) {
+			return 0;
+		}
+
+		$post = get_post( $layout_id );
+
+		return $post instanceof WP_Post && 'wp_block' === $post->post_type && 'publish' === $post->post_status ? $layout_id : 0;
+	}
+
+	/**
+	 * Whether a block shares a layout: a pattern's, or a built-in layout it
+	 * names by slug.
+	 *
+	 * @param array $attrs Block attributes.
+	 * @return bool
+	 */
+	public static function has_shared_layout( array $attrs ): bool {
+		return (int) ( $attrs['layoutId'] ?? 0 ) > 0 || ( is_string( $attrs['layoutSlug'] ?? null ) && '' !== $attrs['layoutSlug'] );
 	}
 
 	/**
@@ -194,9 +267,9 @@ class Layout {
 	}
 
 	/**
-	 * Drops `layoutId` from every Rolling Coverage block nested in a layout.
-	 * A synced block inside the layout would otherwise pull the layout into
-	 * itself again at every level, without end.
+	 * Drops `layoutId` and `layoutSlug` from every Rolling Coverage block
+	 * nested in a layout. A synced block inside the layout would otherwise
+	 * pull the layout into itself again at every level, without end.
 	 *
 	 * @param array[] $blocks Parsed blocks.
 	 * @return array[]
@@ -204,7 +277,7 @@ class Layout {
 	private static function detach_nested_blocks( array $blocks ): array {
 		foreach ( $blocks as $index => $block ) {
 			if ( Rolling_Coverage_Block::BLOCK_NAME === ( $block['blockName'] ?? '' ) ) {
-				unset( $blocks[ $index ]['attrs']['layoutId'] );
+				unset( $blocks[ $index ]['attrs']['layoutId'], $blocks[ $index ]['attrs']['layoutSlug'] );
 			}
 
 			if ( ! empty( $block['innerBlocks'] ) ) {
@@ -216,11 +289,11 @@ class Layout {
 	}
 
 	/**
-	 * Swaps a synced block's inner blocks for its pattern's before core builds
-	 * the block, so everything that reads the block's inner blocks sees the
-	 * shared layout. A block without a layout of its own, one with no inner
-	 * blocks or whose pattern no longer resolves, gets the Bulletin layout
-	 * (`Rolling_Coverage_Block::default_layout_blocks()`).
+	 * Swaps a synced block's inner blocks for its shared layout's before core
+	 * builds the block, so everything that reads the block's inner blocks sees
+	 * the shared layout (resolve_layout_blocks()). A block without a layout of
+	 * its own, one with no inner blocks or whose layout no longer resolves,
+	 * gets the Bulletin layout (`Rolling_Coverage_Block::default_layout_blocks()`).
 	 *
 	 * Untyped: the filter runs for every block, and another callback may
 	 * hand it something that isn't a block.
@@ -233,15 +306,15 @@ class Layout {
 			return $parsed_block;
 		}
 
-		$layout_id = (int) ( $parsed_block['attrs']['layoutId'] ?? 0 );
+		$attrs = is_array( $parsed_block['attrs'] ?? null ) ? $parsed_block['attrs'] : [];
 
-		if ( $layout_id <= 0 && ! empty( $parsed_block['innerBlocks'] ) ) {
+		if ( ! self::has_shared_layout( $attrs ) && ! empty( $parsed_block['innerBlocks'] ) ) {
 			$parsed_block['innerBlocks'] = self::detach_nested_blocks( $parsed_block['innerBlocks'] );
 
 			return $parsed_block;
 		}
 
-		$inner_blocks = $layout_id > 0 ? self::get_layout_blocks( $layout_id ) : null;
+		$inner_blocks = self::resolve_layout_blocks( $attrs );
 
 		if ( ! $inner_blocks ) {
 			$inner_blocks = Rolling_Coverage_Block::default_layout_blocks();

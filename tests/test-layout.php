@@ -6,6 +6,7 @@
  */
 
 use Newspack_Rolling_Coverage\Layout;
+use Newspack_Rolling_Coverage\Layout_Templates;
 use Newspack_Rolling_Coverage\Post_Type;
 use Newspack_Rolling_Coverage\Rolling_Coverage_Block;
 
@@ -899,5 +900,123 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$this->assertSame( $count_before, (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_type = 'wp_block' AND post_status = 'publish'" ) );
 		$this->assertSame( $id, (int) get_option( Layout::option_name( 'stream' ) ) );
+	}
+
+	/**
+	 * Creates a built-in layout's pattern through the route the editor uses,
+	 * then edits its content when asked.
+	 *
+	 * @param string      $slug   Built-in layout slug.
+	 * @param string|null $edited Text the edited layout holds, or null to leave it unedited.
+	 * @return int Pattern ID.
+	 */
+	private static function create_built_in( string $slug, ?string $edited = null ): int {
+		self::log_in_as( 'editor' );
+		$layout_id = (int) self::dispatch( 'POST', '/layouts/' . $slug, [ 'content' => self::layout_markup( 'Created' ) ] )->get_data()['id'];
+
+		if ( null !== $edited ) {
+			wp_update_post(
+				[
+					'ID'           => $layout_id,
+					'post_content' => self::layout_markup( $edited ),
+				]
+			);
+		}
+
+		return $layout_id;
+	}
+
+	/**
+	 * A block that names a built-in layout by its slug renders the layout as
+	 * the plugin ships it while the site has no pattern for it.
+	 */
+	public function test_slug_block_without_a_pattern_renders_the_plugin_layout() {
+		$this->assertSame( Layout_Templates::get_blocks( 'ticker' ), Layout::resolve_layout_blocks( [ 'layoutSlug' => 'ticker' ] ) );
+	}
+
+	/**
+	 * A built-in layout's pattern nobody has edited still renders the layout
+	 * as the plugin ships it.
+	 */
+	public function test_slug_block_with_an_unedited_pattern_renders_the_plugin_layout() {
+		self::create_built_in( 'ticker' );
+
+		$this->assertSame( Layout_Templates::get_blocks( 'ticker' ), Layout::resolve_layout_blocks( [ 'layoutSlug' => 'ticker' ] ) );
+	}
+
+	/**
+	 * Editing a built-in layout's pattern reaches every block that names the
+	 * layout by its slug.
+	 */
+	public function test_slug_block_follows_its_edited_pattern() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id );
+		self::create_built_in( 'ticker', self::MARKER );
+
+		$html = self::render_story(
+			[
+				'coverageId' => $coverage_id,
+				'layoutSlug' => 'ticker',
+			]
+		);
+
+		$this->assertStringContainsString( self::MARKER, $html );
+	}
+
+	/**
+	 * Deleting an edited built-in layout's pattern brings back the layout as
+	 * the plugin ships it.
+	 */
+	public function test_slug_block_after_its_pattern_is_deleted_renders_the_plugin_layout() {
+		$layout_id = self::create_built_in( 'ticker', self::MARKER );
+		wp_delete_post( $layout_id, true );
+
+		$this->assertSame( Layout_Templates::get_blocks( 'ticker' ), Layout::resolve_layout_blocks( [ 'layoutSlug' => 'ticker' ] ) );
+	}
+
+	/**
+	 * A slug that names no built-in layout renders the Bulletin layout, as a
+	 * missing pattern does.
+	 */
+	public function test_unknown_slug_falls_back_to_the_default_layout() {
+		$parsed = parse_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage {"layoutSlug":"nope"} /-->' )[0];
+
+		$this->assertNull( Layout::resolve_layout_blocks( [ 'layoutSlug' => 'nope' ] ) );
+		$this->assertSame( Rolling_Coverage_Block::default_layout_blocks(), Layout::inject_layout( $parsed )['innerBlocks'] );
+	}
+
+	/**
+	 * A block that has both a pattern and a slug renders the pattern.
+	 */
+	public function test_layout_id_wins_over_slug() {
+		$layout_id = self::create_layout( self::layout_markup() );
+
+		$blocks = Layout::resolve_layout_blocks(
+			[
+				'layoutId'   => $layout_id,
+				'layoutSlug' => 'ticker',
+			]
+		);
+
+		$this->assertStringContainsString( self::MARKER, serialize_blocks( $blocks ) );
+	}
+
+	/**
+	 * A block nested inside a layout drops its slug too, so a layout can't
+	 * pull itself in through the built-in layout it was edited from.
+	 */
+	public function test_nested_slug_block_does_not_recurse() {
+		$layout_id = self::create_built_in( 'ticker' );
+		wp_update_post(
+			[
+				'ID'           => $layout_id,
+				'post_content' => '<!-- wp:newspack-rolling-coverage/rolling-coverage --><!-- wp:paragraph --><p>' . self::MARKER . '</p><!-- /wp:paragraph --><!-- wp:newspack-rolling-coverage/rolling-coverage {"layoutSlug":"ticker"} /--><!-- /wp:newspack-rolling-coverage/rolling-coverage -->',
+			]
+		);
+
+		$blocks = Layout::resolve_layout_blocks( [ 'layoutSlug' => 'ticker' ] );
+
+		$this->assertSame( Rolling_Coverage_Block::BLOCK_NAME, $blocks[1]['blockName'] );
+		$this->assertArrayNotHasKey( 'layoutSlug', $blocks[1]['attrs'] );
 	}
 }
