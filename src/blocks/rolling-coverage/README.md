@@ -40,7 +40,7 @@ Ticker, Wire, Digest, and Flash show only the latest entries. They set Show to L
 
 Built-in layouts are shared: every story using one follows the same copy, which keeps up with plugin updates until someone edits it. Picking one saves nothing to the site; the layout gets a pattern of its own the first time someone selects Edit Layout. See [Edit, detach, and change a layout](#edit-detach-and-change-a-layout).
 
-You can also insert a layout from the inserter's Patterns tab, in the Rolling Coverage category. It becomes a Rolling Coverage block that uses that layout and asks for a coverage.
+You can also insert a layout from the inserter's Patterns tab, in the Rolling Coverage category. It becomes a Rolling Coverage block that uses that layout and asks for a coverage. The category lists custom layouts, and a built-in layout once someone has selected Edit Layout for it.
 
 ## Settings
 
@@ -272,7 +272,7 @@ An empty pattern in the Rolling Coverage category opens with a Rolling Coverage 
 3. Edit the layout with the block settings.
 4. Select Save.
 
-To start from a built-in layout instead, open the Rolling Coverage category in Patterns, open the layout's Actions menu (⋮) and select Duplicate. The copy keeps the category and stays synced. Rename it and select Duplicate. A built-in layout is listed there once someone has selected Edit Layout for it, so if it isn't, pick it in a story and select Edit Layout first.
+To start from a built-in layout instead, make sure it's listed in Patterns first: a built-in layout is listed there once someone has selected Edit Layout for it, so if it isn't, pick it in a story and select Edit Layout. Then open the Rolling Coverage category in Patterns, open the layout's Actions menu (⋮) and select Duplicate. The copy keeps the category and stays synced. Rename it and select Duplicate.
 
 ### Classic themes
 
