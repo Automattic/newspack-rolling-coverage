@@ -8,9 +8,9 @@ import {
 	createBlocksFromInnerBlocksTemplate,
 	parse,
 } from '@wordpress/blocks';
-import { Modal, Spinner } from '@wordpress/components';
+import { Modal } from '@wordpress/components';
 import { store as coreStore } from '@wordpress/core-data';
-import { useDispatch, useSelect } from '@wordpress/data';
+import { useSelect } from '@wordpress/data';
 import { useEffect, useMemo, useRef, useState } from '@wordpress/element';
 import { decodeEntities } from '@wordpress/html-entities';
 import { __ } from '@wordpress/i18n';
@@ -25,17 +25,11 @@ import {
 	type BuiltInLayoutSlug,
 } from '../layouts';
 import LoadingState from './loading-state';
-import {
-	createLayout,
-	getLayoutCategoryId,
-	getLayoutId,
-	isLayoutContent,
-} from '../utils';
-import type { TemplateItem } from '../types';
+import { getLayoutCategoryId, getLayoutId, isLayoutContent } from '../utils';
 
 export type LayoutChoice =
-	| { kind: 'pattern'; id: number }
-	| { kind: 'template'; slug: BuiltInLayoutSlug };
+	| { kind: 'built-in'; slug: BuiltInLayoutSlug }
+	| { kind: 'pattern'; id: number };
 
 type LayoutRecord = {
 	id: number;
@@ -48,7 +42,6 @@ type LayoutCard = {
 	title: string;
 	patternId: number;
 	slug?: BuiltInLayoutSlug;
-	template?: () => TemplateItem[];
 	innerBlocks: () => unknown[];
 	previewWidth?: number;
 };
@@ -216,8 +209,6 @@ function useSettledPreview(
  * @param {Object}   props            Component props.
  * @param {Object}   props.card       The layout.
  * @param {boolean}  props.isCurrent  Whether the block uses this layout.
- * @param {boolean}  props.isPending  Whether this layout is being set up.
- * @param {boolean}  props.isDisabled Whether another layout is being set up.
  * @param {boolean}  props.isWatching Whether to watch the preview settle.
  * @param {Function} props.onClick    Picks the layout.
  * @param {Function} props.onSettled  Called once the preview has settled.
@@ -225,16 +216,12 @@ function useSettledPreview(
 function LayoutPickerCard( {
 	card,
 	isCurrent,
-	isPending,
-	isDisabled,
 	isWatching,
 	onClick,
 	onSettled,
 }: {
 	card: LayoutCard;
 	isCurrent: boolean;
-	isPending: boolean;
-	isDisabled: boolean;
 	isWatching: boolean;
 	onClick: () => void;
 	onSettled: () => void;
@@ -260,9 +247,6 @@ function LayoutPickerCard( {
 			type="button"
 			className="newspack-rolling-coverage-layout-picker__card"
 			aria-pressed={ isCurrent }
-			aria-busy={ isPending }
-			aria-disabled={ isPending }
-			disabled={ isDisabled }
 			onClick={ onClick }
 		>
 			<span
@@ -279,7 +263,6 @@ function LayoutPickerCard( {
 			</span>
 			<span className="newspack-rolling-coverage-layout-picker__title">
 				{ card.title }
-				{ isPending && <Spinner /> }
 			</span>
 		</button>
 	);
@@ -288,8 +271,8 @@ function LayoutPickerCard( {
 /**
  * Picks the layout a Rolling Coverage block renders its entries in: the
  * built-in layouts, then the other published layouts in the layout pattern
- * category. Picking a built-in layout that has no pattern yet creates it,
- * and falls back to an unsynced copy of its template when that fails. The
+ * category. Picking a built-in layout picks it by slug, so it saves no
+ * pattern; the site gets one only once someone edits the layout. The
  * modal stays hidden until every card's preview has settled, so it opens at
  * its final size, or until a timeout passes, so a slow preview or layouts
  * request can't keep it closed.
@@ -311,23 +294,11 @@ export default function LayoutPickerModal( {
 	onClose: () => void;
 	onReady?: () => void;
 } ) {
-	const [ pendingKey, setPendingKey ] = useState< string | null >( null );
 	const [ settledKeys, setSettledKeys ] = useState< string[] >( [] );
 	const [ timedOut, setTimedOut ] = useState( false );
 	const [ isRevealed, setIsRevealed ] = useState( false );
 	const contentRef = useRef< HTMLDivElement >( null );
 	const opener = useRef< Element | null >( null );
-	const isMounted = useRef( true );
-
-	useEffect( () => {
-		isMounted.current = true;
-		return () => {
-			isMounted.current = false;
-		};
-	}, [] );
-	const { invalidateResolution } = useDispatch( coreStore ) as unknown as {
-		invalidateResolution: ( selector: string, args: unknown[] ) => void;
-	};
 
 	const categoryId = getLayoutCategoryId();
 	const { records, hasResolved } = useSelect(
@@ -374,7 +345,6 @@ export default function LayoutPickerModal( {
 				title: layout.title,
 				patternId: id,
 				slug: layout.slug,
-				template: layout.template,
 				previewWidth: layout.previewWidth,
 				innerBlocks:
 					fromPattern ??
@@ -491,42 +461,12 @@ export default function LayoutPickerModal( {
 			keys.includes( key ) ? keys : [ ...keys, key ]
 		);
 
-	const pick = ( card: LayoutCard ) => {
-		if ( pendingKey ) {
-			return;
-		}
-
-		if ( card.patternId ) {
-			onSelect( { kind: 'pattern', id: card.patternId } );
-			return;
-		}
-
-		const { slug, template } = card;
-
-		if ( ! slug || ! template ) {
-			return;
-		}
-
-		setPendingKey( card.key );
-		createLayout( slug, template )
-			.then( ( id ) => {
-				if ( getLayoutCategoryId() ) {
-					invalidateResolution( 'getEntityRecords', [
-						'postType',
-						'wp_block',
-						layoutsQuery( getLayoutCategoryId() ),
-					] );
-				}
-				if ( isMounted.current ) {
-					onSelect( { kind: 'pattern', id } );
-				}
-			} )
-			.catch( () => {
-				if ( isMounted.current ) {
-					onSelect( { kind: 'template', slug } );
-				}
-			} );
-	};
+	const pick = ( card: LayoutCard ) =>
+		onSelect(
+			card.slug
+				? { kind: 'built-in', slug: card.slug }
+				: { kind: 'pattern', id: card.patternId }
+		);
 
 	return (
 		<Modal
@@ -545,11 +485,6 @@ export default function LayoutPickerModal( {
 								card={ card }
 								isCurrent={
 									'' !== currentKey && card.key === currentKey
-								}
-								isPending={ pendingKey === card.key }
-								isDisabled={
-									pendingKey !== null &&
-									pendingKey !== card.key
 								}
 								isWatching={ ! isRevealed }
 								onClick={ () => pick( card ) }

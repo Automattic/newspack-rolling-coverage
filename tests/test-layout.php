@@ -471,35 +471,32 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Posted content must be exactly one Rolling Coverage block.
-	 *
-	 * @dataProvider invalid_layout_content
-	 *
-	 * @param string $content Posted content.
+	 * A built-in layout's pattern starts as the layout this version of the
+	 * plugin ships, whatever the request sends, and counts as unedited.
 	 */
-	public function test_create_rejects_content_that_is_not_one_layout_block( string $content ) {
+	public function test_create_builds_the_pattern_from_the_plugin_layout() {
 		self::log_in_as( 'editor' );
 
-		$response = self::dispatch( 'POST', '/layouts/default', [ 'content' => $content ] );
+		$response  = self::dispatch( 'POST', '/layouts/ticker', [ 'content' => self::layout_markup() ] );
+		$layout_id = (int) $response->get_data()['id'];
 
-		$this->assertSame( 400, $response->get_status() );
-		$this->assertSame( 0, (int) get_option( Layout::option_name( 'default' ), 0 ) );
+		$this->assertSame( 201, $response->get_status() );
+		$this->assertSame( Layout_Templates::get_pattern_content( 'ticker' ), get_post_field( 'post_content', $layout_id, 'raw' ) );
+		$this->assertSame( 'ticker', Layout::get_unedited_slug( get_post( $layout_id ) ) );
 	}
 
 	/**
-	 * Content that is not one layout block.
-	 *
-	 * @return array<string,array{string}>
+	 * The Rolling Coverage pattern category exists from the first admin load,
+	 * before any built-in layout has a pattern, and only once.
 	 */
-	public function invalid_layout_content(): array {
-		$layout = '<!-- wp:newspack-rolling-coverage/rolling-coverage --><!-- wp:paragraph --><p>x</p><!-- /wp:paragraph --><!-- /wp:newspack-rolling-coverage/rolling-coverage -->';
+	public function test_admin_load_creates_the_pattern_category_once() {
+		$this->assertSame( 0, Layout::get_pattern_category_id() );
+		$this->assertNotFalse( has_action( 'admin_init', [ Layout::class, 'ensure_pattern_category' ] ) );
 
-		return [
-			'empty'           => [ '' ],
-			'other block'     => [ '<!-- wp:paragraph --><p>x</p><!-- /wp:paragraph -->' ],
-			'two layouts'     => [ $layout . $layout ],
-			'layout and more' => [ $layout . '<!-- wp:paragraph --><p>x</p><!-- /wp:paragraph -->' ],
-		];
+		$term_id = Layout::ensure_pattern_category();
+
+		$this->assertSame( $term_id, Layout::get_pattern_category_id() );
+		$this->assertSame( $term_id, Layout::ensure_pattern_category() );
 	}
 
 	/**

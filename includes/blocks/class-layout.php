@@ -69,6 +69,7 @@ class Layout {
 		add_action( 'post_updated', [ __CLASS__, 'record_unedited_save' ], 10, 3 );
 		add_action( 'transition_post_status', [ __CLASS__, 'record_unpublished_pattern' ], 10, 3 );
 		add_action( 'before_delete_post', [ __CLASS__, 'record_deleted_pattern' ], 10, 2 );
+		add_action( 'admin_init', [ __CLASS__, 'ensure_pattern_category' ] );
 	}
 
 	/**
@@ -501,7 +502,8 @@ class Layout {
 	}
 
 	/**
-	 * Registers the route the editor creates the built-in layouts through.
+	 * Registers the route the editor creates a built-in layout's pattern
+	 * through, when someone first edits the layout.
 	 */
 	public static function register_routes() {
 		register_rest_route(
@@ -512,13 +514,9 @@ class Layout {
 				'callback'            => [ __CLASS__, 'create_layout' ],
 				'permission_callback' => [ __CLASS__, 'can_create_layout' ],
 				'args'                => [
-					'slug'    => [
+					'slug' => [
 						'type' => 'string',
 						'enum' => self::BUILT_IN_SLUGS,
-					],
-					'content' => [
-						'required' => true,
-						'type'     => 'string',
 					],
 				],
 			]
@@ -537,9 +535,10 @@ class Layout {
 	}
 
 	/**
-	 * REST callback: returns a built-in layout, creating it from the posted
-	 * markup when none resolves. The editor supplies the markup because its
-	 * template is the one core validates the pattern's blocks against.
+	 * REST callback: returns a built-in layout's pattern, creating it when
+	 * none resolves, the first time someone edits the layout. It holds the
+	 * layout as this version of the plugin ships it, the content the editor
+	 * already gets for an unedited pattern (prepare_pattern_response()).
 	 *
 	 * @param WP_REST_Request $request Request.
 	 * @return WP_REST_Response|WP_Error
@@ -552,22 +551,7 @@ class Layout {
 			return self::layout_response( $existing, 200 );
 		}
 
-		$content = (string) $request->get_param( 'content' );
-		$blocks  = array_values(
-			array_filter(
-				parse_blocks( $content ),
-				static fn( $block ) => ! empty( $block['blockName'] )
-			)
-		);
-
-		if ( 1 !== count( $blocks ) || Rolling_Coverage_Block::BLOCK_NAME !== $blocks[0]['blockName'] ) {
-			return new WP_Error(
-				'rolling_coverage_invalid_layout',
-				/* translators: %s: Rolling Coverage, the product name. */
-				sprintf( __( 'The layout must be a single %s block.', 'newspack-rolling-coverage' ), 'Rolling Coverage' ),
-				[ 'status' => 400 ]
-			);
-		}
+		$content = (string) Layout_Templates::get_pattern_content( $slug );
 
 		if ( ! self::acquire_lock( $slug ) ) {
 			return new WP_Error(
@@ -603,7 +587,7 @@ class Layout {
 
 			self::assign_pattern_category( $layout_id );
 			update_post_meta( $layout_id, self::SLUG_META_KEY, $slug );
-			// Hashed as stored, since kses may have changed what was posted.
+			// Hashed as stored, since kses may have changed the layout for this user.
 			update_post_meta( $layout_id, self::HASH_META_KEY, md5( (string) get_post_field( 'post_content', $layout_id, 'raw' ) ) );
 			update_option( self::option_name( $slug ), $layout_id, false );
 
@@ -745,12 +729,14 @@ class Layout {
 	}
 
 	/**
-	 * Files a layout under the Rolling Coverage pattern category, creating the
-	 * category the first time.
+	 * The Rolling Coverage pattern category's term ID, creating the category
+	 * when the site has none. Runs on admin loads, since picking a built-in
+	 * layout no longer saves a pattern that would create it, and a custom
+	 * layout needs it to be listed in the picker.
 	 *
-	 * @param int $layout_id Pattern ID.
+	 * @return int Term ID, or 0 when it couldn't be created.
 	 */
-	private static function assign_pattern_category( int $layout_id ): void {
+	public static function ensure_pattern_category(): int {
 		$term = term_exists( self::PATTERN_CATEGORY, self::PATTERN_TAXONOMY );
 
 		if ( ! $term ) {
@@ -758,15 +744,22 @@ class Layout {
 		}
 
 		if ( is_wp_error( $term ) ) {
-			$existing_id = (int) $term->get_error_data( 'term_exists' );
-
-			if ( ! $existing_id ) {
-				return;
-			}
-
-			$term = [ 'term_id' => $existing_id ];
+			return (int) $term->get_error_data( 'term_exists' );
 		}
 
-		wp_set_object_terms( $layout_id, [ (int) $term['term_id'] ], self::PATTERN_TAXONOMY );
+		return (int) $term['term_id'];
+	}
+
+	/**
+	 * Files a layout under the Rolling Coverage pattern category.
+	 *
+	 * @param int $layout_id Pattern ID.
+	 */
+	private static function assign_pattern_category( int $layout_id ): void {
+		$term_id = self::ensure_pattern_category();
+
+		if ( $term_id ) {
+			wp_set_object_terms( $layout_id, [ $term_id ], self::PATTERN_TAXONOMY );
+		}
 	}
 }

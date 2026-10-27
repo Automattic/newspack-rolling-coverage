@@ -71,7 +71,6 @@ import {
 	fetchEntryPreviewContexts,
 	generateKeyTakeaways,
 	getLayoutEditUrl,
-	getLayoutId,
 	getLayoutReference,
 	canCreateLayouts,
 	getLayoutCategoryId,
@@ -1078,48 +1077,12 @@ export default function Edit( {
 			return;
 		}
 
-		let cancelled = false;
-		const sync = ( id: number ) => {
-			__unstableMarkNextChangeAsNotPersistent();
-			setAttributes( { layoutId: id } );
-		};
-		const fallBackToLocal = () => {
-			__unstableMarkNextChangeAsNotPersistent();
-			replaceInnerBlocks(
-				clientId,
-				createBlocksFromInnerBlocksTemplate( innerTemplate() ),
-				false
-			);
-		};
-
-		if ( getLayoutId( 'default' ) ) {
-			sync( getLayoutId( 'default' ) );
-			return;
-		}
-
-		createLayout( 'default', innerTemplate )
-			.then( ( id ) => {
-				if ( getLayoutCategoryId() ) {
-					invalidateResolution( 'getEntityRecords', [
-						'postType',
-						'wp_block',
-						layoutsQuery( getLayoutCategoryId() ),
-					] );
-				}
-				return ! cancelled && sync( id );
-			} )
-			.catch( () => ! cancelled && fallBackToLocal() );
-
-		return () => {
-			cancelled = true;
-		};
+		__unstableMarkNextChangeAsNotPersistent();
+		setAttributes( { layoutSlug: 'default' } );
 	}, [
 		needsDefaultLayout,
-		clientId,
 		setAttributes,
-		replaceInnerBlocks,
 		__unstableMarkNextChangeAsNotPersistent,
-		invalidateResolution,
 	] );
 
 	const { layoutRecord, hasResolvedLayout, canEditLayout } = useSelect(
@@ -1968,7 +1931,7 @@ export default function Edit( {
 			editor.opener = null;
 		}
 
-		createLayout( builtInLayout.slug, builtInLayout.template )
+		createLayout( builtInLayout.slug )
 			.then( ( id ) => {
 				setCreatedLayoutId( id );
 				if ( getLayoutCategoryId() ) {
@@ -2039,41 +2002,25 @@ export default function Edit( {
 					if ( ! isSynced && innerBlockCount > 0 ) {
 						replaceInnerBlocks( clientId, [], false );
 					}
-					const patternSlug = builtInLayoutSlugFor( choice.id );
-					setAttributes( {
-						layoutId: choice.id,
-						layoutSlug: '',
-						...( patternSlug
-							? switchLayoutAttributes(
-									patternSlug,
-									replaced,
-									align
-								)
-							: {} ),
-					} );
+					setAttributes( { layoutId: choice.id, layoutSlug: '' } );
 				} );
 				return;
 			}
 
-			const layout = getBuiltInLayouts().find(
-				( item ) => item.slug === choice.slug
-			);
-
-			if ( ! layout ) {
+			if ( isSynced && choice.slug === builtInSlug ) {
 				return;
 			}
 
+			// A built-in layout is picked by its slug, so picking it saves no
+			// pattern: the site gets one when someone first edits the layout.
 			registry.batch( () => {
-				replaceInnerBlocks(
-					clientId,
-					createBlocksFromInnerBlocksTemplate( layout.template() ),
-					false
-				);
+				if ( ! isSynced && innerBlockCount > 0 ) {
+					replaceInnerBlocks( clientId, [], false );
+				}
 				setAttributes( {
 					layoutId: 0,
-					layoutSlug: '',
-					allUpdatesLinkText: '',
-					...switchLayoutAttributes( layout.slug, replaced, align ),
+					layoutSlug: choice.slug,
+					...switchLayoutAttributes( choice.slug, replaced, align ),
 				} );
 			} );
 		},
