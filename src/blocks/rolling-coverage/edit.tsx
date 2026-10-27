@@ -1201,9 +1201,15 @@ export default function Edit( {
 				)
 			: null;
 	}, [ layoutRecord ] );
-	const builtInLayout = builtInSlug
-		? getBuiltInLayouts().find( ( layout ) => layout.slug === builtInSlug )
-		: undefined;
+	const builtInLayout = useMemo(
+		() =>
+			builtInSlug
+				? getBuiltInLayouts().find(
+						( layout ) => layout.slug === builtInSlug
+					)
+				: undefined,
+		[ builtInSlug ]
+	);
 	// A built-in layout whose pattern is missing or can't render shows the
 	// layout as the plugin ships it, as the page does
 	// (`Layout::resolve_layout_blocks()`).
@@ -1958,8 +1964,9 @@ export default function Edit( {
 	// A built-in layout without a pattern gets one the first time someone
 	// edits it. The tab opens in the click itself, since browsers block a tab
 	// opened once the request returns.
+	const [ isCreatingLayout, setIsCreatingLayout ] = useState( false );
 	const editBuiltInLayout = useCallback( () => {
-		if ( ! builtInLayout ) {
+		if ( ! builtInLayout || isCreatingLayout ) {
 			return;
 		}
 
@@ -1969,6 +1976,7 @@ export default function Edit( {
 			editor.opener = null;
 		}
 
+		setIsCreatingLayout( true );
 		createLayout( builtInLayout.slug, builtInLayout.template )
 			.then( ( id ) => {
 				setCreatedLayoutId( id );
@@ -1981,6 +1989,16 @@ export default function Edit( {
 				}
 				if ( editor ) {
 					editor.location.href = getLayoutEditUrl( id );
+				} else {
+					// A blocked tab: the button is a plain link from now on,
+					// which the browser lets open.
+					createSuccessNotice(
+						__(
+							'The layout is ready to edit. Select Edit Layout again to open it.',
+							'newspack-rolling-coverage'
+						),
+						{ type: 'snackbar' }
+					);
 				}
 			} )
 			.catch( () => {
@@ -1992,8 +2010,15 @@ export default function Edit( {
 					),
 					{ type: 'snackbar' }
 				);
-			} );
-	}, [ builtInLayout, invalidateResolution, createErrorNotice ] );
+			} )
+			.finally( () => setIsCreatingLayout( false ) );
+	}, [
+		builtInLayout,
+		isCreatingLayout,
+		invalidateResolution,
+		createSuccessNotice,
+		createErrorNotice,
+	] );
 
 	const closePicker = useCallback( () => {
 		setIsPickingLayout( false );
@@ -2025,7 +2050,13 @@ export default function Edit( {
 			}
 
 			if ( choice.kind === 'pattern' ) {
-				if ( isSynced && choice.id === syncedPatternId ) {
+				// Picking the block's built-in layout creates its pattern when
+				// it has none yet, under a new ID; it's still the same layout.
+				const isCurrent =
+					choice.id === syncedPatternId ||
+					( !! builtInSlug &&
+						builtInLayoutSlugFor( choice.id ) === builtInSlug );
+				if ( isSynced && isCurrent ) {
 					if ( isLayoutMissing ) {
 						invalidateResolution( 'getEntityRecord', [
 							'postType',
@@ -3358,7 +3389,11 @@ export default function Edit( {
 						</ToolbarButton>
 					) }
 					{ canEditLayout && ! syncedPatternId && (
-						<ToolbarButton onClick={ editBuiltInLayout }>
+						<ToolbarButton
+							onClick={ editBuiltInLayout }
+							isBusy={ isCreatingLayout }
+							aria-disabled={ isCreatingLayout }
+						>
 							{ __( 'Edit Layout', 'newspack-rolling-coverage' ) }
 						</ToolbarButton>
 					) }
