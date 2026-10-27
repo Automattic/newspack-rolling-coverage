@@ -293,6 +293,8 @@ class Test_Layout_Templates extends Rolling_Coverage_TestCase {
 	 */
 	public function test_renamed_built_in_layout_still_follows_the_plugin( bool $sends_layout, bool $is_filtered ) {
 		$layout_id = self::create_built_in();
+		// Content other than the plugin's, so a save that sends the layout has to record its hash.
+		self::store_earlier_layout( $layout_id );
 
 		if ( $is_filtered ) {
 			// Slashed in and out, as kses filters content.

@@ -494,6 +494,7 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 
 		$term_id = Layout::ensure_pattern_category();
 
+		$this->assertGreaterThan( 0, $term_id );
 		$this->assertSame( $term_id, Layout::get_pattern_category_id() );
 		$this->assertSame( $term_id, Layout::ensure_pattern_category() );
 	}
