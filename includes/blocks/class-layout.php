@@ -68,7 +68,6 @@ class Layout {
 		add_filter( 'rest_prepare_wp_block', [ __CLASS__, 'prepare_pattern_response' ], 10, 2 );
 		add_action( 'post_updated', [ __CLASS__, 'record_unedited_save' ], 10, 3 );
 		add_action( 'before_delete_post', [ __CLASS__, 'record_deleted_pattern' ], 10, 2 );
-		add_action( 'admin_init', [ __CLASS__, 'ensure_pattern_category' ] );
 	}
 
 	/**
@@ -573,7 +572,15 @@ class Layout {
 			return self::layout_response( $existing, 200 );
 		}
 
-		$content = (string) Layout_Templates::get_pattern_content( $slug );
+		$content = Layout_Templates::get_pattern_content( $slug );
+
+		if ( null === $content ) {
+			return new WP_Error(
+				'rolling_coverage_missing_layout',
+				__( 'This layout is missing from the plugin.', 'newspack-rolling-coverage' ),
+				[ 'status' => 500 ]
+			);
+		}
 
 		if ( ! self::acquire_lock( $slug ) ) {
 			return new WP_Error(
@@ -620,8 +627,8 @@ class Layout {
 	}
 
 	/**
-	 * A built-in layout's ID, with the pattern category's ID so the editor
-	 * can list the layouts once the first one has created the category.
+	 * A built-in layout's ID, with the pattern category's ID, which the
+	 * editor lists the layouts by.
 	 *
 	 * @param int $layout_id Pattern ID.
 	 * @param int $status    HTTP status.
@@ -752,9 +759,9 @@ class Layout {
 
 	/**
 	 * The Rolling Coverage pattern category's term ID, creating the category
-	 * when the site has none. Runs on admin loads, since picking a built-in
-	 * layout no longer saves a pattern that would create it, and a custom
-	 * layout needs it to be listed in the picker.
+	 * when the site has none. Runs on every editor load, so the category
+	 * exists before any built-in layout has a pattern: a custom layout needs
+	 * it to be listed in the picker.
 	 *
 	 * @return int Term ID, or 0 when it couldn't be created.
 	 */

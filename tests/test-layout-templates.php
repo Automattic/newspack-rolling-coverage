@@ -46,7 +46,22 @@ class Test_Layout_Templates extends Rolling_Coverage_TestCase {
 	private static function create_built_in( string $slug = 'stream' ): int {
 		self::log_in_as( 'editor' );
 
-		return (int) self::dispatch( 'POST', '/layouts/' . $slug, [ 'content' => self::layout_markup() ] )->get_data()['id'];
+		return (int) self::dispatch( 'POST', '/layouts/' . $slug )->get_data()['id'];
+	}
+
+	/**
+	 * Gives an unedited built-in layout's pattern the layout an earlier
+	 * version of the plugin shipped, as a site that has since updated holds
+	 * it: other content, with the hash recorded for that content.
+	 *
+	 * @param int $layout_id Pattern ID.
+	 */
+	private static function store_earlier_layout( int $layout_id ): void {
+		global $wpdb;
+
+		$wpdb->update( $wpdb->posts, [ 'post_content' => self::layout_markup() ], [ 'ID' => $layout_id ] ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		update_post_meta( $layout_id, Layout::HASH_META_KEY, md5( self::layout_markup() ) );
+		clean_post_cache( $layout_id );
 	}
 
 	/**
@@ -211,7 +226,10 @@ class Test_Layout_Templates extends Rolling_Coverage_TestCase {
 	 * as its pattern was created.
 	 */
 	public function test_unedited_built_in_layout_renders_the_plugins_layout() {
-		$html = self::render_synced( self::create_built_in() );
+		$layout_id = self::create_built_in();
+		self::store_earlier_layout( $layout_id );
+
+		$html = self::render_synced( $layout_id );
 
 		$this->assertStringNotContainsString( self::MARKER, $html );
 		$this->assertStringContainsString( 'data-rc-share', $html );
@@ -233,14 +251,21 @@ class Test_Layout_Templates extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * A layout created through content filters that change what was posted,
-	 * as kses does for a user without unfiltered_html, still follows the
-	 * plugin.
+	 * A layout created through content filters that change what is stored,
+	 * as kses does for a user without unfiltered_html, records the hash of
+	 * what was stored, so it still follows the plugin.
 	 */
 	public function test_layout_created_through_content_filters_follows_the_plugin() {
-		add_filter( 'content_save_pre', static fn( $content ) => str_replace( self::MARKER, 'Filtered marker', $content ) );
+		// Slashed in and out, as kses filters content.
+		add_filter( 'content_save_pre', static fn( $content ) => addslashes( str_replace( 'newspack-rolling-coverage-share', 'newspack-rolling-coverage-share is-filtered', stripslashes( $content ) ) ) );
 
-		$this->assertStringNotContainsString( 'Filtered marker', self::render_synced( self::create_built_in() ) );
+		$layout_id = self::create_built_in();
+		$stored    = get_post_field( 'post_content', $layout_id, 'raw' );
+
+		$this->assertStringContainsString( 'is-filtered', $stored );
+		$this->assertSame( md5( $stored ), get_post_meta( $layout_id, Layout::HASH_META_KEY, true ) );
+		$this->assertSame( 'stream', Layout::get_unedited_slug( get_post( $layout_id ) ) );
+		$this->assertStringNotContainsString( 'is-filtered', self::render_synced( $layout_id ) );
 	}
 
 	/**
@@ -373,7 +398,8 @@ class Test_Layout_Templates extends Rolling_Coverage_TestCase {
 	 */
 	public function test_editor_reads_an_unedited_built_in_layout_from_the_plugin( string $context ) {
 		$layout_id = self::create_built_in();
-		$request   = new WP_REST_Request( 'GET', '/wp/v2/blocks/' . $layout_id );
+		self::store_earlier_layout( $layout_id );
+		$request = new WP_REST_Request( 'GET', '/wp/v2/blocks/' . $layout_id );
 		$request->set_param( 'context', $context );
 
 		$this->assertSame( Layout_Templates::get_pattern_content( 'stream' ), rest_do_request( $request )->get_data()['content']['raw'] );

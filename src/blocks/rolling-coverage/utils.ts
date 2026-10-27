@@ -275,7 +275,7 @@ function canCreateLayouts(): boolean {
 }
 
 /**
- * The layout pattern category's ID, or 0 until a built-in layout creates it.
+ * The layout pattern category's ID, or 0 when the site couldn't create it.
  *
  * @return {number} The category's term ID.
  */

@@ -425,7 +425,7 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 	public function test_create_makes_the_default_layout_once() {
 		self::log_in_as( 'editor' );
 
-		$first = self::dispatch( 'POST', '/layouts/default', [ 'content' => self::layout_markup() ] );
+		$first = self::dispatch( 'POST', '/layouts/default' );
 		$this->assertSame( 201, $first->get_status() );
 		$id = $first->get_data()['id'];
 
@@ -444,10 +444,10 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 	 */
 	public function test_create_returns_the_existing_layout() {
 		self::log_in_as( 'editor' );
-		$id           = self::dispatch( 'POST', '/layouts/default', [ 'content' => self::layout_markup() ] )->get_data()['id'];
+		$id           = self::dispatch( 'POST', '/layouts/default' )->get_data()['id'];
 		$count_before = (int) wp_count_posts( 'wp_block' )->publish;
 
-		$second = self::dispatch( 'POST', '/layouts/default', [ 'content' => self::layout_markup( 'Other' ) ] );
+		$second = self::dispatch( 'POST', '/layouts/default' );
 
 		$this->assertSame( 200, $second->get_status() );
 		$this->assertSame( $id, $second->get_data()['id'] );
@@ -459,12 +459,12 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 	 */
 	public function test_create_recreates_a_trashed_default() {
 		self::log_in_as( 'editor' );
-		$id = self::dispatch( 'POST', '/layouts/default', [ 'content' => self::layout_markup() ] )->get_data()['id'];
+		$id = self::dispatch( 'POST', '/layouts/default' )->get_data()['id'];
 		wp_trash_post( $id );
 
 		$this->assertSame( 0, Layout::get_layout_id( 'default' ) );
 
-		$response = self::dispatch( 'POST', '/layouts/default', [ 'content' => self::layout_markup() ] );
+		$response = self::dispatch( 'POST', '/layouts/default' );
 
 		$this->assertSame( 201, $response->get_status() );
 		$this->assertNotSame( $id, $response->get_data()['id'] );
@@ -486,12 +486,11 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * The Rolling Coverage pattern category exists from the first admin load,
-	 * before any built-in layout has a pattern, and only once.
+	 * The Rolling Coverage pattern category is created when the site has
+	 * none, before any built-in layout has a pattern, and only once.
 	 */
-	public function test_admin_load_creates_the_pattern_category_once() {
+	public function test_pattern_category_is_created_once() {
 		$this->assertSame( 0, Layout::get_pattern_category_id() );
-		$this->assertNotFalse( has_action( 'admin_init', [ Layout::class, 'ensure_pattern_category' ] ) );
 
 		$term_id = Layout::ensure_pattern_category();
 
@@ -513,7 +512,7 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 		);
 		self::log_in_as( 'editor' );
 
-		$id = self::dispatch( 'POST', '/layouts/default', [ 'content' => self::layout_markup() ] )->get_data()['id'];
+		$id = self::dispatch( 'POST', '/layouts/default' )->get_data()['id'];
 
 		$this->assertSame( [ 'Rolling Coverage' ], wp_get_object_terms( $id, Layout::PATTERN_TAXONOMY, [ 'fields' => 'names' ] ) );
 	}
@@ -536,7 +535,7 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 		);
 		self::log_in_as( 'editor' );
 
-		$id = self::dispatch( 'POST', '/layouts/default', [ 'content' => self::layout_markup() ] )->get_data()['id'];
+		$id = self::dispatch( 'POST', '/layouts/default' )->get_data()['id'];
 
 		$this->assertSame( [ $existing ], wp_get_object_terms( $id, Layout::PATTERN_TAXONOMY, [ 'fields' => 'ids' ] ) );
 	}
@@ -547,7 +546,7 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 	public function test_create_is_closed_to_users_who_cannot_publish_patterns() {
 		self::log_in_as( 'contributor' );
 
-		$response = self::dispatch( 'POST', '/layouts/default', [ 'content' => self::layout_markup() ] );
+		$response = self::dispatch( 'POST', '/layouts/default' );
 
 		$this->assertContains( $response->get_status(), [ 401, 403 ] );
 		$this->assertSame( 0, (int) get_option( Layout::option_name( 'default' ), 0 ) );
@@ -559,7 +558,7 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 	public function test_create_makes_the_stream_layout_once() {
 		self::log_in_as( 'editor' );
 
-		$response = self::dispatch( 'POST', '/layouts/stream', [ 'content' => self::layout_markup() ] );
+		$response = self::dispatch( 'POST', '/layouts/stream' );
 		$this->assertSame( 201, $response->get_status() );
 		$id = $response->get_data()['id'];
 
@@ -576,14 +575,14 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 	public function test_create_makes_the_rail_layout_once() {
 		self::log_in_as( 'editor' );
 
-		$response = self::dispatch( 'POST', '/layouts/rail', [ 'content' => self::layout_markup() ] );
+		$response = self::dispatch( 'POST', '/layouts/rail' );
 		$this->assertSame( 201, $response->get_status() );
 		$id = $response->get_data()['id'];
 
 		$this->assertSame( $id, (int) get_option( 'rolling_coverage_rail_layout_id' ) );
 		$this->assertSame( 'Rail', get_the_title( $id ) );
 		$this->assertSame( $id, Layout::get_layout_id( 'rail' ) );
-		$this->assertSame( 200, self::dispatch( 'POST', '/layouts/rail', [ 'content' => self::layout_markup( 'Other' ) ] )->get_status() );
+		$this->assertSame( 200, self::dispatch( 'POST', '/layouts/rail' )->get_status() );
 	}
 
 	/**
@@ -598,7 +597,7 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 	public function test_create_makes_each_built_in_layout_once( string $slug, string $title ) {
 		self::log_in_as( 'editor' );
 
-		$response = self::dispatch( 'POST', "/layouts/{$slug}", [ 'content' => self::layout_markup() ] );
+		$response = self::dispatch( 'POST', "/layouts/{$slug}" );
 		$this->assertSame( 201, $response->get_status() );
 		$id = $response->get_data()['id'];
 
@@ -606,7 +605,7 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 		$this->assertSame( $title, get_the_title( $id ) );
 		$this->assertSame( $id, Layout::get_layout_id( $slug ) );
 
-		$second = self::dispatch( 'POST', "/layouts/{$slug}", [ 'content' => self::layout_markup( 'Other' ) ] );
+		$second = self::dispatch( 'POST', "/layouts/{$slug}" );
 		$this->assertSame( 200, $second->get_status() );
 		$this->assertSame( $id, $second->get_data()['id'] );
 	}
@@ -646,10 +645,10 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 	 */
 	public function test_create_returns_the_existing_stream_layout() {
 		self::log_in_as( 'editor' );
-		$id           = self::dispatch( 'POST', '/layouts/stream', [ 'content' => self::layout_markup() ] )->get_data()['id'];
+		$id           = self::dispatch( 'POST', '/layouts/stream' )->get_data()['id'];
 		$count_before = (int) wp_count_posts( 'wp_block' )->publish;
 
-		$second = self::dispatch( 'POST', '/layouts/stream', [ 'content' => self::layout_markup( 'Other' ) ] );
+		$second = self::dispatch( 'POST', '/layouts/stream' );
 
 		$this->assertSame( 200, $second->get_status() );
 		$this->assertSame( $id, $second->get_data()['id'] );
@@ -661,12 +660,12 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 	 */
 	public function test_create_recreates_a_trashed_stream_layout() {
 		self::log_in_as( 'editor' );
-		$id = self::dispatch( 'POST', '/layouts/stream', [ 'content' => self::layout_markup() ] )->get_data()['id'];
+		$id = self::dispatch( 'POST', '/layouts/stream' )->get_data()['id'];
 		wp_trash_post( $id );
 
 		$this->assertSame( 0, Layout::get_layout_id( 'stream' ) );
 
-		$response = self::dispatch( 'POST', '/layouts/stream', [ 'content' => self::layout_markup() ] );
+		$response = self::dispatch( 'POST', '/layouts/stream' );
 
 		$this->assertSame( 201, $response->get_status() );
 		$this->assertNotSame( $id, $response->get_data()['id'] );
@@ -679,10 +678,10 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 	public function test_stream_and_default_layouts_are_independent() {
 		self::log_in_as( 'editor' );
 
-		$stream = self::dispatch( 'POST', '/layouts/stream', [ 'content' => self::layout_markup() ] )->get_data()['id'];
+		$stream = self::dispatch( 'POST', '/layouts/stream' )->get_data()['id'];
 		$this->assertSame( 0, (int) get_option( Layout::option_name( 'default' ), 0 ) );
 
-		$default = self::dispatch( 'POST', '/layouts/default', [ 'content' => self::layout_markup() ] );
+		$default = self::dispatch( 'POST', '/layouts/default' );
 		$this->assertSame( 201, $default->get_status() );
 		$this->assertNotSame( $stream, $default->get_data()['id'] );
 		$this->assertSame( $stream, (int) get_option( 'rolling_coverage_stream_layout_id' ) );
@@ -695,7 +694,7 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 	public function test_create_rejects_an_unknown_layout_slug() {
 		self::log_in_as( 'editor' );
 
-		$response = self::dispatch( 'POST', '/layouts/fancy', [ 'content' => self::layout_markup() ] );
+		$response = self::dispatch( 'POST', '/layouts/fancy' );
 
 		$this->assertSame( 404, $response->get_status() );
 	}
@@ -706,7 +705,7 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 	public function test_create_stream_is_closed_to_users_who_cannot_publish_patterns() {
 		self::log_in_as( 'contributor' );
 
-		$response = self::dispatch( 'POST', '/layouts/stream', [ 'content' => self::layout_markup() ] );
+		$response = self::dispatch( 'POST', '/layouts/stream' );
 
 		$this->assertContains( $response->get_status(), [ 401, 403 ] );
 		$this->assertSame( 0, (int) get_option( 'rolling_coverage_stream_layout_id', 0 ) );
@@ -725,7 +724,7 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 	public function test_created_layout_carries_its_slug() {
 		self::log_in_as( 'editor' );
 
-		$id = self::dispatch( 'POST', '/layouts/stream', [ 'content' => self::layout_markup() ] )->get_data()['id'];
+		$id = self::dispatch( 'POST', '/layouts/stream' )->get_data()['id'];
 
 		$this->assertSame( 'stream', get_post_meta( $id, Layout::SLUG_META_KEY, true ) );
 	}
@@ -735,7 +734,7 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 	 */
 	public function test_layout_is_found_by_its_slug_when_the_option_is_lost() {
 		self::log_in_as( 'editor' );
-		$id = self::dispatch( 'POST', '/layouts/stream', [ 'content' => self::layout_markup() ] )->get_data()['id'];
+		$id = self::dispatch( 'POST', '/layouts/stream' )->get_data()['id'];
 
 		delete_option( Layout::option_name( 'stream' ) );
 		$this->assertSame( $id, Layout::get_layout_id( 'stream' ) );
@@ -752,11 +751,11 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 	 */
 	public function test_create_returns_the_existing_layout_when_the_option_is_lost() {
 		self::log_in_as( 'editor' );
-		$id = self::dispatch( 'POST', '/layouts/stream', [ 'content' => self::layout_markup() ] )->get_data()['id'];
+		$id = self::dispatch( 'POST', '/layouts/stream' )->get_data()['id'];
 		delete_option( Layout::option_name( 'stream' ) );
 		$count_before = (int) wp_count_posts( 'wp_block' )->publish;
 
-		$second = self::dispatch( 'POST', '/layouts/stream', [ 'content' => self::layout_markup() ] );
+		$second = self::dispatch( 'POST', '/layouts/stream' );
 
 		$this->assertSame( 200, $second->get_status() );
 		$this->assertSame( $id, $second->get_data()['id'] );
@@ -768,7 +767,7 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 	 */
 	public function test_trashed_tagged_layout_is_not_found_by_its_slug() {
 		self::log_in_as( 'editor' );
-		$id = self::dispatch( 'POST', '/layouts/stream', [ 'content' => self::layout_markup() ] )->get_data()['id'];
+		$id = self::dispatch( 'POST', '/layouts/stream' )->get_data()['id'];
 		wp_trash_post( $id );
 		delete_option( Layout::option_name( 'stream' ) );
 
@@ -796,7 +795,7 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 		add_option( Layout::lock_name( 'stream' ), time(), '', false );
 		$count_before = (int) wp_count_posts( 'wp_block' )->publish;
 
-		$response = self::dispatch( 'POST', '/layouts/stream', [ 'content' => self::layout_markup() ] );
+		$response = self::dispatch( 'POST', '/layouts/stream' );
 
 		$this->assertSame( 409, $response->get_status() );
 		$this->assertSame( $count_before, (int) wp_count_posts( 'wp_block' )->publish );
@@ -811,7 +810,7 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 		self::log_in_as( 'editor' );
 		add_option( Layout::lock_name( 'stream' ), time() - Layout::LOCK_TIMEOUT - 1, '', false );
 
-		$response = self::dispatch( 'POST', '/layouts/stream', [ 'content' => self::layout_markup() ] );
+		$response = self::dispatch( 'POST', '/layouts/stream' );
 
 		$this->assertSame( 201, $response->get_status() );
 		$this->assertFalse( self::is_locked( 'stream' ) );
@@ -823,7 +822,7 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 	public function test_create_releases_the_lock_after_success() {
 		self::log_in_as( 'editor' );
 
-		$response = self::dispatch( 'POST', '/layouts/default', [ 'content' => self::layout_markup() ] );
+		$response = self::dispatch( 'POST', '/layouts/default' );
 
 		$this->assertSame( 201, $response->get_status() );
 		$this->assertFalse( self::is_locked( 'default' ) );
@@ -836,7 +835,7 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 		self::log_in_as( 'editor' );
 		add_filter( 'wp_insert_post_empty_content', '__return_true' );
 
-		$response = self::dispatch( 'POST', '/layouts/default', [ 'content' => self::layout_markup() ] );
+		$response = self::dispatch( 'POST', '/layouts/default' );
 
 		remove_filter( 'wp_insert_post_empty_content', '__return_true' );
 
@@ -890,7 +889,7 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 		$count_before = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_type = 'wp_block' AND post_status = 'publish'" );
 		// phpcs:enable
 
-		$response = self::dispatch( 'POST', '/layouts/stream', [ 'content' => self::layout_markup() ] );
+		$response = self::dispatch( 'POST', '/layouts/stream' );
 
 		$this->assertSame( 200, $response->get_status() );
 		$this->assertSame( $id, $response->get_data()['id'] );
@@ -909,7 +908,7 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 	 */
 	private static function create_built_in( string $slug, ?string $edited = null ): int {
 		self::log_in_as( 'editor' );
-		$layout_id = (int) self::dispatch( 'POST', '/layouts/' . $slug, [ 'content' => self::layout_markup( 'Created' ) ] )->get_data()['id'];
+		$layout_id = (int) self::dispatch( 'POST', '/layouts/' . $slug )->get_data()['id'];
 
 		if ( null !== $edited ) {
 			wp_update_post(
