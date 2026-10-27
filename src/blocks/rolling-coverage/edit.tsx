@@ -141,6 +141,7 @@ import PinnedEntryContext from './pinned-entry-context';
 import FullStoryEntryContext, {
 	PinnedFullStoryEntryContext,
 } from './full-story-entry-context';
+import UntitledEntriesContext from './untitled-entry-title';
 import { receiveBreakoutPreviews } from './breakout-previews';
 import {
 	EntryPreviewsAnchorContext,
@@ -1270,14 +1271,19 @@ export default function Edit( {
 		( showsSampleContexts
 			? allSampleContexts.length > sampleContexts.length
 			: hasMoreEntries );
-	const { headerBlocks, footerBlocks, templateBlocks, blocksForEntry } =
-		useLayoutPreview(
-			isSynced ? feedItems( syncedBlocks ) : allBlocks,
-			previewContexts,
-			pageSize,
-			! previewHasMore,
-			{ showAuthor, showAvatar }
-		);
+	const {
+		headerBlocks,
+		footerBlocks,
+		templateBlocks,
+		blocksForEntry,
+		untitledEntries,
+	} = useLayoutPreview(
+		isSynced ? feedItems( syncedBlocks ) : allBlocks,
+		previewContexts,
+		pageSize,
+		! previewHasMore,
+		{ showAuthor, showAvatar }
+	);
 	const emptyPreviewBlocks = useMemo(
 		() => forEntryKind( templateBlocks, false ),
 		[ templateBlocks ]
@@ -1504,20 +1510,25 @@ export default function Edit( {
 				( context ) => ! isFullStoryContext( context, takesPinned )
 			)
 		: previewContexts;
+	// The pinned card and the entry group prefer an entry with a title, as an
+	// untitled one previews without its Post Title (see
+	// untitled-entry-title.tsx).
+	const isTitled = ( context: EntryContext ) => context.hasTitle !== false;
+	const pinnedContexts = entryKindContexts.filter(
+		( context ) => context.pinned
+	);
 	const pinnedContext = hasBothKinds
-		? entryKindContexts.find( ( context ) => context.pinned )
+		? ( pinnedContexts.find( isTitled ) ?? pinnedContexts[ 0 ] )
 		: undefined;
 	const unpinnedContexts = entryKindContexts.filter(
 		( context ) => ! context.pinned
 	);
-	const titledContexts = unpinnedContexts.filter(
-		( context ) => context.hasTitle !== false
-	);
+	const titledContexts = unpinnedContexts.filter( isTitled );
 	const regularContext = hasBothKinds
 		? ( titledContexts.find( ( context ) => context.hasBreakout ) ??
 			titledContexts[ 0 ] ??
 			unpinnedContexts[ 0 ] )
-		: entryKindContexts[ 0 ];
+		: ( entryKindContexts.find( isTitled ) ?? entryKindContexts[ 0 ] );
 	const fullStoryContexts = hasFullStory
 		? previewContexts.filter(
 				( context ) =>
@@ -3468,9 +3479,15 @@ export default function Edit( {
 																...coverageContext,
 															} }
 														>
-															<div
-																{ ...innerBlocksProps }
-															/>
+															<UntitledEntriesContext.Provider
+																value={
+																	untitledEntries
+																}
+															>
+																<div
+																	{ ...innerBlocksProps }
+																/>
+															</UntitledEntriesContext.Provider>
 														</BlockContextProvider>
 													</PinnedPreviewsContext.Provider>
 												</EntryPreviewsContext.Provider>
