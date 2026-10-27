@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Newspack Rolling Coverage
  * Description: Liveblog and rolling coverage of ongoing news events.
- * Version: 0.2.0-alpha.2
+ * Version: 0.2.0-alpha.3
  * Requires at least: 7.1
  * Requires PHP: 8.0
  * Author: Automattic
@@ -26,7 +26,7 @@ if ( ! defined( 'NEWSPACK_ROLLING_COVERAGE_PLUGIN_FILE' ) ) {
 	define( 'NEWSPACK_ROLLING_COVERAGE_PLUGIN_FILE', __FILE__ );
 }
 
-define( 'NEWSPACK_ROLLING_COVERAGE_VERSION', '0.2.0-alpha.2' );
+define( 'NEWSPACK_ROLLING_COVERAGE_VERSION', '0.2.0-alpha.3' );
 define( 'NEWSPACK_ROLLING_COVERAGE_URL', plugin_dir_url( __FILE__ ) );
 define( 'NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE', 'rolling-coverage/v1' );
 
