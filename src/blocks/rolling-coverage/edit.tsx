@@ -1194,7 +1194,8 @@ export default function Edit( {
 		const holder = parse( raw ?? '' ).find(
 			( block ) => block.name === BLOCK_NAME
 		);
-		return holder
+		// An emptied layout block renders as no layout, as on the page.
+		return holder?.innerBlocks.length
 			? detachNestedBlocks(
 					holder.innerBlocks as unknown as TemplateBlocks
 				)

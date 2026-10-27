@@ -20,33 +20,33 @@ const LAYOUT_IDS: Record< BuiltInLayoutSlug, number > = {
 	flash: 0,
 	alert: 0,
 };
-const REMOVED = { 40: 'ticker', 41: 'flash', 42: 'nope' };
+const UNRENDERED = { 40: 'ticker', 41: 'flash', 42: 'nope' };
 
 describe( 'layoutReferenceOf', () => {
 	it( 'reads a slug as its built-in layout, with the pattern it has now', () => {
-		expect( layoutReferenceOf( 0, 'ticker', LAYOUT_IDS, REMOVED ) ).toEqual(
-			{ kind: 'built-in', slug: 'ticker', patternId: 50 }
-		);
-		expect( layoutReferenceOf( 0, 'flash', LAYOUT_IDS, REMOVED ) ).toEqual(
-			{ kind: 'built-in', slug: 'flash', patternId: 0 }
-		);
+		expect(
+			layoutReferenceOf( 0, 'ticker', LAYOUT_IDS, UNRENDERED )
+		).toEqual( { kind: 'built-in', slug: 'ticker', patternId: 50 } );
+		expect(
+			layoutReferenceOf( 0, 'flash', LAYOUT_IDS, UNRENDERED )
+		).toEqual( { kind: 'built-in', slug: 'flash', patternId: 0 } );
 	} );
 
 	it( "reads a built-in layout's pattern ID as that layout", () => {
-		expect( layoutReferenceOf( 50, '', LAYOUT_IDS, REMOVED ) ).toEqual( {
+		expect( layoutReferenceOf( 50, '', LAYOUT_IDS, UNRENDERED ) ).toEqual( {
 			kind: 'built-in',
 			slug: 'ticker',
 			patternId: 50,
 		} );
 	} );
 
-	it( "reads a removed built-in pattern's ID as its layout", () => {
-		expect( layoutReferenceOf( 40, '', LAYOUT_IDS, REMOVED ) ).toEqual( {
+	it( "reads the ID of a built-in pattern that doesn't render as its layout", () => {
+		expect( layoutReferenceOf( 40, '', LAYOUT_IDS, UNRENDERED ) ).toEqual( {
 			kind: 'built-in',
 			slug: 'ticker',
 			patternId: 50,
 		} );
-		expect( layoutReferenceOf( 41, '', LAYOUT_IDS, REMOVED ) ).toEqual( {
+		expect( layoutReferenceOf( 41, '', LAYOUT_IDS, UNRENDERED ) ).toEqual( {
 			kind: 'built-in',
 			slug: 'flash',
 			patternId: 0,
@@ -54,11 +54,11 @@ describe( 'layoutReferenceOf', () => {
 	} );
 
 	it( 'reads any other pattern ID as that pattern', () => {
-		expect( layoutReferenceOf( 77, '', LAYOUT_IDS, REMOVED ) ).toEqual( {
+		expect( layoutReferenceOf( 77, '', LAYOUT_IDS, UNRENDERED ) ).toEqual( {
 			kind: 'pattern',
 			id: 77,
 		} );
-		expect( layoutReferenceOf( 42, '', LAYOUT_IDS, REMOVED ) ).toEqual( {
+		expect( layoutReferenceOf( 42, '', LAYOUT_IDS, UNRENDERED ) ).toEqual( {
 			kind: 'pattern',
 			id: 42,
 		} );
@@ -66,23 +66,25 @@ describe( 'layoutReferenceOf', () => {
 
 	it( 'lets the pattern ID decide when both are set', () => {
 		expect(
-			layoutReferenceOf( 77, 'ticker', LAYOUT_IDS, REMOVED )
+			layoutReferenceOf( 77, 'ticker', LAYOUT_IDS, UNRENDERED )
 		).toEqual( { kind: 'pattern', id: 77 } );
 	} );
 
 	it( 'reads no reference, or a slug no layout has, as none', () => {
-		expect( layoutReferenceOf( 0, '', LAYOUT_IDS, REMOVED ) ).toEqual( {
-			kind: 'none',
-		} );
-		expect( layoutReferenceOf( 0, 'nope', LAYOUT_IDS, REMOVED ) ).toEqual( {
+		expect( layoutReferenceOf( 0, '', LAYOUT_IDS, UNRENDERED ) ).toEqual( {
 			kind: 'none',
 		} );
 		expect(
-			layoutReferenceOf( 0, 'toString', LAYOUT_IDS, REMOVED )
+			layoutReferenceOf( 0, 'nope', LAYOUT_IDS, UNRENDERED )
+		).toEqual( {
+			kind: 'none',
+		} );
+		expect(
+			layoutReferenceOf( 0, 'toString', LAYOUT_IDS, UNRENDERED )
 		).toEqual( { kind: 'none' } );
 	} );
 
-	it( 'reads an empty removed list, as PHP sends one', () => {
+	it( 'reads an empty list, as PHP sends one', () => {
 		expect( layoutReferenceOf( 40, '', LAYOUT_IDS, [] ) ).toEqual( {
 			kind: 'pattern',
 			id: 40,

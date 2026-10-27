@@ -75,8 +75,8 @@ interface BlockConfig {
 	newspackAdsAvailable: boolean;
 	newspackAdsPlacementEnabled: boolean;
 	layoutIds: Record< BuiltInLayoutSlug, number >;
-	// Built-in layout slugs by the ID of a pattern that left the site; empty arrives as an array.
-	removedLayouts?: Record< string, string > | string[];
+	// Built-in layout slugs by the ID of each built-in pattern the page renders as its layout (`Layout::get_unrendered_layouts()`); empty arrives as an array.
+	unrenderedLayouts?: Record< string, string > | string[];
 	canCreateLayouts?: boolean | string;
 	layoutsRestBase: string;
 	adminUrl: string;
