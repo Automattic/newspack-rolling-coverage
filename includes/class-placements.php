@@ -515,8 +515,8 @@ class Placements {
 	/**
 	 * A shared layout's name, or an empty string when the layout has no
 	 * blocks the site can render, so the block renders the built-in default.
-	 * A built-in layout's pattern that left the site gives the layout's name,
-	 * since the block renders that layout instead.
+	 * A built-in layout's pattern that can't render, or that left the site,
+	 * gives the layout's name, since the block renders that layout instead.
 	 * Worked out once per layout and request until the next change.
 	 *
 	 * @param int $layout_id Layout (wp_block) ID.
@@ -531,8 +531,8 @@ class Placements {
 			if ( ! empty( Layout::get_layout_blocks( $layout_id ) ) ) {
 				$title = html_entity_decode( wp_strip_all_tags( get_the_title( $layout_id ) ), ENT_QUOTES, 'UTF-8' );
 				$title = '' === $title ? __( 'Untitled layout', 'newspack-rolling-coverage' ) : $title;
-			} elseif ( null !== Layout::get_removed_slug( $layout_id ) ) {
-				$title = self::slug_title( Layout::get_removed_slug( $layout_id ) );
+			} elseif ( null !== Layout::get_built_in_slug( $layout_id ) ) {
+				$title = self::slug_title( Layout::get_built_in_slug( $layout_id ) );
 			}
 
 			self::$layout_titles[ $blog_id ][ $layout_id ] = $title;

@@ -247,9 +247,9 @@ class Test_Placements extends Rolling_Coverage_TestCase {
 	/**
 	 * A built-in layout named by its slug is listed with the layout's name:
 	 * its pattern's title once the site has one, else the built-in name. A
-	 * block still pointing at a built-in layout's deleted pattern is listed
-	 * with the layout it now renders, and two blocks that read the same are
-	 * listed once.
+	 * block still pointing at a built-in layout's deleted pattern, or at one
+	 * that can't render, is listed with the layout it renders instead, and
+	 * two blocks that read the same are listed once.
 	 */
 	public function test_feeds_name_a_built_in_layout_by_slug() {
 		$coverage_id = self::create_coverage();
@@ -262,16 +262,21 @@ class Test_Placements extends Rolling_Coverage_TestCase {
 		$stream_id = self::pattern( 'Our stream', self::layout() );
 		update_post_meta( $stream_id, Layout::SLUG_META_KEY, 'stream' );
 		wp_delete_post( $stream_id, true );
+		$digest_id = self::pattern( 'Our digest', '<!-- wp:paragraph --><p>No layout here</p><!-- /wp:paragraph -->' );
+		update_post_meta( $digest_id, Layout::SLUG_META_KEY, 'digest' );
+		update_post_meta( $digest_id, Layout::HASH_META_KEY, md5( 'created' ) );
 
 		$flash_post  = self::publish( self::feed( $coverage_id, [ 'layoutSlug' => 'flash' ] ) );
 		$rail_post   = self::publish( self::feed( $coverage_id, [ 'layoutSlug' => 'rail' ] ) );
 		$stream_post = self::publish( self::feed( $coverage_id, [ 'layoutId' => $stream_id ] ) );
+		$digest_post = self::publish( self::feed( $coverage_id, [ 'layoutId' => $digest_id ] ) );
 		$ticker_post = self::publish( self::feed( $coverage_id, [ 'layoutId' => $ticker_id ] ) . self::feed( $coverage_id, [ 'layoutSlug' => 'ticker' ] ) );
 		$blocks      = self::blocks( $coverage_id );
 
 		$this->assertSame( [ 'Rolling Coverage (Flash)' ], $blocks[ 'post:' . $flash_post ] );
 		$this->assertSame( [ 'Rolling Coverage (Our rail)' ], $blocks[ 'post:' . $rail_post ] );
 		$this->assertSame( [ 'Rolling Coverage (Stream)' ], $blocks[ 'post:' . $stream_post ] );
+		$this->assertSame( [ 'Rolling Coverage (Digest)' ], $blocks[ 'post:' . $digest_post ] );
 		$this->assertSame( [ 'Rolling Coverage (Ticker)' ], $blocks[ 'post:' . $ticker_post ] );
 	}
 
