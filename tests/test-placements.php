@@ -265,6 +265,8 @@ class Test_Placements extends Rolling_Coverage_TestCase {
 		$digest_id = self::pattern( 'Our digest', '<!-- wp:paragraph --><p>No layout here</p><!-- /wp:paragraph -->' );
 		update_post_meta( $digest_id, Layout::SLUG_META_KEY, 'digest' );
 		update_post_meta( $digest_id, Layout::HASH_META_KEY, md5( 'created' ) );
+		// As create_layout() leaves it: the slug's option points at the pattern.
+		update_option( Layout::option_name( 'digest' ), $digest_id, false );
 
 		$flash_post  = self::publish( self::feed( $coverage_id, [ 'layoutSlug' => 'flash' ] ) );
 		$rail_post   = self::publish( self::feed( $coverage_id, [ 'layoutSlug' => 'rail' ] ) );

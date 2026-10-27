@@ -42,13 +42,13 @@ class Layout {
 	const HASH_META_KEY = '_rolling_coverage_layout_hash';
 
 	/**
-	 * Option mapping the ID of each built-in layout's pattern that left the
-	 * site (unpublished, trashed or deleted) to the layout's slug, so blocks
-	 * still pointing at it follow the layout instead of falling back to
-	 * Bulletin. Entries stay: one is only read for an ID that no longer
-	 * resolves.
+	 * Prefix of the option recording a deleted built-in layout pattern's slug,
+	 * one option per pattern ID, so blocks still pointing at it follow the
+	 * layout instead of falling back to Bulletin once its slug tag is gone.
+	 * One option each keeps parallel deletes from overwriting each other.
+	 * Records stay: one is only read for an ID that no longer resolves.
 	 */
-	const REMOVED_OPTION = 'rolling_coverage_removed_layouts';
+	const DELETED_OPTION_PREFIX = 'rolling_coverage_deleted_layout_';
 
 	const PATTERN_CATEGORY = 'rolling-coverage';
 
@@ -67,7 +67,6 @@ class Layout {
 		add_action( 'rest_api_init', [ __CLASS__, 'register_routes' ] );
 		add_filter( 'rest_prepare_wp_block', [ __CLASS__, 'prepare_pattern_response' ], 10, 2 );
 		add_action( 'post_updated', [ __CLASS__, 'record_unedited_save' ], 10, 3 );
-		add_action( 'transition_post_status', [ __CLASS__, 'record_unpublished_pattern' ], 10, 3 );
 		add_action( 'before_delete_post', [ __CLASS__, 'record_deleted_pattern' ], 10, 2 );
 		add_action( 'admin_init', [ __CLASS__, 'ensure_pattern_category' ] );
 	}
@@ -113,10 +112,11 @@ class Layout {
 
 	/**
 	 * The layout blocks a block renders: its pattern's (`layoutId`), else the
-	 * built-in layout it names (`layoutSlug`). A built-in layout's pattern
-	 * that can't render, or that left the site, leaves the block to that
-	 * layout (get_built_in_slug()), and any other pattern that no longer
-	 * resolves to the block's own slug.
+	 * built-in layout it names (`layoutSlug`). `layoutId` decides when both
+	 * are set. A built-in layout's pattern that can't render (unpublished,
+	 * deleted, or holding no layout) leaves the block to that layout
+	 * (get_built_in_slug()); any other pattern that can't render leaves it
+	 * with none, as the editor and Placements read it.
 	 *
 	 * @param array $attrs Block attributes.
 	 * @return array[]|null Inner blocks, or null when the block names no layout that resolves.
@@ -125,19 +125,22 @@ class Layout {
 		$layout_id = (int) ( $attrs['layoutId'] ?? 0 );
 		$blocks    = $layout_id > 0 ? self::get_layout_blocks( $layout_id ) : null;
 
-		if ( null !== $blocks ) {
+		if ( ! empty( $blocks ) ) {
 			return $blocks;
 		}
 
-		$slug = ( $layout_id > 0 ? self::get_built_in_slug( $layout_id ) : null )
-			?? ( is_string( $attrs['layoutSlug'] ?? null ) ? $attrs['layoutSlug'] : '' );
+		if ( $layout_id > 0 ) {
+			$slug = self::get_built_in_slug( $layout_id );
+		} else {
+			$slug = is_string( $attrs['layoutSlug'] ?? null ) ? $attrs['layoutSlug'] : null;
+		}
 
-		return '' === $slug ? null : self::get_slug_layout_blocks( $slug );
+		return null === $slug || '' === $slug ? null : self::get_slug_layout_blocks( $slug );
 	}
 
 	/**
 	 * The built-in layout a pattern is or was: its slug tag, or, once it's
-	 * deleted and the tag with it, the slug recorded when it left the site.
+	 * deleted and the tag with it, the slug recorded when it was deleted.
 	 *
 	 * @param int $layout_id Pattern ID.
 	 * @return string|null Built-in layout slug, or null.
@@ -145,91 +148,110 @@ class Layout {
 	public static function get_built_in_slug( int $layout_id ): ?string {
 		$slug = (string) get_post_meta( $layout_id, self::SLUG_META_KEY, true );
 
-		return in_array( $slug, self::BUILT_IN_SLUGS, true ) ? $slug : self::get_removed_slug( $layout_id );
+		return in_array( $slug, self::BUILT_IN_SLUGS, true ) ? $slug : self::get_deleted_slug( $layout_id );
 	}
 
 	/**
-	 * The built-in layout a pattern that left the site was.
+	 * The option recording a deleted built-in layout pattern's slug.
+	 *
+	 * @param int $layout_id Pattern ID.
+	 * @return string
+	 */
+	public static function deleted_option_name( int $layout_id ): string {
+		return self::DELETED_OPTION_PREFIX . $layout_id;
+	}
+
+	/**
+	 * The built-in layout a deleted pattern was.
 	 *
 	 * @param int $layout_id Pattern ID.
 	 * @return string|null Built-in layout slug, or null.
 	 */
-	public static function get_removed_slug( int $layout_id ): ?string {
-		$slug = self::get_removed_layouts()[ $layout_id ] ?? null;
+	public static function get_deleted_slug( int $layout_id ): ?string {
+		$slug = get_option( self::deleted_option_name( $layout_id ), '' );
 
 		return in_array( $slug, self::BUILT_IN_SLUGS, true ) ? $slug : null;
 	}
 
 	/**
-	 * Every built-in layout pattern that left the site, by ID.
+	 * Every built-in layout pattern the page renders as its built-in layout
+	 * instead of its own content, by ID: unpublished, trashed, deleted, or
+	 * holding no layout. The editor reads a block pointing at one as that
+	 * layout, as resolve_layout_blocks() does, and a restored pattern drops
+	 * out of the list once it renders again.
 	 *
 	 * @return array<int, string> Built-in layout slugs by pattern ID.
 	 */
-	public static function get_removed_layouts(): array {
-		$removed = get_option( self::REMOVED_OPTION, [] );
+	public static function get_unrendered_layouts(): array {
+		global $wpdb;
 
-		return is_array( $removed ) ? $removed : [];
-	}
+		$layouts = [];
+		$tagged  = get_posts(
+			[
+				'post_type'      => 'wp_block',
+				'post_status'    => [ 'publish', 'future', 'draft', 'pending', 'private', 'trash' ],
+				'fields'         => 'ids',
+				'posts_per_page' => 100,
+				'no_found_rows'  => true,
+				// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+				'meta_query'     => [
+					[
+						'key'     => self::SLUG_META_KEY,
+						'compare' => 'EXISTS',
+					],
+				],
+			]
+		);
 
-	/**
-	 * Records a built-in layout's pattern that stops being published, trashed
-	 * included: only published patterns render.
-	 *
-	 * @param string  $new_status New post status.
-	 * @param string  $old_status Old post status.
-	 * @param WP_Post $post       Post.
-	 */
-	public static function record_unpublished_pattern( $new_status, $old_status, $post ) {
-		if ( 'publish' === $old_status && 'publish' !== $new_status && $post instanceof WP_Post ) {
-			self::record_removed_pattern( $post );
+		foreach ( $tagged as $layout_id ) {
+			$slug = self::get_built_in_slug( (int) $layout_id );
+
+			if ( null !== $slug && empty( self::get_layout_blocks( (int) $layout_id ) ) ) {
+				$layouts[ (int) $layout_id ] = $slug;
+			}
 		}
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$deleted = $wpdb->get_results( $wpdb->prepare( "SELECT option_name, option_value FROM {$wpdb->options} WHERE option_name LIKE %s", $wpdb->esc_like( self::DELETED_OPTION_PREFIX ) . '%' ) );
+
+		foreach ( $deleted as $row ) {
+			$layout_id = (int) substr( $row->option_name, strlen( self::DELETED_OPTION_PREFIX ) );
+
+			if ( $layout_id > 0 && in_array( $row->option_value, self::BUILT_IN_SLUGS, true ) ) {
+				$layouts[ $layout_id ] = $row->option_value;
+			}
+		}
+
+		return $layouts;
 	}
 
 	/**
 	 * Records a built-in layout's pattern as it's deleted, while its slug is
 	 * still in its meta: the Site Editor deletes patterns without trashing
-	 * them first.
+	 * them first. An unpublished or trashed pattern keeps its tag, so it
+	 * needs no record.
 	 *
 	 * @param int          $post_id Post ID.
 	 * @param WP_Post|null $post    Post.
 	 */
-	public static function record_deleted_pattern( $post_id, $post = null ) {
+	public static function record_deleted_pattern( $post_id, $post = null ): void {
 		$post = $post instanceof WP_Post ? $post : get_post( $post_id );
 
-		if ( $post instanceof WP_Post ) {
-			self::record_removed_pattern( $post );
-		}
-	}
-
-	/**
-	 * Adds a pattern to `REMOVED_OPTION` when it's a built-in layout's.
-	 *
-	 * @param WP_Post $post Pattern.
-	 */
-	private static function record_removed_pattern( WP_Post $post ): void {
-		if ( 'wp_block' !== $post->post_type ) {
+		if ( ! $post instanceof WP_Post || 'wp_block' !== $post->post_type ) {
 			return;
 		}
 
 		$slug = (string) get_post_meta( $post->ID, self::SLUG_META_KEY, true );
 
-		if ( ! in_array( $slug, self::BUILT_IN_SLUGS, true ) ) {
-			return;
+		if ( in_array( $slug, self::BUILT_IN_SLUGS, true ) ) {
+			add_option( self::deleted_option_name( $post->ID ), $slug, '', false );
 		}
-
-		$removed = self::get_removed_layouts();
-
-		if ( ( $removed[ $post->ID ] ?? null ) === $slug ) {
-			return;
-		}
-
-		$removed[ $post->ID ] = $slug;
-		update_option( self::REMOVED_OPTION, $removed, false );
 	}
 
 	/**
 	 * A built-in layout's blocks: its pattern's once someone has edited it,
-	 * else the layout as this version of the plugin ships it.
+	 * while that pattern holds a layout, else the layout as this version of
+	 * the plugin ships it.
 	 *
 	 * @param string $slug Built-in layout slug.
 	 * @return array[]|null Inner blocks, or null for a slug that names no built-in layout.
@@ -242,7 +264,7 @@ class Layout {
 		$layout_id = self::get_stored_layout_id( $slug );
 		$blocks    = $layout_id ? self::get_layout_blocks( $layout_id ) : null;
 
-		return $blocks ?? Layout_Templates::get_blocks( $slug );
+		return ! empty( $blocks ) ? $blocks : Layout_Templates::get_blocks( $slug );
 	}
 
 	/**

@@ -1133,7 +1133,7 @@ class Rolling_Coverage_Block {
 						Layout::BUILT_IN_SLUGS,
 						array_map( [ Layout::class, 'get_layout_id' ], Layout::BUILT_IN_SLUGS )
 					),
-					'removedLayouts'              => Layout::get_removed_layouts(),
+					'unrenderedLayouts'           => Layout::get_unrendered_layouts(),
 					'canCreateLayouts'            => Layout::can_create_layout(),
 					'layoutsRestBase'             => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . '/layouts' ) ),
 					'adminUrl'                    => esc_url_raw( admin_url() ),

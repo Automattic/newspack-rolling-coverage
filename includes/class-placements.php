@@ -499,15 +499,16 @@ class Placements {
 	}
 
 	/**
-	 * A built-in layout's name: its pattern's title once the site has one,
-	 * else the layout's built-in name.
+	 * A built-in layout's name: its pattern's title while that pattern
+	 * renders, else the layout's built-in name. A pattern that can't render
+	 * would send layout_title() back here for its own slug.
 	 *
 	 * @param string $slug Built-in layout slug.
 	 * @return string
 	 */
 	private static function slug_title( string $slug ): string {
 		$layout_id = Layout::get_stored_layout_id( $slug );
-		$title     = $layout_id ? self::layout_title( $layout_id ) : '';
+		$title     = $layout_id && ! empty( Layout::get_layout_blocks( $layout_id ) ) ? self::layout_title( $layout_id ) : '';
 
 		return '' === $title ? Layout::get_title( $slug ) : $title;
 	}

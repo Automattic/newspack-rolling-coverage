@@ -21,7 +21,7 @@ import {
 	ENTRIES_PREVIEW_REST_BASE,
 	AI_ENDPOINT,
 	LAYOUT_IDS,
-	REMOVED_LAYOUTS,
+	UNRENDERED_LAYOUTS,
 	CAN_CREATE_LAYOUTS,
 	LAYOUTS_REST_BASE,
 	ADMIN_URL,
@@ -259,7 +259,7 @@ function getLayoutReference(
 		layoutId,
 		layoutSlug,
 		layoutIds,
-		REMOVED_LAYOUTS ?? {}
+		UNRENDERED_LAYOUTS ?? {}
 	);
 }
 

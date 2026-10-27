@@ -90,7 +90,7 @@ On the standalone `post` created from an entry.
 | `rolling_coverage_slack_channel_map` | Which Slack channel feeds which coverage. |
 | `rolling_coverage_slack_bot_token`, `rolling_coverage_slack_signing_secret`, `rolling_coverage_slack_bot_user_id` | Slack credentials and identity. Not autoloaded. Treat them as secrets. |
 | `rolling_coverage_{slug}_layout_id` | The pattern ID of each built-in shared layout. |
-| `rolling_coverage_removed_layouts` | Which built-in layout each deleted, trashed or unpublished built-in layout pattern was, by pattern ID, so pages still pointing at the pattern keep showing that layout. Not autoloaded. |
+| `rolling_coverage_deleted_layout_{id}` | Which built-in layout a deleted built-in layout pattern was, so pages still pointing at the pattern keep showing that layout. One per pattern. Not autoloaded. |
 
 ### Internal bookkeeping
 

@@ -16,21 +16,21 @@ export type LayoutReference =
 /**
  * Reads a block's `layoutId` and `layoutSlug` as the server does
  * (`Layout::resolve_layout_blocks()`). A built-in layout's pattern ID, its
- * current one or one that left the site, counts as the built-in layout, so
- * the block follows the layout whichever way it names it. The pattern ID
- * decides when both are set.
+ * current one or one the page renders as the layout, counts as the built-in
+ * layout, so the block follows the layout whichever way it names it. The
+ * pattern ID decides when both are set.
  *
- * @param {number} layoutId       The block's `layoutId`.
- * @param {string} layoutSlug     The block's `layoutSlug`.
- * @param {Object} layoutIds      Each built-in layout's pattern ID, 0 when none.
- * @param {Object} removedLayouts Built-in layout slugs by the ID of a pattern that left the site; PHP sends an empty one as an array.
+ * @param {number} layoutId          The block's `layoutId`.
+ * @param {string} layoutSlug        The block's `layoutSlug`.
+ * @param {Object} layoutIds         Each built-in layout's pattern ID, 0 when none.
+ * @param {Object} unrenderedLayouts Built-in layout slugs by the ID of each built-in pattern the page renders as its layout; PHP sends an empty one as an array.
  * @return {LayoutReference} What the block points at.
  */
 export function layoutReferenceOf(
 	layoutId: number,
 	layoutSlug: string,
 	layoutIds: Record< BuiltInLayoutSlug, number >,
-	removedLayouts: Record< string, string > | string[]
+	unrenderedLayouts: Record< string, string > | string[]
 ): LayoutReference {
 	const isBuiltIn = ( slug: string | undefined ): slug is BuiltInLayoutSlug =>
 		!! slug && Object.prototype.hasOwnProperty.call( layoutIds, slug );
@@ -45,9 +45,9 @@ export function layoutReferenceOf(
 			( Object.keys( layoutIds ) as BuiltInLayoutSlug[] ).find(
 				( key ) => layoutIds[ key ] === layoutId
 			) ??
-			( Array.isArray( removedLayouts )
+			( Array.isArray( unrenderedLayouts )
 				? undefined
-				: removedLayouts[ String( layoutId ) ] );
+				: unrenderedLayouts[ String( layoutId ) ] );
 
 		return isBuiltIn( slug )
 			? builtIn( slug )
