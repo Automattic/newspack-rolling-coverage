@@ -1,8 +1,10 @@
 /**
  * An editable layout's own Post Title blocks preview an untitled entry the
  * way the site renders it: no title, or the entry's opening words in a title
- * that links to its entry, never core's "(no title)" placeholder. The layout
- * picker hands its untitled sample entry to the editable Entry group.
+ * that links to its entry, not core's "(no title)" placeholder. While one is
+ * selected, core's edit shows instead, so its controls stay within reach.
+ * The layout picker hands its untitled sample entry to the editable Entry
+ * group.
  */
 import './editor-config';
 
