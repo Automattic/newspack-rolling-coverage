@@ -38,7 +38,7 @@ Stream, Minute, and Flash don't show entry titles, except a title from the first
 
 Ticker, Wire, Digest, and Flash show only the latest entries. They set Show to Latest and a matching Number of entries when you pick them. Alert shows no entries, but sets Show to Latest too, since the link to the coverage page only shows with Latest. You can change either afterward, except Show on Ticker and Alert: Ticker's headlines run on one line, which has no room for pinned entries or older pages, and Alert has no entries to show, so the setting is hidden while it's set to Latest. Alert hides Number of entries too.
 
-The first time someone who can publish picks a built-in layout, the site saves it as a shared layout. Every story using it then follows that one copy. A Contributor who picks one before that gets a copy for that story only. See [Edit, detach, and change a layout](#edit-detach-and-change-a-layout).
+Built-in layouts are shared: every story using one follows the same copy, which keeps up with plugin updates until someone edits it. Picking one saves nothing to the site; the layout gets a pattern of its own the first time someone selects Edit Layout. See [Edit, detach, and change a layout](#edit-detach-and-change-a-layout).
 
 You can also insert a layout from the inserter's Patterns tab, in the Rolling Coverage category. It becomes a Rolling Coverage block that uses that layout and asks for a coverage.
 
@@ -263,8 +263,6 @@ To get the plugin's version of an edited layout back, remove its pattern. On blo
 
 A custom layout is a synced pattern in the Rolling Coverage pattern category whose only top-level block is a Rolling Coverage block. Published patterns in that category appear in "Choose a layout" after the built-in layouts, sorted by title. The picker reads up to 100 patterns from the category, built-in ones included.
 
-The Rolling Coverage category appears once someone picks a built-in layout in a story. If it isn't there yet, pick a layout in any story first, then open the pattern editor. If you create the Rolling Coverage category yourself instead, save the pattern and reload the editor to get the Rolling Coverage block.
-
 An empty pattern in the Rolling Coverage category opens with a Rolling Coverage block in place, as an editable layout with sample entries, starting from Bulletin. A pattern that already has blocks keeps them, and a Rolling Coverage block you remove stays removed while the pattern stays in the Rolling Coverage category. It comes back only if the pattern leaves the category and rejoins it empty, or you open another empty pattern. Don't pick a coverage inside a pattern, and don't add other blocks beside the Rolling Coverage block: the pattern then no longer counts as a layout.
 
 ### Block themes
@@ -274,7 +272,7 @@ An empty pattern in the Rolling Coverage category opens with a Rolling Coverage 
 3. Edit the layout with the block settings.
 4. Select Save.
 
-To start from a built-in layout instead, open the Rolling Coverage category in Patterns, open a layout's Actions menu (⋮) and select Duplicate. The copy keeps the category and stays synced. Rename it and select Duplicate.
+To start from a built-in layout instead, open the Rolling Coverage category in Patterns, open the layout's Actions menu (⋮) and select Duplicate. The copy keeps the category and stays synced. Rename it and select Duplicate. A built-in layout is listed there once someone has selected Edit Layout for it, so if it isn't, pick it in a story and select Edit Layout first.
 
 ### Classic themes
 
