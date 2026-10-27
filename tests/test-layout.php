@@ -1103,4 +1103,21 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 
 		$this->assertStringContainsString( self::MARKER, serialize_blocks( Layout::resolve_layout_blocks( [ 'layoutId' => $duplicate_id ] ) ) );
 	}
+
+	/**
+	 * A built-in layout's pattern that can't render, edited until it holds no
+	 * Rolling Coverage block, renders the layout as the plugin ships it, as
+	 * the editor shows it.
+	 */
+	public function test_unusable_built_in_pattern_renders_its_layout() {
+		$layout_id = self::create_built_in( 'ticker', self::MARKER );
+		wp_update_post(
+			[
+				'ID'           => $layout_id,
+				'post_content' => '<!-- wp:paragraph --><p>No layout here</p><!-- /wp:paragraph -->',
+			]
+		);
+
+		$this->assertSame( Layout_Templates::get_blocks( 'ticker' ), Layout::resolve_layout_blocks( [ 'layoutId' => $layout_id ] ) );
+	}
 }

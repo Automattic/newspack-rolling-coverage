@@ -113,9 +113,9 @@ class Layout {
 	/**
 	 * The layout blocks a block renders: its pattern's (`layoutId`), else the
 	 * built-in layout it names (`layoutSlug`). A built-in layout's pattern
-	 * that left the site leaves the block to that layout's slug
-	 * (`REMOVED_OPTION`), and any other pattern that no longer resolves to the
-	 * block's own slug.
+	 * that can't render, or that left the site, leaves the block to that
+	 * layout (get_built_in_slug()), and any other pattern that no longer
+	 * resolves to the block's own slug.
 	 *
 	 * @param array $attrs Block attributes.
 	 * @return array[]|null Inner blocks, or null when the block names no layout that resolves.
@@ -128,10 +128,23 @@ class Layout {
 			return $blocks;
 		}
 
-		$slug = ( $layout_id > 0 ? self::get_removed_slug( $layout_id ) : null )
+		$slug = ( $layout_id > 0 ? self::get_built_in_slug( $layout_id ) : null )
 			?? ( is_string( $attrs['layoutSlug'] ?? null ) ? $attrs['layoutSlug'] : '' );
 
 		return '' === $slug ? null : self::get_slug_layout_blocks( $slug );
+	}
+
+	/**
+	 * The built-in layout a pattern is or was: its slug tag, or, once it's
+	 * deleted and the tag with it, the slug recorded when it left the site.
+	 *
+	 * @param int $layout_id Pattern ID.
+	 * @return string|null Built-in layout slug, or null.
+	 */
+	public static function get_built_in_slug( int $layout_id ): ?string {
+		$slug = (string) get_post_meta( $layout_id, self::SLUG_META_KEY, true );
+
+		return in_array( $slug, self::BUILT_IN_SLUGS, true ) ? $slug : self::get_removed_slug( $layout_id );
 	}
 
 	/**
