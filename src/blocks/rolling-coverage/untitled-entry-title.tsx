@@ -48,9 +48,13 @@ function EntryLinkTitle( { level, text }: { level: number; text: string } ) {
  * Previews the editable layout's Post Title against an untitled entry as the
  * site renders it: nothing, where core's editor would show "(no title)", or
  * for a title that links to its entry, the entry's opening words, and nothing
- * without them, as for a protected entry. The editable groups preview an
- * untitled entry when no titled one is left for them, as the Entry group
- * does among the layout picker's three samples.
+ * without them, as for a protected entry. The pinned card and the Entry group
+ * preview an untitled entry only when no titled one is left for them, as the
+ * Entry group does among the layout picker's three samples.
+ *
+ * While the block is selected, as from List View, core's edit renders
+ * instead: skipping it would drop every control core and the block supports
+ * add to it, so the title couldn't be styled.
  */
 const withUntitledEntryTitle = createHigherOrderComponent(
 	( BlockEdit ) =>
@@ -58,11 +62,16 @@ const withUntitledEntryTitle = createHigherOrderComponent(
 			name: string;
 			attributes: Record< string, unknown >;
 			context?: Record< string, unknown >;
+			isSelected?: boolean;
 		} ) => {
 			const untitledEntries = useContext( UntitledEntriesContext );
 			const text = untitledEntries.get( props.context?.postId as number );
 
-			if ( props.name !== 'core/post-title' || text === undefined ) {
+			if (
+				props.name !== 'core/post-title' ||
+				text === undefined ||
+				props.isSelected
+			) {
 				return <BlockEdit { ...props } />;
 			}
 

@@ -62,11 +62,13 @@ const FilteredEdit = applyFilters(
  * @param {Object}             block.attrs     Block attributes.
  * @param {number}             postId          The entry the block previews.
  * @param {Map<number,string>} untitledEntries Untitled entries' opening words.
+ * @param {boolean}            isSelected      Whether the block is selected.
  */
 function renderTitle(
 	{ name, attrs }: { name: string; attrs: Record< string, unknown > },
 	postId: number,
-	untitledEntries: Map< number, string >
+	untitledEntries: Map< number, string >,
+	isSelected = false
 ) {
 	return render(
 		createElement(
@@ -78,6 +80,7 @@ function renderTitle(
 					name,
 					attributes: attrs,
 					context: { postId, postType: 'entry', queryId: 0 },
+					isSelected,
 				} as never
 			)
 		)
@@ -97,7 +100,18 @@ describe( 'an editable Post Title', () => {
 			untitledEntries
 		);
 
-		expect( container.textContent ).toBe( '' );
+		expect( container.innerHTML ).toBe( '' );
+	} );
+
+	it( "keeps core's edit, and so its controls, for an untitled entry's selected title", () => {
+		const { container } = renderTitle(
+			{ name: 'core/post-title', attrs: { level: 2 } },
+			2,
+			untitledEntries,
+			true
+		);
+
+		expect( container.textContent ).toBe( '(no title)' );
 	} );
 
 	it( "shows an untitled entry's opening words where the title links to the entry", () => {
@@ -127,7 +141,7 @@ describe( 'an editable Post Title', () => {
 			untitledEntries
 		);
 
-		expect( container.textContent ).toBe( '' );
+		expect( container.innerHTML ).toBe( '' );
 	} );
 
 	it( "leaves a titled entry's title to core", () => {
@@ -220,25 +234,21 @@ describe( "a layout preview's untitled entries", () => {
 		};
 	}
 
-	it( 'count an untitled Full Story entry as titled when its post has a title', () => {
-		const { result } = renderHook( () =>
-			useLayoutPreview(
-				bulletin,
-				[ untitledFullStory( 'How Riverbend turned a corner' ) ],
-				10
-			)
-		);
+	it.each( [
+		[ 'How Riverbend turned a corner', [] ],
+		[ '', [ [ 5, 'Riverbend rehearsed' ] ] ],
+	] )(
+		'count an untitled Full Story entry as untitled only when its post has no title either (post title %j)',
+		( postTitle, expected ) => {
+			const { result } = renderHook( () =>
+				useLayoutPreview(
+					bulletin,
+					[ untitledFullStory( postTitle ) ],
+					10
+				)
+			);
 
-		expect( result.current.untitledEntries.size ).toBe( 0 );
-	} );
-
-	it( 'count an untitled Full Story entry as untitled when its post has no title either', () => {
-		const { result } = renderHook( () =>
-			useLayoutPreview( bulletin, [ untitledFullStory( '' ) ], 10 )
-		);
-
-		expect( [ ...result.current.untitledEntries ] ).toEqual( [
-			[ 5, 'Riverbend rehearsed' ],
-		] );
-	} );
+			expect( [ ...result.current.untitledEntries ] ).toEqual( expected );
+		}
+	);
 } );
