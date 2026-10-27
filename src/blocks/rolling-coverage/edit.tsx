@@ -141,6 +141,7 @@ import PinnedEntryContext from './pinned-entry-context';
 import FullStoryEntryContext, {
 	PinnedFullStoryEntryContext,
 } from './full-story-entry-context';
+import UntitledEntriesContext from './untitled-entry-title';
 import { receiveBreakoutPreviews } from './breakout-previews';
 import {
 	EntryPreviewsAnchorContext,
@@ -1270,14 +1271,19 @@ export default function Edit( {
 		( showsSampleContexts
 			? allSampleContexts.length > sampleContexts.length
 			: hasMoreEntries );
-	const { headerBlocks, footerBlocks, templateBlocks, blocksForEntry } =
-		useLayoutPreview(
-			isSynced ? feedItems( syncedBlocks ) : allBlocks,
-			previewContexts,
-			pageSize,
-			! previewHasMore,
-			{ showAuthor, showAvatar }
-		);
+	const {
+		headerBlocks,
+		footerBlocks,
+		templateBlocks,
+		blocksForEntry,
+		untitledEntries,
+	} = useLayoutPreview(
+		isSynced ? feedItems( syncedBlocks ) : allBlocks,
+		previewContexts,
+		pageSize,
+		! previewHasMore,
+		{ showAuthor, showAvatar }
+	);
 	const emptyPreviewBlocks = useMemo(
 		() => forEntryKind( templateBlocks, false ),
 		[ templateBlocks ]
@@ -3468,9 +3474,15 @@ export default function Edit( {
 																...coverageContext,
 															} }
 														>
-															<div
-																{ ...innerBlocksProps }
-															/>
+															<UntitledEntriesContext.Provider
+																value={
+																	untitledEntries
+																}
+															>
+																<div
+																	{ ...innerBlocksProps }
+																/>
+															</UntitledEntriesContext.Provider>
 														</BlockContextProvider>
 													</PinnedPreviewsContext.Provider>
 												</EntryPreviewsContext.Provider>

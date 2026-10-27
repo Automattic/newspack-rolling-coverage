@@ -5322,6 +5322,7 @@ export {
 	withShapedPinnedCard,
 	withCenteredTitleRows,
 	withoutPostTitle,
+	isEntryLinkTitle,
 	withEntryLinkTitleText,
 	withoutByline,
 	withAuthorSettings,
