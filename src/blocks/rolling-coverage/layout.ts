@@ -542,7 +542,7 @@ function isUntitled(
  * @param {Object}         settings            The block's Author name and Author avatar settings.
  * @param {boolean}        settings.showAuthor Whether entries show their author's name.
  * @param {boolean}        settings.showAvatar Whether entries show their author's avatar.
- * @return {Object} The header, footer and per-entry template blocks, and a getter for one entry's preview blocks.
+ * @return {Object} The header, footer and per-entry template blocks, a getter for one entry's preview blocks, and the untitled entries' opening words by post ID.
  */
 export function useLayoutPreview(
 	allBlocks: TemplateBlocks,
@@ -558,6 +558,7 @@ export function useLayoutPreview(
 	footerBlocks: TemplateBlocks;
 	templateBlocks: TemplateBlocks;
 	blocksForEntry: ( context: EntryContext ) => TemplateBlocks;
+	untitledEntries: ReadonlyMap< number, string >;
 } {
 	const { headerBlocks, templateBlocks, footerBlocks } = useMemo( () => {
 		const { header, template, footer } = layoutParts( allBlocks );
@@ -776,5 +777,28 @@ export function useLayoutPreview(
 		[ blocksWithNewLabel, newestContext, strippedBlocks ]
 	);
 
-	return { headerBlocks, footerBlocks, templateBlocks, blocksForEntry };
+	// An editable layout previews its own Post Title blocks, so it reads which
+	// entries are untitled from here (see untitled-entry-title.tsx).
+	const untitledEntries = useMemo(
+		() =>
+			new Map(
+				entryContexts
+					.filter( ( context ) =>
+						isUntitled( context, hasFullStory, takesPinned )
+					)
+					.map( ( context ) => [
+						context.postId,
+						context.fallbackTitle ?? '',
+					] )
+			),
+		[ entryContexts, hasFullStory, takesPinned ]
+	);
+
+	return {
+		headerBlocks,
+		footerBlocks,
+		templateBlocks,
+		blocksForEntry,
+		untitledEntries,
+	};
 }
