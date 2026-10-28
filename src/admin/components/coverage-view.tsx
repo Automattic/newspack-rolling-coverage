@@ -158,7 +158,7 @@ function CoverageView() {
 				size="compact"
 				onClick={ () => showTrash( false ) }
 			>
-				{ __( 'All Coverages', 'newspack-rolling-coverage' ) }
+				{ __( 'All Liveblogs', 'newspack-rolling-coverage' ) }
 			</Button>
 		);
 	} else if ( trashedCount > 0 ) {
@@ -169,7 +169,7 @@ function CoverageView() {
 				onClick={ () => showTrash( true ) }
 			>
 				{ sprintf(
-					/* translators: %d: number of trashed coverages. */
+					/* translators: %d: number of trashed liveblogs. */
 					__( 'Trash (%d)', 'newspack-rolling-coverage' ),
 					trashedCount
 				) }
@@ -243,7 +243,7 @@ function CoverageView() {
 					{ canAddCoverage && (
 						<Button variant="primary" onClick={ handleOpenCreate }>
 							{ __(
-								'Add Coverage',
+								'Add Liveblog',
 								'newspack-rolling-coverage'
 							) }
 						</Button>
@@ -290,7 +290,7 @@ function CoverageView() {
 			{ isFirstLoad && (
 				<LoadingState
 					label={ __(
-						'Fetching coverages…',
+						'Fetching liveblogs…',
 						'newspack-rolling-coverage'
 					) }
 				/>
@@ -315,7 +315,7 @@ function CoverageView() {
 								onClick={ handleOpenCreate }
 							>
 								{ __(
-									'Add Coverage',
+									'Add Liveblog',
 									'newspack-rolling-coverage'
 								) }
 							</Button>

@@ -34,7 +34,7 @@ function getBreadcrumbItems(
 	const root = {
 		label: __( 'Rolling Coverage', 'newspack-rolling-coverage' ),
 	};
-	const allCoverages = __( 'All Coverages', 'newspack-rolling-coverage' );
+	const allCoverages = __( 'All Liveblogs', 'newspack-rolling-coverage' );
 	const allCoveragesLink = { label: allCoverages, url: '#/coverages' };
 
 	if ( pathname.startsWith( '/coverages/' ) ) {
@@ -47,7 +47,7 @@ function getBreadcrumbItems(
 			{
 				label: coverage
 					? decodeEntities( coverage.name )
-					: __( 'Coverage', 'newspack-rolling-coverage' ),
+					: __( 'Liveblog', 'newspack-rolling-coverage' ),
 				count: isEmpty ? undefined : count,
 			},
 		];

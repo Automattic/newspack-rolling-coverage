@@ -50,7 +50,7 @@ export function newEntriesLabel(
 ): string {
 	if ( name ) {
 		return sprintf(
-			/* translators: 1: number of new coverage entries, waiting to be shown or just found by a check. 2: the site's own name for entries, singular or plural to match the number, as it reads mid-sentence. */
+			/* translators: 1: number of new liveblog entries, waiting to be shown or just found by a check. 2: the site's own name for entries, singular or plural to match the number, as it reads mid-sentence. */
 			_n(
 				'%1$d new %2$s',
 				'%1$d new %2$s',
@@ -63,7 +63,7 @@ export function newEntriesLabel(
 	}
 
 	return sprintf(
-		/* translators: %d: number of new coverage entries, waiting to be shown or just found by a check. */
+		/* translators: %d: number of new liveblog entries, waiting to be shown or just found by a check. */
 		_n(
 			'%d new entry',
 			'%d new entries',
@@ -88,7 +88,7 @@ export function entriesAddedButtonLabel(
 ): string {
 	if ( name ) {
 		return sprintf(
-			/* translators: 1: number of coverage entries a check just added. 2: the site's own name for entries, singular or plural to match the number, as it reads mid-sentence. */
+			/* translators: 1: number of liveblog entries a check just added. 2: the site's own name for entries, singular or plural to match the number, as it reads mid-sentence. */
 			_n(
 				'%1$d %2$s added',
 				'%1$d %2$s added',
@@ -101,7 +101,7 @@ export function entriesAddedButtonLabel(
 	}
 
 	return sprintf(
-		/* translators: %d: number of coverage entries a check just added. */
+		/* translators: %d: number of liveblog entries a check just added. */
 		_n(
 			'%d entry added',
 			'%d entries added',
@@ -122,7 +122,7 @@ export function entriesAddedButtonLabel(
 export function noNewEntriesLabel( name: EntryName | null ): string {
 	if ( name ) {
 		return sprintf(
-			/* translators: %s: the site's own name for coverage entries, plural, as it reads mid-sentence. */
+			/* translators: %s: the site's own name for liveblog entries, plural, as it reads mid-sentence. */
 			__( 'No new %s', 'newspack-rolling-coverage' ),
 			name.plural
 		);
@@ -152,7 +152,7 @@ export function newerEntriesLabel(
 	if ( count <= 10 ) {
 		if ( name ) {
 			return sprintf(
-				/* translators: 1: number of coverage entries newer than the one shown, from 1 to 10. 2: the site's own name for entries, singular or plural to match the number, as it reads mid-sentence. */
+				/* translators: 1: number of liveblog entries newer than the one shown, from 1 to 10. 2: the site's own name for entries, singular or plural to match the number, as it reads mid-sentence. */
 				_n(
 					'%1$d newer %2$s',
 					'%1$d newer %2$s',
@@ -165,7 +165,7 @@ export function newerEntriesLabel(
 		}
 
 		return sprintf(
-			/* translators: %d: number of coverage entries newer than the one shown, from 1 to 10. */
+			/* translators: %d: number of liveblog entries newer than the one shown, from 1 to 10. */
 			_n(
 				'%d newer entry',
 				'%d newer entries',
@@ -186,7 +186,7 @@ export function newerEntriesLabel(
 
 	if ( name ) {
 		return sprintf(
-			/* translators: 1: a round number the count of newer coverage entries has passed: 10, 50 or 100. 2: the site's own name for entries, plural, as it reads mid-sentence. */
+			/* translators: 1: a round number the count of newer liveblog entries has passed: 10, 50 or 100. 2: the site's own name for entries, plural, as it reads mid-sentence. */
 			_n(
 				'%1$d+ newer %2$s',
 				'%1$d+ newer %2$s',
@@ -199,7 +199,7 @@ export function newerEntriesLabel(
 	}
 
 	return sprintf(
-		/* translators: %d: a round number the count of newer coverage entries has passed: 10, 50 or 100. */
+		/* translators: %d: a round number the count of newer liveblog entries has passed: 10, 50 or 100. */
 		_n(
 			'%d+ newer entry',
 			'%d+ newer entries',
@@ -223,7 +223,7 @@ export function entriesAddedLabel(
 ): string {
 	if ( name ) {
 		return sprintf(
-			/* translators: 1: number of new coverage entries just added. 2: the site's own name for entries, singular or plural to match the number, as it reads mid-sentence. */
+			/* translators: 1: number of new liveblog entries just added. 2: the site's own name for entries, singular or plural to match the number, as it reads mid-sentence. */
 			_n(
 				'%1$d new %2$s added',
 				'%1$d new %2$s added',
@@ -236,7 +236,7 @@ export function entriesAddedLabel(
 	}
 
 	return sprintf(
-		/* translators: %d: number of new coverage entries just added. */
+		/* translators: %d: number of new liveblog entries just added. */
 		_n(
 			'%d new entry added',
 			'%d new entries added',
@@ -256,7 +256,7 @@ export function entriesAddedLabel(
 export function loadingLatestLabel( name: EntryName | null ): string {
 	if ( name ) {
 		return sprintf(
-			/* translators: %s: the site's own name for coverage entries, plural, as it reads mid-sentence. */
+			/* translators: %s: the site's own name for liveblog entries, plural, as it reads mid-sentence. */
 			__( 'Loading the latest %s…', 'newspack-rolling-coverage' ),
 			name.plural
 		);
@@ -274,7 +274,7 @@ export function loadingLatestLabel( name: EntryName | null ): string {
 export function showingLatestLabel( name: EntryName | null ): string {
 	if ( name ) {
 		return sprintf(
-			/* translators: %s: the site's own name for coverage entries, plural, as it reads mid-sentence. */
+			/* translators: %s: the site's own name for liveblog entries, plural, as it reads mid-sentence. */
 			__( 'Showing the latest %s.', 'newspack-rolling-coverage' ),
 			name.plural
 		);
@@ -292,7 +292,7 @@ export function showingLatestLabel( name: EntryName | null ): string {
 export function loadMoreFailedLabel( name: EntryName | null ): string {
 	if ( name ) {
 		return sprintf(
-			/* translators: %s: the site's own name for coverage entries, plural, as it reads mid-sentence. */
+			/* translators: %s: the site's own name for liveblog entries, plural, as it reads mid-sentence. */
 			__(
 				'Couldn’t load more %s. Try again.',
 				'newspack-rolling-coverage'
@@ -315,7 +315,7 @@ export function loadMoreFailedLabel( name: EntryName | null ): string {
  */
 export function nextCheckLabel( seconds: number ): string {
 	return sprintf(
-		/* translators: %d: seconds until the page next checks for new coverage entries; the trailing "s" abbreviates seconds. */
+		/* translators: %d: seconds until the page next checks for new liveblog entries; the trailing "s" abbreviates seconds. */
 		__( 'Next check in %ds', 'newspack-rolling-coverage' ),
 		seconds
 	);
