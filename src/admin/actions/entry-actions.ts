@@ -57,9 +57,9 @@ function getEditWarningMessage( entry: Entry ): string {
 		case 'coverage-archived':
 		case 'coverage-paused':
 			return sprintf(
-				/* translators: %s: The coverage's status, e.g. "Paused" or "Ended". */
+				/* translators: %s: The liveblog's status, e.g. "Paused" or "Ended". */
 				__(
-					'This entry’s coverage is set to “%s”. Edit it anyway?',
+					'This entry’s liveblog is set to “%s”. Edit it anyway?',
 					'newspack-rolling-coverage'
 				),
 				getStatusLabel(
@@ -207,11 +207,11 @@ function getEntryActions(
 					// entries from Slack opt in on their own, so say it can happen.
 					description: config.pushNotifications.isConfigured
 						? __(
-								'Readers with the coverage open see published entries the next time their page checks for new entries. Entries set to notify followers also send a push notification.',
+								'Readers with the liveblog open see published entries the next time their page checks for new entries. Entries set to notify followers also send a push notification.',
 								'newspack-rolling-coverage'
 							)
 						: __(
-								'Readers with the coverage open see published entries the next time their page checks for new entries.',
+								'Readers with the liveblog open see published entries the next time their page checks for new entries.',
 								'newspack-rolling-coverage'
 							),
 					confirmLabel: __( 'Publish', 'newspack-rolling-coverage' ),
@@ -680,14 +680,14 @@ function getEntryActions(
 						if ( anyCreated && isSingle ) {
 							notifySuccess(
 								__(
-									'Entry restored. A recovery coverage was created.',
+									'Entry restored. A recovery liveblog was created.',
 									'newspack-rolling-coverage'
 								)
 							);
 						} else if ( anyCreated ) {
 							notifySuccess(
 								__(
-									'Entries restored. Recovery coverages were created where needed.',
+									'Entries restored. Recovery liveblogs were created where needed.',
 									'newspack-rolling-coverage'
 								)
 							);

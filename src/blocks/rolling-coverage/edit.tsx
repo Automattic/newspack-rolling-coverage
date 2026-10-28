@@ -143,6 +143,7 @@ import PinnedEntryContext from './pinned-entry-context';
 import FullStoryEntryContext, {
 	PinnedFullStoryEntryContext,
 } from './full-story-entry-context';
+import UntitledEntriesContext from './untitled-entry-title';
 import { receiveBreakoutPreviews } from './breakout-previews';
 import {
 	EntryPreviewsAnchorContext,
@@ -1328,14 +1329,19 @@ export default function Edit( {
 		( showsSampleContexts
 			? allSampleContexts.length > sampleContexts.length
 			: hasMoreEntries );
-	const { headerBlocks, footerBlocks, templateBlocks, blocksForEntry } =
-		useLayoutPreview(
-			isSynced ? feedItems( syncedBlocks ) : allBlocks,
-			previewContexts,
-			pageSize,
-			! previewHasMore,
-			{ showAuthor, showAvatar }
-		);
+	const {
+		headerBlocks,
+		footerBlocks,
+		templateBlocks,
+		blocksForEntry,
+		untitledEntries,
+	} = useLayoutPreview(
+		isSynced ? feedItems( syncedBlocks ) : allBlocks,
+		previewContexts,
+		pageSize,
+		! previewHasMore,
+		{ showAuthor, showAvatar }
+	);
 	const emptyPreviewBlocks = useMemo(
 		() => forEntryKind( templateBlocks, false ),
 		[ templateBlocks ]
@@ -1426,7 +1432,7 @@ export default function Edit( {
 						className="wp-element-button wp-block-button__link"
 					>
 						{
-							/* translators: Button that loads older entries at the end of a coverage's feed. */
+							/* translators: Button that loads older entries at the end of a liveblog's feed. */
 							__( 'Load more', 'newspack-rolling-coverage' )
 						}
 					</button>
@@ -1562,20 +1568,25 @@ export default function Edit( {
 				( context ) => ! isFullStoryContext( context, takesPinned )
 			)
 		: previewContexts;
+	// The pinned card and the entry group prefer an entry with a title, as an
+	// untitled one previews without its Post Title (see
+	// untitled-entry-title.tsx).
+	const isTitled = ( context: EntryContext ) => context.hasTitle !== false;
+	const pinnedContexts = entryKindContexts.filter(
+		( context ) => context.pinned
+	);
 	const pinnedContext = hasBothKinds
-		? entryKindContexts.find( ( context ) => context.pinned )
+		? ( pinnedContexts.find( isTitled ) ?? pinnedContexts[ 0 ] )
 		: undefined;
 	const unpinnedContexts = entryKindContexts.filter(
 		( context ) => ! context.pinned
 	);
-	const titledContexts = unpinnedContexts.filter(
-		( context ) => context.hasTitle !== false
-	);
+	const titledContexts = unpinnedContexts.filter( isTitled );
 	const regularContext = hasBothKinds
 		? ( titledContexts.find( ( context ) => context.hasBreakout ) ??
 			titledContexts[ 0 ] ??
 			unpinnedContexts[ 0 ] )
-		: entryKindContexts[ 0 ];
+		: ( entryKindContexts.find( isTitled ) ?? entryKindContexts[ 0 ] );
 	const fullStoryContexts = hasFullStory
 		? previewContexts.filter(
 				( context ) =>
@@ -2447,19 +2458,19 @@ export default function Edit( {
 			<LoadingState
 				isSilent={ isSilent }
 				label={ __(
-					'Loading coverages…',
+					'Loading liveblogs…',
 					'newspack-rolling-coverage'
 				) }
 			/>
 		) : (
 			<ComboboxControl
 				__next40pxDefaultSize
-				label={ __( 'Coverage', 'newspack-rolling-coverage' ) }
+				label={ __( 'Liveblog', 'newspack-rolling-coverage' ) }
 				hideLabelFromVision
 				value={ coverageId ? String( coverageId ) : '' }
 				options={ options }
 				placeholder={ __(
-					'Search for a coverage…',
+					'Search for a liveblog…',
 					'newspack-rolling-coverage'
 				) }
 				onChange={ ( value ) =>
@@ -2513,7 +2524,7 @@ export default function Edit( {
 					) }
 				</Stack>
 			</PanelBody>
-			<PanelBody title={ __( 'Coverage', 'newspack-rolling-coverage' ) }>
+			<PanelBody title={ __( 'Liveblog', 'newspack-rolling-coverage' ) }>
 				<Stack direction="column" gap="lg">
 					{ renderCoverageCombobox( ! coverageId ) }
 
@@ -2534,7 +2545,7 @@ export default function Edit( {
 								onChange={ setPendingCanonicalUrl }
 								disabled={ isApplyingUrl }
 								help={ __(
-									"The page readers land on when they open a link to one of this coverage's entries. Shared across every block connected to this coverage.",
+									"The page readers land on when they open a link to one of this liveblog's entries. Shared across every block connected to this liveblog.",
 									'newspack-rolling-coverage'
 								) }
 							/>
@@ -2667,7 +2678,7 @@ export default function Edit( {
 								'newspack-rolling-coverage'
 							) }
 							help={ __(
-								'Links to the coverage page. Hidden on that page.',
+								'Links to the liveblog page. Hidden on that page.',
 								'newspack-rolling-coverage'
 							) }
 							value={ allUpdatesLink !== false ? 'show' : 'hide' }
@@ -2958,9 +2969,9 @@ export default function Edit( {
 					isBlock
 					label={ __( 'When ended', 'newspack-rolling-coverage' ) }
 					help={ sprintf(
-						/* translators: %s: The status that ends a coverage, e.g. "Ended". “Hide” is the option above; keep the word used to translate it. */
+						/* translators: %s: The status that ends a liveblog, e.g. "Ended". “Hide” is the option above; keep the word used to translate it. */
 						__(
-							'Hide removes the whole block once the coverage’s status is set to “%s” in All Coverages.',
+							'Hide removes the whole block once the liveblog’s status is set to “%s” in All Liveblogs.',
 							'newspack-rolling-coverage'
 						),
 						STATUS_LABELS.archived
@@ -3005,9 +3016,9 @@ export default function Edit( {
 								'newspack-rolling-coverage'
 							) }
 							help={ sprintf(
-								/* translators: %s: The status that ends a coverage, e.g. "Ended". */
+								/* translators: %s: The status that ends a liveblog, e.g. "Ended". */
 								__(
-									'Tells readers the coverage has ended. Shown at the top of the feed once its status is set to “%s” in All Coverages.',
+									'Tells readers the liveblog has ended. Shown at the top of the feed once its status is set to “%s” in All Liveblogs.',
 									'newspack-rolling-coverage'
 								),
 								STATUS_LABELS.archived
@@ -3060,7 +3071,7 @@ export default function Edit( {
 									placeholder={
 										currentCoverage?.label
 											? sprintf(
-													/* translators: %s: Coverage name. */
+													/* translators: %s: Liveblog name. */
 													__(
 														'Coverage of “%s” has concluded and this feed is now archived.',
 														'newspack-rolling-coverage'
@@ -3143,7 +3154,7 @@ export default function Edit( {
 												'newspack-rolling-coverage'
 											) }
 											help={ __(
-												"When empty, links to the coverage's latest breakout post, if there is one.",
+												"When empty, links to the liveblog's latest breakout post, if there is one.",
 												'newspack-rolling-coverage'
 											) }
 											placeholder="https://example.com/story"
@@ -3189,7 +3200,7 @@ export default function Edit( {
 					<Stack direction="column" gap="lg">
 						<Text render={ <p /> }>
 							{ __(
-								'Sums up the latest entries in this coverage as key takeaways and copies them, ready to paste into the page. Generate again as new entries come in.',
+								'Sums up the latest entries in this liveblog as key takeaways and copies them, ready to paste into the page. Generate again as new entries come in.',
 								'newspack-rolling-coverage'
 							) }
 						</Text>
@@ -3257,7 +3268,7 @@ export default function Edit( {
 						{ coverageAdsDisabled ? (
 							<Notice status="warning" isDismissible={ false }>
 								{ __(
-									'Ads are disabled for this coverage. Enable them in the coverage settings to configure ad settings here.',
+									'Ads are disabled for this liveblog. Enable them in the liveblog settings to configure ad settings here.',
 									'newspack-rolling-coverage'
 								) }
 							</Notice>
@@ -3431,7 +3442,7 @@ export default function Edit( {
 							isPreviewMode
 								? undefined
 								: __(
-										"Choose a layout for the coverage's entries.",
+										"Choose a layout for the liveblog's entries.",
 										'newspack-rolling-coverage'
 									)
 						}
@@ -3463,7 +3474,7 @@ export default function Edit( {
 										isDismissible={ false }
 									>
 										{ __(
-											'This coverage has been trashed and is no longer available. Select a different coverage or restore it from the Rolling Coverage admin.',
+											'This liveblog has been trashed and is no longer available. Select a different liveblog or restore it from the Rolling Coverage admin.',
 											'newspack-rolling-coverage'
 										) }
 									</Notice>
@@ -3476,7 +3487,7 @@ export default function Edit( {
 										isDismissible={ false }
 									>
 										{ __(
-											'This feed is hidden on the site because the coverage has ended.',
+											'This feed is hidden on the site because the liveblog has ended.',
 											'newspack-rolling-coverage'
 										) }
 									</Notice>
@@ -3489,7 +3500,7 @@ export default function Edit( {
 										isDismissible={ false }
 									>
 										{ __(
-											'No published entries yet — showing the template only. Add entries to this coverage to preview real content here.',
+											'No published entries yet — showing the template only. Add entries to this liveblog to preview real content here.',
 											'newspack-rolling-coverage'
 										) }
 									</Notice>
@@ -3607,9 +3618,15 @@ export default function Edit( {
 																...coverageContext,
 															} }
 														>
-															<div
-																{ ...innerBlocksProps }
-															/>
+															<UntitledEntriesContext.Provider
+																value={
+																	untitledEntries
+																}
+															>
+																<div
+																	{ ...innerBlocksProps }
+																/>
+															</UntitledEntriesContext.Provider>
 														</BlockContextProvider>
 													</PinnedPreviewsContext.Provider>
 												</EntryPreviewsContext.Provider>
@@ -3624,7 +3641,7 @@ export default function Edit( {
 							icon={ liveStreaming }
 							label="Rolling Coverage"
 							instructions={ __(
-								'Select a coverage to display its entries.',
+								'Select a liveblog to display its entries.',
 								'newspack-rolling-coverage'
 							) }
 							isColumnLayout

@@ -346,7 +346,7 @@ class Taxonomy {
 		if ( ! $term || is_wp_error( $term ) ) {
 			return new \WP_Error(
 				'rolling_coverage_coverage_not_found',
-				__( 'Coverage not found.', 'newspack-rolling-coverage' ),
+				__( 'Liveblog not found.', 'newspack-rolling-coverage' ),
 				[ 'status' => 404 ]
 			);
 		}
@@ -511,7 +511,7 @@ class Taxonomy {
 		if ( 'trash' !== $current_status ) {
 			return new \WP_Error(
 				'rolling_coverage_coverage_not_trashed',
-				__( 'Coverage is not in trash.', 'newspack-rolling-coverage' ),
+				__( 'Liveblog is not in trash.', 'newspack-rolling-coverage' ),
 				[ 'status' => 400 ]
 			);
 		}
@@ -550,7 +550,7 @@ class Taxonomy {
 		if ( false === $result ) {
 			return new \WP_Error(
 				'rolling_coverage_coverage_not_deleted',
-				__( 'Coverage could not be deleted.', 'newspack-rolling-coverage' ),
+				__( 'Liveblog could not be deleted.', 'newspack-rolling-coverage' ),
 				[ 'status' => 500 ]
 			);
 		}

@@ -55,8 +55,8 @@ function getCoverageActions(
 			notifySuccess(
 				pluralize(
 					items.length,
-					__( 'Coverage restored.', 'newspack-rolling-coverage' ),
-					__( 'Coverages restored.', 'newspack-rolling-coverage' )
+					__( 'Liveblog restored.', 'newspack-rolling-coverage' ),
+					__( 'Liveblogs restored.', 'newspack-rolling-coverage' )
 				)
 			);
 			onActionPerformed();
@@ -64,7 +64,7 @@ function getCoverageActions(
 			notifyError(
 				failed[ 0 ].error ||
 					__(
-						'Failed to restore coverage.',
+						'Failed to restore liveblog.',
 						'newspack-rolling-coverage'
 					)
 			);
@@ -138,14 +138,14 @@ function getCoverageActions(
 					title: pluralize(
 						items.length,
 						__(
-							'Trash this coverage?',
+							'Trash this liveblog?',
 							'newspack-rolling-coverage'
 						),
 						sprintf(
-							/* translators: %d: number of coverages. */
+							/* translators: %d: number of liveblogs. */
 							_n(
-								'Trash %d coverage?',
-								'Trash %d coverages?',
+								'Trash %d liveblog?',
+								'Trash %d liveblogs?',
 								items.length,
 								'newspack-rolling-coverage'
 							),
@@ -156,11 +156,11 @@ function getCoverageActions(
 						pluralize(
 							items.length,
 							__(
-								'Its entries will be hidden from the frontend until the coverage is restored.',
+								'Its entries will be hidden from the frontend until the liveblog is restored.',
 								'newspack-rolling-coverage'
 							),
 							__(
-								'Their entries will be hidden from the frontend until the coverages are restored.',
+								'Their entries will be hidden from the frontend until the liveblogs are restored.',
 								'newspack-rolling-coverage'
 							)
 						),
@@ -197,7 +197,7 @@ function getCoverageActions(
 							const error =
 								failed[ 0 ].error ||
 								__(
-									'Failed to trash coverage.',
+									'Failed to trash liveblog.',
 									'newspack-rolling-coverage'
 								);
 							// Some items went through, so a retry would resend those too.
@@ -214,11 +214,11 @@ function getCoverageActions(
 							pluralize(
 								items.length,
 								__(
-									'Coverage trashed.',
+									'Liveblog trashed.',
 									'newspack-rolling-coverage'
 								),
 								__(
-									'Coverages trashed.',
+									'Liveblogs trashed.',
 									'newspack-rolling-coverage'
 								)
 							),
@@ -259,14 +259,14 @@ function getCoverageActions(
 					title: pluralize(
 						items.length,
 						__(
-							'Permanently delete this coverage?',
+							'Permanently delete this liveblog?',
 							'newspack-rolling-coverage'
 						),
 						sprintf(
-							/* translators: %d: number of coverages. */
+							/* translators: %d: number of liveblogs. */
 							_n(
-								'Permanently delete %d coverage?',
-								'Permanently delete %d coverages?',
+								'Permanently delete %d liveblog?',
+								'Permanently delete %d liveblogs?',
 								items.length,
 								'newspack-rolling-coverage'
 							),
@@ -299,7 +299,7 @@ function getCoverageActions(
 							const error =
 								failed[ 0 ].error ||
 								__(
-									'Failed to delete coverage.',
+									'Failed to delete liveblog.',
 									'newspack-rolling-coverage'
 								);
 							// Some items went through, so a retry would resend those too.
@@ -316,11 +316,11 @@ function getCoverageActions(
 							pluralize(
 								items.length,
 								__(
-									'Coverage permanently deleted.',
+									'Liveblog permanently deleted.',
 									'newspack-rolling-coverage'
 								),
 								__(
-									'Coverages permanently deleted.',
+									'Liveblogs permanently deleted.',
 									'newspack-rolling-coverage'
 								)
 							)

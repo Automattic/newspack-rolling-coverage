@@ -111,7 +111,7 @@ For the block's AI panel, see [AI](../src/blocks/rolling-coverage/README.md#ai).
 
 ### Structured data
 
-A Rolling Coverage block that shows all entries outputs schema.org `LiveBlogPosting` JSON-LD with a `liveBlogUpdate` array of `BlogPosting` items, including `coverageStartTime`/`coverageEndTime`, `datePublished`/`dateModified`, per-entry `BlogPosting` bodies, and authors. With Yoast SEO active, the page's first such coverage is merged into Yoast's Article instead, which keeps its type and adds `LiveBlogPosting`. Output is cached in the object cache for up to a week, and a change to the page, the coverage, or its entries starts a new cache entry. See [Live blog markup](../src/blocks/rolling-coverage/README.md#live-blog-markup).
+A Rolling Coverage block that shows all entries outputs schema.org `LiveBlogPosting` JSON-LD with a `liveBlogUpdate` array of `BlogPosting` items, including `coverageStartTime`/`coverageEndTime`, `datePublished`/`dateModified`, per-entry `BlogPosting` bodies, and authors. With Yoast SEO active, the page's first such coverage is merged into Yoast's Article instead, which keeps its type and adds `LiveBlogPosting`. Output is cached in the object cache for up to a week, and a change to the page, the coverage, or its entries starts a new cache entry. See [Liveblog markup](../src/blocks/rolling-coverage/README.md#liveblog-markup).
 
 ### Updated date
 
@@ -345,7 +345,7 @@ Useful query vars for developers on `WP_Query`:
 
 | Capability | Grants |
 | :--- | :--- |
-| `edit_posts` | Access All Coverages, view/author entries, generate takeaways, view trashed entries. |
+| `edit_posts` | Access All Liveblogs, view/author entries, generate takeaways, view trashed entries. |
 | `publish_posts` | Publish own entries. |
 | `edit_others_posts` / Editor+ | View and manage all entries, pin, archive, breakout, change entry authors, and edit status labels and reader-facing labels. |
 | `manage_categories` | Create/edit/trash/restore/delete coverages. |

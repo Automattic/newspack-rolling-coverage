@@ -150,8 +150,8 @@ class Archive_Mode {
 		return new WP_Error(
 			$code,
 			sprintf(
-				/* translators: %s: The status that ends a coverage, e.g. "Ended". */
-				__( 'This entry’s coverage is set to “%s”; change its status first.', 'newspack-rolling-coverage' ),
+				/* translators: %s: The status that ends a liveblog, e.g. "Ended". */
+				__( 'This entry’s liveblog is set to “%s”; change its status first.', 'newspack-rolling-coverage' ),
 				Status_Labels::get_all()[ Taxonomy::STATUS_ARCHIVED ]
 			),
 			[ 'status' => 403 ]
@@ -167,8 +167,8 @@ class Archive_Mode {
 		return new WP_Error(
 			'rolling_coverage_entry_locked',
 			sprintf(
-				/* translators: %s: The status that ends a coverage, e.g. "Ended". */
-				__( 'This entry can’t be added to a coverage set to “%s”.', 'newspack-rolling-coverage' ),
+				/* translators: %s: The status that ends a liveblog, e.g. "Ended". */
+				__( 'This entry can’t be added to a liveblog set to “%s”.', 'newspack-rolling-coverage' ),
 				Status_Labels::get_all()[ Taxonomy::STATUS_ARCHIVED ]
 			),
 			[ 'status' => 403 ]
