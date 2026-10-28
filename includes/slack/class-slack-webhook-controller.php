@@ -923,7 +923,7 @@ class Slack_Webhook_Controller {
 			$channel_settings = Slack_Config::get_channel_settings( $channel_id );
 
 			if ( null === $channel_settings ) {
-				Slack_Monitor::log( 'info', 'Channel not linked to a coverage, skipping', [ 'channel' => $channel_id ] );
+				Slack_Monitor::log( 'info', 'Channel not linked to a liveblog, skipping', [ 'channel' => $channel_id ] );
 				return new \WP_REST_Response( [ 'ok' => true ], 200 );
 			}
 
@@ -1037,7 +1037,7 @@ class Slack_Webhook_Controller {
 			$channel_id   = (string) ( $event['channel'] ?? '' );
 
 			if ( '' !== $slack_bot_id && $slack_bot_id === $joining_user && '' !== $channel_id ) {
-				$text = __( '👋 I\'m now connected and will ingest messages for rolling coverage.', 'newspack-rolling-coverage' );
+				$text = __( '👋 I\'m now connected and will turn messages into liveblog entries.', 'newspack-rolling-coverage' );
 				$this->api_client->post_message( $channel_id, $text, self::site_blocks( $text ) );
 			}
 		}
@@ -1273,7 +1273,7 @@ class Slack_Webhook_Controller {
 		$coverage_ids = wp_get_post_terms( $entry_id, Taxonomy::TAXONOMY_SLUG, [ 'fields' => 'ids' ] );
 		foreach ( is_wp_error( $coverage_ids ) ? [] : $coverage_ids as $coverage_id ) {
 			if ( 'trash' === get_term_meta( (int) $coverage_id, Taxonomy::STATUS_META_KEY, true ) ) {
-				Slack_Monitor::log( 'info', 'Draft not published (coverage trashed)', [ 'post_id' => $entry_id ] );
+				Slack_Monitor::log( 'info', 'Draft not published (liveblog trashed)', [ 'post_id' => $entry_id ] );
 				return;
 			}
 		}
@@ -2094,10 +2094,10 @@ class Slack_Webhook_Controller {
 				// Expected for a message with images, which Slack redelivers while the first delivery imports them.
 				Slack_Monitor::log( 'info', 'Ingestion: entry not created (another delivery of this message is still being processed)', [ 'ts' => $ts ] );
 			} elseif ( Entry_Ingestion_Service::SKIP_ARCHIVED_COVERAGE === $post_id ) {
-				Slack_Monitor::log( 'info', 'Ingestion: entry not created (coverage archived)', [ 'ts' => $ts ] );
+				Slack_Monitor::log( 'info', 'Ingestion: entry not created (liveblog archived)', [ 'ts' => $ts ] );
 				error_log( 'Slack ingestion: entry not created for ts ' . $ts . ' (coverage archived).' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			} elseif ( Entry_Ingestion_Service::SKIP_TRASHED_COVERAGE === $post_id ) {
-				Slack_Monitor::log( 'info', 'Ingestion: entry not created (coverage trashed)', [ 'ts' => $ts ] );
+				Slack_Monitor::log( 'info', 'Ingestion: entry not created (liveblog trashed)', [ 'ts' => $ts ] );
 				error_log( 'Slack ingestion: entry not created for ts ' . $ts . ' (coverage trashed).' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			} else {
 				Slack_Monitor::log( 'info', 'Ingestion: entry not created (duplicate, empty content, or bot user unavailable)', [ 'ts' => $ts ] );

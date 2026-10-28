@@ -300,7 +300,7 @@ function CoverageView() {
 					<EmptyState.Header
 						icon={ liveStreaming }
 						title={ __(
-							'Get started with rolling coverage',
+							'Get started with liveblogs',
 							'newspack-rolling-coverage'
 						) }
 						description={ __(

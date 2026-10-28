@@ -74,7 +74,7 @@ export default function CoverageChoice( {
 					value="automatic"
 					label={ _x(
 						'Automatic',
-						'coverage choice',
+						'liveblog choice',
 						'newspack-rolling-coverage'
 					) }
 					aria-label={
@@ -86,7 +86,7 @@ export default function CoverageChoice( {
 					value="custom"
 					label={ _x(
 						'Custom',
-						'coverage choice',
+						'liveblog choice',
 						'newspack-rolling-coverage'
 					) }
 					aria-label={
