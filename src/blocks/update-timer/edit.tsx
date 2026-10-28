@@ -164,7 +164,7 @@ export default function Edit( {
 
 	const blockProps = useBlockProps();
 	const endedNotice = __(
-		"This coverage has ended, so the timer won't show on the site.",
+		"This liveblog has ended, so the timer won't show on the site.",
 		'newspack-rolling-coverage'
 	);
 	let goneNotice = '';
@@ -173,11 +173,11 @@ export default function Edit( {
 		goneNotice =
 			followed || isTemplate
 				? __(
-						'This coverage no longer exists, so the page’s coverage is used.',
+						'This liveblog no longer exists, so the page’s liveblog is used.',
 						'newspack-rolling-coverage'
 					)
 				: __(
-						'This coverage no longer exists, so this timer won’t appear on the site.',
+						'This liveblog no longer exists, so this timer won’t appear on the site.',
 						'newspack-rolling-coverage'
 					);
 	}
@@ -198,7 +198,7 @@ export default function Edit( {
 				) }
 				{ ! isInFeed && (
 					<PanelBody
-						title={ __( 'Coverage', 'newspack-rolling-coverage' ) }
+						title={ __( 'Liveblog', 'newspack-rolling-coverage' ) }
 					>
 						<CoverageChoice
 							value={ coverageId }
@@ -208,11 +208,11 @@ export default function Edit( {
 							customChosen={ customChosen }
 							onCustomChosenChange={ setCustomChosen }
 							automaticHelp={ __(
-								'Counts down to the next check of the coverage on this page.',
+								'Counts down to the next check of the liveblog on this page.',
 								'newspack-rolling-coverage'
 							) }
 							customHelp={ __(
-								'Always counts down for this coverage.',
+								'Always counts down for this liveblog.',
 								'newspack-rolling-coverage'
 							) }
 							taxonomySlug={ config.taxonomySlug }

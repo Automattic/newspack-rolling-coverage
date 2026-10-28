@@ -45,7 +45,7 @@ function getCoverageFormFields( labels: StatusLabels ) {
 			description: (
 				<>
 					{ __(
-						'Used as the headline in LiveBlogPosting structured data when this coverage is shown on a page or post. Choose a reader-facing title rather than an internal label.',
+						'Used as the headline in LiveBlogPosting structured data when this liveblog is shown on a page or post. Choose a reader-facing title rather than an internal label.',
 						'newspack-rolling-coverage'
 					) }{ ' ' }
 					<ExternalLink href="https://schema.org/LiveBlogPosting">
@@ -60,7 +60,7 @@ function getCoverageFormFields( labels: StatusLabels ) {
 			type: 'text' as const,
 			label: __( 'Description', 'newspack-rolling-coverage' ),
 			description: __(
-				'An internal note about this coverage. Readers never see it.',
+				'An internal note about this liveblog. Readers never see it.',
 				'newspack-rolling-coverage'
 			),
 		},
@@ -84,7 +84,7 @@ function getCoverageFormFields( labels: StatusLabels ) {
 				'newspack-rolling-coverage'
 			),
 			description: __(
-				"The page readers land on when they open a link to one of this coverage's entries.",
+				"The page readers land on when they open a link to one of this liveblog's entries.",
 				'newspack-rolling-coverage'
 			),
 		},
@@ -93,7 +93,7 @@ function getCoverageFormFields( labels: StatusLabels ) {
 			type: 'text' as const,
 			label: __( 'Advertising', 'newspack-rolling-coverage' ),
 			description: __(
-				'Disable ads for this coverage, useful for emergency or other sensitive news coverage.',
+				'Disable ads for this liveblog, useful for emergency or other sensitive news coverage.',
 				'newspack-rolling-coverage'
 			),
 			elements: [
@@ -229,21 +229,21 @@ function CoverageDrawer( {
 			notifySuccess(
 				isEditing
 					? __( 'Changes saved.', 'newspack-rolling-coverage' )
-					: __( 'Coverage added.', 'newspack-rolling-coverage' )
+					: __( 'Liveblog added.', 'newspack-rolling-coverage' )
 			);
 			onSaved();
 			onClose();
 		} else {
 			setError(
 				result.error ||
-					__( 'Failed to save coverage', 'newspack-rolling-coverage' )
+					__( 'Failed to save liveblog', 'newspack-rolling-coverage' )
 			);
 		}
 	};
 
 	const title = isEditing
-		? __( 'Edit Coverage', 'newspack-rolling-coverage' )
-		: __( 'Add Coverage', 'newspack-rolling-coverage' );
+		? __( 'Edit Liveblog', 'newspack-rolling-coverage' )
+		: __( 'Add Liveblog', 'newspack-rolling-coverage' );
 
 	return (
 		<Drawer.Root

@@ -514,7 +514,7 @@ function SettingsModal( {
 												className="newspack-rolling-coverage-settings__description"
 											>
 												{ __(
-													'Set the text the status indicator shows for each coverage status. A block can still set its own.',
+													'Set the text the status indicator shows for each liveblog status. A block can still set its own.',
 													'newspack-rolling-coverage'
 												) }
 											</Text>

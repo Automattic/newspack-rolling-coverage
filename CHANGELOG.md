@@ -1,3 +1,10 @@
+## [0.2.1](https://github.com/Automattic/newspack-rolling-coverage/compare/v0.2.0...v0.2.1) (2026-10-28)
+
+
+### Bug Fixes
+
+* say liveblog instead of coverage on screen ([#297](https://github.com/Automattic/newspack-rolling-coverage/issues/297)) ([4830342](https://github.com/Automattic/newspack-rolling-coverage/commit/4830342f9c6bb077d4d5eeda0b10e90b6962534e))
+
 # [0.2.0](https://github.com/Automattic/newspack-rolling-coverage/compare/v0.1.0...v0.2.0) (2026-10-27)
 
 

@@ -295,7 +295,7 @@ class Post_Type {
 					'item_updated'             => __( 'Entry updated.', 'newspack-rolling-coverage' ),
 					'item_trashed'             => __( 'Entry trashed.', 'newspack-rolling-coverage' ),
 				],
-				'description'         => __( 'Individual entries within a Rolling Coverage.', 'newspack-rolling-coverage' ),
+				'description'         => __( 'Individual entries within a liveblog.', 'newspack-rolling-coverage' ),
 				'public'              => true,
 				'publicly_queryable'  => true,
 				'exclude_from_search' => true,
@@ -983,7 +983,7 @@ class Post_Type {
 		if ( 'trash' === get_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, true ) ) {
 			return new WP_Error(
 				'rolling_coverage_coverage_trashed',
-				__( 'This coverage is in the trash. Restore it before adding entries.', 'newspack-rolling-coverage' ),
+				__( 'This liveblog is in the trash. Restore it before adding entries.', 'newspack-rolling-coverage' ),
 				[ 'status' => 403 ]
 			);
 		}
@@ -1514,7 +1514,7 @@ class Post_Type {
 		if ( ! term_exists( $term_id, Taxonomy::TAXONOMY_SLUG ) ) {
 			return new WP_Error(
 				'rolling_coverage_coverage_not_found',
-				__( 'Coverage not found.', 'newspack-rolling-coverage' ),
+				__( 'Liveblog not found.', 'newspack-rolling-coverage' ),
 				[ 'status' => 404 ]
 			);
 		}
@@ -3677,8 +3677,8 @@ class Post_Type {
 			return new \WP_Error(
 				'rolling_coverage_entry_locked',
 				sprintf(
-					/* translators: %s: The status that ends a coverage, e.g. "Ended". */
-					__( 'This entry’s coverage is in the trash and was set to “%s”. Restore the coverage and change its status first.', 'newspack-rolling-coverage' ),
+					/* translators: %s: The status that ends a liveblog, e.g. "Ended". */
+					__( 'This entry’s liveblog is in the trash and was set to “%s”. Restore the liveblog and change its status first.', 'newspack-rolling-coverage' ),
 					Status_Labels::get_all()[ Taxonomy::STATUS_ARCHIVED ]
 				),
 				[ 'status' => 403 ]
@@ -3688,7 +3688,7 @@ class Post_Type {
 		if ( ! current_user_can( 'manage_categories' ) ) {
 			return new \WP_Error(
 				'rolling_coverage_coverage_trashed',
-				__( 'An editor needs to restore the coverage before this entry can be restored.', 'newspack-rolling-coverage' ),
+				__( 'An editor needs to restore the liveblog before this entry can be restored.', 'newspack-rolling-coverage' ),
 				[ 'status' => 403 ]
 			);
 		}
@@ -3788,7 +3788,7 @@ class Post_Type {
 			if ( ! current_user_can( 'manage_categories' ) ) {
 				return new \WP_Error(
 					'rolling_coverage_coverage_deleted',
-					__( 'This entry\'s coverage was deleted. An editor needs to restore it.', 'newspack-rolling-coverage' ),
+					__( 'This entry\'s liveblog was deleted. An editor needs to restore it.', 'newspack-rolling-coverage' ),
 					[ 'status' => 403 ]
 				);
 			}
@@ -3810,7 +3810,7 @@ class Post_Type {
 			if ( ! $recovery_slug || ! $original_name ) {
 				return new \WP_Error(
 					'rolling_coverage_no_recovery_context',
-					__( 'This entry has no coverage context to restore to.', 'newspack-rolling-coverage' ),
+					__( 'This entry has no liveblog to restore to.', 'newspack-rolling-coverage' ),
 					[ 'status' => 400 ]
 				);
 			}

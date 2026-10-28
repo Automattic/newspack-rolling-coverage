@@ -181,7 +181,7 @@ class Slack_Author_Resolver {
 				<td>
 					<input type="text" name="<?php echo esc_attr( self::FIELD_SLACK_HANDLE ); ?>" id="<?php echo esc_attr( self::FIELD_SLACK_HANDLE ); ?>" value="<?php echo esc_attr( $handle ); ?>" class="regular-text" aria-describedby="<?php echo esc_attr( $description_id ); ?>" />
 					<div id="<?php echo esc_attr( $description_id ); ?>">
-						<p class="description"><?php esc_html_e( 'A Slack handle or member ID. Rolling coverage entries posted from Slack by that person are credited to this user. A member ID is uppercase, starts with U or W and includes digits, such as U012AB3CDE; anything else is read as a handle.', 'newspack-rolling-coverage' ); ?></p>
+						<p class="description"><?php esc_html_e( 'A Slack handle or member ID. Liveblog entries posted from Slack by that person are credited to this user. A member ID is uppercase, starts with U or W and includes digits, such as U012AB3CDE; anything else is read as a handle.', 'newspack-rolling-coverage' ); ?></p>
 						<p class="description"><?php esc_html_e( 'A member ID is the safer choice: it never changes, and nobody can match it by changing their name in Slack, as they can with a handle. To find a member ID in Slack, click the profile picture, choose Profile, then open the More (⋮) menu and choose Copy member ID.', 'newspack-rolling-coverage' ); ?></p>
 					</div>
 				</td>

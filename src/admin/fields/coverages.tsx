@@ -119,7 +119,7 @@ function getCoverageFields(
 							variant="link"
 							className="newspack-rolling-coverage-slack-channel"
 							aria-label={ sprintf(
-								/* translators: %s: coverage name. */
+								/* translators: %s: liveblog name. */
 								__(
 									'Connect %s to a Slack channel',
 									'newspack-rolling-coverage'
