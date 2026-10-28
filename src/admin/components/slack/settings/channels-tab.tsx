@@ -155,7 +155,7 @@ function ChannelsTab( {
 							'newspack-rolling-coverage'
 						) }
 						description={ __(
-							'Link a Slack channel to a coverage from the All Coverages list.',
+							'Link a Slack channel to a liveblog from the All Liveblogs list.',
 							'newspack-rolling-coverage'
 						) }
 					/>
@@ -181,7 +181,7 @@ function ChannelsTab( {
 				>
 					<ConfirmModal
 						message={ __(
-							'Disconnect this channel from its coverage? Its messages will stop becoming entries.',
+							'Disconnect this channel from its liveblog? Its messages will stop becoming entries.',
 							'newspack-rolling-coverage'
 						) }
 						confirmLabel={ __(

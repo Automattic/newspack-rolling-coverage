@@ -85,8 +85,8 @@ class Admin {
 
 		add_submenu_page(
 			self::MENU_SLUG,
-			__( 'All Coverages', 'newspack-rolling-coverage' ),
-			__( 'All Coverages', 'newspack-rolling-coverage' ),
+			__( 'All Liveblogs', 'newspack-rolling-coverage' ),
+			__( 'All Liveblogs', 'newspack-rolling-coverage' ),
 			'edit_posts',
 			self::MENU_SLUG,
 			[ __CLASS__, 'render_page' ]
@@ -181,7 +181,7 @@ class Admin {
 	/**
 	 * URL of the coverages screen, on a coverage's entries when given one.
 	 *
-	 * @param int      $coverage_id Coverage term ID, or 0 for All Coverages.
+	 * @param int      $coverage_id Coverage term ID, or 0 for All Liveblogs.
 	 * @param string[] $args        Query args for the page, before the route.
 	 * @return string
 	 */
@@ -193,7 +193,7 @@ class Admin {
 
 	/**
 	 * URL of the screen to return to from an entry: its first coverage's
-	 * entries, or All Coverages when it has none.
+	 * entries, or All Liveblogs when it has none.
 	 *
 	 * @param int      $post_id Entry ID.
 	 * @param string[] $args    Query args for the page, before the route.

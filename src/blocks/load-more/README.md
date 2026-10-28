@@ -1,6 +1,6 @@
 # Load More
 
-The button readers press to load a coverage's older entries. It shows when a Rolling Coverage block's Older entries setting is “Load more” button, and sits wherever the layout places it.
+The button readers press to load a liveblog's older entries. It shows when a Rolling Coverage block's Older entries setting is “Load more” button, and sits wherever the layout places it.
 
 ## Where to put it
 

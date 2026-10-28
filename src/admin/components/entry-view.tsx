@@ -535,9 +535,9 @@ function EntryView() {
 					tooltipPosition="bottom"
 					label={ __( 'Add Entry', 'newspack-rolling-coverage' ) }
 					describedBy={ sprintf(
-						/* translators: 1: The coverage's status, e.g. "Ended". 2: The status that allows new entries, e.g. "Live". */
+						/* translators: 1: The liveblog's status, e.g. "Ended". 2: The status that allows new entries, e.g. "Live". */
 						__(
-							'This coverage is set to “%1$s”. Set it to “%2$s” to add entries.',
+							'This liveblog is set to “%1$s”. Set it to “%2$s” to add entries.',
 							'newspack-rolling-coverage'
 						),
 						statusLabels.archived,
@@ -657,7 +657,7 @@ function EntryView() {
 							'newspack-rolling-coverage'
 						) }
 						description={ __(
-							'Entries are the short updates readers follow in this coverage, newest first.',
+							'Entries are the short updates readers follow in this liveblog, newest first.',
 							'newspack-rolling-coverage'
 						) }
 					/>

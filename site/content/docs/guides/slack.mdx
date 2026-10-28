@@ -3,7 +3,7 @@ title: Post from Slack
 description: Connect a Slack workspace and channel so messages become entries, and choose how they publish.
 ---
 
-By the end of this page, a Slack channel will be connected to a coverage, and messages posted there will become entries.
+By the end of this page, a Slack channel will be connected to a liveblog, and messages posted there will become entries.
 
 Connecting the workspace needs an Administrator account, and so does linking a channel from the dashboard. In Slack, anyone in a channel can connect it with the `/rolling-coverage-connect` command.
 
@@ -74,26 +74,26 @@ In Slack, invite the bot to the channel with `/invite @Rolling Coverage`.
 </Step>
 <Step>
 
-### Link the channel to a coverage
+### Link the channel to a liveblog
 
-In **Rolling Coverage > All Coverages**, open the coverage's row actions and select **Slack Connection**. On the coverage's entries screen, the **Connect Slack** button does the same.
+In **Rolling Coverage > All Liveblogs**, open the liveblog's row actions and select **Slack Connection**. On the liveblog's entries screen, the **Connect Slack** button does the same.
 
 Enter the **Channel**, as a name such as #general or a channel ID. Choose a **Publish Mode**. Select **Connect**.
 
-<Screenshot label="The Slack Connection panel for a coverage, with the Channel field and the Publish Mode choices" src="/screenshots/guides/slack-3.webp" width={3024} height={1964} />
+<Screenshot label="The Slack Connection panel for a liveblog, with the Channel field and the Publish Mode choices" src="/screenshots/guides/slack-3.webp" width={3024} height={1964} />
 
 </Step>
 </Steps>
 
-You can also run `/rolling-coverage-connect` in the Slack channel and pick the coverage. Channels connected that way start in **Draft** mode.
+You can also run `/rolling-coverage-connect` in the Slack channel and pick the liveblog. Channels connected that way start in **Draft** mode.
 
-A channel connects to one coverage, and a coverage to one channel. `/rolling-coverage-status` shows a channel's connection, and `/rolling-coverage-unlink` removes it. Each reply names the site that answered, such as "From Example News (example.com)".
+A channel connects to one liveblog, and a liveblog to one channel. `/rolling-coverage-status` shows a channel's connection, and `/rolling-coverage-unlink` removes it. Each reply names the site that answered, such as "From Example News (example.com)".
 
 To see every linked channel, open the **Channel Mappings** tab on the Slack Connection page. To unlink one, select **Disconnect**.
 
 ## More than one site in a workspace
 
-Each site sets up its own Slack app, and every app comes with the same three commands. When one workspace has apps from more than one site, Slack sends the commands to the app installed most recently. The reply then names a different site, and the coverage list shows that site's coverages. If that site is offline or slow, Slack shows an error instead of a reply.
+Each site sets up its own Slack app, and every app comes with the same three commands. When one workspace has apps from more than one site, Slack sends the commands to the app installed most recently. The reply then names a different site, and the liveblog list shows that site's liveblogs. If that site is offline or slow, Slack shows an error instead of a reply.
 
 Messages and reactions aren't affected. They reach every site whose bot is in the channel.
 
@@ -154,7 +154,7 @@ In every mode, the bot reacts to each message it adds: a green circle when the e
 - Replies in a message's thread become entries too.
 - In **Auto-publish** and **Draft** channels, a message that starts with the ignore prefix stays in Slack, and so do its replies. The default prefix is `~~`. Change it under **Ignore Prefix** on the **Settings** tab.
 - Slack's own notices, such as someone joining the channel, and posts by bots stay in Slack.
-- Messages and reactions posted while the coverage has ended or is in the trash are ignored. Restoring the coverage from the trash doesn't bring them in.
+- Messages and reactions posted while the liveblog has ended or is in the trash are ignored. Restoring the liveblog from the trash doesn't bring them in.
 
 Editing or deleting a Slack message after it became an entry doesn't change the entry. Edit the entry on the site instead.
 

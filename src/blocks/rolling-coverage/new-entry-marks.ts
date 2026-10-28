@@ -331,7 +331,7 @@ export class NewEntryMarks {
 
 		const status = this.doc.createElement( 'span' );
 		status.className = STATUS_CLASS;
-		/* translators: Label on a coverage entry published while the reader has the page open. */
+		/* translators: Label on a liveblog entry published while the reader has the page open. */
 		status.textContent = __( 'New', 'newspack-rolling-coverage' );
 		entry.appendChild( status );
 	}

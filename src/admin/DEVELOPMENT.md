@@ -4,11 +4,11 @@ The plugin's admin screens live in `src/admin/`: the coverages list, each covera
 
 ## Screens and routes
 
-`Admin` (`includes/class-admin.php`) adds the Rolling Coverage menu with three pages: All Coverages (`edit_posts`), Slack Connection (`manage_options`) and AI (`manage_options`), so only administrators see and change the AI prompts; the settings route checks the same. Each page renders the same root element and loads the `admin` bundle, a React app with a hash router (`src/admin/app.tsx`). The page sets the route the app starts on.
+`Admin` (`includes/class-admin.php`) adds the Rolling Coverage menu with three pages: All Liveblogs (`edit_posts`), Slack Connection (`manage_options`) and AI (`manage_options`), so only administrators see and change the AI prompts; the settings route checks the same. Each page renders the same root element and loads the `admin` bundle, a React app with a hash router (`src/admin/app.tsx`). The page sets the route the app starts on.
 
 | Route | Screen |
 | --- | --- |
-| `#/coverages` | All Coverages (`coverage-view.tsx`) |
+| `#/coverages` | All Liveblogs (`coverage-view.tsx`) |
 | `#/coverages/<id>` | A coverage's entries (`entry-view.tsx`) |
 | `#/connection/<tab>` | Slack Connection (`slack-settings-page.tsx`), with its tabs in `src/admin/utils/slack-tabs.ts` |
 | `#/ai` | AI prompt settings (`ai-page.tsx`) |
@@ -26,7 +26,7 @@ The app reads its config from `window.newspackRollingCoverageAdmin` (`Admin::get
 | `canChangeAuthors` | `Post_Type::can_change_authors()` | Reassign's Author field |
 | `canAssignCategories`, `canAssignTags` | `Post_Type::can_assign_terms()` | Reassign's Categories and Tags fields |
 | `canCreateCategories`, `canCreateTags` | `Post_Type::can_create_terms()` | Typing a new category or tag in Reassign |
-| `canManageTerms` | `manage_categories` | Add Coverage, and editing and trashing coverages |
+| `canManageTerms` | `manage_categories` | Add Liveblog, and editing and trashing coverages |
 | `canManageOptions` | `manage_options` | Slack connections |
 | `canManageSettings` | `edit_others_posts` | The Settings modal |
 
@@ -34,15 +34,15 @@ The admin pages load the block editor's assets so Quick Edit can run a block edi
 
 ## Bulk actions
 
-Selecting rows in All Coverages or a coverage's entries shows DataViews' bulk actions in the list's footer, which stays at the bottom of the window while the list scrolls. Other plugins (newspack-blocks, newspack-listings, newspack-popups, newspack-manager) load an older DataViews stylesheet on these screens that gives `.dataviews-wrapper` `overflow: auto`. That makes the wrapper the footer's scroll container, and since the wrapper is as tall as its rows, the footer would sit after the last row. `_dataviews.scss` sets `overflow: visible` back on the plugin's screens.
+Selecting rows in All Liveblogs or a coverage's entries shows DataViews' bulk actions in the list's footer, which stays at the bottom of the window while the list scrolls. Other plugins (newspack-blocks, newspack-listings, newspack-popups, newspack-manager) load an older DataViews stylesheet on these screens that gives `.dataviews-wrapper` `overflow: auto`. That makes the wrapper the footer's scroll container, and since the wrapper is as tall as its rows, the footer would sit after the last row. `_dataviews.scss` sets `overflow: visible` back on the plugin's screens.
 
 At 782px and below, DataViews shows only the bulk actions that have an `icon`, as icon buttons. Every bulk action has one, so a new bulk action needs one too or it won't show on phones. `_dataviews.scss` hides the icon and shows the action's label as text, on a row of its own under the selection count. When the labels don't fit, the row scrolls sideways, fading on the side with more to see, and Cancel stays at its end. A button that takes keyboard focus scrolls fully into view, clear of the fade and Cancel (`revealFocusedBulkAction()` in `data-views-wrapper.tsx`). The styles find Cancel as the row's last button, and the focus handler finds the row by its `dataviews-bulk-actions-footer__action-buttons` class, both as DataViews 19.1 renders them; check them after a DataViews upgrade. The icons show nowhere else.
 
-## All Coverages
+## All Liveblogs
 
-The header holds Settings and Add Coverage. Add Coverage and the Edit action open `CoverageDrawer` (`coverage-drawer.tsx`), a DataForm with Name, Description, Canonical URL, Status and Advertising. Status options are named after the site's status labels. Description is an internal note, which the core terms route returns only in the `edit` context; the coverages list asks for that context when the user has `canManageTerms`, as everyone who can open the drawer does. In Edit, Save stays disabled until a field changes. A successful save closes the drawer with a snackbar, "Changes saved." for an edit or "Coverage added." for a new coverage; a failed one keeps it open with the error. The drawer saves through the core terms route, served by `Coverage_REST_Controller`: core lets anyone who can assign coverages to entries (`edit_posts`) create one, since the taxonomy isn't hierarchical, so the controller also requires `manage_categories` to create. The drawer sends every field each time, so each meta key it sends must be writable by anyone who can edit a coverage. A stricter `auth_callback` on one of them fails those users' saves after the other fields are already written.
+The header holds Settings and Add Liveblog. Add Liveblog and the Edit action open `CoverageDrawer` (`coverage-drawer.tsx`), a DataForm with Name, Description, Canonical URL, Status and Advertising. Status options are named after the site's status labels. Description is an internal note, which the core terms route returns only in the `edit` context; the coverages list asks for that context when the user has `canManageTerms`, as everyone who can open the drawer does. In Edit, Save stays disabled until a field changes. A successful save closes the drawer with a snackbar, "Changes saved." for an edit or "Liveblog added." for a new coverage; a failed one keeps it open with the error. The drawer saves through the core terms route, served by `Coverage_REST_Controller`: core lets anyone who can assign coverages to entries (`edit_posts`) create one, since the taxonomy isn't hierarchical, so the controller also requires `manage_categories` to create. The drawer sends every field each time, so each meta key it sends must be writable by anyone who can edit a coverage. A stricter `auth_callback` on one of them fails those users' saves after the other fields are already written.
 
-The list opens without trashed coverages (Status is not Trash). While some are in the trash, the toolbar shows "Trash (N)", which switches the status filter to them; "All Coverages" switches it back. Both replace any other status filter and keep the rest of the view. Add Coverage also leaves the Trash view, so the new coverage shows, including from the empty state after the last trashed coverage is deleted.
+The list opens without trashed coverages (Status is not Trash). While some are in the trash, the toolbar shows "Trash (N)", which switches the status filter to them; "All Liveblogs" switches it back. Both replace any other status filter and keep the rest of the view. Add Liveblog also leaves the Trash view, so the new coverage shows, including from the empty state after the last trashed coverage is deleted.
 
 Row actions live in `src/admin/actions/coverage-actions.ts`:
 
@@ -52,7 +52,7 @@ Row actions live in `src/admin/actions/coverage-actions.ts`:
 | Entries | Always | Opens the coverage's entries. |
 | Placements | The coverage has placements | See [Placements](#placements). |
 | Slack Connection | `canManageOptions`, once Slack is configured | Opens `SlackConnectionDrawer`. |
-| Trash | `canManageTerms`, coverage not trashed | Confirms, noting when a Slack channel is linked that messages posted while the coverage is in the trash won't become entries, then `POST rolling-coverage/v1/coverages/<id>/trash`. The coverage's status becomes `trash`, keeping the one it had in `rolling_coverage_status_before_trash`, and its entries are hidden on the site until it is restored. The "Coverage trashed." snackbar ("Coverages trashed." for several) offers Undo, which restores what was just trashed as Restore does. |
+| Trash | `canManageTerms`, coverage not trashed | Confirms, noting when a Slack channel is linked that messages posted while the coverage is in the trash won't become entries, then `POST rolling-coverage/v1/coverages/<id>/trash`. The coverage's status becomes `trash`, keeping the one it had in `rolling_coverage_status_before_trash`, and its entries are hidden on the site until it is restored. The "Liveblog trashed." snackbar ("Liveblogs trashed." for several) offers Undo, which restores what was just trashed as Restore does. |
 | Restore | `canManageTerms`, coverage trashed | `POST rolling-coverage/v1/coverages/<id>/restore`, which puts back the status the coverage had, so an ended coverage stays ended and keeps its end time. One with no status kept comes back Live. |
 | Delete Permanently | `canManageTerms`, coverage trashed | Confirms, then `DELETE rolling-coverage/v1/coverages/<id>`. Its entries are deleted too, apart from any already in the trash, by a cleanup cron event a minute later, in batches of 50. |
 
@@ -60,7 +60,7 @@ The routes live in `Taxonomy` (`includes/class-taxonomy.php`).
 
 ## Settings
 
-`SettingsModal` (`settings-modal.tsx`) opens from the All Coverages header for users with `edit_others_posts`. It has two tabs. Labels groups the three things readers see named, each under a heading of its own; Coverage Status holds the status labels. Each group saves one option through its own route:
+`SettingsModal` (`settings-modal.tsx`) opens from the All Liveblogs header for users with `edit_others_posts`. It has two tabs. Labels groups the three things readers see named, each under a heading of its own; Coverage Status holds the status labels. Each group saves one option through its own route:
 
 | Tab | Group | Fields | Route |
 | --- | --- | --- | --- |
@@ -315,7 +315,7 @@ Tests: `tests/test-slack-webhook.php`, against a stand-in for the plugin's REST 
 
 ## Placements
 
-A coverage's placements are every published place where the plugin's blocks show it. The coverage header and the All Coverages row actions use them to send editors to those places.
+A coverage's placements are every published place where the plugin's blocks show it. The coverage header and the All Liveblogs row actions use them to send editors to those places.
 
 ### What counts
 
@@ -404,7 +404,7 @@ Tests: `tests/test-placements.php`, plus the page lookup and its rebuild in `tes
 
 Entries are managed in the coverages screen, not in core's entries list, which stays registered but hidden (`show_in_menu` is false). Two exits from the editor point at that list, so both are redirected:
 
-- The back button. Core hardcodes its link to `edit.php?post_type=rolling_cov_entry` and shows it only when nothing else fills the slot. `src/entry-editor/back-to-coverage.tsx` fills it with `__experimentalMainDashboardButton` from `@wordpress/edit-post`, the one API for replacing it. It links to `#/coverages/<id>` for the entry's first coverage as currently edited (the first ID in the taxonomy's REST attribute), or `#/coverages` when it has none. Its label, read by screen readers and shown as a tooltip, is "Back to Coverage", or "Back to All Coverages" when the entry has no coverage. It renders only where core's own button does: fullscreen mode at a medium viewport or wider. `coveragesUrl` already ends in `#/coverages`, so the entry's route is that URL plus `/<id>`; `Admin::get_coverages_url()` builds the same URLs server side, so change both together. The two editor registrations (back button, Push Notifications panel) are separate plugins so one failing can't unmount the other.
+- The back button. Core hardcodes its link to `edit.php?post_type=rolling_cov_entry` and shows it only when nothing else fills the slot. `src/entry-editor/back-to-coverage.tsx` fills it with `__experimentalMainDashboardButton` from `@wordpress/edit-post`, the one API for replacing it. It links to `#/coverages/<id>` for the entry's first coverage as currently edited (the first ID in the taxonomy's REST attribute), or `#/coverages` when it has none. Its label, read by screen readers and shown as a tooltip, is "Back to Liveblog", or "Back to All Liveblogs" when the entry has no coverage. It renders only where core's own button does: fullscreen mode at a medium viewport or wider. `coveragesUrl` already ends in `#/coverages`, so the entry's route is that URL plus `/<id>`; `Admin::get_coverages_url()` builds the same URLs server side, so change both together. The two editor registrations (back button, Push Notifications panel) are separate plugins so one failing can't unmount the other.
 - The redirect after trashing. Core sends the editor to `edit.php?trashed=1&post_type=…&ids=<id>`. `Admin::redirect_entry_list()` (on `load-edit.php`) sends any plain GET for the entries list to the screen above, using `ids` to find the trashed entry's coverage. Requests carrying an `action` are left alone. After a trash it adds `rolling_coverage_trashed=1` to the page URL (not `trashed`, which core strips from admin URLs before the script runs); the admin app (`announceTrashedEntry()`) shows the "Entry trashed." snackbar for it and removes the arg with `history.replaceState`. There is no Undo: restoring would need the already-loaded list to refresh.
 
 Tests: `tests/test-entry-editor-navigation.php`.
@@ -419,4 +419,4 @@ The entry post type registers core's `item_*` labels (`Post_Type::register()`), 
 
 `Admin::enqueue_breakout_editor()`, on `enqueue_block_editor_assets`, loads the `breakout-editor` bundle (`src/breakout-editor/index.tsx`) when the screen and the post being edited are a `post` that links back to the entry it was broken out from (`Breakout::BREAKOUT_SOURCE_ENTRY_META`), and only once the bundle is built. It passes `window.newspackRollingCoverageBreakoutEditor`: the post meta key (`Breakout_Label::POST_META_KEY`), the label every other card shows (`Breakout_Label::get()`) and the length cap (`Breakout_Label::MAX_LENGTH`), and sets the script's translations.
 
-The bundle registers a "Rolling Coverage" panel in the post's settings sidebar holding a "Full story label" field, the post's own label for its card. The field's placeholder is the site's label, and its help text says "Shown above this story in the coverage feed. Leave empty to use “%s”." with that label. The meta, its precedence over the site's label and how a change reaches open pages are documented under "Full story label" in `src/blocks/rolling-coverage/DEVELOPMENT.md`.
+The bundle registers a "Rolling Coverage" panel in the post's settings sidebar holding a "Full story label" field, the post's own label for its card. The field's placeholder is the site's label, and its help text says "Shown above this story in the liveblog feed. Leave empty to use “%s”." with that label. The meta, its precedence over the site's label and how a change reaches open pages are documented under "Full story label" in `src/blocks/rolling-coverage/DEVELOPMENT.md`.
