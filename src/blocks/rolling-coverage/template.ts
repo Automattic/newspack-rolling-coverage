@@ -584,7 +584,7 @@ function allUpdatesText(): string {
 	}
 
 	return sprintf(
-		/* translators: %s: the site's name for several coverage entries, as it reads mid-sentence, e.g. "updates". */
+		/* translators: %s: the site's name for several liveblog entries, as it reads mid-sentence, e.g. "updates". */
 		__( 'See all %s', 'newspack-rolling-coverage' ),
 		ENTRY_PLURAL
 	);
@@ -2503,7 +2503,7 @@ function coverageNameHeading(
 			fontSize,
 			content: __( 'Live coverage', 'newspack-rolling-coverage' ),
 			metadata: {
-				name: __( 'Coverage Name', 'newspack-rolling-coverage' ),
+				name: __( 'Liveblog Name', 'newspack-rolling-coverage' ),
 				bindings: {
 					content: {
 						source: ENTRY_BINDINGS_SOURCE,

@@ -58,7 +58,7 @@ export default function CoverageChoice( {
 			<ToggleGroupControl
 				__next40pxDefaultSize
 				isBlock
-				label={ __( 'Coverage', 'newspack-rolling-coverage' ) }
+				label={ __( 'Liveblog', 'newspack-rolling-coverage' ) }
 				hideLabelFromVision
 				help={ isCustom ? customHelp : automaticHelp }
 				value={ isCustom ? 'custom' : 'automatic' }
@@ -74,24 +74,24 @@ export default function CoverageChoice( {
 					value="automatic"
 					label={ _x(
 						'Automatic',
-						'coverage choice',
+						'liveblog choice',
 						'newspack-rolling-coverage'
 					) }
 					aria-label={
 						/* translators: Screen reader name for the “Automatic” option. Keep the word used to translate “Automatic”. */
-						__( 'Automatic coverage', 'newspack-rolling-coverage' )
+						__( 'Automatic liveblog', 'newspack-rolling-coverage' )
 					}
 				/>
 				<ToggleGroupControlOption
 					value="custom"
 					label={ _x(
 						'Custom',
-						'coverage choice',
+						'liveblog choice',
 						'newspack-rolling-coverage'
 					) }
 					aria-label={
 						/* translators: Screen reader name for the “Custom” option. Keep the word used to translate “Custom”. */
-						__( 'Custom coverage', 'newspack-rolling-coverage' )
+						__( 'Custom liveblog', 'newspack-rolling-coverage' )
 					}
 				/>
 			</ToggleGroupControl>

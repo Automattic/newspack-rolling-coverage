@@ -485,7 +485,7 @@ class AI_Service {
 		if ( ! term_exists( $coverage_id, Taxonomy::TAXONOMY_SLUG ) ) {
 			return new WP_Error(
 				'rolling_coverage_coverage_not_found',
-				__( 'Coverage not found.', 'newspack-rolling-coverage' ),
+				__( 'Liveblog not found.', 'newspack-rolling-coverage' ),
 				[ 'status' => 404 ]
 			);
 		}
@@ -552,7 +552,7 @@ class AI_Service {
 		if ( empty( $entries ) ) {
 			return new WP_Error(
 				'rolling_coverage_no_entries',
-				__( 'No published entries found for this coverage.', 'newspack-rolling-coverage' ),
+				__( 'No published entries found for this liveblog.', 'newspack-rolling-coverage' ),
 				[ 'status' => 400 ]
 			);
 		}

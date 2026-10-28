@@ -43,7 +43,7 @@ function ConnectSlack( {
 				icon={ <SlackIcon size={ 36 } /> }
 				title={ __( 'Connect to Slack', 'newspack-rolling-coverage' ) }
 				description={ __(
-					'Turn messages in a Slack channel into rolling coverage entries.',
+					'Turn messages in a Slack channel into liveblog entries.',
 					'newspack-rolling-coverage'
 				) }
 			/>

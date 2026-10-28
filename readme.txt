@@ -12,7 +12,7 @@ Liveblog and rolling coverage of ongoing news events, with real-time updates, Sl
 
 == Description ==
 
-Rolling Coverage publishes a continuous feed of short, timestamped entries for each developing story. Entries are authored from a few well-known tools and delivered to readers in real time without a page reload. Rolling Coverage Blocks can be placed in multiple spots across a site — a post, a sidebar, a homepage marquee — with each placement configurable to show readers a tailored view of the same coverage. Ending a coverage locks its entries once an event concludes, and optional AI-generated summaries help readers stay oriented as the story grows.
+Rolling Coverage publishes a continuous feed of short, timestamped entries for each developing story. Entries are authored from a few well-known tools and delivered to readers in real time without a page reload. Rolling Coverage Blocks can be placed in multiple spots across a site — a post, a sidebar, a homepage marquee — with each placement configurable to show readers a tailored view of the same liveblog. Ending a liveblog locks its entries once an event concludes, and optional AI-generated summaries help readers stay oriented as the story grows.
 
 For the full documentation, see the README in the GitHub repository: https://github.com/Automattic/newspack-rolling-coverage/blob/trunk/README.md
 
@@ -23,29 +23,29 @@ The Newspack Rolling Coverage plugin is part of Newspack, a suite of tools to he
 == Installation ==
 
 1. Upload the Newspack Rolling Coverage plugin to your website, and activate it.
-2. Visit the Rolling Coverage menu in WP Admin and create your first coverage.
-3. Add the Rolling Coverage block to a post or page and select the coverage to display.
+2. Visit the Rolling Coverage menu in WP Admin and create your first liveblog.
+3. Add the Rolling Coverage block to a post or page and select the liveblog to display.
 4. Start adding entries, and optionally connect a Slack channel under Rolling Coverage > Slack Connection.
 
 == Frequently Asked Questions ==
 
-= What is the difference between a coverage and an entry? =
+= What is the difference between a liveblog and an entry? =
 
-A coverage represents one ongoing news event. Entries are the individual updates posted to that coverage.
+A liveblog represents one ongoing news event. Entries are the individual updates posted to that liveblog.
 
 = Can I publish entries from Slack? =
 
-Yes. Connect a Slack channel to a coverage under Rolling Coverage > Slack Connection, or use the `/rolling-coverage-connect` slash command from Slack. Each channel's Publish Mode decides what happens to new messages: they're published right away, saved as drafts, or wait for someone to react with an emoji.
+Yes. Connect a Slack channel to a liveblog under Rolling Coverage > Slack Connection, or use the `/rolling-coverage-connect` slash command from Slack. Each channel's Publish Mode decides what happens to new messages: they're published right away, saved as drafts, or wait for someone to react with an emoji.
 
-= What happens when a coverage ends? =
+= What happens when a liveblog ends? =
 
-Setting a coverage's status to Ended stops the feed from checking for new entries and locks its entries: they can't be trashed, pinned, reassigned, or turned into breakout posts, and no new entries can be added. Their text can still be edited. By default, a notice tells readers the coverage has ended, and the follow button is hidden. You can set the status back to Live at any time.
+Setting a liveblog's status to Ended stops the feed from checking for new entries and locks its entries: they can't be trashed, pinned, reassigned, or turned into breakout posts, and no new entries can be added. Their text can still be edited. By default, a notice tells readers the liveblog has ended, and the follow button is hidden. You can set the status back to Live at any time.
 
 = Do readers need to reload the page to see new entries? =
 
-No. The feed checks for new entries and adds them as they arrive. On a feed that shows all entries, readers who have scrolled down keep their place and see a button with the number of new entries instead, and a Check for Updates block in the layout makes the feed check only when a reader presses it. A paused or ended coverage doesn't check on its own.
+No. The feed checks for new entries and adds them as they arrive. On a feed that shows all entries, readers who have scrolled down keep their place and see a button with the number of new entries instead, and a Check for Updates block in the layout makes the feed check only when a reader presses it. A paused or ended liveblog doesn't check on its own.
 
-= Can I summarize a coverage automatically? =
+= Can I summarize a liveblog automatically? =
 
 Yes, when the WordPress AI plugin and an AI provider are configured. Use the AI panel in the Rolling Coverage block to generate key takeaways, or use the AI settings screen to customize the prompt.
 
