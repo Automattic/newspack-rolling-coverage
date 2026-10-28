@@ -50,7 +50,7 @@ function ConnectedChannelView( {
 					className="newspack-rolling-coverage-detail-help"
 				>
 					{ __(
-						'Messages posted in this channel become entries in this coverage, as the publish mode below sets.',
+						'Messages posted in this channel become entries in this liveblog, as the publish mode below sets.',
 						'newspack-rolling-coverage'
 					) }
 				</Text>
