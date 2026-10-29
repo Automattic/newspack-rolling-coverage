@@ -6,23 +6,13 @@
  * WordPress dependencies
  */
 import apiFetch from '@wordpress/api-fetch';
-import {
-	serialize,
-	createBlock,
-	createBlocksFromInnerBlocksTemplate,
-	parse,
-} from '@wordpress/blocks';
+import { parse } from '@wordpress/blocks';
 import { addQueryArgs } from '@wordpress/url';
 
 /**
  * Internal dependencies
  */
-import type {
-	BreakoutPreview,
-	CoverageOption,
-	EntryContext,
-	TemplateItem,
-} from './types';
+import type { BreakoutPreview, CoverageOption, EntryContext } from './types';
 import {
 	COVERAGES_REST_BASE,
 	STATUS_META_KEY,
@@ -285,7 +275,7 @@ function canCreateLayouts(): boolean {
 }
 
 /**
- * The layout pattern category's ID, or 0 until a built-in layout creates it.
+ * The layout pattern category's ID, or 0 when the site couldn't create it.
  *
  * @return {number} The category's term ID.
  */
@@ -295,34 +285,22 @@ function getLayoutCategoryId(): number {
 
 /**
  * Creates a built-in layout's shared pattern, or returns the existing one if
- * another story created it first. Concurrent calls for a layout share one
- * request.
+ * another story created it first. The server fills it with the layout as the
+ * plugin ships it. Concurrent calls for a layout share one request.
  *
- * @param {BuiltInLayoutSlug} slug     The built-in layout's slug.
- * @param {Function}          template Returns the layout's inner blocks template.
+ * @param {BuiltInLayoutSlug} slug The built-in layout's slug.
  * @return {Promise<number>} The layout's pattern ID. Rejects on failure.
  */
-function createLayout(
-	slug: BuiltInLayoutSlug,
-	template: () => TemplateItem[]
-): Promise< number > {
+function createLayout( slug: BuiltInLayoutSlug ): Promise< number > {
 	const pending = pendingLayouts[ slug ];
 
 	if ( pending ) {
 		return pending;
 	}
 
-	const content = serialize(
-		createBlock(
-			BLOCK_NAME,
-			{},
-			createBlocksFromInnerBlocksTemplate( template() )
-		)
-	);
 	const request = apiFetch< { id: number; categoryId?: number } >( {
 		url: `${ LAYOUTS_REST_BASE }/${ slug }`,
 		method: 'POST',
-		data: { content },
 	} )
 		.then( ( response ) => {
 			if ( ! response?.id ) {

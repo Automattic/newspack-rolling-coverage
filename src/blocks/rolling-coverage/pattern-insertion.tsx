@@ -27,7 +27,8 @@ type PatternRecord = {
 
 /**
  * Turns a layout pattern reference into a Rolling Coverage block that uses
- * the layout, as picking the layout in the block does: core locks the blocks
+ * the layout, as picking the layout in the block does, a built-in layout by
+ * its slug: core locks the blocks
  * inside a synced pattern reference, so the coverage couldn't be picked
  * there. Covers a layout inserted from the inserter, pasted, or already in a
  * story when it opens. Leaves the reference alone while editing a pattern,
@@ -140,12 +141,19 @@ function LayoutPatternReplacer( {
 		__unstableMarkNextChangeAsNotPersistent( { history: 'ignore' } );
 		replaceBlock(
 			clientId,
-			createBlock( BLOCK_NAME, {
-				layoutId: patternId,
-				...( builtInSlug
-					? switchLayoutAttributes( builtInSlug, [], undefined )
-					: {} ),
-			} )
+			createBlock(
+				BLOCK_NAME,
+				builtInSlug
+					? {
+							layoutSlug: builtInSlug,
+							...switchLayoutAttributes(
+								builtInSlug,
+								[],
+								undefined
+							),
+						}
+					: { layoutId: patternId }
+			)
 		);
 	}, [
 		canReplace,

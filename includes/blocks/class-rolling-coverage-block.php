@@ -1139,7 +1139,7 @@ class Rolling_Coverage_Block {
 					'adminUrl'                    => esc_url_raw( admin_url() ),
 					'isBlockTheme'                => wp_is_block_theme(),
 					'canEditThemeOptions'         => current_user_can( 'edit_theme_options' ),
-					'layoutCategoryId'            => Layout::get_pattern_category_id(),
+					'layoutCategoryId'            => Layout::ensure_pattern_category(),
 					'entryPostType'               => Post_Type::CPT_SLUG,
 					'entryPlural'                 => Entry_Name::word( 2 ),
 					'breakoutLabel'               => Breakout_Label::get(),

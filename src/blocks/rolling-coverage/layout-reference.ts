@@ -56,3 +56,45 @@ export function layoutReferenceOf(
 
 	return isBuiltIn( layoutSlug ) ? builtIn( layoutSlug ) : { kind: 'none' };
 }
+
+/**
+ * Where a block sits in the editor, as far as moving it to a slug goes.
+ */
+export type SlugMoveContext = {
+	isNested: boolean;
+	isLayoutPattern: boolean;
+	isPreviewMode: boolean;
+	isReadOnly: boolean;
+};
+
+/**
+ * The attributes that move a block pointing at a built-in layout's pattern
+ * by ID to the layout's slug, or null when there's nothing to move or the
+ * block can't be changed here. Named by slug, the block doesn't need the
+ * pattern to exist. A nested block's reference is dropped anyway, a layout
+ * pattern and a preview aren't stories, and a block shown read-only belongs
+ * to other content, whose own editor moves it.
+ *
+ * @param {LayoutReference} reference What the block points at.
+ * @param {number}          layoutId  The block's `layoutId`.
+ * @param {SlugMoveContext} where     Where the block sits in the editor.
+ * @return {Object|null} The attributes to set, or null.
+ */
+export function slugAttributesFor(
+	reference: LayoutReference,
+	layoutId: number,
+	where: SlugMoveContext
+): { layoutId: 0; layoutSlug: BuiltInLayoutSlug } | null {
+	if (
+		where.isNested ||
+		where.isLayoutPattern ||
+		where.isPreviewMode ||
+		where.isReadOnly
+	) {
+		return null;
+	}
+
+	return reference.kind === 'built-in' && layoutId > 0
+		? { layoutId: 0, layoutSlug: reference.slug }
+		: null;
+}

@@ -238,7 +238,7 @@ Namespace: **`rolling-coverage/v1`** (constant `NEWSPACK_ROLLING_COVERAGE_REST_N
 | GET/POST | `/settings/entry-name` | `edit_others_posts` | Read/update what readers see entries called (singular and plural). |
 | GET/POST | `/settings/latest-label` | `edit_others_posts` | Read/update the Jump to Latest button label. |
 | GET/POST | `/settings/breakout-label` | `edit_others_posts` | Read/update the site's Full story label for breakout cards. |
-| POST | `/layouts/{slug}` | create and publish patterns (`wp_block`) | Create the shared layout pattern for a built-in layout, or return the existing one. |
+| POST | `/layouts/{slug}` | create and publish patterns (`wp_block`) | Create the shared layout pattern for a built-in layout, holding the layout as the plugin ships it, or return the existing one. The editor calls it when someone first selects Edit Layout. |
 
 ### Slack
 

@@ -71,7 +71,6 @@ import {
 	fetchEntryPreviewContexts,
 	generateKeyTakeaways,
 	getLayoutEditUrl,
-	getLayoutId,
 	getLayoutReference,
 	canCreateLayouts,
 	getLayoutCategoryId,
@@ -139,6 +138,7 @@ import {
 	switchLayoutAttributes,
 	type BuiltInLayoutSlug,
 } from './layouts';
+import { slugAttributesFor } from './layout-reference';
 import PinnedEntryContext from './pinned-entry-context';
 import FullStoryEntryContext, {
 	PinnedFullStoryEntryContext,
@@ -893,7 +893,7 @@ export default function Edit( {
 		},
 		[]
 	);
-	const { isNested, isPreviewMode } = useSelect(
+	const { isNested, isPreviewMode, isReadOnly } = useSelect(
 		( select ) => {
 			const blockEditor = select( blockEditorStore ) as unknown as {
 				getBlockParentsByBlockName: (
@@ -901,6 +901,7 @@ export default function Edit( {
 					name: string
 				) => string[];
 				getSettings: () => { isPreviewMode?: boolean };
+				getBlockEditingMode: ( id: string ) => string;
 			};
 			return {
 				isNested:
@@ -911,6 +912,16 @@ export default function Edit( {
 				isPreviewMode: Boolean(
 					blockEditor.getSettings().isPreviewMode
 				),
+				// Shown from other content, such as a synced pattern or the
+				// template around a post, where a change here is dropped or
+				// lands in that content; its own editor handles the block.
+				isReadOnly:
+					blockEditor.getBlockEditingMode( clientId ) ===
+						'disabled' ||
+					blockEditor.getBlockParentsByBlockName(
+						clientId,
+						'core/block'
+					).length > 0,
 			};
 		},
 		[ clientId ]
@@ -1056,7 +1067,9 @@ export default function Edit( {
 				blocks: unknown[],
 				updateSelection?: boolean
 			) => void;
-			__unstableMarkNextChangeAsNotPersistent: () => void;
+			__unstableMarkNextChangeAsNotPersistent: ( options?: {
+				history?: string;
+			} ) => void;
 		};
 
 	const { invalidateResolution } = useDispatch( coreStore ) as unknown as {
@@ -1079,48 +1092,35 @@ export default function Edit( {
 			return;
 		}
 
-		let cancelled = false;
-		const sync = ( id: number ) => {
-			__unstableMarkNextChangeAsNotPersistent();
-			setAttributes( { layoutId: id } );
-		};
-		const fallBackToLocal = () => {
-			__unstableMarkNextChangeAsNotPersistent();
-			replaceInnerBlocks(
-				clientId,
-				createBlocksFromInnerBlocksTemplate( innerTemplate() ),
-				false
-			);
-		};
+		__unstableMarkNextChangeAsNotPersistent( { history: 'ignore' } );
+		setAttributes( { layoutSlug: 'default' } );
+	}, [
+		needsDefaultLayout,
+		setAttributes,
+		__unstableMarkNextChangeAsNotPersistent,
+	] );
 
-		if ( getLayoutId( 'default' ) ) {
-			sync( getLayoutId( 'default' ) );
+	// A block still pointing at a built-in layout's pattern moves to the
+	// layout's slug, saved with the next save.
+	const convertToSlug =
+		slugAttributesFor( reference, layoutId, {
+			isNested,
+			isLayoutPattern,
+			isPreviewMode,
+			isReadOnly,
+		} )?.layoutSlug ?? null;
+
+	useEffect( () => {
+		if ( ! convertToSlug ) {
 			return;
 		}
 
-		createLayout( 'default', innerTemplate )
-			.then( ( id ) => {
-				if ( getLayoutCategoryId() ) {
-					invalidateResolution( 'getEntityRecords', [
-						'postType',
-						'wp_block',
-						layoutsQuery( getLayoutCategoryId() ),
-					] );
-				}
-				return ! cancelled && sync( id );
-			} )
-			.catch( () => ! cancelled && fallBackToLocal() );
-
-		return () => {
-			cancelled = true;
-		};
+		__unstableMarkNextChangeAsNotPersistent( { history: 'ignore' } );
+		setAttributes( { layoutId: 0, layoutSlug: convertToSlug } );
 	}, [
-		needsDefaultLayout,
-		clientId,
+		convertToSlug,
 		setAttributes,
-		replaceInnerBlocks,
 		__unstableMarkNextChangeAsNotPersistent,
-		invalidateResolution,
 	] );
 
 	const { layoutRecord, hasResolvedLayout, canEditLayout } = useSelect(
@@ -1988,7 +1988,7 @@ export default function Edit( {
 		}
 
 		setIsCreatingLayout( true );
-		createLayout( builtInLayout.slug, builtInLayout.template )
+		createLayout( builtInLayout.slug )
 			.then( ( id ) => {
 				setCreatedLayoutId( id );
 				if ( getLayoutCategoryId() ) {
@@ -2061,13 +2061,7 @@ export default function Edit( {
 			}
 
 			if ( choice.kind === 'pattern' ) {
-				// Picking the block's built-in layout creates its pattern when
-				// it has none yet, under a new ID; it's still the same layout.
-				const isCurrent =
-					choice.id === syncedPatternId ||
-					( !! builtInSlug &&
-						builtInLayoutSlugFor( choice.id ) === builtInSlug );
-				if ( isSynced && isCurrent ) {
+				if ( isSynced && choice.id === syncedPatternId ) {
 					if ( isLayoutMissing ) {
 						invalidateResolution( 'getEntityRecord', [
 							'postType',
@@ -2082,43 +2076,25 @@ export default function Edit( {
 					if ( ! isSynced && innerBlockCount > 0 ) {
 						replaceInnerBlocks( clientId, [], false );
 					}
-					const patternSlug = builtInLayoutSlugFor( choice.id );
-					setAttributes( {
-						layoutId: choice.id,
-						layoutSlug: '',
-						...( patternSlug
-							? switchLayoutAttributes(
-									patternSlug,
-									replaced,
-									align
-								)
-							: {} ),
-					} );
+					setAttributes( { layoutId: choice.id, layoutSlug: '' } );
 				} );
 				return;
 			}
 
-			const layout = getBuiltInLayouts().find(
-				( item ) => item.slug === choice.slug
-			);
-
-			// The block's own built-in layout stays shared when its pattern
-			// couldn't be created, rather than turning into a detached copy.
-			if ( ! layout || ( isSynced && choice.slug === builtInSlug ) ) {
+			if ( isSynced && choice.slug === builtInSlug ) {
 				return;
 			}
 
+			// A built-in layout is picked by its slug, so picking it saves no
+			// pattern: the site gets one when someone first edits the layout.
 			registry.batch( () => {
-				replaceInnerBlocks(
-					clientId,
-					createBlocksFromInnerBlocksTemplate( layout.template() ),
-					false
-				);
+				if ( ! isSynced && innerBlockCount > 0 ) {
+					replaceInnerBlocks( clientId, [], false );
+				}
 				setAttributes( {
 					layoutId: 0,
-					layoutSlug: '',
-					allUpdatesLinkText: '',
-					...switchLayoutAttributes( layout.slug, replaced, align ),
+					layoutSlug: choice.slug,
+					...switchLayoutAttributes( choice.slug, replaced, align ),
 				} );
 			} );
 		},

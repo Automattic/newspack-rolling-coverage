@@ -2,7 +2,10 @@
  * What a Rolling Coverage block's layout attributes point at
  * (`layout-reference.ts`), as the editor reads them.
  */
-import { layoutReferenceOf } from '../../src/blocks/rolling-coverage/layout-reference';
+import {
+	layoutReferenceOf,
+	slugAttributesFor,
+} from '../../src/blocks/rolling-coverage/layout-reference';
 import type { BuiltInLayoutSlug } from '../../src/blocks/rolling-coverage/layouts';
 
 const LAYOUT_IDS: Record< BuiltInLayoutSlug, number > = {
@@ -89,5 +92,46 @@ describe( 'layoutReferenceOf', () => {
 			kind: 'pattern',
 			id: 40,
 		} );
+	} );
+} );
+
+describe( 'slugAttributesFor', () => {
+	const STORY = {
+		isNested: false,
+		isLayoutPattern: false,
+		isPreviewMode: false,
+		isReadOnly: false,
+	};
+	const convert = ( layoutId: number, layoutSlug = '', where = STORY ) =>
+		slugAttributesFor(
+			layoutReferenceOf( layoutId, layoutSlug, LAYOUT_IDS, UNRENDERED ),
+			layoutId,
+			where
+		);
+
+	it( "moves a block on a built-in layout's pattern to the layout's slug", () => {
+		expect( convert( 50 ) ).toEqual( {
+			layoutId: 0,
+			layoutSlug: 'ticker',
+		} );
+		expect( convert( 40 ) ).toEqual( {
+			layoutId: 0,
+			layoutSlug: 'ticker',
+		} );
+		expect( convert( 41 ) ).toEqual( { layoutId: 0, layoutSlug: 'flash' } );
+	} );
+
+	it( "leaves a block it can't change here alone", () => {
+		for ( const flag of Object.keys( STORY ) ) {
+			expect(
+				convert( 50, '', { ...STORY, [ flag ]: true } )
+			).toBeNull();
+		}
+	} );
+
+	it( 'leaves slug blocks, other patterns and blocks without a layout alone', () => {
+		expect( convert( 0, 'ticker' ) ).toBeNull();
+		expect( convert( 77 ) ).toBeNull();
+		expect( convert( 0 ) ).toBeNull();
 	} );
 } );

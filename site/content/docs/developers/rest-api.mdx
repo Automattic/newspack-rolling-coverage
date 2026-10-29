@@ -224,5 +224,5 @@ These exist so the dashboard and the block editor can work. They aren't meant fo
 | `POST` | `/entries/details` | Reassigning up to 100 entries' author, categories, tags, slug, or date. |
 | `GET`, `POST` | `/settings/status-labels`, `/settings/entry-name`, `/settings/latest-label`, `/settings/breakout-label` | The reader-facing labels in the Settings modal. |
 | `GET`, `POST` | `/ai/settings` | The key-takeaways prompt. |
-| `POST` | `/layouts/{slug}` | Creating the shared pattern behind a built-in layout. |
+| `POST` | `/layouts/{slug}` | Creating the shared pattern behind a built-in layout, the first time someone edits it. |
 | Various | `/slack/*` | The Slack connection: credentials, channels, and the webhooks Slack calls. The webhooks check Slack's request signature rather than a signed-in user. |
