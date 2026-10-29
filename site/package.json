@@ -10,7 +10,8 @@
 		"build": "astro build",
 		"preview": "astro preview",
 		"check:build": "node scripts/check-build.mjs",
-		"test": "node scripts/check-content.mjs && node scripts/check-contrast.mjs"
+		"test": "node scripts/check-content.mjs && node scripts/check-contrast.mjs",
+		"shot": "node screenshots/shot.mjs"
 	},
 	"dependencies": {
 		"@astrojs/markdown-remark": "^7.3.4",
@@ -30,6 +31,8 @@
 		"@tailwindcss/vite": "^4.3.3",
 		"@types/react": "^19.3.0",
 		"@types/react-dom": "^19.3.0",
+		"playwright-core": "^1.64.1",
+		"sharp": "^0.35.5",
 		"tailwindcss": "^4.3.3",
 		"typescript": "^7.0.2"
 	}
