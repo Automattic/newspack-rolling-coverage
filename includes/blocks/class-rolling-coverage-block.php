@@ -1133,6 +1133,8 @@ class Rolling_Coverage_Block {
 						Layout::BUILT_IN_SLUGS,
 						array_map( [ Layout::class, 'get_layout_id' ], Layout::BUILT_IN_SLUGS )
 					),
+					'unrenderedLayouts'           => Layout::get_unrendered_layouts(),
+					'canCreateLayouts'            => Layout::can_create_layout(),
 					'layoutsRestBase'             => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . '/layouts' ) ),
 					'adminUrl'                    => esc_url_raw( admin_url() ),
 					'isBlockTheme'                => wp_is_block_theme(),
@@ -1626,7 +1628,7 @@ class Rolling_Coverage_Block {
 		}
 
 		// Only a shared layout takes it: a detached one's link is edited in place.
-		$all_updates_link_text = (int) ( $attributes['layoutId'] ?? 0 ) > 0 && is_string( $attributes['allUpdatesLinkText'] ?? null )
+		$all_updates_link_text = Layout::has_shared_layout( $attributes ) && is_string( $attributes['allUpdatesLinkText'] ?? null )
 			? trim( $attributes['allUpdatesLinkText'] )
 			: '';
 

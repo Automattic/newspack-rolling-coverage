@@ -18,12 +18,14 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Keeps the shared layout in a synced pattern whose content is one Rolling
  * Coverage block, and hands that block's inner blocks to every Rolling
- * Coverage block pointing at it through its `layoutId` attribute.
+ * Coverage block pointing at it through its `layoutId` attribute, or naming a
+ * built-in layout through its `layoutSlug` attribute.
  *
  * A built-in layout's pattern follows the plugin until someone edits it:
  * while it still holds the content it last got from the plugin, the page and
  * the editor get the layout this version of the plugin ships
- * (`Layout_Templates`).
+ * (`Layout_Templates`). A built-in layout without a pattern renders that way
+ * too.
  */
 class Layout {
 
@@ -38,6 +40,15 @@ class Layout {
 	 * edited.
 	 */
 	const HASH_META_KEY = '_rolling_coverage_layout_hash';
+
+	/**
+	 * Prefix of the option recording a deleted built-in layout pattern's slug,
+	 * one option per pattern ID, so blocks still pointing at it follow the
+	 * layout instead of falling back to Bulletin once its slug tag is gone.
+	 * One option each keeps parallel deletes from overwriting each other.
+	 * Records stay: one is only read for an ID that no longer resolves.
+	 */
+	const DELETED_OPTION_PREFIX = 'rolling_coverage_deleted_layout_';
 
 	const PATTERN_CATEGORY = 'rolling-coverage';
 
@@ -56,6 +67,7 @@ class Layout {
 		add_action( 'rest_api_init', [ __CLASS__, 'register_routes' ] );
 		add_filter( 'rest_prepare_wp_block', [ __CLASS__, 'prepare_pattern_response' ], 10, 2 );
 		add_action( 'post_updated', [ __CLASS__, 'record_unedited_save' ], 10, 3 );
+		add_action( 'before_delete_post', [ __CLASS__, 'record_deleted_pattern' ], 10, 2 );
 	}
 
 	/**
@@ -95,6 +107,195 @@ class Layout {
 		}
 
 		return null;
+	}
+
+	/**
+	 * The layout blocks a block renders: its pattern's (`layoutId`), else the
+	 * built-in layout it names (`layoutSlug`). `layoutId` decides when both
+	 * are set. A built-in layout's pattern that can't render (unpublished,
+	 * deleted, or holding no layout) leaves the block to that layout
+	 * (get_built_in_slug()); any other pattern that can't render leaves it
+	 * with none, as the editor and Placements read it.
+	 *
+	 * @param array $attrs Block attributes.
+	 * @return array[]|null Inner blocks, or null when the block names no layout that resolves.
+	 */
+	public static function resolve_layout_blocks( array $attrs ): ?array {
+		$layout_id = (int) ( $attrs['layoutId'] ?? 0 );
+		$blocks    = $layout_id > 0 ? self::get_layout_blocks( $layout_id ) : null;
+
+		if ( ! empty( $blocks ) ) {
+			return $blocks;
+		}
+
+		if ( $layout_id > 0 ) {
+			$slug = self::get_built_in_slug( $layout_id );
+		} else {
+			$slug = is_string( $attrs['layoutSlug'] ?? null ) ? $attrs['layoutSlug'] : null;
+		}
+
+		return null === $slug || '' === $slug ? null : self::get_slug_layout_blocks( $slug );
+	}
+
+	/**
+	 * The built-in layout a pattern is or was: its slug tag, or, once it's
+	 * deleted and the tag with it, the slug recorded when it was deleted.
+	 *
+	 * @param int $layout_id Pattern ID.
+	 * @return string|null Built-in layout slug, or null.
+	 */
+	public static function get_built_in_slug( int $layout_id ): ?string {
+		$slug = (string) get_post_meta( $layout_id, self::SLUG_META_KEY, true );
+
+		return in_array( $slug, self::BUILT_IN_SLUGS, true ) ? $slug : self::get_deleted_slug( $layout_id );
+	}
+
+	/**
+	 * The option recording a deleted built-in layout pattern's slug.
+	 *
+	 * @param int $layout_id Pattern ID.
+	 * @return string
+	 */
+	public static function deleted_option_name( int $layout_id ): string {
+		return self::DELETED_OPTION_PREFIX . $layout_id;
+	}
+
+	/**
+	 * The built-in layout a deleted pattern was.
+	 *
+	 * @param int $layout_id Pattern ID.
+	 * @return string|null Built-in layout slug, or null.
+	 */
+	public static function get_deleted_slug( int $layout_id ): ?string {
+		$slug = get_option( self::deleted_option_name( $layout_id ), '' );
+
+		return in_array( $slug, self::BUILT_IN_SLUGS, true ) ? $slug : null;
+	}
+
+	/**
+	 * Every built-in layout pattern the page renders as its built-in layout
+	 * instead of its own content, by ID: unpublished, trashed, deleted, or
+	 * holding no layout. The editor reads a block pointing at one as that
+	 * layout, as resolve_layout_blocks() does, and a restored pattern drops
+	 * out of the list once it renders again.
+	 *
+	 * @return array<int, string> Built-in layout slugs by pattern ID.
+	 */
+	public static function get_unrendered_layouts(): array {
+		global $wpdb;
+
+		$layouts = [];
+		$tagged  = get_posts(
+			[
+				'post_type'      => 'wp_block',
+				'post_status'    => [ 'publish', 'future', 'draft', 'pending', 'private', 'trash' ],
+				'fields'         => 'ids',
+				'posts_per_page' => 100,
+				'no_found_rows'  => true,
+				// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+				'meta_query'     => [
+					[
+						'key'     => self::SLUG_META_KEY,
+						'compare' => 'EXISTS',
+					],
+				],
+			]
+		);
+
+		foreach ( $tagged as $layout_id ) {
+			$slug = self::get_built_in_slug( (int) $layout_id );
+
+			if ( null !== $slug && empty( self::get_layout_blocks( (int) $layout_id ) ) ) {
+				$layouts[ (int) $layout_id ] = $slug;
+			}
+		}
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$deleted = $wpdb->get_results( $wpdb->prepare( "SELECT option_name, option_value FROM {$wpdb->options} WHERE option_name LIKE %s", $wpdb->esc_like( self::DELETED_OPTION_PREFIX ) . '%' ) );
+
+		foreach ( $deleted as $row ) {
+			$layout_id = (int) substr( $row->option_name, strlen( self::DELETED_OPTION_PREFIX ) );
+
+			if ( $layout_id > 0 && in_array( $row->option_value, self::BUILT_IN_SLUGS, true ) ) {
+				$layouts[ $layout_id ] = $row->option_value;
+			}
+		}
+
+		return $layouts;
+	}
+
+	/**
+	 * Records a built-in layout's pattern as it's deleted, while its slug is
+	 * still in its meta: the Site Editor deletes patterns without trashing
+	 * them first. An unpublished or trashed pattern keeps its tag, so it
+	 * needs no record.
+	 *
+	 * @param int          $post_id Post ID.
+	 * @param WP_Post|null $post    Post.
+	 */
+	public static function record_deleted_pattern( $post_id, $post = null ): void {
+		$post = $post instanceof WP_Post ? $post : get_post( $post_id );
+
+		if ( ! $post instanceof WP_Post || 'wp_block' !== $post->post_type ) {
+			return;
+		}
+
+		$slug = (string) get_post_meta( $post->ID, self::SLUG_META_KEY, true );
+
+		if ( in_array( $slug, self::BUILT_IN_SLUGS, true ) ) {
+			add_option( self::deleted_option_name( $post->ID ), $slug, '', false );
+		}
+	}
+
+	/**
+	 * A built-in layout's blocks: its pattern's once someone has edited it,
+	 * while that pattern holds a layout, else the layout as this version of
+	 * the plugin ships it.
+	 *
+	 * @param string $slug Built-in layout slug.
+	 * @return array[]|null Inner blocks, or null for a slug that names no built-in layout.
+	 */
+	public static function get_slug_layout_blocks( string $slug ): ?array {
+		if ( ! in_array( $slug, self::BUILT_IN_SLUGS, true ) ) {
+			return null;
+		}
+
+		$layout_id = self::get_stored_layout_id( $slug );
+		$blocks    = $layout_id ? self::get_layout_blocks( $layout_id ) : null;
+
+		return ! empty( $blocks ) ? $blocks : Layout_Templates::get_blocks( $slug );
+	}
+
+	/**
+	 * A built-in layout's pattern ID as its option stores it, when that names
+	 * a published pattern. Unlike get_layout_id(), it never searches for a
+	 * pattern tagged with the slug, which would cost a query on every page
+	 * showing a built-in layout that has no pattern.
+	 *
+	 * @param string $slug Built-in layout slug.
+	 * @return int Pattern ID, or 0.
+	 */
+	public static function get_stored_layout_id( string $slug ): int {
+		$layout_id = (int) get_option( self::option_name( $slug ), 0 );
+
+		if ( $layout_id <= 0 ) {
+			return 0;
+		}
+
+		$post = get_post( $layout_id );
+
+		return $post instanceof WP_Post && 'wp_block' === $post->post_type && 'publish' === $post->post_status ? $layout_id : 0;
+	}
+
+	/**
+	 * Whether a block shares a layout: a pattern's, or a built-in layout it
+	 * names by slug.
+	 *
+	 * @param array $attrs Block attributes.
+	 * @return bool
+	 */
+	public static function has_shared_layout( array $attrs ): bool {
+		return (int) ( $attrs['layoutId'] ?? 0 ) > 0 || ( is_string( $attrs['layoutSlug'] ?? null ) && '' !== $attrs['layoutSlug'] );
 	}
 
 	/**
@@ -194,9 +395,9 @@ class Layout {
 	}
 
 	/**
-	 * Drops `layoutId` from every Rolling Coverage block nested in a layout.
-	 * A synced block inside the layout would otherwise pull the layout into
-	 * itself again at every level, without end.
+	 * Drops `layoutId` and `layoutSlug` from every Rolling Coverage block
+	 * nested in a layout. A synced block inside the layout would otherwise
+	 * pull the layout into itself again at every level, without end.
 	 *
 	 * @param array[] $blocks Parsed blocks.
 	 * @return array[]
@@ -204,7 +405,7 @@ class Layout {
 	private static function detach_nested_blocks( array $blocks ): array {
 		foreach ( $blocks as $index => $block ) {
 			if ( Rolling_Coverage_Block::BLOCK_NAME === ( $block['blockName'] ?? '' ) ) {
-				unset( $blocks[ $index ]['attrs']['layoutId'] );
+				unset( $blocks[ $index ]['attrs']['layoutId'], $blocks[ $index ]['attrs']['layoutSlug'] );
 			}
 
 			if ( ! empty( $block['innerBlocks'] ) ) {
@@ -216,11 +417,11 @@ class Layout {
 	}
 
 	/**
-	 * Swaps a synced block's inner blocks for its pattern's before core builds
-	 * the block, so everything that reads the block's inner blocks sees the
-	 * shared layout. A block without a layout of its own, one with no inner
-	 * blocks or whose pattern no longer resolves, gets the Bulletin layout
-	 * (`Rolling_Coverage_Block::default_layout_blocks()`).
+	 * Swaps a synced block's inner blocks for its shared layout's before core
+	 * builds the block, so everything that reads the block's inner blocks sees
+	 * the shared layout (resolve_layout_blocks()). A block without a layout of
+	 * its own, one with no inner blocks or whose layout no longer resolves,
+	 * gets the Bulletin layout (`Rolling_Coverage_Block::default_layout_blocks()`).
 	 *
 	 * Untyped: the filter runs for every block, and another callback may
 	 * hand it something that isn't a block.
@@ -233,15 +434,15 @@ class Layout {
 			return $parsed_block;
 		}
 
-		$layout_id = (int) ( $parsed_block['attrs']['layoutId'] ?? 0 );
+		$attrs = is_array( $parsed_block['attrs'] ?? null ) ? $parsed_block['attrs'] : [];
 
-		if ( $layout_id <= 0 && ! empty( $parsed_block['innerBlocks'] ) ) {
+		if ( ! self::has_shared_layout( $attrs ) && ! empty( $parsed_block['innerBlocks'] ) ) {
 			$parsed_block['innerBlocks'] = self::detach_nested_blocks( $parsed_block['innerBlocks'] );
 
 			return $parsed_block;
 		}
 
-		$inner_blocks = $layout_id > 0 ? self::get_layout_blocks( $layout_id ) : null;
+		$inner_blocks = self::resolve_layout_blocks( $attrs );
 
 		if ( ! $inner_blocks ) {
 			$inner_blocks = Rolling_Coverage_Block::default_layout_blocks();

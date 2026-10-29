@@ -35,6 +35,7 @@ interface RollingCoverageAttributes {
 	archivedNoticeLinkUrl: string;
 	archivedNoticeLinkLabel: string;
 	layoutId: number;
+	layoutSlug: string;
 	latestOnly: boolean;
 	latestCount: number;
 	allUpdatesLink: boolean;
@@ -74,6 +75,9 @@ interface BlockConfig {
 	newspackAdsAvailable: boolean;
 	newspackAdsPlacementEnabled: boolean;
 	layoutIds: Record< BuiltInLayoutSlug, number >;
+	// Built-in layout slugs by the ID of each built-in pattern the page renders as its layout (`Layout::get_unrendered_layouts()`); empty arrives as an array.
+	unrenderedLayouts?: Record< string, string > | string[];
+	canCreateLayouts?: boolean | string;
 	layoutsRestBase: string;
 	adminUrl: string;
 	isBlockTheme: boolean;

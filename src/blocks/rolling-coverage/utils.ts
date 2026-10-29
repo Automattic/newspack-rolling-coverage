@@ -31,6 +31,8 @@ import {
 	ENTRIES_PREVIEW_REST_BASE,
 	AI_ENDPOINT,
 	LAYOUT_IDS,
+	UNRENDERED_LAYOUTS,
+	CAN_CREATE_LAYOUTS,
 	LAYOUTS_REST_BASE,
 	ADMIN_URL,
 	IS_BLOCK_THEME,
@@ -38,6 +40,7 @@ import {
 	LAYOUT_CATEGORY_ID,
 } from './config';
 import { BLOCK_NAME } from './layout';
+import { layoutReferenceOf, type LayoutReference } from './layout-reference';
 import type { BuiltInLayoutSlug } from './layouts';
 
 const layoutIds: Record< BuiltInLayoutSlug, number > = {
@@ -251,6 +254,37 @@ function getLayoutId( slug: BuiltInLayoutSlug ): number {
 }
 
 /**
+ * What a block's layout attributes point at, with the built-in layouts'
+ * patterns as this editor knows them.
+ *
+ * @param {number} layoutId   The block's `layoutId`.
+ * @param {string} layoutSlug The block's `layoutSlug`.
+ * @return {LayoutReference} What the block points at.
+ */
+function getLayoutReference(
+	layoutId: number,
+	layoutSlug: string
+): LayoutReference {
+	return layoutReferenceOf(
+		layoutId,
+		layoutSlug,
+		layoutIds,
+		UNRENDERED_LAYOUTS ?? {}
+	);
+}
+
+/**
+ * Whether the current user can create and publish patterns, which creating
+ * a built-in layout's pattern takes (`Layout::can_create_layout()`).
+ *
+ * @return {boolean} Whether the user can create layouts.
+ */
+function canCreateLayouts(): boolean {
+	// wp_localize_script() sends booleans as "1" or "".
+	return Boolean( CAN_CREATE_LAYOUTS );
+}
+
+/**
  * The layout pattern category's ID, or 0 until a built-in layout creates it.
  *
  * @return {number} The category's term ID.
@@ -355,6 +389,8 @@ export {
 	fetchEntryPreviewContexts,
 	generateKeyTakeaways,
 	getLayoutId,
+	getLayoutReference,
+	canCreateLayouts,
 	getLayoutCategoryId,
 	createLayout,
 	getLayoutEditUrl,

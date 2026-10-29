@@ -56,7 +56,7 @@ npm run fix:js       # Auto-fix JS (also format:scss, fix:php)
 Tests:
 
 - **PHP:** PHPUnit tests live in `tests/`. `npm run test:php` needs a WordPress test install, which `bin/install-wp-tests.sh <db-name> <db-user> <db-pass> [db-host] [wp-version]` sets up. Inside the Newspack workspace, run the workspace's `n test-php` from this directory instead.
-- **JS:** `npm test` runs `tests/js/shared-poll-check.ts`, which checks the view script's copy of the poll cursor rules against `tests/fixtures/poll-cursor-cases.json`, the cases PHPUnit checks the server's copy against. It then runs the Jest tests in `tests/js/` (`npm run test:js`): the layout template checks, which fail when a built-in layout's template changes without `npm run build:layouts` rewriting the server copies in `includes/blocks/layouts/`, the entries list's live sync tests, and the check of when a new layout pattern gets its Rolling Coverage block (`tests/js/layout-start.test.ts`).
+- **JS:** `npm test` runs `tests/js/shared-poll-check.ts`, which checks the view script's copy of the poll cursor rules against `tests/fixtures/poll-cursor-cases.json`, the cases PHPUnit checks the server's copy against. It then runs the Jest tests in `tests/js/` (`npm run test:js`): the layout template checks, which fail when a built-in layout's template changes without `npm run build:layouts` rewriting the server copies in `includes/blocks/layouts/`, the entries list's live sync tests, the check of when a new layout pattern gets its Rolling Coverage block (`tests/js/layout-start.test.ts`), and how the editor reads a block's layout attributes (`tests/js/layout-reference.test.ts`).
 
 ## Docs site
 

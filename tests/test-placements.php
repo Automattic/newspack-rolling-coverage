@@ -6,6 +6,7 @@
  */
 
 use Newspack_Rolling_Coverage\Breakout;
+use Newspack_Rolling_Coverage\Layout;
 use Newspack_Rolling_Coverage\Placements;
 use Newspack_Rolling_Coverage\Taxonomy;
 
@@ -241,6 +242,44 @@ class Test_Placements extends Rolling_Coverage_TestCase {
 			self::blocks( $coverage_id )
 		);
 		$this->assertSame( [], Placements::for_coverage( self::create_coverage() ), 'A coverage nothing shows has no placements.' );
+	}
+
+	/**
+	 * A built-in layout named by its slug is listed with the layout's name:
+	 * its pattern's title once the site has one, else the built-in name. A
+	 * block still pointing at a built-in layout's deleted pattern, or at one
+	 * that can't render, is listed with the layout it renders instead, and
+	 * two blocks that read the same are listed once.
+	 */
+	public function test_feeds_name_a_built_in_layout_by_slug() {
+		$coverage_id = self::create_coverage();
+		$rail_id     = self::pattern( 'Our rail', self::layout() );
+		update_post_meta( $rail_id, Layout::SLUG_META_KEY, 'rail' );
+		update_option( Layout::option_name( 'rail' ), $rail_id, false );
+		$ticker_id = self::pattern( 'Ticker', self::layout() );
+		update_post_meta( $ticker_id, Layout::SLUG_META_KEY, 'ticker' );
+		update_option( Layout::option_name( 'ticker' ), $ticker_id, false );
+		$stream_id = self::pattern( 'Our stream', self::layout() );
+		update_post_meta( $stream_id, Layout::SLUG_META_KEY, 'stream' );
+		wp_delete_post( $stream_id, true );
+		$digest_id = self::pattern( 'Our digest', '<!-- wp:paragraph --><p>No layout here</p><!-- /wp:paragraph -->' );
+		update_post_meta( $digest_id, Layout::SLUG_META_KEY, 'digest' );
+		update_post_meta( $digest_id, Layout::HASH_META_KEY, md5( 'created' ) );
+		// As create_layout() leaves it: the slug's option points at the pattern.
+		update_option( Layout::option_name( 'digest' ), $digest_id, false );
+
+		$flash_post  = self::publish( self::feed( $coverage_id, [ 'layoutSlug' => 'flash' ] ) );
+		$rail_post   = self::publish( self::feed( $coverage_id, [ 'layoutSlug' => 'rail' ] ) );
+		$stream_post = self::publish( self::feed( $coverage_id, [ 'layoutId' => $stream_id ] ) );
+		$digest_post = self::publish( self::feed( $coverage_id, [ 'layoutId' => $digest_id ] ) );
+		$ticker_post = self::publish( self::feed( $coverage_id, [ 'layoutId' => $ticker_id ] ) . self::feed( $coverage_id, [ 'layoutSlug' => 'ticker' ] ) );
+		$blocks      = self::blocks( $coverage_id );
+
+		$this->assertSame( [ 'Rolling Coverage (Flash)' ], $blocks[ 'post:' . $flash_post ] );
+		$this->assertSame( [ 'Rolling Coverage (Our rail)' ], $blocks[ 'post:' . $rail_post ] );
+		$this->assertSame( [ 'Rolling Coverage (Stream)' ], $blocks[ 'post:' . $stream_post ] );
+		$this->assertSame( [ 'Rolling Coverage (Digest)' ], $blocks[ 'post:' . $digest_post ] );
+		$this->assertSame( [ 'Rolling Coverage (Ticker)' ], $blocks[ 'post:' . $ticker_post ] );
 	}
 
 	/**
