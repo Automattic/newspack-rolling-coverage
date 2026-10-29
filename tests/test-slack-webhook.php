@@ -2442,7 +2442,7 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 
 		$this->assertSame( 200, $response->get_status(), 'The channel should connect.' );
 		$this->assertSame( 'publish', Slack_Config::get_channel_settings( self::CHANNEL_ID )['publish_mode'], 'The mode should be stored.' );
-		$this->assertSame( [ '✅ This channel is now connected to the "Election Night" coverage. New messages are published right away.' ], $this->posted_messages );
+		$this->assertSame( [ '✅ This channel is now connected to the "Election Night" liveblog. New messages are published right away.' ], $this->posted_messages );
 	}
 
 	/**
@@ -2540,7 +2540,7 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 		self::controller()->handle_command( self::webhook_request( $body, true, 'commands' ) );
 
 		$this->assertCount( 1, $this->opened_views, 'The picker should open.' );
-		$this->assertSame( 'Select a Rolling Coverage on Election Desk & More (example.org)', $this->opened_views[0]['blocks'][0]['label']['text'] );
+		$this->assertSame( 'Select a liveblog on Election Desk & More (example.org)', $this->opened_views[0]['blocks'][0]['label']['text'] );
 	}
 
 	/**
@@ -2551,8 +2551,8 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 	public function command_reply_provider() {
 		return [
 			'status of a linked channel'    => [ '/rolling-coverage-status', true, 'Connected to "Election Night". New messages are saved as drafts.' ],
-			'status of an unlinked channel' => [ '/rolling-coverage-status', false, 'This channel is not connected to any coverage.' ],
-			'unlink of an unlinked channel' => [ '/rolling-coverage-unlink', false, 'This channel is not connected to any coverage.' ],
+			'status of an unlinked channel' => [ '/rolling-coverage-status', false, 'This channel is not connected to any liveblog.' ],
+			'unlink of an unlinked channel' => [ '/rolling-coverage-unlink', false, 'This channel is not connected to any liveblog.' ],
 			'an unknown command'            => [ '/rolling-coverage-help', true, 'Unknown command.' ],
 		];
 	}

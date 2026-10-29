@@ -19,7 +19,7 @@ import type { Field, ViewState, ChannelRow, PublishMode } from '../types';
  * @param {(channelId: string, publishMode: PublishMode) => void} onPublishModeChange Sets a channel's publish mode.
  * @param {Set<string>}                                           updatingChannelIds  Channels whose publish mode change is in flight.
  * @param {(channel: ChannelRow) => void}                         onDisconnect        Asks to disconnect a channel.
- * @param {string}                                                coveragesUrl        Admin URL of the All Coverages page.
+ * @param {string}                                                coveragesUrl        Admin URL of the All Liveblogs page.
  * @return {Field< ChannelRow >[]} Field definitions for the channel table.
  */
 function getChannelFields(
@@ -55,7 +55,7 @@ function getChannelFields(
 		{
 			id: 'term_name',
 			type: 'text',
-			label: __( 'Coverage', 'newspack-rolling-coverage' ),
+			label: __( 'Liveblog', 'newspack-rolling-coverage' ),
 			enableSorting: true,
 			enableGlobalSearch: true,
 			getValue: ( { item } ) => decodeEntities( item.term_name ),

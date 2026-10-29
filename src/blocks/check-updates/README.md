@@ -1,6 +1,6 @@
 # Check for Updates
 
-A button readers press to load a coverage's new entries. A Rolling Coverage feed that holds it stops checking for new entries on its own, so the page makes no background requests. That suits readers on slow or metered connections, and pages people leave open for hours.
+A button readers press to load a liveblog's new entries. A Rolling Coverage feed that holds it stops checking for new entries on its own, so the page makes no background requests. That suits readers on slow or metered connections, and pages people leave open for hours.
 
 ## Where to put it
 
@@ -13,7 +13,7 @@ Adding the block is what switches the feed: with it, the feed checks only when a
 It doesn't appear:
 
 - **In a feed that shows only the latest entries** (Show set to Latest, as in the Ticker and Flash layouts). The feed keeps checking on its own.
-- **Once the coverage ends.** A paused coverage keeps it, so readers can see whether the coverage has resumed.
+- **Once the liveblog ends.** A paused liveblog keeps it, so readers can see whether the liveblog has resumed.
 
 ## The button
 
@@ -26,14 +26,14 @@ The block holds a standard Button block. Style it, change its text, and set its 
 - When nothing is new, the button reads "No new entries" for a few seconds. When the check fails, it reads "Couldn’t check", and screen readers hear "Couldn’t check for updates. Try again."
 - After a large burst of changes, the page reloads to show them all.
 - If the site sets a minimum poll interval, a second press waits until it has passed. A press in a background tab runs once the tab is back in view.
-- "Entries" follows the entry name set in Rolling Coverage > All Coverages > Settings, for example "No new updates".
+- "Entries" follows the entry name set in Rolling Coverage > All Liveblogs > Settings, for example "No new updates".
 
 Because the page doesn't check on its own, these update only when a reader presses the button:
 
 - A Coverage Status block beside the feed.
-- The notice at the top of the feed when the coverage ends.
+- The notice at the top of the feed when the liveblog ends.
 - The feed's Hide when ended setting.
 
-An [Update Timer](../update-timer/README.md) block for the coverage stays hidden, as there is no check to count down to.
+An [Update Timer](../update-timer/README.md) block for the liveblog stays hidden, as there is no check to count down to.
 
 On a shared entry's page, the button appears once the reader jumps to the live feed, and the count of newer entries stays as the page loaded it.

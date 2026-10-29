@@ -107,7 +107,7 @@ export function About( {
 								<p>
 									Editors fix typos and shorthand, pin the update every reader needs, and turn an entry
 									that grows into its own story into a full post, while the feed keeps running. When the
-									story is over, they end the coverage, and each page can show an ended notice.
+									story is over, they end the liveblog, and each page can show an ended notice.
 								</p>
 							</Section>
 

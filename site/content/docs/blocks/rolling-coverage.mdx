@@ -1,9 +1,9 @@
 ---
 title: Rolling Coverage block
-description: Show a coverage's entries on any page or story, and keep them live while readers watch.
+description: Show a liveblog's entries on any page or story, and keep them live while readers watch.
 ---
 
-The Rolling Coverage block shows the entries of a coverage on a page, post, or template. New entries arrive while readers are on the page, and readers can load older entries as they go. Use it for a live blog, a developing-story box, or a headline ticker.
+The Rolling Coverage block shows the entries of a liveblog on a page, post, or template. New entries arrive while readers are on the page, and readers can load older entries as they go. Use it for a liveblog, a developing-story box, or a headline ticker.
 
 ## Add the block
 
@@ -19,11 +19,11 @@ Open the page or post in the editor. Add a block and search for "Rolling Coverag
 </Step>
 <Step>
 
-### Choose the coverage
+### Choose the liveblog
 
-In the block, type the coverage's name in **Search for a coverage…**. Select it from the list.
+In the block, type the liveblog's name in **Search for a liveblog…**. Select it from the list.
 
-<Screenshot label="The Rolling Coverage block placeholder, with the Search for a coverage field picked out" src="/screenshots/blocks/rolling-coverage-2.webp" width={3024} height={1964} />
+<Screenshot label="The Rolling Coverage block placeholder, with the Search for a liveblog field picked out" src="/screenshots/blocks/rolling-coverage-2.webp" width={3024} height={1964} />
 
 </Step>
 <Step>
@@ -32,7 +32,7 @@ In the block, type the coverage's name in **Search for a coverage…**. Select i
 
 Select **Choose**. The **Choose a layout** window opens. Select a layout.
 
-The block now previews the coverage's entries. If the coverage has no published entries yet, it shows the layout with a notice.
+The block now previews the liveblog's entries. If the liveblog has no published entries yet, it shows the layout with a notice.
 
 <Screenshot label="The Choose a layout window showing the layout previews" src="/screenshots/blocks/rolling-coverage-3.webp" width={3024} height={1964} />
 
@@ -41,7 +41,7 @@ The block now previews the coverage's entries. If the coverage has no published 
 
 A layout sets how the feed looks and which parts each entry shows. For the full list and when to use each one, see [Layouts](/docs/guides/layouts/). To change one, see [Edit a layout](/docs/guides/edit-a-layout/). To make a new one, see [Custom layouts](/docs/guides/custom-layouts/).
 
-You can also insert a layout from the **Patterns** tab of the inserter, in the **Rolling Coverage** category. It adds a block that uses that layout and asks for a coverage. The category lists custom layouts, and a built-in layout once someone has selected **Edit Layout** for it.
+You can also insert a layout from the **Patterns** tab of the inserter, in the **Rolling Coverage** category. It adds a block that uses that layout and asks for a liveblog. The category lists custom layouts, and a built-in layout once someone has selected **Edit Layout** for it.
 
 ## Settings
 
@@ -53,21 +53,21 @@ Says whether the block uses a shared layout, such as "Uses the shared Rail layou
 
 | Setting | What it does |
 | --- | --- |
-| **Change Layout** | Opens **Choose a layout** so you can pick another one. The coverage and other settings stay. |
+| **Change Layout** | Opens **Choose a layout** so you can pick another one. The liveblog and other settings stay. |
 
 The block toolbar also shows **Edit Layout** and **Detach** when the block uses a shared layout. See [Edit a layout](/docs/guides/edit-a-layout/).
 
 <Screenshot label="The block settings, Layout panel, with Change Layout picked out" src="/screenshots/blocks/rolling-coverage-4.webp" width={3024} height={1964} />
 
-### Coverage panel
+### Liveblog panel
 
 | Setting | What it does |
 | --- | --- |
-| **Coverage** | The coverage the block shows. |
-| **Canonical URL** | The page readers land on when they open a link to one of this coverage's entries. Every block for this coverage shares it. It saves when you save the page. Editors and administrators can change it. |
+| **Liveblog** | The liveblog the block shows. |
+| **Canonical URL** | The page readers land on when they open a link to one of this liveblog's entries. Every block for this liveblog shares it. It saves when you save the page. Editors and administrators can change it. |
 | **Use This Page** | Fills **Canonical URL** with this page's address. Save the page first to get its address. Hidden when **Show** is set to **Latest**. |
 
-<Screenshot label="The block settings, Coverage panel, with Use This Page picked out" src="/screenshots/blocks/rolling-coverage-5.webp" width={3024} height={1964} />
+<Screenshot label="The block settings, Liveblog panel, with Use This Page picked out" src="/screenshots/blocks/rolling-coverage-5.webp" width={3024} height={1964} />
 
 ### Entries panel
 
@@ -76,7 +76,7 @@ The block toolbar also shows **Edit Layout** and **Detach** when the block uses 
 | **Show** | **All** shows every entry, one page at a time. **Latest** shows only the most recent entries. |
 | **Older entries** | With **Show** set to **All**, sets what happens after the first page. **Load on scroll** loads the next page as readers reach the end. **"Load more" button** adds a button below the entries. **Don't load** shows the first page only. |
 | **Number of entries** | With **Show** set to **Latest**, how many entries to show, from 1 to 100. |
-| **Link to all updates** | With **Show** set to **Latest**, in layouts that have the link: **Show** or **Hide** the link to the coverage page. |
+| **Link to all updates** | With **Show** set to **Latest**, in layouts that have the link: **Show** or **Hide** the link to the liveblog page. |
 | **Link text** | With the link shown, this block's own wording for it, such as "Follow the storm". Leave it empty to use the layout's text. |
 | **Entries per page** | With **Show** set to **All**, how many entries show first and how many each load of older entries adds. From 1 to 100. The default is 20. |
 | **Author name** | In layouts that show the author, **Show** or **Hide** the author's name. |
@@ -87,15 +87,15 @@ The block toolbar also shows **Edit Layout** and **Detach** when the block uses 
 
 ### Ended panel
 
-The panel title is the site's label for an ended coverage, **Ended** unless the site changed it. It controls what the block does once the coverage's status is set to Ended in **All Coverages**.
+The panel title is the site's label for an ended liveblog, **Ended** unless the site changed it. It controls what the block does once the liveblog's status is set to Ended in **All Liveblogs**.
 
 | Setting | What it does |
 | --- | --- |
 | **When ended** | **Show** keeps the block on the page. **Hide** removes the whole block. |
-| **Notice** | **Show** or **Hide** a notice at the top of the feed that tells readers the coverage has ended. |
-| **Notice text** | The notice wording. When empty, the block says the coverage has concluded and the feed is archived. |
+| **Notice** | **Show** or **Hide** a notice at the top of the feed that tells readers the liveblog has ended. |
+| **Notice text** | The notice wording. When empty, the block says coverage of the story has concluded and the feed is archived. |
 | **Link** | **Show** or **Hide** a link in the notice that points readers to where the story continues. |
-| **URL** | Where the link goes. When empty, it goes to the coverage's latest breakout post, if there is one. |
+| **URL** | Where the link goes. When empty, it goes to the liveblog's latest breakout post, if there is one. |
 | **Link text** | The link's wording. When empty, it reads "Read more". |
 
 **Notice** appears when **When ended** is set to **Show**. **Link** and **Notice text** appear when **Notice** is set to **Show**. **URL** and **Link text** appear when **Link** is set to **Show**.
@@ -104,7 +104,7 @@ The panel title is the site's label for an ended coverage, **Ended** unless the 
 
 ### AI panel
 
-The panel appears when AI is set up on the site and the block shows a coverage. Select **Generate Key Takeaways** to sum up the coverage's latest entries. The summary appears in **Generated Output** and is copied when the browser allows it, ready to paste into the page. **Copy Generated Output** copies it again. Administrators also see **Edit the prompt**, which opens **Rolling Coverage > AI** in a new tab. See [AI key takeaways](/docs/guides/ai-key-takeaways/).
+The panel appears when AI is set up on the site and the block shows a liveblog. Select **Generate Key Takeaways** to sum up the liveblog's latest entries. The summary appears in **Generated Output** and is copied when the browser allows it, ready to paste into the page. **Copy Generated Output** copies it again. Administrators also see **Edit the prompt**, which opens **Rolling Coverage > AI** in a new tab. See [AI key takeaways](/docs/guides/ai-key-takeaways/).
 
 ### Ads panel
 
@@ -115,7 +115,7 @@ The panel appears when Newspack Ads is active.
 | **Advertising** | Enabled or Disabled. Enabled by default. Shows ads between entries. Not available when **Show** is set to **Latest**. |
 | **Ads interval** | Shows an ad after every set number of entries, up to three ads in all, across the entries that load with the page and the older entries readers load after them. The default is 4. See [Ads](/docs/guides/ads/). |
 
-Ads need the Rolling Coverage entry placement turned on in Newspack Ads, and ads enabled in the coverage's own settings. The panel tells you when either is missing.
+Ads need the Rolling Coverage entry placement turned on in Newspack Ads, and ads enabled in the liveblog's own settings. The panel tells you when either is missing.
 
 <Callout>
 Alignment, the HTML anchor, and the other usual block settings work as they do for any block. Colors, type, and spacing of the feed come from the layout.
@@ -132,7 +132,7 @@ The page checks for new entries as soon as it opens, then every poll interval. T
 - Edited entries update in place. An entry that is unpublished disappears. If it's published again or restored, it comes back without a reload.
 - New entries fade in. In a feed that lists entries one above another, a new entry at the top also opens its own space, so the entries below glide down rather than jump. Several new entries arriving together open their space together, a little more slowly than one. Readers whose device is set to reduce motion still see them fade in, but the space opens at once.
 - An entry published while the page is open shows a label, such as "New", until the reader has seen it. Entries brought in by the page's first check that works don't show it, as on a freshly loaded page. The first check runs as the page opens, or when the reader first switches to a page opened in a background tab. Pages for people who can edit posts, and feeds with a [Check for Updates](/docs/blocks/check-for-updates/) block, show the label on every new entry from their first check on. Four seconds after the reader first sees it, the label fades away. Older entries that load, and entries published again, don't show it. See the [New Label block](/docs/blocks/new-label/).
-- A paused or ended coverage doesn't check on its own.
+- A paused or ended liveblog doesn't check on its own.
 
 Feeds set to **Latest** update in place without the button. The newest entry appears and the oldest drops off.
 
@@ -148,4 +148,4 @@ Readers load older entries by scrolling to the end of the feed or by pressing th
 
 A reader who opens a link to one entry sees the feed open at that entry. A "Jump to latest" button takes them to the live feed.
 
-<Screenshot label="A published coverage page scrolled down the feed, with the 3 new entries button picked out at the top" src="/screenshots/blocks/rolling-coverage-8.webp" width={3024} height={1964} />
+<Screenshot label="A published liveblog page scrolled down the feed, with the 3 new entries button picked out at the top" src="/screenshots/blocks/rolling-coverage-8.webp" width={3024} height={1964} />

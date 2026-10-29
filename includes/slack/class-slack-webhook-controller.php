@@ -82,12 +82,12 @@ class Slack_Webhook_Controller {
 			// Connect (coverage ↔ channel) errors.
 			'channel_not_found'      => __( 'Channel not found. Make sure the bot is invited to the channel, or use the channel ID (e.g., C12345678) instead of the name.', 'newspack-rolling-coverage' ),
 			'bot_not_in_channel'     => __( 'The bot is not a member of this channel. Please invite the bot first using /invite @Rolling Coverage in Slack.', 'newspack-rolling-coverage' ),
-			'channel_already_linked' => __( 'This channel is already linked to another coverage.', 'newspack-rolling-coverage' ),
-			'term_already_connected' => __( 'This coverage is already connected to another channel.', 'newspack-rolling-coverage' ),
-			'invalid_term'           => __( 'This coverage could not be found. Please refresh the page and try again.', 'newspack-rolling-coverage' ),
+			'channel_already_linked' => __( 'This channel is already linked to another liveblog.', 'newspack-rolling-coverage' ),
+			'term_already_connected' => __( 'This liveblog is already connected to another channel.', 'newspack-rolling-coverage' ),
+			'invalid_term'           => __( 'This liveblog could not be found. Please refresh the page and try again.', 'newspack-rolling-coverage' ),
 			'invalid_channel'        => __( 'That channel could not be used. Try a channel ID like C12345678 or a channel name like #general.', 'newspack-rolling-coverage' ),
-			'term_select_required'   => __( 'Please select a coverage.', 'newspack-rolling-coverage' ),
-			'term_not_found'         => __( 'Selected coverage no longer exists.', 'newspack-rolling-coverage' ),
+			'term_select_required'   => __( 'Please select a liveblog.', 'newspack-rolling-coverage' ),
+			'term_not_found'         => __( 'Selected liveblog no longer exists.', 'newspack-rolling-coverage' ),
 			'invalid_publish_mode'   => __( 'Choose a publish mode: Auto-publish, Draft or Emoji trigger.', 'newspack-rolling-coverage' ),
 			'reactions_not_granted'  => __( "The Slack app isn't allowed to read reactions yet. Update its manifest and reinstall it, as the warning on the Slack Connection page explains, then choose Emoji trigger again.", 'newspack-rolling-coverage' ),
 			// Credentials errors.
@@ -923,7 +923,7 @@ class Slack_Webhook_Controller {
 			$channel_settings = Slack_Config::get_channel_settings( $channel_id );
 
 			if ( null === $channel_settings ) {
-				Slack_Monitor::log( 'info', 'Channel not linked to a coverage, skipping', [ 'channel' => $channel_id ] );
+				Slack_Monitor::log( 'info', 'Channel not linked to a liveblog, skipping', [ 'channel' => $channel_id ] );
 				return new \WP_REST_Response( [ 'ok' => true ], 200 );
 			}
 
@@ -1037,7 +1037,7 @@ class Slack_Webhook_Controller {
 			$channel_id   = (string) ( $event['channel'] ?? '' );
 
 			if ( '' !== $slack_bot_id && $slack_bot_id === $joining_user && '' !== $channel_id ) {
-				$text = __( '👋 I\'m now connected and will ingest messages for rolling coverage.', 'newspack-rolling-coverage' );
+				$text = __( '👋 I\'m now connected and will turn messages into liveblog entries.', 'newspack-rolling-coverage' );
 				$this->api_client->post_message( $channel_id, $text, self::site_blocks( $text ) );
 			}
 		}
@@ -1273,7 +1273,7 @@ class Slack_Webhook_Controller {
 		$coverage_ids = wp_get_post_terms( $entry_id, Taxonomy::TAXONOMY_SLUG, [ 'fields' => 'ids' ] );
 		foreach ( is_wp_error( $coverage_ids ) ? [] : $coverage_ids as $coverage_id ) {
 			if ( 'trash' === get_term_meta( (int) $coverage_id, Taxonomy::STATUS_META_KEY, true ) ) {
-				Slack_Monitor::log( 'info', 'Draft not published (coverage trashed)', [ 'post_id' => $entry_id ] );
+				Slack_Monitor::log( 'info', 'Draft not published (liveblog trashed)', [ 'post_id' => $entry_id ] );
 				return;
 			}
 		}
@@ -1413,7 +1413,7 @@ class Slack_Webhook_Controller {
 					'type' => 'plain_text',
 					'text' => sprintf(
 						/* translators: %s: the site's name and address, such as "Example News (example.com)". */
-						__( 'Select a Rolling Coverage on %s', 'newspack-rolling-coverage' ),
+						__( 'Select a liveblog on %s', 'newspack-rolling-coverage' ),
 						self::site_label()
 					),
 				],
@@ -1467,7 +1467,7 @@ class Slack_Webhook_Controller {
 		$term_id = Slack_Config::find_linked_term_id( $channel_id );
 
 		if ( null === $term_id ) {
-			return $this->ephemeral( __( 'This channel is not connected to any coverage.', 'newspack-rolling-coverage' ) );
+			return $this->ephemeral( __( 'This channel is not connected to any liveblog.', 'newspack-rolling-coverage' ) );
 		}
 
 		$term_name = $this->get_term_name( $term_id );
@@ -1477,7 +1477,7 @@ class Slack_Webhook_Controller {
 		return $this->ephemeral(
 			'' !== $term_name
 				? sprintf(
-					/* translators: 1: coverage name */
+					/* translators: 1: liveblog name */
 					__( 'Disconnected from "%1$s".', 'newspack-rolling-coverage' ),
 					$term_name
 				)
@@ -1495,7 +1495,7 @@ class Slack_Webhook_Controller {
 		$settings = Slack_Config::get_channel_settings( $channel_id );
 
 		if ( null === $settings ) {
-			return $this->ephemeral( __( 'This channel is not connected to any coverage.', 'newspack-rolling-coverage' ) );
+			return $this->ephemeral( __( 'This channel is not connected to any liveblog.', 'newspack-rolling-coverage' ) );
 		}
 
 		$term_id   = (int) ( $settings['term_id'] ?? 0 );
@@ -1504,7 +1504,7 @@ class Slack_Webhook_Controller {
 
 		return $this->ephemeral(
 			sprintf(
-				/* translators: 1: coverage name, 2: what happens to messages posted in the channel */
+				/* translators: 1: liveblog name, 2: what happens to messages posted in the channel */
 				__( 'Connected to "%1$s". %2$s', 'newspack-rolling-coverage' ),
 				$term_name,
 				self::describe_publish_mode( Slack_Config::resolve_publish_mode( $settings ) )
@@ -1894,14 +1894,14 @@ class Slack_Webhook_Controller {
 
 		$text = '' !== $term_name
 			? sprintf(
-				/* translators: 1: coverage name, 2: what happens to messages posted in the channel */
-				__( '✅ This channel is now connected to the "%1$s" coverage. %2$s', 'newspack-rolling-coverage' ),
+				/* translators: 1: liveblog name, 2: what happens to messages posted in the channel */
+				__( '✅ This channel is now connected to the "%1$s" liveblog. %2$s', 'newspack-rolling-coverage' ),
 				$term_name,
 				$mode_text
 			)
 			: sprintf(
 				/* translators: %s: what happens to messages posted in the channel */
-				__( '✅ This channel is now connected to rolling coverage. %s', 'newspack-rolling-coverage' ),
+				__( '✅ This channel is now connected to a liveblog. %s', 'newspack-rolling-coverage' ),
 				$mode_text
 			);
 
@@ -1943,11 +1943,11 @@ class Slack_Webhook_Controller {
 		// was linked to.
 		$text = '' !== $term_name
 			? sprintf(
-				/* translators: 1: coverage name */
-				__( '🔌 This channel is no longer connected to the "%1$s" coverage.', 'newspack-rolling-coverage' ),
+				/* translators: 1: liveblog name */
+				__( '🔌 This channel is no longer connected to the "%1$s" liveblog.', 'newspack-rolling-coverage' ),
 				$term_name
 			)
-			: __( '🔌 This channel is no longer connected to rolling coverage.', 'newspack-rolling-coverage' );
+			: __( '🔌 This channel is no longer connected to a liveblog.', 'newspack-rolling-coverage' );
 
 		$this->api_client->post_message( $channel_id, $text, self::site_blocks( $text ) );
 	}
@@ -2094,10 +2094,10 @@ class Slack_Webhook_Controller {
 				// Expected for a message with images, which Slack redelivers while the first delivery imports them.
 				Slack_Monitor::log( 'info', 'Ingestion: entry not created (another delivery of this message is still being processed)', [ 'ts' => $ts ] );
 			} elseif ( Entry_Ingestion_Service::SKIP_ARCHIVED_COVERAGE === $post_id ) {
-				Slack_Monitor::log( 'info', 'Ingestion: entry not created (coverage archived)', [ 'ts' => $ts ] );
+				Slack_Monitor::log( 'info', 'Ingestion: entry not created (liveblog archived)', [ 'ts' => $ts ] );
 				error_log( 'Slack ingestion: entry not created for ts ' . $ts . ' (coverage archived).' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			} elseif ( Entry_Ingestion_Service::SKIP_TRASHED_COVERAGE === $post_id ) {
-				Slack_Monitor::log( 'info', 'Ingestion: entry not created (coverage trashed)', [ 'ts' => $ts ] );
+				Slack_Monitor::log( 'info', 'Ingestion: entry not created (liveblog trashed)', [ 'ts' => $ts ] );
 				error_log( 'Slack ingestion: entry not created for ts ' . $ts . ' (coverage trashed).' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			} else {
 				Slack_Monitor::log( 'info', 'Ingestion: entry not created (duplicate, empty content, or bot user unavailable)', [ 'ts' => $ts ] );

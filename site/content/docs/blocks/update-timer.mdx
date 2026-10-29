@@ -3,14 +3,14 @@ title: Update Timer block
 description: Tell readers when the feed next checks for new entries.
 ---
 
-The Update Timer block shows readers when a live coverage next checks for new entries. It reads "Next check in 7s" with a small ring that fills as the check nears. While the check runs, it reads "Checking…" and the ring spins. When the check brings new entries, it reads a count such as "2 new entries" for a few seconds.
+The Update Timer block shows readers when a liveblog next checks for new entries. It reads "Next check in 7s" with a small ring that fills as the check nears. While the check runs, it reads "Checking…" and the ring spins. When the check brings new entries, it reads a count such as "2 new entries" for a few seconds.
 
 ## Where to use it
 
 - **Next to the Live badge.** Add it to a page or template, beside a [Coverage Status](/docs/blocks/coverage-status/) block, so readers can see the page keeps itself up to date.
-- **Inside a Rolling Coverage layout.** Add it to the feed or to a group at the coverage level, such as the layout's header. It follows that block's coverage. It can't go inside an entry or the pinned entry.
+- **Inside a Rolling Coverage layout.** Add it to the feed or to a group at the liveblog level, such as the layout's header. It follows that block's liveblog. It can't go inside an entry or the pinned entry.
 
-It counts down a Rolling Coverage block's own checks, so a Rolling Coverage block for the same coverage must be on the page.
+It counts down a Rolling Coverage block's own checks, so a Rolling Coverage block for the same liveblog must be on the page.
 
 ## Add the block
 
@@ -26,25 +26,25 @@ Open the page, post, or template. Add a block and search for "Update Timer".
 </Step>
 <Step>
 
-### Choose the coverage
+### Choose the liveblog
 
-Outside a Rolling Coverage block, open the **Coverage** panel in the block settings. Choose **Automatic** or **Custom**. With **Custom**, pick the coverage from the list.
+Outside a Rolling Coverage block, open the **Liveblog** panel in the block settings. Choose **Automatic** or **Custom**. With **Custom**, pick the liveblog from the list.
 
-<Screenshot label="The block settings, Coverage panel, with Automatic and Custom picked out" src="/screenshots/blocks/update-timer-2.webp" width={3024} height={1964} />
+<Screenshot label="The block settings, Liveblog panel, with Automatic and Custom picked out" src="/screenshots/blocks/update-timer-2.webp" width={3024} height={1964} />
 
 </Step>
 </Steps>
 
 ## Settings
 
-### Coverage panel
+### Liveblog panel
 
 The panel appears only outside a Rolling Coverage block.
 
 | Setting | What it does |
 | --- | --- |
-| **Automatic** | Counts down to the next check of the coverage on this page, or a breakout post's coverage. |
-| **Custom** | Always counts down for the coverage you pick. |
+| **Automatic** | Counts down to the next check of the liveblog on this page, or a breakout post's liveblog. |
+| **Custom** | Always counts down for the liveblog you pick. |
 
 ### Settings panel
 
@@ -60,9 +60,9 @@ The ring and text take the block's text color. In the **Styles** tab, the **Typo
 
 The timer stays hidden while there is nothing to count down to:
 
-- The coverage is paused or has ended. If it goes live again while the page is open, the timer comes back.
+- The liveblog is paused or has ended. If it goes live again while the page is open, the timer comes back.
 - The layout holds a [Check for Updates](/docs/blocks/check-for-updates/) block, so the feed checks only when readers ask.
-- There is no Rolling Coverage block for its coverage on the page.
+- There is no Rolling Coverage block for its liveblog on the page.
 
 ## What readers see
 

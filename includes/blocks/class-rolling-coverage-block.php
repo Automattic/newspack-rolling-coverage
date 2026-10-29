@@ -1300,7 +1300,7 @@ class Rolling_Coverage_Block {
 			return $hides_when_gone ? '' : sprintf(
 				'<p %s>%s</p>',
 				get_block_wrapper_attributes(),
-				esc_html__( 'Select a coverage to display its entries.', 'newspack-rolling-coverage' )
+				esc_html__( 'Select a liveblog to display its entries.', 'newspack-rolling-coverage' )
 			);
 		}
 
@@ -1328,7 +1328,7 @@ class Rolling_Coverage_Block {
 			return $hides_when_gone ? '' : sprintf(
 				'<p %s>%s</p>',
 				get_block_wrapper_attributes(),
-				esc_html__( 'This coverage is no longer available.', 'newspack-rolling-coverage' )
+				esc_html__( 'This liveblog is no longer available.', 'newspack-rolling-coverage' )
 			);
 		}
 
@@ -2000,11 +2000,11 @@ class Rolling_Coverage_Block {
 			$word = Entry_Name::word( $count );
 
 			if ( '' !== $word ) {
-				/* translators: 1: number of coverage entries newer than the one shown, from 1 to 10. 2: the site's own name for entries, singular or plural to match the number, as it reads mid-sentence. */
+				/* translators: 1: number of liveblog entries newer than the one shown, from 1 to 10. 2: the site's own name for entries, singular or plural to match the number, as it reads mid-sentence. */
 				return sprintf( _n( '%1$d newer %2$s', '%1$d newer %2$s', $count, 'newspack-rolling-coverage' ), $count, $word );
 			}
 
-			/* translators: %d: number of coverage entries newer than the one shown, from 1 to 10. */
+			/* translators: %d: number of liveblog entries newer than the one shown, from 1 to 10. */
 			return sprintf( _n( '%d newer entry', '%d newer entries', $count, 'newspack-rolling-coverage' ), $count );
 		}
 
@@ -2019,11 +2019,11 @@ class Rolling_Coverage_Block {
 		$word = Entry_Name::word( $floor );
 
 		if ( '' !== $word ) {
-			/* translators: 1: a round number the count of newer coverage entries has passed: 10, 50 or 100. 2: the site's own name for entries, plural, as it reads mid-sentence. */
+			/* translators: 1: a round number the count of newer liveblog entries has passed: 10, 50 or 100. 2: the site's own name for entries, plural, as it reads mid-sentence. */
 			return sprintf( _n( '%1$d+ newer %2$s', '%1$d+ newer %2$s', $floor, 'newspack-rolling-coverage' ), $floor, $word );
 		}
 
-		/* translators: %d: a round number the count of newer coverage entries has passed: 10, 50 or 100. */
+		/* translators: %d: a round number the count of newer liveblog entries has passed: 10, 50 or 100. */
 		return sprintf( _n( '%d+ newer entry', '%d+ newer entries', $floor, 'newspack-rolling-coverage' ), $floor );
 	}
 
@@ -2037,7 +2037,7 @@ class Rolling_Coverage_Block {
 		$word = Entry_Name::word( 0 );
 
 		if ( '' !== $word ) {
-			/* translators: %s: the site's own name for coverage entries, plural, as it reads mid-sentence; its grammatical gender is unknown. */
+			/* translators: %s: the site's own name for liveblog entries, plural, as it reads mid-sentence; its grammatical gender is unknown. */
 			return sprintf( __( 'No %s yet.', 'newspack-rolling-coverage' ), $word );
 		}
 
@@ -2148,7 +2148,7 @@ class Rolling_Coverage_Block {
 		return sprintf(
 			'<div class="%1$s-load-more" hidden><button type="button" class="wp-element-button wp-block-button__link">%2$s</button></div>',
 			self::MARKUP_PREFIX,
-			/* translators: Button that loads older entries at the end of a coverage's feed. */
+			/* translators: Button that loads older entries at the end of a liveblog's feed. */
 			esc_html__( 'Load more', 'newspack-rolling-coverage' )
 		);
 	}
@@ -3291,7 +3291,7 @@ class Rolling_Coverage_Block {
 			return __( 'Coverage of this news event has concluded and this feed is now archived.', 'newspack-rolling-coverage' );
 		}
 
-		/* translators: %s: Coverage name. */
+		/* translators: %s: Liveblog name. */
 		return sprintf( __( 'Coverage of “%s” has concluded and this feed is now archived.', 'newspack-rolling-coverage' ), $name );
 	}
 
@@ -4590,7 +4590,7 @@ class Rolling_Coverage_Block {
 
 		if ( '' !== $singular ) {
 			return sprintf(
-				/* translators: 1: the site's own name for one coverage entry, as it reads mid-sentence; its grammatical gender is unknown. 2: the same name for several entries. */
+				/* translators: 1: the site's own name for one liveblog entry, as it reads mid-sentence; its grammatical gender is unknown. 2: the same name for several entries. */
 				__( 'This %1$s is now out of date compared to newer %2$s, but is preserved as it originally appeared.', 'newspack-rolling-coverage' ),
 				esc_html( $singular ),
 				esc_html( Entry_Name::word( 2 ) )
@@ -4897,7 +4897,7 @@ class Rolling_Coverage_Block {
 		if ( ! term_exists( $term_id, Taxonomy::TAXONOMY_SLUG ) ) {
 			return new WP_Error(
 				'rolling_coverage_coverage_not_found',
-				__( 'Coverage not found.', 'newspack-rolling-coverage' ),
+				__( 'Liveblog not found.', 'newspack-rolling-coverage' ),
 				[ 'status' => 404 ]
 			);
 		}
@@ -5097,7 +5097,7 @@ class Rolling_Coverage_Block {
 		if ( ! term_exists( $term_id, Taxonomy::TAXONOMY_SLUG ) ) {
 			return new WP_Error(
 				'rolling_coverage_coverage_not_found',
-				__( 'Coverage not found.', 'newspack-rolling-coverage' ),
+				__( 'Liveblog not found.', 'newspack-rolling-coverage' ),
 				[ 'status' => 404 ]
 			);
 		}
@@ -5108,7 +5108,7 @@ class Rolling_Coverage_Block {
 		if ( 'trash' === $coverage_status ) {
 			return new WP_Error(
 				'rolling_coverage_coverage_not_found',
-				__( 'Coverage not found.', 'newspack-rolling-coverage' ),
+				__( 'Liveblog not found.', 'newspack-rolling-coverage' ),
 				[ 'status' => 404 ]
 			);
 		}

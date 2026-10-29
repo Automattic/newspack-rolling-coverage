@@ -1,3 +1,50 @@
+## [0.2.1](https://github.com/Automattic/newspack-rolling-coverage/compare/v0.2.0...v0.2.1) (2026-10-28)
+
+
+### Bug Fixes
+
+* say liveblog instead of coverage on screen ([#297](https://github.com/Automattic/newspack-rolling-coverage/issues/297)) ([4830342](https://github.com/Automattic/newspack-rolling-coverage/commit/4830342f9c6bb077d4d5eeda0b10e90b6962534e))
+
+# [0.2.0](https://github.com/Automattic/newspack-rolling-coverage/compare/v0.1.0...v0.2.0) (2026-10-27)
+
+
+### Bug Fixes
+
+* **admin:** find trashed coverages and restore them as they were ([#282](https://github.com/Automattic/newspack-rolling-coverage/issues/282)) ([2dfee5b](https://github.com/Automattic/newspack-rolling-coverage/commit/2dfee5b7789d123e8465970f6dc9758a84ebc927))
+* **admin:** update the entries count as the list syncs ([#270](https://github.com/Automattic/newspack-rolling-coverage/issues/270)) ([5a14d3c](https://github.com/Automattic/newspack-rolling-coverage/commit/5a14d3c8082beec2caedec992dea4723f66550a1))
+* **blocks:** bring back entries published again on open pages ([#256](https://github.com/Automattic/newspack-rolling-coverage/issues/256)) ([3ce7277](https://github.com/Automattic/newspack-rolling-coverage/commit/3ce7277e574f0724a6040d74ee15fea512c76377))
+* **blocks:** check for new entries as soon as the page opens ([#281](https://github.com/Automattic/newspack-rolling-coverage/issues/281)) ([0b52a47](https://github.com/Automattic/newspack-rolling-coverage/commit/0b52a4797565b9c2969a3ab6caede6eec5dfb850))
+* **blocks:** drop the separator above a Full story card ([#271](https://github.com/Automattic/newspack-rolling-coverage/issues/271)) ([426a4af](https://github.com/Automattic/newspack-rolling-coverage/commit/426a4af856e6794a505799221735dec191b9b8d3))
+* **blocks:** keep ad spacing for entries that arrive together ([#268](https://github.com/Automattic/newspack-rolling-coverage/issues/268)) ([e25bec1](https://github.com/Automattic/newspack-rolling-coverage/commit/e25bec1aa0b7038826edbb0d976f0fb3c38eabee))
+* **blocks:** keep empty ad slots out of RSS feeds ([#254](https://github.com/Automattic/newspack-rolling-coverage/issues/254)) ([aaba597](https://github.com/Automattic/newspack-rolling-coverage/commit/aaba597d1f0f0379ca4be31c799b937dc995c801))
+* **blocks:** keep the Flash bar to one line at every width ([#274](https://github.com/Automattic/newspack-rolling-coverage/issues/274)) ([e878104](https://github.com/Automattic/newspack-rolling-coverage/commit/e878104736dfcf5438328eaeed1bd59334476f4d))
+* **blocks:** open a new layout pattern with the Rolling Coverage block ([#269](https://github.com/Automattic/newspack-rolling-coverage/issues/269)) ([d43cfaf](https://github.com/Automattic/newspack-rolling-coverage/commit/d43cfaf8d5b850d6cd12b4a5d045cd3a896d9b20))
+* **blocks:** pace new-entry arrivals by size and drop the tint ([#278](https://github.com/Automattic/newspack-rolling-coverage/issues/278)) ([50839e3](https://github.com/Automattic/newspack-rolling-coverage/commit/50839e34758e9efd530c3049f1f131f187212702))
+* **blocks:** preview untitled entries without "(no title)" ([#292](https://github.com/Automattic/newspack-rolling-coverage/issues/292)) ([f3b6239](https://github.com/Automattic/newspack-rolling-coverage/commit/f3b62390cac7b2588a310ff1b2d1b4aa99bdbfbf))
+* **blocks:** scroll to new entries past a long pinned entry ([#266](https://github.com/Automattic/newspack-rolling-coverage/issues/266)) ([81bf1c1](https://github.com/Automattic/newspack-rolling-coverage/commit/81bf1c1dc715900ad050696b8adaefe83f0798e1))
+* **blocks:** stop a page without session storage reloading on every load ([#289](https://github.com/Automattic/newspack-rolling-coverage/issues/289)) ([28d1733](https://github.com/Automattic/newspack-rolling-coverage/commit/28d173399b788ffa8a69a3dea544e3fa96d15ddf))
+* **blocks:** stop matching feeds on a page from duplicating requests ([#275](https://github.com/Automattic/newspack-rolling-coverage/issues/275)) ([3569350](https://github.com/Automattic/newspack-rolling-coverage/commit/3569350fd9fc21be04fcd2e020df01c066d15864))
+* **blocks:** stop Split's pinned entries sticking on tablets and phones ([#277](https://github.com/Automattic/newspack-rolling-coverage/issues/277)) ([d7a85c9](https://github.com/Automattic/newspack-rolling-coverage/commit/d7a85c9a9a9294a1be3a5a339c98f0c657717aa0))
+* **blocks:** take the new-entries button to the new entries ([#276](https://github.com/Automattic/newspack-rolling-coverage/issues/276)) ([cda7f34](https://github.com/Automattic/newspack-rolling-coverage/commit/cda7f3435c4e733178f0c94932cc05f6f7916420))
+* **coverages:** keep coverage descriptions out of public REST reads ([#261](https://github.com/Automattic/newspack-rolling-coverage/issues/261)) ([917b5a0](https://github.com/Automattic/newspack-rolling-coverage/commit/917b5a079a80da3411a6814610f39dd7049c7318))
+* **coverages:** require manage_categories to create a coverage over REST ([#260](https://github.com/Automattic/newspack-rolling-coverage/issues/260)) ([4240c32](https://github.com/Automattic/newspack-rolling-coverage/commit/4240c3215bde4da00eb4abc5204aa0b156f561ac))
+* **entries:** keep entries of trashed coverages off their own URLs ([#280](https://github.com/Automattic/newspack-rolling-coverage/issues/280)) ([1ce7677](https://github.com/Automattic/newspack-rolling-coverage/commit/1ce7677970cf5913e75cf5174e8e17aaa62fb2da))
+* **entries:** keep taxonomy filters on public entry reads ([#259](https://github.com/Automattic/newspack-rolling-coverage/issues/259)) ([28f35d9](https://github.com/Automattic/newspack-rolling-coverage/commit/28f35d9ec5b306fbd04e224c43db2cc47070101c))
+* raise the minimum WordPress version to 7.1 ([#265](https://github.com/Automattic/newspack-rolling-coverage/issues/265)) ([832fd42](https://github.com/Automattic/newspack-rolling-coverage/commit/832fd429adf1d24366449b3ca90efae67f96427f))
+* **slack:** name the answering site and accept renamed commands ([#288](https://github.com/Automattic/newspack-rolling-coverage/issues/288)) ([5838496](https://github.com/Automattic/newspack-rolling-coverage/commit/5838496132021393464e3c63aaa4fc0827d1244c))
+
+
+### Features
+
+* **ai:** copy key takeaways on generate and tidy the block sidebar ([#262](https://github.com/Automattic/newspack-rolling-coverage/issues/262)) ([82eb80b](https://github.com/Automattic/newspack-rolling-coverage/commit/82eb80b87164e2e3e81bb0bd8000af205a23ff09))
+* **ai:** explain how to turn key takeaways on when they can't run ([#263](https://github.com/Automattic/newspack-rolling-coverage/issues/263)) ([9cc49b9](https://github.com/Automattic/newspack-rolling-coverage/commit/9cc49b986b1a828d61e5d4d4fac108c8d84f3c9b))
+* **blocks:** built-in layouts follow the plugin until edited ([#264](https://github.com/Automattic/newspack-rolling-coverage/issues/264)) ([9eb897b](https://github.com/Automattic/newspack-rolling-coverage/commit/9eb897bc37396c6b0526fb523763a4ec92059dff))
+* **blocks:** count down to the next check with a filling ring ([#279](https://github.com/Automattic/newspack-rolling-coverage/issues/279)) ([73dd4ff](https://github.com/Automattic/newspack-rolling-coverage/commit/73dd4ffb3f627f18418a347b88c371e0ef259acd))
+* **blocks:** mark new entries until readers have seen them ([#267](https://github.com/Automattic/newspack-rolling-coverage/issues/267)) ([746425a](https://github.com/Automattic/newspack-rolling-coverage/commit/746425a28cb127d759d58304b028aab3e86110e2))
+* **blocks:** show coverage avatars when Avatar Display is off ([#257](https://github.com/Automattic/newspack-rolling-coverage/issues/257)) ([47daf7a](https://github.com/Automattic/newspack-rolling-coverage/commit/47daf7a5b01b3bf522cebdf7c71027fc8acc593a))
+* **blocks:** wait longer between checks while they fail ([#287](https://github.com/Automattic/newspack-rolling-coverage/issues/287)) ([c22daa3](https://github.com/Automattic/newspack-rolling-coverage/commit/c22daa399e6a6f2b0101e2cb56b5983673d11dba))
+* show when a live post was last updated ([#273](https://github.com/Automattic/newspack-rolling-coverage/issues/273)) ([7e2bcae](https://github.com/Automattic/newspack-rolling-coverage/commit/7e2bcae62cfc4dd43f93d75b3fbb3913b4139926))
+
 # [0.1.0](https://github.com/Automattic/newspack-rolling-coverage/compare/v0.0.0...v0.1.0) (2026-10-21)
 
 
