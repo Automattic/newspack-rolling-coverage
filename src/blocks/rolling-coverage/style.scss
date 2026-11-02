@@ -3,6 +3,28 @@
 $feed-gap: var(--newspack-rolling-coverage-gap, var(--wp--preset--spacing--50));
 $accent: var(--newspack-rolling-coverage-accent, var(--wp--preset--color--accent, var(--newspack-theme-color-primary, currentcolor)));
 
+@mixin stretched-link($link) {
+
+	#{$link} {
+		position: static;
+
+		&::after {
+			content: "";
+			position: absolute;
+			inset: 0;
+		}
+
+		&:focus-visible {
+			outline: none;
+		}
+	}
+
+	&:has(#{$link}:focus-visible) {
+		outline: 2px solid $accent;
+		outline-offset: 2px;
+	}
+}
+
 :where(:root) {
 	--wp--preset--shadow--elevation-2: 0 2px 20px rgba(0, 0, 0, 0.15);
 	--newspack-rolling-coverage-accent-tint: color-mix(in srgb, #{$accent} 5%, transparent);
@@ -330,6 +352,8 @@ $accent: var(--newspack-rolling-coverage-accent, var(--wp--preset--color--accent
 
 		&:not(:has(.wp-block-button)) {
 
+			@include stretched-link(".wp-block-post-title a");
+
 			@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
 				transition: transform 200ms ease;
 
@@ -337,29 +361,34 @@ $accent: var(--newspack-rolling-coverage-accent, var(--wp--preset--color--accent
 					transform: scale(1.01);
 				}
 			}
+		}
+	}
 
-			.wp-block-post-title a {
-				position: static;
+	&[data-entries="none"] .newspack-rolling-coverage-feed:has(> .newspack-rolling-coverage-all-updates a) {
+		position: relative;
 
-				&::after {
-					content: "";
-					position: absolute;
-					inset: 0;
+		:is(a, button) {
+			position: relative;
+			z-index: 1;
+		}
+
+		@include stretched-link(".newspack-rolling-coverage-all-updates a");
+
+		@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+
+			&:has(> .newspack-rolling-coverage-all-updates a:active) {
+				transform: scale(0.97);
+				transition: transform motion.$press motion.$ease-out;
+
+				.newspack-rolling-coverage-all-updates a::after {
+					inset: -1.55%;
 				}
-
-				&:focus-visible {
-					outline: none;
-				}
-			}
-
-			&:has(.wp-block-post-title a:focus-visible) {
-				outline: 2px solid $accent;
-				outline-offset: 2px;
 			}
 		}
 	}
 
-	.has-background.has-text-color .newspack-rolling-coverage-breakout-box:not(:has(.wp-block-button)):has(.wp-block-post-title a:focus-visible) {
+	.has-background.has-text-color .newspack-rolling-coverage-breakout-box:not(:has(.wp-block-button)):has(.wp-block-post-title a:focus-visible),
+	.has-background.has-text-color &[data-entries="none"] .newspack-rolling-coverage-feed:has(> .newspack-rolling-coverage-all-updates a:focus-visible) {
 		outline-color: currentcolor;
 	}
 
