@@ -322,7 +322,7 @@ Each sets the default its filter starts from, so a filter callback still wins.
 - `rolling_coverage_placements` (stored map of the published places that show each coverage), `rolling_coverage_placements_stale`, `rolling_coverage_placements_lock` (rebuild lock, 300s TTL).
 - `rolling_coverage_entry_name`, `rolling_coverage_latest_label`, `rolling_coverage_breakout_label` (reader-facing label settings).
 - `rolling_coverage_status_labels` (custom coverage status labels).
-- `rolling_coverage_{slug}_layout_id` (pattern ID of each built-in shared layout), `rolling_coverage_{slug}_layout_lock` (creation lock, 30s timeout).
+- `rolling_coverage_{slug}_layout_id` (pattern ID of each built-in shared layout), `rolling_coverage_{slug}_layout_lock` (creation lock, 30s timeout), `rolling_coverage_deleted_layout_{id}` (built-in layout slug of a deleted built-in layout pattern, one per pattern ID; not autoloaded).
 - `rolling_coverage_notification_lock_{post_id}` (push-notification send lock, 60s TTL).
 - `rolling_coverage_source_ingest_{md5}` (short-lived ingestion mutex, 60s TTL).
 - `rc_tpl_{coverage_id}_{hash}` (hashed block template/config for polling renders).

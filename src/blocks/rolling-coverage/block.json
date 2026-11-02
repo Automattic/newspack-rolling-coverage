@@ -56,6 +56,10 @@
 			"type": "number",
 			"default": 0
 		},
+		"layoutSlug": {
+			"type": "string",
+			"default": ""
+		},
 		"latestOnly": {
 			"type": "boolean",
 			"default": false

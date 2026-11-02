@@ -6,6 +6,7 @@
  */
 
 use Newspack_Rolling_Coverage\Layout;
+use Newspack_Rolling_Coverage\Layout_Templates;
 use Newspack_Rolling_Coverage\Post_Type;
 use Newspack_Rolling_Coverage\Rolling_Coverage_Block;
 
@@ -899,5 +900,301 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$this->assertSame( $count_before, (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_type = 'wp_block' AND post_status = 'publish'" ) );
 		$this->assertSame( $id, (int) get_option( Layout::option_name( 'stream' ) ) );
+	}
+
+	/**
+	 * Creates a built-in layout's pattern through the route the editor uses,
+	 * then edits its content when asked.
+	 *
+	 * @param string      $slug   Built-in layout slug.
+	 * @param string|null $edited Text the edited layout holds, or null to leave it unedited.
+	 * @return int Pattern ID.
+	 */
+	private static function create_built_in( string $slug, ?string $edited = null ): int {
+		self::log_in_as( 'editor' );
+		$layout_id = (int) self::dispatch( 'POST', '/layouts/' . $slug, [ 'content' => self::layout_markup( 'Created' ) ] )->get_data()['id'];
+
+		if ( null !== $edited ) {
+			wp_update_post(
+				[
+					'ID'           => $layout_id,
+					'post_content' => self::layout_markup( $edited ),
+				]
+			);
+		}
+
+		return $layout_id;
+	}
+
+	/**
+	 * A block that names a built-in layout by its slug renders the layout as
+	 * the plugin ships it while the site has no pattern for it.
+	 */
+	public function test_slug_block_without_a_pattern_renders_the_plugin_layout() {
+		$this->assertSame( Layout_Templates::get_blocks( 'ticker' ), Layout::resolve_layout_blocks( [ 'layoutSlug' => 'ticker' ] ) );
+	}
+
+	/**
+	 * Editing a built-in layout's pattern reaches every block that names the
+	 * layout by its slug.
+	 */
+	public function test_slug_block_follows_its_edited_pattern() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id );
+		self::create_built_in( 'ticker', self::MARKER );
+
+		$html = self::render_story(
+			[
+				'coverageId' => $coverage_id,
+				'layoutSlug' => 'ticker',
+			]
+		);
+
+		$this->assertStringContainsString( self::MARKER, $html );
+	}
+
+	/**
+	 * Deleting an edited built-in layout's pattern brings back the layout as
+	 * the plugin ships it.
+	 */
+	public function test_slug_block_after_its_pattern_is_deleted_renders_the_plugin_layout() {
+		$layout_id = self::create_built_in( 'ticker', self::MARKER );
+		wp_delete_post( $layout_id, true );
+
+		$this->assertSame( Layout_Templates::get_blocks( 'ticker' ), Layout::resolve_layout_blocks( [ 'layoutSlug' => 'ticker' ] ) );
+	}
+
+	/**
+	 * A slug that names no built-in layout renders the Bulletin layout, as a
+	 * missing pattern does.
+	 */
+	public function test_unknown_slug_falls_back_to_the_default_layout() {
+		$parsed = parse_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage {"layoutSlug":"nope"} /-->' )[0];
+
+		$this->assertNull( Layout::resolve_layout_blocks( [ 'layoutSlug' => 'nope' ] ) );
+		$this->assertSame( Rolling_Coverage_Block::default_layout_blocks(), Layout::inject_layout( $parsed )['innerBlocks'] );
+	}
+
+	/**
+	 * A block that has both a pattern and a slug renders the pattern, and
+	 * once that custom pattern is gone renders Bulletin, as the editor and
+	 * Placements read it, rather than the slug.
+	 */
+	public function test_layout_id_wins_over_slug() {
+		$layout_id  = self::create_layout( self::layout_markup() );
+		$attributes = [
+			'layoutId'   => $layout_id,
+			'layoutSlug' => 'ticker',
+		];
+
+		$this->assertStringContainsString( self::MARKER, serialize_blocks( Layout::resolve_layout_blocks( $attributes ) ) );
+
+		wp_delete_post( $layout_id, true );
+
+		$this->assertNull( Layout::resolve_layout_blocks( $attributes ) );
+	}
+
+	/**
+	 * A block nested inside a layout drops its slug too, so a layout can't
+	 * pull itself in through the built-in layout it was edited from.
+	 */
+	public function test_nested_slug_block_does_not_recurse() {
+		$layout_id = self::create_built_in( 'ticker' );
+		wp_update_post(
+			[
+				'ID'           => $layout_id,
+				'post_content' => '<!-- wp:newspack-rolling-coverage/rolling-coverage --><!-- wp:paragraph --><p>' . self::MARKER . '</p><!-- /wp:paragraph --><!-- wp:newspack-rolling-coverage/rolling-coverage {"layoutSlug":"ticker"} /--><!-- /wp:newspack-rolling-coverage/rolling-coverage -->',
+			]
+		);
+
+		$blocks = Layout::resolve_layout_blocks( [ 'layoutSlug' => 'ticker' ] );
+
+		$this->assertSame( Rolling_Coverage_Block::BLOCK_NAME, $blocks[1]['blockName'] );
+		$this->assertArrayNotHasKey( 'layoutSlug', $blocks[1]['attrs'] );
+	}
+
+	/**
+	 * Deleting a built-in layout's pattern records which layout it was,
+	 * whether it's deleted outright, as the Site Editor does, or from the
+	 * trash.
+	 *
+	 * @dataProvider pattern_deletions
+	 *
+	 * @param callable $delete Deletes the pattern, given its ID.
+	 */
+	public function test_deleting_a_built_in_pattern_records_its_slug( callable $delete ) {
+		$layout_id = self::create_built_in( 'ticker' );
+
+		$delete( $layout_id );
+
+		$this->assertSame( 'ticker', Layout::get_deleted_slug( $layout_id ) );
+	}
+
+	/**
+	 * Ways a pattern gets deleted.
+	 *
+	 * @return array[]
+	 */
+	public function pattern_deletions(): array {
+		return [
+			'deleted outright'       => [ static fn( $id ) => wp_delete_post( $id, true ) ],
+			'deleted from the trash' => [
+				static function ( $id ) {
+					wp_trash_post( $id );
+					wp_delete_post( $id, true );
+				},
+			],
+		];
+	}
+
+	/**
+	 * A built-in layout's pattern that's unpublished or trashed keeps its
+	 * slug tag, so blocks pointing at it follow the layout without a record.
+	 *
+	 * @dataProvider pattern_unpublishings
+	 *
+	 * @param callable $unpublish Takes the pattern off the site, given its ID.
+	 */
+	public function test_unpublished_built_in_pattern_follows_its_slug( callable $unpublish ) {
+		$layout_id = self::create_built_in( 'ticker', self::MARKER );
+
+		$unpublish( $layout_id );
+
+		$this->assertSame( Layout_Templates::get_blocks( 'ticker' ), Layout::resolve_layout_blocks( [ 'layoutId' => $layout_id ] ) );
+	}
+
+	/**
+	 * Ways a pattern leaves the site without being deleted.
+	 *
+	 * @return array[]
+	 */
+	public function pattern_unpublishings(): array {
+		return [
+			'trashed'     => [ 'wp_trash_post' ],
+			'unpublished' => [
+				static fn( $id ) => wp_update_post(
+					[
+						'ID'          => $id,
+						'post_status' => 'draft',
+					]
+				),
+			],
+		];
+	}
+
+	/**
+	 * Only a pattern tagged with a built-in layout is recorded.
+	 */
+	public function test_only_built_in_patterns_are_recorded() {
+		$untagged = self::create_layout( self::layout_markup() );
+		$unknown  = self::create_layout( self::layout_markup() );
+		update_post_meta( $unknown, Layout::SLUG_META_KEY, 'nope' );
+
+		wp_delete_post( $untagged, true );
+		wp_delete_post( $unknown, true );
+
+		$this->assertFalse( get_option( Layout::deleted_option_name( $untagged ) ) );
+		$this->assertFalse( get_option( Layout::deleted_option_name( $unknown ) ) );
+	}
+
+	/**
+	 * The editor gets every built-in layout pattern the page renders as its
+	 * layout, so it previews what the page shows, and none that renders.
+	 */
+	public function test_editor_gets_the_built_in_patterns_that_do_not_render() {
+		$ticker_id = self::create_built_in( 'ticker' );
+		$flash_id  = self::create_built_in( 'flash' );
+		wp_update_post(
+			[
+				'ID'           => $flash_id,
+				'post_content' => '<!-- wp:paragraph --><p>No layout here</p><!-- /wp:paragraph -->',
+			]
+		);
+		$rail_id = self::create_built_in( 'rail' );
+		wp_trash_post( $rail_id );
+		$clock_id = self::create_built_in( 'clock' );
+		wp_delete_post( $clock_id, true );
+		$restored_id = self::create_built_in( 'split' );
+		wp_trash_post( $restored_id );
+		wp_untrash_post( $restored_id );
+		wp_publish_post( $restored_id );
+
+		$expected = [
+			$flash_id => 'flash',
+			$rail_id  => 'rail',
+			$clock_id => 'clock',
+		];
+		$actual   = Layout::get_unrendered_layouts();
+		ksort( $expected );
+		ksort( $actual );
+
+		$this->assertSame( $expected, $actual );
+		$this->assertArrayNotHasKey( $ticker_id, Layout::get_unrendered_layouts() );
+	}
+
+	/**
+	 * A built-in layout's pattern whose Rolling Coverage block was emptied
+	 * renders the layout as the plugin ships it, as one holding no layout
+	 * block does.
+	 */
+	public function test_emptied_built_in_pattern_renders_its_layout() {
+		$layout_id = self::create_built_in( 'ticker' );
+		wp_update_post(
+			[
+				'ID'           => $layout_id,
+				'post_content' => '<!-- wp:newspack-rolling-coverage/rolling-coverage /-->',
+			]
+		);
+
+		$this->assertSame( Layout_Templates::get_blocks( 'ticker' ), Layout::resolve_layout_blocks( [ 'layoutId' => $layout_id ] ) );
+		$this->assertSame( Layout_Templates::get_blocks( 'ticker' ), Layout::resolve_layout_blocks( [ 'layoutSlug' => 'ticker' ] ) );
+	}
+
+	/**
+	 * A block still pointing at a built-in layout's deleted pattern follows
+	 * the layout's slug instead of falling back to Bulletin.
+	 */
+	public function test_legacy_id_of_a_removed_pattern_follows_its_slug() {
+		$layout_id = self::create_built_in( 'ticker', self::MARKER );
+
+		wp_delete_post( $layout_id, true );
+
+		$this->assertSame( Layout_Templates::get_blocks( 'ticker' ), Layout::resolve_layout_blocks( [ 'layoutId' => $layout_id ] ) );
+	}
+
+	/**
+	 * A built-in layout's pattern that's restored renders itself again, not
+	 * the layout its slug now resolves to: a block's own pattern is tried
+	 * before its built-in layout.
+	 */
+	public function test_restored_pattern_renders_itself_not_its_slug() {
+		self::create_built_in( 'ticker' );
+		$duplicate_id = self::create_layout( self::layout_markup() );
+		update_post_meta( $duplicate_id, Layout::SLUG_META_KEY, 'ticker' );
+		// Edited since it was created, so it renders its own content.
+		update_post_meta( $duplicate_id, Layout::HASH_META_KEY, md5( 'created' ) );
+
+		wp_trash_post( $duplicate_id );
+		wp_untrash_post( $duplicate_id );
+		wp_publish_post( $duplicate_id );
+
+		$this->assertStringContainsString( self::MARKER, serialize_blocks( Layout::resolve_layout_blocks( [ 'layoutId' => $duplicate_id ] ) ) );
+	}
+
+	/**
+	 * A built-in layout's pattern that can't render, edited until it holds no
+	 * Rolling Coverage block, renders the layout as the plugin ships it, as
+	 * the editor shows it.
+	 */
+	public function test_unusable_built_in_pattern_renders_its_layout() {
+		$layout_id = self::create_built_in( 'ticker', self::MARKER );
+		wp_update_post(
+			[
+				'ID'           => $layout_id,
+				'post_content' => '<!-- wp:paragraph --><p>No layout here</p><!-- /wp:paragraph -->',
+			]
+		);
+
+		$this->assertSame( Layout_Templates::get_blocks( 'ticker' ), Layout::resolve_layout_blocks( [ 'layoutId' => $layout_id ] ) );
 	}
 }

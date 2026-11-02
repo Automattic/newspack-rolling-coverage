@@ -13,5 +13,7 @@ export default function Save( {
 }: {
 	attributes: RollingCoverageAttributes;
 } ) {
-	return attributes.layoutId ? null : <InnerBlocks.Content />;
+	return attributes.layoutId || attributes.layoutSlug ? null : (
+		<InnerBlocks.Content />
+	);
 }
