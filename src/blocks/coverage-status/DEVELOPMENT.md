@@ -55,9 +55,9 @@ The editor's color picker needs a literal color to show and mark as selected, so
 
 A hex background goes through `Apca::normalize()`, which accepts `#rgb`, `#rgba`, `#rrggbb` and `#rrggbbaa`, drops any alpha, and returns an empty string for anything else, which leaves the badge's default style. This keeps the value safe for an inline style.
 
-The text color is never chosen by the publisher. For a hex background, `Apca::text_color()` (`includes/blocks/class-apca.php`) picks black or white, whichever has the higher APCA contrast against the background. `badge_style()` then sets the background, that text color, and a dot color mixed from the two so the dot stays visible.
+The text color is never chosen by the publisher. For a hex background, `Apca::text_color()` (`includes/blocks/class-apca.php`) picks black or white: whichever has the higher APCA contrast against the background, unless that falls under the WCAG 2 AA ratio of 4.5:1 and the other reaches it, in which case the other wins. On a single background one of the two always reaches 4.5:1, so the text always passes AA. `badge_style()` then sets the background, that text color, and a dot color mixed from the two so the dot stays visible.
 
-`src/blocks/shared/apca.ts` ports the same algorithm and constants for the editor preview (`badgeStyleObject()` in `src/blocks/shared/status-badges.ts`, which also mirrors `THEME_COLORS`). The two must agree, or the editor shows a different text color from the site; change them together. `tests/test-apca.php` checks the PHP side against reference values.
+`src/blocks/shared/apca.ts` ports the same algorithm and constants for the editor preview (`badgeStyleObject()` in `src/blocks/shared/status-badges.ts`, which also mirrors `THEME_COLORS`). The two must agree, or the editor shows a different text color from the site; change them together. `tests/test-apca.php` checks the PHP side against reference values, and `tests/js/apca.test.ts` checks the same picks for the port.
 
 The badge classes per status are `Coverage_Status_Block::BADGE_CLASSES`, mirrored by `BADGE_CLASSES` in `status-badges.ts`.
 

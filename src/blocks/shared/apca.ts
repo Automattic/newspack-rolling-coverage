@@ -14,6 +14,7 @@ const LO_BOW_OFF = 0.027;
 const LO_WOB_OFF = 0.027;
 const DELTA_Y_MIN = 0.0005;
 const LO_CLIP = 0.1;
+const AA_RATIO = 4.5;
 
 /**
  * Normalizes a hex color to lowercase `#rrggbb`, dropping any alpha.
@@ -99,16 +100,57 @@ function lc( text: string, background: string ): number {
 }
 
 /**
- * Black or white, whichever contrasts more with the background.
+ * WCAG 2 relative luminance of a `#rrggbb` color.
+ *
+ * @param {string} color Normalized color.
+ * @return {number} Luminance.
+ */
+function wcagLuminance( color: string ): number {
+	const [ red, green, blue ] = [ 1, 3, 5 ].map( ( offset ) => {
+		const value = parseInt( color.slice( offset, offset + 2 ), 16 ) / 255;
+
+		return value <= 0.04045
+			? value / 12.92
+			: Math.pow( ( value + 0.055 ) / 1.055, 2.4 );
+	} );
+
+	return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+}
+
+/**
+ * WCAG 2 contrast ratio of black or white text on a background.
+ *
+ * @param {number} bgLuminance WCAG 2 relative luminance of the background.
+ * @param {string} text        `#000000` or `#ffffff`.
+ * @return {number} Contrast ratio.
+ */
+function wcagRatio( bgLuminance: number, text: string ): number {
+	return text === '#ffffff'
+		? 1.05 / ( bgLuminance + 0.05 )
+		: ( bgLuminance + 0.05 ) / 0.05;
+}
+
+/**
+ * Black or white, whichever reads better on the background by APCA, held to
+ * the WCAG 2 AA floor: when the pick falls under 4.5:1 and the other color
+ * reaches it, the other color wins.
  *
  * @param {string} background Normalized `#rrggbb` background.
- * @return {string} `#000000` or `#ffffff`; black on a tie.
+ * @return {string} `#000000` or `#ffffff`; black on an APCA tie.
  */
 function textColor( background: string ): string {
 	const black = Math.abs( lc( '#000000', background ) );
 	const white = Math.abs( lc( '#ffffff', background ) );
 
-	return white > black ? '#ffffff' : '#000000';
+	const text = white > black ? '#ffffff' : '#000000';
+	const other = text === '#ffffff' ? '#000000' : '#ffffff';
+
+	const luminanceValue = wcagLuminance( background );
+
+	return wcagRatio( luminanceValue, text ) < AA_RATIO &&
+		wcagRatio( luminanceValue, other ) >= AA_RATIO
+		? other
+		: text;
 }
 
 export { normalizeColor, textColor };

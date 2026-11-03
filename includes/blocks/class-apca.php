@@ -11,7 +11,7 @@ defined( 'ABSPATH' ) || exit;
 
 /**
  * Color sanitizing and APCA (0.0.98G-4g) contrast, used to pick readable text
- * for a custom badge background.
+ * for a custom badge background. The pick is held to the WCAG 2 AA floor.
  */
 class Apca {
 
@@ -31,6 +31,7 @@ class Apca {
 	const LO_WOB_OFF  = 0.027;
 	const DELTA_Y_MIN = 0.0005;
 	const LO_CLIP     = 0.1;
+	const AA_RATIO    = 4.5;
 
 	/**
 	 * Normalizes a hex color to lowercase `#rrggbb`, dropping any alpha.
@@ -56,16 +57,27 @@ class Apca {
 	}
 
 	/**
-	 * Black or white, whichever contrasts more with the background.
+	 * Black or white, whichever reads better on the background by APCA, held to
+	 * the WCAG 2 AA floor: when the pick falls under 4.5:1 and the other color
+	 * reaches it, the other color wins.
 	 *
 	 * @param string $background Normalized `#rrggbb` background.
-	 * @return string `#000000` or `#ffffff`; black on a tie.
+	 * @return string `#000000` or `#ffffff`; black on an APCA tie.
 	 */
 	public static function text_color( string $background ): string {
 		$black = abs( self::lc( '#000000', $background ) );
 		$white = abs( self::lc( '#ffffff', $background ) );
 
-		return $white > $black ? '#ffffff' : '#000000';
+		$text  = $white > $black ? '#ffffff' : '#000000';
+		$other = '#ffffff' === $text ? '#000000' : '#ffffff';
+
+		$luminance = self::wcag_luminance( $background );
+
+		if ( self::wcag_ratio( $luminance, $text ) < self::AA_RATIO && self::wcag_ratio( $luminance, $other ) >= self::AA_RATIO ) {
+			return $other;
+		}
+
+		return $text;
 	}
 
 	/**
@@ -92,6 +104,36 @@ class Apca {
 		}
 
 		return $out * 100;
+	}
+
+	/**
+	 * WCAG 2 contrast ratio of black or white text on a background.
+	 *
+	 * @param float  $luminance WCAG 2 relative luminance of the background.
+	 * @param string $text      `#000000` or `#ffffff`.
+	 * @return float
+	 */
+	private static function wcag_ratio( float $luminance, string $text ): float {
+		return '#ffffff' === $text ? 1.05 / ( $luminance + 0.05 ) : ( $luminance + 0.05 ) / 0.05;
+	}
+
+	/**
+	 * WCAG 2 relative luminance of a `#rrggbb` color.
+	 *
+	 * @param string $color Normalized color.
+	 * @return float
+	 */
+	private static function wcag_luminance( string $color ): float {
+		$linear = array_map(
+			function ( $offset ) use ( $color ) {
+				$value = hexdec( substr( $color, $offset, 2 ) ) / 255;
+
+				return $value <= 0.04045 ? $value / 12.92 : pow( ( $value + 0.055 ) / 1.055, 2.4 );
+			},
+			[ 1, 3, 5 ]
+		);
+
+		return 0.2126 * $linear[0] + 0.7152 * $linear[1] + 0.0722 * $linear[2];
 	}
 
 	/**

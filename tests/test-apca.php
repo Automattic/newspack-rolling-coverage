@@ -37,12 +37,36 @@ class Test_Apca extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Text is whichever of black and white contrasts more.
+	 * Text is black or white by APCA, held to the WCAG 2 AA floor.
+	 *
+	 * @dataProvider text_color_cases
+	 *
+	 * @param string $background Background.
+	 * @param string $expected   Expected text color.
 	 */
-	public function test_text_color_picks_whichever_of_black_and_white_contrasts_more() {
-		$this->assertSame( '#000000', Apca::text_color( '#ffffff' ) );
-		$this->assertSame( '#ffffff', Apca::text_color( '#000000' ) );
-		$this->assertSame( '#ffffff', Apca::text_color( '#2271b1' ) );
-		$this->assertSame( '#000000', Apca::text_color( '#ffd700' ) );
+	public function test_text_color_picks_by_apca_held_to_the_aa_floor( $background, $expected ) {
+		$this->assertSame( $expected, Apca::text_color( $background ) );
+	}
+
+	/**
+	 * Backgrounds and their expected text colors.
+	 *
+	 * @return array
+	 */
+	public function text_color_cases() {
+		return [
+			'black'      => [ '#000000', '#ffffff' ],
+			'white'      => [ '#ffffff', '#000000' ],
+			'light gray' => [ '#f0f0f0', '#000000' ],
+			'yellow'     => [ '#ffcc00', '#000000' ],
+			'gold'       => [ '#ffd700', '#000000' ],
+			'mid green'  => [ '#178f15', '#000000' ],
+			'blue'       => [ '#3366cc', '#ffffff' ],
+			'wp blue'    => [ '#2271b1', '#ffffff' ],
+			'red'        => [ '#dd3333', '#ffffff' ],
+			'orange'     => [ '#e65100', '#000000' ],
+			'shorthand'  => [ Apca::normalize( '#FC0' ), '#000000' ],
+			'with alpha' => [ Apca::normalize( '#E6510080' ), '#000000' ],
+		];
 	}
 }
