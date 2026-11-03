@@ -59,7 +59,8 @@ class Apca {
 	/**
 	 * Black or white, whichever reads better on the background by APCA, held to
 	 * the WCAG 2 AA floor: when the pick falls under 4.5:1 and the other color
-	 * reaches it, the other color wins.
+	 * reaches it, the other color wins. On a single background one of black or
+	 * white always reaches 4.5:1, so the text always meets AA.
 	 *
 	 * @param string $background Normalized `#rrggbb` background.
 	 * @return string `#000000` or `#ffffff`; black on an APCA tie.
@@ -124,16 +125,15 @@ class Apca {
 	 * @return float
 	 */
 	private static function wcag_luminance( string $color ): float {
-		$linear = array_map(
-			function ( $offset ) use ( $color ) {
-				$value = hexdec( substr( $color, $offset, 2 ) ) / 255;
+		$red   = hexdec( substr( $color, 1, 2 ) ) / 255;
+		$green = hexdec( substr( $color, 3, 2 ) ) / 255;
+		$blue  = hexdec( substr( $color, 5, 2 ) ) / 255;
 
-				return $value <= 0.04045 ? $value / 12.92 : pow( ( $value + 0.055 ) / 1.055, 2.4 );
-			},
-			[ 1, 3, 5 ]
-		);
+		$red   = $red <= 0.04045 ? $red / 12.92 : pow( ( $red + 0.055 ) / 1.055, 2.4 );
+		$green = $green <= 0.04045 ? $green / 12.92 : pow( ( $green + 0.055 ) / 1.055, 2.4 );
+		$blue  = $blue <= 0.04045 ? $blue / 12.92 : pow( ( $blue + 0.055 ) / 1.055, 2.4 );
 
-		return 0.2126 * $linear[0] + 0.7152 * $linear[1] + 0.0722 * $linear[2];
+		return 0.2126 * $red + 0.7152 * $green + 0.0722 * $blue;
 	}
 
 	/**

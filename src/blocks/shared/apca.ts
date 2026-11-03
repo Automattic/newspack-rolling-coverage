@@ -133,7 +133,8 @@ function wcagRatio( bgLuminance: number, text: string ): number {
 /**
  * Black or white, whichever reads better on the background by APCA, held to
  * the WCAG 2 AA floor: when the pick falls under 4.5:1 and the other color
- * reaches it, the other color wins.
+ * reaches it, the other color wins. On a single background one of black or
+ * white always reaches 4.5:1, so the text always meets AA.
  *
  * @param {string} background Normalized `#rrggbb` background.
  * @return {string} `#000000` or `#ffffff`; black on an APCA tie.
