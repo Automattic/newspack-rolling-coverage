@@ -2,9 +2,7 @@
  * External dependencies
  */
 import { SelectControl } from '@wordpress/components';
-import { __, sprintf } from '@wordpress/i18n';
-import { chevronDown } from '@wordpress/icons';
-import { Button, Icon, Menu } from '@wordpress/ui';
+import { Select } from '@wordpress/ui';
 
 /**
  * Internal dependencies
@@ -19,9 +17,8 @@ import {
 /**
  * The Publish Mode control for a Slack channel. In a form it is a dropdown
  * with help text saying what the chosen mode does; in a table row
- * (`isCompact`) it is a small button naming the current mode, which opens a
- * menu of the modes with the current one ticked. Checkbox items carry the
- * tick; the radio items' marker is a dot.
+ * (`isCompact`) it is a low-profile select naming the current mode, whose
+ * list describes each mode and ticks the current one.
  *
  * @param {PublishModeSelectProps} props Component props.
  */
@@ -48,46 +45,33 @@ function PublishModeSelect( {
 		);
 	}
 
-	const current =
-		options.find( ( option ) => option.value === value )?.label ?? value;
-
 	return (
-		<Menu.Root>
-			<Menu.Trigger
-				disabled={ disabled }
-				aria-label={ sprintf(
-					/* translators: 1: "Publish mode for #channel", 2: the current publish mode. */
-					__( '%1$s: %2$s', 'newspack-rolling-coverage' ),
-					label,
-					current
-				) }
-				render={
-					<Button variant="minimal" tone="neutral" size="compact" />
+		<Select.Root
+			value={ value }
+			items={ options }
+			disabled={ disabled }
+			onValueChange={ ( next ) => {
+				if ( next && next !== value ) {
+					onChange( next as PublishMode );
 				}
-			>
-				{ current }
-				<Icon icon={ chevronDown } size={ 16 } />
-			</Menu.Trigger>
-			<Menu.Popup>
+			} }
+		>
+			<Select.Trigger
+				variant="minimal"
+				size="compact"
+				aria-label={ label }
+			/>
+			<Select.Popup width="content">
 				{ options.map( ( option ) => (
-					<Menu.CheckboxItem
-						key={ option.value }
-						checked={ option.value === value }
-						closeOnClick
-						onCheckedChange={ () => {
-							if ( option.value !== value ) {
-								onChange( option.value );
-							}
-						} }
-					>
-						<Menu.ItemLabel>{ option.label }</Menu.ItemLabel>
-						<Menu.ItemDescription>
+					<Select.Item key={ option.value } value={ option.value }>
+						<Select.ItemLabel>{ option.label }</Select.ItemLabel>
+						<Select.ItemDescription>
 							{ getPublishModeDescription( option.value ) }
-						</Menu.ItemDescription>
-					</Menu.CheckboxItem>
+						</Select.ItemDescription>
+					</Select.Item>
 				) ) }
-			</Menu.Popup>
-		</Menu.Root>
+			</Select.Popup>
+		</Select.Root>
 	);
 }
 

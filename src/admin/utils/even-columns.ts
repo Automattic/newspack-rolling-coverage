@@ -25,14 +25,17 @@ function evenColumns< V extends View >( view: V ): V {
 	if ( view.type !== 'table' ) {
 		return view;
 	}
-	const hasTitle = Boolean( view.titleField ) && view.showTitle !== false;
+	const hasPrimary =
+		( Boolean( view.titleField ) && view.showTitle !== false ) ||
+		( Boolean( view.mediaField ) && view.showMedia !== false ) ||
+		( Boolean( view.descriptionField ) && view.showDescription !== false );
 	const columns = ( view.fields ?? [] ).filter(
 		( id ) => id !== view.titleField
 	);
 	if ( ! columns.length ) {
 		return view;
 	}
-	const share = ( hasTitle ? 100 - TITLE_SHARE : 100 ) / columns.length;
+	const share = ( hasPrimary ? 100 - TITLE_SHARE : 100 ) / columns.length;
 	const width = `${ Number( share.toFixed( 2 ) ) }%`;
 	const layout = ( view.layout ?? {} ) as ViewLayout;
 	const styles: ColumnStyles = { ...layout.styles };
