@@ -83,7 +83,8 @@ function revealFocusedBulkAction( event: FocusEvent< HTMLDivElement > ) {
 
 /**
  * Type-safe wrapper around WordPress DataViews that fills in default props
- * (getItemId, defaultLayouts, isItemClickable) so consumers don't have to.
+ * (getItemId, defaultLayouts, isItemClickable) so consumers don't have to, and
+ * lays out the shared list toolbar with every declared filter as a chip.
  */
 function DataViewsWrapper< T extends { id: number | string } >( {
 	data,
@@ -98,8 +99,9 @@ function DataViewsWrapper< T extends { id: number | string } >( {
 	defaultLayouts,
 	config,
 }: DataViewsWrapperProps< T > ) {
-	// "Add filter" only renders beside a visible chip, so every declared
-	// filter is made primary to keep it reachable without the funnel toggle.
+	// "Add filter" only renders beside a visible chip, so a declared filter is
+	// made primary to stay reachable without the funnel toggle. A list whose
+	// filters all come from DataViews' defaults would show no filter UI.
 	const shownFields = useMemo(
 		() =>
 			fields.map( ( field ) =>

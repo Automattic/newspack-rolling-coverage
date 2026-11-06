@@ -120,6 +120,7 @@ function getChannelFields(
 			),
 			enableSorting: false,
 			enableHiding: false,
+			filterBy: false,
 			getValue: () => '',
 			render: ( { item } ) => (
 				<Button

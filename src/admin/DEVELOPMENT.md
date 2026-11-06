@@ -32,6 +32,10 @@ The app reads its config from `window.newspackRollingCoverageAdmin` (`Admin::get
 
 The admin pages load the block editor's assets so Quick Edit can run a block editor. `Newspack\Blocks::enqueue_block_editor_assets` is unhooked while they load, since newspack-plugin's editor UI crashes inside Quick Edit's `EditorProvider`.
 
+## List toolbar
+
+Every list goes through `DataViewsWrapper` (`src/admin/components/data-views-wrapper.tsx`), which lays out the toolbar the Newspack admin lists share: filter chips beside the search, the view options and any `header` content on the right, and no funnel toggle. A field that declares `filterBy` always shows as a chip, so add `filterBy` only for a filter that belongs on the toolbar. A field DataViews makes filterable by default, such as a `datetime` field or a `text` field without `filterBy: false`, is offered under **Add filter** instead. **Add filter** only shows beside a chip, so a list needs at least one field with `filterBy` or its other filters can't be reached.
+
 ## Bulk actions
 
 Selecting rows in All Liveblogs or a coverage's entries shows DataViews' bulk actions in the list's footer, which stays at the bottom of the window while the list scrolls. Other plugins (newspack-blocks, newspack-listings, newspack-popups, newspack-manager) load an older DataViews stylesheet on these screens that gives `.dataviews-wrapper` `overflow: auto`. That makes the wrapper the footer's scroll container, and since the wrapper is as tall as its rows, the footer would sit after the last row. `_dataviews.scss` sets `overflow: visible` back on the plugin's screens.
@@ -193,7 +197,7 @@ The entries list has no Source column. The source shows as a marker before the t
 - A pinned entry shows only the pin, never a pin and a logo. The pin's color carries the source instead: the regular text color for WordPress, the source's brand color for anything else (`#e3066a` for Slack, from `.newspack-rolling-coverage-entry-title__pin--slack`).
 - The marker's text ("From Slack", "Pinned, from WordPress") is hidden text for screen readers and the tooltip on hover, so color is never the only cue.
 
-The `source` field stays defined, with no `render` and `enableHiding: false`. DataViews builds filters from every field, whether or not it's shown, so Source is offered under **Add filter** but never as a column.
+The `source` field stays defined, with no `render` and `enableHiding: false`. DataViews builds filters from every field, whether or not it's shown, so Source shows as a filter chip but never as a column.
 
 ## Slack authors
 
