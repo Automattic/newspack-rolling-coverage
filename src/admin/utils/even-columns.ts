@@ -18,10 +18,17 @@ type ViewLayout = { styles?: ColumnStyles } & Record< string, unknown >;
  * columns the viewer has switched on, so they are worked out on every render
  * and never stored with the view.
  *
- * @param {View} view The DataViews view.
+ * Columns named in `fitColumns`, such as a lone button, shrink to their content
+ * instead of taking a share.
+ *
+ * @param {View}     view       The DataViews view.
+ * @param {string[]} fitColumns Columns sized to their content.
  * @return {View} The view with column widths, unchanged for any layout but a table.
  */
-function evenColumns< V extends View >( view: V ): V {
+function evenColumns< V extends View >(
+	view: V,
+	fitColumns: string[] = []
+): V {
 	if ( view.type !== 'table' ) {
 		return view;
 	}
@@ -29,18 +36,25 @@ function evenColumns< V extends View >( view: V ): V {
 		( Boolean( view.titleField ) && view.showTitle !== false ) ||
 		( Boolean( view.mediaField ) && view.showMedia !== false ) ||
 		( Boolean( view.descriptionField ) && view.showDescription !== false );
-	const columns = ( view.fields ?? [] ).filter(
+	const shown = ( view.fields ?? [] ).filter(
 		( id ) => id !== view.titleField
 	);
-	if ( ! columns.length ) {
+	if ( ! shown.length ) {
 		return view;
 	}
-	const share = ( hasPrimary ? 100 - TITLE_SHARE : 100 ) / columns.length;
+	const fitted = shown.filter( ( id ) => fitColumns.includes( id ) );
+	const columns = shown.filter( ( id ) => ! fitColumns.includes( id ) );
+	const share =
+		( hasPrimary ? 100 - TITLE_SHARE : 100 ) /
+		Math.max( columns.length, 1 );
 	const width = `${ Number( share.toFixed( 2 ) ) }%`;
 	const layout = ( view.layout ?? {} ) as ViewLayout;
 	const styles: ColumnStyles = { ...layout.styles };
 	columns.forEach( ( id ) => {
 		styles[ id ] = { ...styles[ id ], width };
+	} );
+	fitted.forEach( ( id ) => {
+		styles[ id ] = { ...styles[ id ], width: '1%' };
 	} );
 	return { ...view, layout: { ...layout, styles } } as V;
 }

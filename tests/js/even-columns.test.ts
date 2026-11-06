@@ -25,4 +25,16 @@ describe( 'evenColumns', () => {
 			time: { align: 'start' },
 		} );
 	} );
+
+	it( 'sizes a fitted column to its content and shares the rest', () => {
+		const styles = (
+			evenColumns( view, [ 'time' ] ) as unknown as {
+				layout: { styles: Record< string, Record< string, unknown > > };
+			}
+		 ).layout.styles;
+
+		expect( styles.time ).toEqual( { align: 'start', width: '1%' } );
+		expect( styles.level.width ).toBe( '35%' );
+		expect( styles.channel.width ).toBe( '35%' );
+	} );
 } );

@@ -37,6 +37,9 @@ import { ConfirmModal } from '../../confirm-modal';
  * @param {ChannelsTabProps} props                Component props.
  * @param {Function}         props.onHeaderChange Receives the breadcrumb count and whether the empty state shows.
  */
+// Disconnect is a single button, so it takes its own width rather than a share.
+const FIT_COLUMNS = [ 'disconnect' ];
+
 function ChannelsTab( {
 	channels,
 	hasLoadedChannels,
@@ -175,6 +178,7 @@ function ChannelsTab( {
 					actions={ [] }
 					paginationInfo={ paginationInfo }
 					isLoading={ false }
+					fitColumns={ FIT_COLUMNS }
 				/>
 			) }
 			{ channelToDisconnect && (

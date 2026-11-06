@@ -294,6 +294,8 @@ interface DataViewsWrapperProps< T > {
 	header?: JSX.Element;
 	defaultLayouts?: Record< string, unknown >;
 	config?: { perPageSizes: number[] };
+	/** Columns sized to their content rather than an even share. */
+	fitColumns?: string[];
 }
 
 interface CoverageDrawerProps {

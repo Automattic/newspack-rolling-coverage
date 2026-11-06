@@ -99,6 +99,7 @@ function DataViewsWrapper< T extends { id: number | string } >( {
 	header,
 	defaultLayouts,
 	config,
+	fitColumns,
 }: DataViewsWrapperProps< T > ) {
 	// "Add filter" only renders beside a visible chip, so a declared filter is
 	// made primary unless it opts out with `isPrimary: false`. A list with no
@@ -115,7 +116,10 @@ function DataViewsWrapper< T extends { id: number | string } >( {
 			),
 		[ fields ]
 	);
-	const evenView = useMemo( () => evenColumns( view ), [ view ] );
+	const evenView = useMemo(
+		() => evenColumns( view, fitColumns ),
+		[ view, fitColumns ]
+	);
 
 	return (
 		<div
