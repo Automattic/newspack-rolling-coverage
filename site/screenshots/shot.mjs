@@ -58,6 +58,9 @@ const USAGE = `Usage: npm run shot -- <section>/<name>-<n> --site <url> [options
   --logged-out           Open the page as a signed-out reader
   --spotlight <selector> Dim everything except this element
   --click <selector>     Click an element before capturing (repeatable)
+  --fill <selector>      Type the next --value into a field (repeatable)
+  --value <text>         What the --fill before it types
+                         Clicks and fills run in the order you give them.
   --now                  Capture without waiting for you (headless)
   --out <file>           Write the image somewhere else
 
@@ -69,14 +72,17 @@ function fail( message ) {
 }
 
 function parse() {
-	const { values, positionals } = parseArgs( {
+	const { values, positionals, tokens } = parseArgs( {
 		allowPositionals: true,
+		tokens: true,
 		options: {
 			site: { type: 'string', default: process.env.SHOT_SITE },
 			url: { type: 'string', default: 'wp-admin/' },
 			'logged-out': { type: 'boolean', default: false },
 			spotlight: { type: 'string' },
 			click: { type: 'string', multiple: true, default: [] },
+			fill: { type: 'string', multiple: true, default: [] },
+			value: { type: 'string', multiple: true, default: [] },
 			now: { type: 'boolean', default: false },
 			out: { type: 'string' },
 			help: { type: 'boolean', default: false },
@@ -95,6 +101,30 @@ function parse() {
 			`pass --site with your screenshot site's address.\n\n${ USAGE }`
 		);
 	}
+	const steps = [];
+	for ( const token of tokens ) {
+		if ( 'option' !== token.kind ) {
+			continue;
+		}
+		if ( 'click' === token.name || 'fill' === token.name ) {
+			steps.push( { action: token.name, selector: token.value } );
+		} else if ( 'value' === token.name ) {
+			const step = steps[ steps.length - 1 ];
+			if ( ! step || 'fill' !== step.action || undefined !== step.text ) {
+				fail(
+					`put each --value right after its --fill.\n\n${ USAGE }`
+				);
+			}
+			step.text = token.value;
+		}
+	}
+	if (
+		steps.some(
+			( step ) => 'fill' === step.action && undefined === step.text
+		)
+	) {
+		fail( `give each --fill a --value.\n\n${ USAGE }` );
+	}
 	const site = siteUrl( values.site );
 	return {
 		name,
@@ -102,7 +132,7 @@ function parse() {
 		target: new URL( values.url.replace( /^\/+/, '' ), site ),
 		loggedOut: values[ 'logged-out' ],
 		spotlight: values.spotlight,
-		clicks: values.click,
+		steps,
 		interactive:
 			! values.now && process.stdin.isTTY && process.stdout.isTTY,
 		out: values.out
@@ -413,6 +443,15 @@ async function click( page, selector ) {
 	await settle( page );
 }
 
+async function fill( page, selector, text ) {
+	const locator = await findInFrames( page, selector );
+	if ( ! locator ) {
+		fail( `--fill found nothing for ${ selector }` );
+	}
+	await locator.fill( text );
+	await settle( page );
+}
+
 function watchAltClicks( page ) {
 	const install = () =>
 		page.frames().forEach( ( frame ) =>
@@ -511,10 +550,14 @@ async function main() {
 		await goto( page, options.target.href );
 		await settle( page );
 		await closeGuides( page );
-		for ( const selector of options.clicks ) {
-			await click( page, selector );
+		for ( const step of options.steps ) {
+			if ( 'fill' === step.action ) {
+				await fill( page, step.selector, step.text );
+			} else {
+				await click( page, step.selector );
+			}
 		}
-		if ( options.clicks.length ) {
+		if ( options.steps.length ) {
 			await page.mouse.move( VIEWPORT.width - 1, VIEWPORT.height - 1 );
 		}
 
