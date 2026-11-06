@@ -10,6 +10,7 @@ import { Stack } from '@wordpress/ui';
  * Internal dependencies.
  */
 import type { DataViewsWrapperProps } from '../types';
+import { evenColumns, withoutColumnWidths } from '../utils/even-columns';
 
 // DataViews has complex conditional prop types that don't cast directly.
 // Double-assert through unknown to bridge the type gap (per TS2352 suggestion).
@@ -114,6 +115,7 @@ function DataViewsWrapper< T extends { id: number | string } >( {
 			),
 		[ fields ]
 	);
+	const evenView = useMemo( () => evenColumns( view ), [ view ] );
 
 	return (
 		<div
@@ -123,8 +125,10 @@ function DataViewsWrapper< T extends { id: number | string } >( {
 			<TypedDataViews
 				data={ data }
 				fields={ shownFields }
-				view={ view }
-				onChangeView={ onChangeView }
+				view={ evenView }
+				onChangeView={ ( next: typeof view ) =>
+					onChangeView( withoutColumnWidths( next ) )
+				}
 				actions={ actions }
 				paginationInfo={ paginationInfo }
 				isLoading={ isLoading }

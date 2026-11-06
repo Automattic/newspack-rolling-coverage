@@ -186,8 +186,8 @@ const defaultCoverageView: ViewState = {
 	search: '',
 	filters: [ { field: 'status', operator: 'isNot', value: 'trash' } ],
 	fields: [
-		'count',
 		'status',
+		'count',
 		'slack_channel',
 		'created_at',
 		'last_modified',

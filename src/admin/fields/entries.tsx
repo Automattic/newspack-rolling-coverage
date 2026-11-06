@@ -340,8 +340,8 @@ const defaultEntryView: ViewState = {
 	search: '',
 	filters: [ { field: 'status', operator: 'isNot', value: 'trash' } ],
 	fields: [
-		'author',
 		'status',
+		'author',
 		'breakout',
 		'categories',
 		'tags',
