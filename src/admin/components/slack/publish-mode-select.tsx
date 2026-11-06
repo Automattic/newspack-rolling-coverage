@@ -60,7 +60,9 @@ function PublishModeSelect( {
 					label,
 					current
 				) }
-				render={ <Button variant="minimal" size="small" /> }
+				render={
+					<Button variant="minimal" tone="neutral" size="compact" />
+				}
 			>
 				{ current }
 				<Icon icon={ chevronDown } size={ 16 } />

@@ -169,7 +169,7 @@ const defaultChannelView: ViewState = {
 	filters: [],
 	fields: [ 'term_name', 'last_sync_ts', 'publish_mode', 'disconnect' ],
 	titleField: 'channel_name',
-	layout: {},
+	layout: { styles: { disconnect: { align: 'end' } } },
 };
 
 export { getChannelFields, defaultChannelView, orderChannelFields };
