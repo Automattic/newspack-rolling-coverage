@@ -49,7 +49,7 @@ function PublishModeSelect( {
 		<Select.Root
 			value={ value }
 			items={ options }
-			disabled={ disabled }
+			readOnly={ disabled }
 			onValueChange={ ( next ) => {
 				if ( next && next !== value ) {
 					onChange( next as PublishMode );

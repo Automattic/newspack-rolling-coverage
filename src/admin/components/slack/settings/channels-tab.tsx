@@ -97,20 +97,26 @@ function ChannelsTab( {
 	const [ channelToDisconnect, setChannelToDisconnect ] =
 		useState< ChannelRow | null >( null );
 	const { adminUrls } = useAdminContext();
+	// The saving state rides on the rows, not the fields: rebuilding the
+	// fields remounts every row's Publish Mode control and drops keyboard focus.
 	const fields = useMemo(
 		() =>
 			getChannelFields(
 				handlePublishModeChange,
-				updatingChannelIds,
 				setChannelToDisconnect,
 				adminUrls.coverages
 			),
-		[ handlePublishModeChange, updatingChannelIds, adminUrls.coverages ]
+		[ handlePublishModeChange, adminUrls.coverages ]
 	);
 
 	const rows = useMemo< ChannelRow[] >(
-		() => channels.map( ( ch ) => ( { ...ch, id: ch.channel_id } ) ),
-		[ channels ]
+		() =>
+			channels.map( ( ch ) => ( {
+				...ch,
+				id: ch.channel_id,
+				is_updating: updatingChannelIds.has( ch.channel_id ),
+			} ) ),
+		[ channels, updatingChannelIds ]
 	);
 	const { data, paginationInfo } = useMemo(
 		() => filterSortAndPaginate( rows, view, fields ),

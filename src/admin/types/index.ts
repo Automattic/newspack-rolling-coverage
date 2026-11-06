@@ -233,7 +233,11 @@ interface ChannelMapping {
 	last_sync_ts: string;
 }
 
-type ChannelRow = ChannelMapping & { id: string };
+type ChannelRow = ChannelMapping & {
+	id: string;
+	/** Whether a publish mode change for this channel is still saving. */
+	is_updating?: boolean;
+};
 
 interface ApiResult {
 	success: boolean;

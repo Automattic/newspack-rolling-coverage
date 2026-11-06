@@ -198,8 +198,9 @@ function getCoverageFields(
 }
 
 /**
- * Default view state for the coverage list: table layout, unsorted,
- * showing count, status, created_at, and last_modified columns.
+ * Default view state for the coverage list: a table sorted by name, without
+ * trashed coverages, with the entry count under each name and the Entries
+ * column hidden.
  */
 const defaultCoverageView: ViewState = {
 	type: 'table',

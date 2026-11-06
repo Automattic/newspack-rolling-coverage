@@ -55,7 +55,7 @@ function getPublishModeHelp( mode: PublishMode ): string {
 }
 
 /**
- * A one-line summary of a publish mode, for the menu in the channels table.
+ * A one-line summary of a publish mode, for the options in the channels table.
  * The full help, with the emoji settings, stays in the connection drawer.
  *
  * @param {PublishMode} mode Publish mode.
