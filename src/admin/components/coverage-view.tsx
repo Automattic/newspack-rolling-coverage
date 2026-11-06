@@ -21,7 +21,11 @@ import { PlacementsDrawer } from './placements-drawer';
 import SettingsModal from './settings-modal';
 import { useConfirmDialog } from './confirm-dialog';
 import { getCoverageActions } from '../actions/coverage-actions';
-import { getCoverageFields, defaultCoverageView } from '../fields/coverages';
+import {
+	getCoverageFields,
+	defaultCoverageView,
+	withEntryCount,
+} from '../fields/coverages';
 import { useAdminContext } from '../hooks/useAdminContext';
 import { useStatusLabels } from '../utils/status-labels';
 import { EmptyState } from 'newspack-components/dist/esm/empty-state';
@@ -82,6 +86,7 @@ function CoverageView() {
 		]
 	);
 	const [ view, setView ] = useState< View >( defaultCoverageView );
+	const shownView = useMemo( () => withEntryCount( view ), [ view ] );
 
 	// Reset to page 1 when filters or search change.
 	const handleChangeView = useCallback(
@@ -327,7 +332,7 @@ function CoverageView() {
 				<DataViewsWrapper
 					data={ filteredData }
 					fields={ fields }
-					view={ view }
+					view={ shownView }
 					onChangeView={ handleChangeView }
 					actions={ actions }
 					paginationInfo={ paginationInfo }

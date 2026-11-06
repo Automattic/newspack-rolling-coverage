@@ -32,6 +32,12 @@ The app reads its config from `window.newspackRollingCoverageAdmin` (`Admin::get
 
 The admin pages load the block editor's assets so Quick Edit can run a block editor. `Newspack\Blocks::enqueue_block_editor_assets` is unhooked while they load, since newspack-plugin's editor UI crashes inside Quick Edit's `EditorProvider`.
 
+## List toolbar
+
+Every list goes through `DataViewsWrapper` (`src/admin/components/data-views-wrapper.tsx`), which lays out the toolbar the Newspack admin lists share: filter chips beside the search, the view options and any `header` content on the right, and no funnel toggle. A field with a `filterBy` object shows as a chip, unless it sets `isPrimary: false`. Keep the chips to the filters people reach for first; the entries list shows Status alone. Every other filter is offered under **Add filter**: a `filterBy` with `isPrimary: false`, and any field DataViews makes filterable by default, such as a `datetime` or `text` field with no `filterBy`. A filter added from there becomes a chip with a Remove button, and narrows nothing until a value is picked (`hasFilterValue()` in `src/admin/utils/fields.ts`, for the server query and the list alike). **Add filter** only shows beside a chip, so a list needs at least one chip or its other filters can't be reached.
+
+Tables get even column widths (`evenColumns()` in `src/admin/utils/even-columns.ts`): the title column keeps 30%, and the other visible columns share the rest equally, or all of it when the title, media and description are all hidden. The widths follow whichever columns are shown, so they're worked out on every render and stripped from the view the wrapper hands back. A `width` in a list's `layout.styles` is replaced, while other keys such as `align` are kept. Columns passed in the wrapper's `fitColumns` shrink to their content instead (DataViews keeps a 15ch minimum), as Channel Mappings does for Disconnect.
+
 ## Bulk actions
 
 Selecting rows in All Liveblogs or a coverage's entries shows DataViews' bulk actions in the list's footer, which stays at the bottom of the window while the list scrolls. Other plugins (newspack-blocks, newspack-listings, newspack-popups, newspack-manager) load an older DataViews stylesheet on these screens that gives `.dataviews-wrapper` `overflow: auto`. That makes the wrapper the footer's scroll container, and since the wrapper is as tall as its rows, the footer would sit after the last row. `_dataviews.scss` sets `overflow: visible` back on the plugin's screens.
@@ -41,6 +47,8 @@ At 782px and below, DataViews shows only the bulk actions that have an `icon`, a
 ## All Liveblogs
 
 The header holds Settings and Add Liveblog. Add Liveblog and the Edit action open `CoverageDrawer` (`coverage-drawer.tsx`), a DataForm with Name, Description, Canonical URL, Status and Advertising. Status options are named after the site's status labels. Description is an internal note, which the core terms route returns only in the `edit` context; the coverages list asks for that context when the user has `canManageTerms`, as everyone who can open the drawer does. In Edit, Save stays disabled until a field changes. A successful save closes the drawer with a snackbar, "Changes saved." for an edit or "Liveblog added." for a new coverage; a failed one keeps it open with the error. The drawer saves through the core terms route, served by `Coverage_REST_Controller`: core lets anyone who can assign coverages to entries (`edit_posts`) create one, since the taxonomy isn't hierarchical, so the controller also requires `manage_categories` to create. The drawer sends every field each time, so each meta key it sends must be writable by anyone who can edit a coverage. A stricter `auth_callback` on one of them fails those users' saves after the other fields are already written.
+
+Each liveblog's entry count shows under its name ("21 entries", from the `entry_count` field as the view's `descriptionField`). Entries (`count`) is also a column, hidden by default and sortable. While it's shown, the line under the name goes, so the count appears once (`withEntryCount()` in `src/admin/fields/coverages.tsx`).
 
 The list opens without trashed coverages (Status is not Trash). While some are in the trash, the toolbar shows "Trash (N)", which switches the status filter to them; "All Liveblogs" switches it back. Both replace any other status filter and keep the rest of the view. Add Liveblog also leaves the Trash view, so the new coverage shows, including from the empty state after the last trashed coverage is deleted.
 
@@ -193,7 +201,7 @@ The entries list has no Source column. The source shows as a marker before the t
 - A pinned entry shows only the pin, never a pin and a logo. The pin's color carries the source instead: the regular text color for WordPress, the source's brand color for anything else (`#e3066a` for Slack, from `.newspack-rolling-coverage-entry-title__pin--slack`).
 - The marker's text ("From Slack", "Pinned, from WordPress") is hidden text for screen readers and the tooltip on hover, so color is never the only cue.
 
-The `source` field stays defined, with no `render` and `enableHiding: false`. DataViews builds filters from every field, whether or not it's shown, so Source is offered under **Add filter** but never as a column.
+The `source` field stays defined, with no `render` and `enableHiding: false`. DataViews builds filters from fields whether or not they're shown, and Source declares `filterBy`, so it shows as a filter chip but never as a column.
 
 ## Slack authors
 

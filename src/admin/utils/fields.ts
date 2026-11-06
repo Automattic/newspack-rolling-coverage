@@ -309,6 +309,20 @@ function getSlackChannelLabel( item: Coverage ): string {
 }
 
 /**
+ * Whether a DataViews filter has a value to match against. A filter added from
+ * "Add filter" has none until one is picked, and narrows nothing until then.
+ *
+ * @param {unknown} value The filter's value.
+ * @return {boolean} True when the filter should apply.
+ */
+function hasFilterValue( value: unknown ): boolean {
+	if ( Array.isArray( value ) ) {
+		return value.length > 0;
+	}
+	return value !== undefined && value !== null && value !== '';
+}
+
+/**
  * Applies all DataViews filters (source, status, date) client-side.
  *
  * Mirrors the built-in operator filter handlers so date, text, and
@@ -331,6 +345,9 @@ function applyEntryFilters(
 			// Date/Modified are enforced server-side via date_query; skip
 			// here so sync deltas that fall outside the window aren't dropped.
 			if ( filter.field === 'date' || filter.field === 'modified' ) {
+				return true;
+			}
+			if ( ! hasFilterValue( filter.value ) ) {
 				return true;
 			}
 			const itemValue = getEntryFieldValue( item, filter.field );
@@ -486,4 +503,5 @@ export {
 	SOURCE_SLACK,
 	SOURCE_WORDPRESS,
 	applyEntryFilters,
+	hasFilterValue,
 };
