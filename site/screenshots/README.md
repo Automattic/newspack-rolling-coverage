@@ -103,14 +103,14 @@ Write the label as alt text that says what the image shows and what is highlight
 
 ### Examples
 
-An admin screen, with the Add Coverage button spotlighted:
+An admin screen, with the Add Liveblog button spotlighted:
 
 ```bash
 npm run shot -- getting-started/create-your-first-coverage-1 --site https://screenshots.local \
-  --url "wp-admin/admin.php?page=rolling-coverage" --spotlight 'button:has-text("Add Coverage")'
+  --url "wp-admin/admin.php?page=rolling-coverage" --spotlight 'button:has-text("Add Liveblog")'
 ```
 
-An editor screen, starting from the list of draft pages: the script opens the "Storm Ingrid" draft, selects the Coverage Status block and spotlights its Coverage setting. Leave out the last three options to do those steps yourself in the browser.
+An editor screen, starting from the list of draft pages: the script opens the "Storm Ingrid" draft, selects the Coverage Status block and spotlights the Automatic and Custom choice in its Liveblog panel. Leave out the last three options to do those steps yourself in the browser.
 
 ```bash
 npm run shot -- blocks/coverage-status-2 --site https://screenshots.local \
