@@ -305,7 +305,38 @@ class Test_Placements extends Rolling_Coverage_TestCase {
 		Placements::ensure_fresh();
 
 		$this->assertSame( $page_id, Placements::page_id( $coverage_id ) );
-		$this->assertNotSame( $capped_only, Placements::page_id( $coverage_id ) );
+	}
+
+	/**
+	 * Once a coverage has ended, a full feed set to hide when ended shows
+	 * nothing, so it can't be the page readers are sent to.
+	 */
+	public function test_an_ended_coverage_skips_a_full_feed_that_hides_when_ended() {
+		$coverage_id = self::create_coverage();
+		$stays_id    = self::publish( self::feed( $coverage_id ), [ 'post_date' => '2026-01-01 00:00:00' ] );
+		$hides_id    = self::publish( self::feed( $coverage_id, [ 'hideWhenEnded' => true ] ) );
+		Placements::ensure_fresh();
+
+		$this->assertSame( $hides_id, Placements::page_id( $coverage_id ), 'A live coverage uses its newest full feed.' );
+
+		update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, Taxonomy::STATUS_ARCHIVED );
+
+		$this->assertSame( $stays_id, Placements::page_id( $coverage_id ) );
+	}
+
+	/**
+	 * A page trashed since the map was built isn't used, even before the
+	 * scheduled rebuild.
+	 */
+	public function test_a_trashed_page_is_not_used_before_the_rebuild() {
+		$coverage_id = self::create_coverage();
+		$page_id     = self::publish( self::feed( $coverage_id ) );
+		Placements::ensure_fresh();
+
+		wp_trash_post( $page_id );
+
+		$this->assertSame( 0, Placements::page_id( $coverage_id ) );
+		$this->assertSame( '', Taxonomy::get_coverage_page_url( $coverage_id ) );
 	}
 
 	/**
