@@ -139,8 +139,8 @@ const CHANNEL_FIELD_ORDER = [
 	'channel_name',
 	'channel_id',
 	'term_name',
-	'publish_mode',
 	'last_sync_ts',
+	'publish_mode',
 	'disconnect',
 ];
 
@@ -165,7 +165,7 @@ const defaultChannelView: ViewState = {
 	sort: { field: 'channel_name', direction: 'asc' },
 	search: '',
 	filters: [],
-	fields: [ 'term_name', 'publish_mode', 'last_sync_ts', 'disconnect' ],
+	fields: [ 'term_name', 'last_sync_ts', 'publish_mode', 'disconnect' ],
 	titleField: 'channel_name',
 	layout: { styles: { disconnect: { align: 'end' } } },
 };
