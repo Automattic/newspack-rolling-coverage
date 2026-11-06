@@ -65,7 +65,7 @@ function PlacementType( { placement }: { placement: Placement } ) {
 		: sprintf(
 				/* translators: %s: what the place is, such as Template part */
 				__(
-					'%s, on this coverage’s breakout posts',
+					'%s, on this liveblog’s breakout posts',
 					'newspack-rolling-coverage'
 				),
 				type

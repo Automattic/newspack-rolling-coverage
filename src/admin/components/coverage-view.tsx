@@ -4,7 +4,7 @@
 import { useNavigate, useOutletContext } from 'react-router';
 import { useState, useCallback, useMemo } from '@wordpress/element';
 import { Button } from '@wordpress/components';
-import { __ } from '@wordpress/i18n';
+import { __, sprintf } from '@wordpress/i18n';
 import { Stack } from '@wordpress/ui';
 import type { View } from '@wordpress/dataviews';
 import { filterSortAndPaginate } from '@wordpress/dataviews/wp';
@@ -21,7 +21,11 @@ import { PlacementsDrawer } from './placements-drawer';
 import SettingsModal from './settings-modal';
 import { useConfirmDialog } from './confirm-dialog';
 import { getCoverageActions } from '../actions/coverage-actions';
-import { getCoverageFields, defaultCoverageView } from '../fields/coverages';
+import {
+	getCoverageFields,
+	defaultCoverageView,
+	withEntryCount,
+} from '../fields/coverages';
 import { useAdminContext } from '../hooks/useAdminContext';
 import { useStatusLabels } from '../utils/status-labels';
 import { EmptyState } from 'newspack-components/dist/esm/empty-state';
@@ -82,6 +86,7 @@ function CoverageView() {
 		]
 	);
 	const [ view, setView ] = useState< View >( defaultCoverageView );
+	const shownView = useMemo( () => withEntryCount( view ), [ view ] );
 
 	// Reset to page 1 when filters or search change.
 	const handleChangeView = useCallback(
@@ -117,15 +122,80 @@ function CoverageView() {
 		return filterSortAndPaginate( records ?? [], view, fields );
 	}, [ records, view, fields ] );
 
+	// The list opens without trashed coverages, so it says how many there are
+	// and switches to them, and back.
+	const trashedCount = useMemo(
+		() =>
+			( records ?? [] ).filter(
+				( coverage ) =>
+					coverage.meta?.[ config.taxMeta.statusKey ] === 'trash'
+			).length,
+		[ records, config.taxMeta.statusKey ]
+	);
+	const isTrashView = ( view.filters ?? [] ).some(
+		( filter ) =>
+			filter.field === 'status' &&
+			filter.operator === 'is' &&
+			filter.value === 'trash'
+	);
+	const showTrash = useCallback(
+		( show: boolean ) =>
+			handleChangeView( {
+				...view,
+				filters: [
+					...( view.filters ?? [] ).filter(
+						( filter ) => filter.field !== 'status'
+					),
+					{
+						field: 'status',
+						operator: show ? 'is' : 'isNot',
+						value: 'trash',
+					},
+				],
+			} ),
+		[ view, handleChangeView ]
+	);
+	let trashToggle: JSX.Element | null = null;
+	if ( isTrashView ) {
+		trashToggle = (
+			<Button
+				variant="tertiary"
+				size="compact"
+				onClick={ () => showTrash( false ) }
+			>
+				{ __( 'All Liveblogs', 'newspack-rolling-coverage' ) }
+			</Button>
+		);
+	} else if ( trashedCount > 0 ) {
+		trashToggle = (
+			<Button
+				variant="tertiary"
+				size="compact"
+				onClick={ () => showTrash( true ) }
+			>
+				{ sprintf(
+					/* translators: %d: number of trashed liveblogs. */
+					__( 'Trash (%d)', 'newspack-rolling-coverage' ),
+					trashedCount
+				) }
+			</Button>
+		);
+	}
+
 	const handleSettingsReady = useCallback(
 		() => setIsSettingsLoading( false ),
 		[]
 	);
 
 	const handleOpenCreate = useCallback( () => {
+		// A new coverage isn't in the trash, so leave the Trash view to show
+		// it; from the empty state, nothing else on screen can.
+		if ( isTrashView ) {
+			showTrash( false );
+		}
 		setEditingCoverage( null );
 		setIsDrawerOpen( true );
-	}, [] );
+	}, [ isTrashView, showTrash ] );
 
 	const handleOpenEdit = useCallback( ( coverage: Coverage ) => {
 		setEditingCoverage( coverage );
@@ -178,7 +248,7 @@ function CoverageView() {
 					{ canAddCoverage && (
 						<Button variant="primary" onClick={ handleOpenCreate }>
 							{ __(
-								'Add Coverage',
+								'Add Liveblog',
 								'newspack-rolling-coverage'
 							) }
 						</Button>
@@ -225,7 +295,7 @@ function CoverageView() {
 			{ isFirstLoad && (
 				<LoadingState
 					label={ __(
-						'Fetching coverages…',
+						'Fetching liveblogs…',
 						'newspack-rolling-coverage'
 					) }
 				/>
@@ -235,7 +305,7 @@ function CoverageView() {
 					<EmptyState.Header
 						icon={ liveStreaming }
 						title={ __(
-							'Get started with rolling coverage',
+							'Get started with liveblogs',
 							'newspack-rolling-coverage'
 						) }
 						description={ __(
@@ -250,7 +320,7 @@ function CoverageView() {
 								onClick={ handleOpenCreate }
 							>
 								{ __(
-									'Add Coverage',
+									'Add Liveblog',
 									'newspack-rolling-coverage'
 								) }
 							</Button>
@@ -262,7 +332,7 @@ function CoverageView() {
 				<DataViewsWrapper
 					data={ filteredData }
 					fields={ fields }
-					view={ view }
+					view={ shownView }
 					onChangeView={ handleChangeView }
 					actions={ actions }
 					paginationInfo={ paginationInfo }
@@ -270,6 +340,7 @@ function CoverageView() {
 					onClickItem={ ( item ) =>
 						handleNavigateToEntries( item as Coverage )
 					}
+					header={ trashToggle ?? undefined }
 				/>
 			) }
 

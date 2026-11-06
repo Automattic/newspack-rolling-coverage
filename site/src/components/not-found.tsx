@@ -1,12 +1,9 @@
-import { HomeLayout } from 'fumadocs-ui/layouts/home';
 import { RootProvider } from 'fumadocs-ui/provider/astro';
 import type { AstroProviderProps } from 'fumadocs-core/framework/astro';
 import { navigate } from 'astro:transitions/client';
-import { GITHUB_URL, NAV_LINKS, NAV_TITLE } from './docs';
 import SearchDialog from './search';
 import { SiteFooter } from './site-footer';
-import { SiteContainer } from './site-container';
-import { SiteHeader } from './site-header';
+import { SiteLayout } from './site-layout';
 
 export const NOT_FOUND_DESCRIPTION = 'This page may have moved, or the link may be out of date.';
 
@@ -29,12 +26,7 @@ export function NotFound( {
 			navigate={ navigate }
 			search={ { SearchDialog } }
 		>
-			<HomeLayout
-				nav={ { title: NAV_TITLE, url: '/' } }
-				githubUrl={ GITHUB_URL }
-				links={ NAV_LINKS }
-				slots={ { header: SiteHeader, container: SiteContainer } }
-			>
+			<SiteLayout>
 				<main className="flex-1">
 					<div className="mx-auto w-full max-w-6xl px-4 pt-14 pb-24 md:px-6 md:pt-24 md:pb-32">
 						<p className="flex flex-wrap items-center gap-3 text-sm font-medium text-fd-muted-foreground">
@@ -67,7 +59,7 @@ export function NotFound( {
 					</div>
 				</main>
 				<SiteFooter />
-			</HomeLayout>
+			</SiteLayout>
 		</RootProvider>
 	);
 }

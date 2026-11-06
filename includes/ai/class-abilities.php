@@ -58,7 +58,7 @@ class Abilities {
 			self::CATEGORY_SLUG,
 			[
 				'label'       => __( 'Rolling Coverage', 'newspack-rolling-coverage' ),
-				'description' => __( 'Abilities for managing and generating content from rolling coverage entries.', 'newspack-rolling-coverage' ),
+				'description' => __( 'Abilities for managing and generating content from liveblog entries.', 'newspack-rolling-coverage' ),
 			]
 		);
 	}
@@ -73,14 +73,14 @@ class Abilities {
 			self::GENERATE_KEY_TAKEAWAYS,
 			[
 				'label'               => __( 'Generate Key Takeaways', 'newspack-rolling-coverage' ),
-				'description'         => __( 'Generates key takeaways from published entries in a rolling coverage using AI. Pass a coverage_id to specify which coverage to summarize, and optionally max_takeaways (1-10) to control the number of takeaways generated.', 'newspack-rolling-coverage' ),
+				'description'         => __( 'Generates key takeaways from published entries in a liveblog using AI. Pass a coverage_id to specify which liveblog to summarize, and optionally max_takeaways (1-10) to control the number of takeaways generated.', 'newspack-rolling-coverage' ),
 				'category'            => self::CATEGORY_SLUG,
 				'input_schema'        => [
 					'type'                 => 'object',
 					'properties'           => [
 						'coverage_id'   => [
 							'type'        => 'integer',
-							'description' => __( 'The ID of the coverage term to generate takeaways from.', 'newspack-rolling-coverage' ),
+							'description' => __( 'The ID of the liveblog to generate takeaways from.', 'newspack-rolling-coverage' ),
 							'minimum'     => 1,
 						],
 						'max_takeaways' => [

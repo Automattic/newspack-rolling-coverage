@@ -21,7 +21,7 @@ import {
 const CONTEXT_LABELS: Record< string, string > = {
 	ts: __( 'Message timestamp', 'newspack-rolling-coverage' ),
 	post_id: __( 'Entry ID', 'newspack-rolling-coverage' ),
-	term_id: __( 'Coverage ID', 'newspack-rolling-coverage' ),
+	term_id: __( 'Liveblog ID', 'newspack-rolling-coverage' ),
 	status: __( 'Status', 'newspack-rolling-coverage' ),
 	reason: __( 'Reason', 'newspack-rolling-coverage' ),
 	error: __( 'Error code', 'newspack-rolling-coverage' ),

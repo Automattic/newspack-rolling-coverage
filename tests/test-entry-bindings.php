@@ -1005,9 +1005,9 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 		);
 
 		$full = self::render_gone_coverages( [] );
-		$this->assertStringContainsString( 'This coverage is no longer available.', $full['trashed'] );
-		$this->assertStringContainsString( 'Select a coverage to display its entries.', $full['deleted'] );
-		$this->assertStringContainsString( 'Select a coverage to display its entries.', $full['none'] );
+		$this->assertStringContainsString( 'This liveblog is no longer available.', $full['trashed'] );
+		$this->assertStringContainsString( 'Select a liveblog to display its entries.', $full['deleted'] );
+		$this->assertStringContainsString( 'Select a liveblog to display its entries.', $full['none'] );
 	}
 
 	/**

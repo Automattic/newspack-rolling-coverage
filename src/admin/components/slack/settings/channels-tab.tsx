@@ -29,6 +29,8 @@ import {
 } from '../../../fields/channels';
 import { ConfirmModal } from '../../confirm-modal';
 
+const FIT_COLUMNS = [ 'disconnect' ];
+
 /**
  * Renders the Channel Mappings tab: a DataViews list of the Slack channels
  * linked to coverages, with a Publish Mode dropdown and a Disconnect button
@@ -97,20 +99,26 @@ function ChannelsTab( {
 	const [ channelToDisconnect, setChannelToDisconnect ] =
 		useState< ChannelRow | null >( null );
 	const { adminUrls } = useAdminContext();
+	// The saving state rides on the rows, not the fields: rebuilding the
+	// fields remounts every row's Publish Mode control and drops keyboard focus.
 	const fields = useMemo(
 		() =>
 			getChannelFields(
 				handlePublishModeChange,
-				updatingChannelIds,
 				setChannelToDisconnect,
 				adminUrls.coverages
 			),
-		[ handlePublishModeChange, updatingChannelIds, adminUrls.coverages ]
+		[ handlePublishModeChange, adminUrls.coverages ]
 	);
 
 	const rows = useMemo< ChannelRow[] >(
-		() => channels.map( ( ch ) => ( { ...ch, id: ch.channel_id } ) ),
-		[ channels ]
+		() =>
+			channels.map( ( ch ) => ( {
+				...ch,
+				id: ch.channel_id,
+				is_updating: updatingChannelIds.has( ch.channel_id ),
+			} ) ),
+		[ channels, updatingChannelIds ]
 	);
 	const { data, paginationInfo } = useMemo(
 		() => filterSortAndPaginate( rows, view, fields ),
@@ -155,7 +163,7 @@ function ChannelsTab( {
 							'newspack-rolling-coverage'
 						) }
 						description={ __(
-							'Link a Slack channel to a coverage from the All Coverages list.',
+							'Link a Slack channel to a liveblog from the All Liveblogs list.',
 							'newspack-rolling-coverage'
 						) }
 					/>
@@ -169,6 +177,7 @@ function ChannelsTab( {
 					actions={ [] }
 					paginationInfo={ paginationInfo }
 					isLoading={ false }
+					fitColumns={ FIT_COLUMNS }
 				/>
 			) }
 			{ channelToDisconnect && (
@@ -181,7 +190,7 @@ function ChannelsTab( {
 				>
 					<ConfirmModal
 						message={ __(
-							'Disconnect this channel from its coverage? Its messages will stop becoming entries.',
+							'Disconnect this channel from its liveblog? Its messages will stop becoming entries.',
 							'newspack-rolling-coverage'
 						) }
 						confirmLabel={ __(

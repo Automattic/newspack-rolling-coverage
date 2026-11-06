@@ -146,6 +146,65 @@ class Test_Entries_REST extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * Request one entry from the core entries route.
+	 *
+	 * @param int    $entry_id     Entry post ID, in the route.
+	 * @param string $context      REST context.
+	 * @param array  $query_params Query parameters.
+	 * @return WP_REST_Response
+	 */
+	private static function get_entry_via_rest( $entry_id, $context = 'view', array $query_params = [] ) {
+		$request = new WP_REST_Request( 'GET', '/wp/v2/' . Post_Type::REST_BASE . '/' . $entry_id );
+		$request->set_query_params( array_merge( [ 'context' => $context ], $query_params ) );
+
+		return rest_get_server()->dispatch( $request );
+	}
+
+	/**
+	 * Asked for by ID, an entry the listing hides is not found, as if it did
+	 * not exist.
+	 */
+	public function test_public_record_is_not_found_for_entries_of_trashed_and_deleted_coverages() {
+		$deleted_coverage_id = self::create_coverage();
+		$visible_entry_id    = self::create_entry( self::create_coverage() );
+		$hidden_entry_ids    = [
+			self::create_entry( self::create_coverage( 'trash' ) ),
+			self::create_entry( $deleted_coverage_id ),
+		];
+		wp_delete_term( $deleted_coverage_id, Taxonomy::TAXONOMY_SLUG );
+
+		$this->assertSame( 200, self::get_entry_via_rest( $visible_entry_id )->get_status() );
+
+		foreach ( $hidden_entry_ids as $entry_id ) {
+			$response = self::get_entry_via_rest( $entry_id );
+
+			$this->assertSame( 404, $response->get_status() );
+			$this->assertSame( 'rest_post_invalid_id', $response->get_data()['code'] );
+		}
+	}
+
+	/**
+	 * Core reads the entry's ID from the query string ahead of the route, so
+	 * the check has to read it the same way.
+	 */
+	public function test_public_record_check_reads_the_id_core_serves() {
+		$visible_entry_id = self::create_entry( self::create_coverage() );
+		$hidden_entry_id  = self::create_entry( self::create_coverage( 'trash' ) );
+
+		$this->assertSame( 404, self::get_entry_via_rest( $visible_entry_id, 'view', [ 'id' => $hidden_entry_id ] )->get_status() );
+	}
+
+	/**
+	 * The admin reads them in the edit context.
+	 */
+	public function test_edit_context_record_includes_entries_of_trashed_coverages() {
+		self::log_in_as( 'editor' );
+		$entry_id = self::create_entry( self::create_coverage( 'trash' ) );
+
+		$this->assertSame( 200, self::get_entry_via_rest( $entry_id, 'edit' )->get_status() );
+	}
+
+	/**
 	 * A coverage with no stored status reads as active.
 	 */
 	public function test_coverage_status_field_defaults_to_active() {

@@ -45,6 +45,36 @@ function getCoverageActions(
 	// may still navigate into the entries they can access.
 	const canManage = config.capabilities.canManageTerms;
 
+	// Shared by the Restore action and the Undo on the trash notice.
+	const restoreCoverages = async ( items: Coverage[] ) => {
+		const { failed, succeeded } = await runCoverageBulk( items, ( id ) =>
+			restoreCoverage( restNamespace, id )
+		);
+
+		if ( succeeded ) {
+			notifySuccess(
+				pluralize(
+					items.length,
+					__( 'Liveblog restored.', 'newspack-rolling-coverage' ),
+					__( 'Liveblogs restored.', 'newspack-rolling-coverage' )
+				)
+			);
+			onActionPerformed();
+		} else {
+			notifyError(
+				failed[ 0 ].error ||
+					__(
+						'Failed to restore liveblog.',
+						'newspack-rolling-coverage'
+					)
+			);
+			// Some went through, so refresh the list to show them.
+			if ( failed.length < items.length ) {
+				onActionPerformed();
+			}
+		}
+	};
+
 	return [
 		{
 			id: 'edit-coverage',
@@ -108,31 +138,53 @@ function getCoverageActions(
 					title: pluralize(
 						items.length,
 						__(
-							'Trash this coverage?',
+							'Trash this liveblog?',
 							'newspack-rolling-coverage'
 						),
 						sprintf(
-							/* translators: %d: number of coverages. */
+							/* translators: %d: number of liveblogs. */
 							_n(
-								'Trash %d coverage?',
-								'Trash %d coverages?',
+								'Trash %d liveblog?',
+								'Trash %d liveblogs?',
 								items.length,
 								'newspack-rolling-coverage'
 							),
 							items.length
 						)
 					),
-					description: pluralize(
-						items.length,
-						__(
-							'Its entries will be hidden from the frontend until the coverage is restored.',
-							'newspack-rolling-coverage'
+					description: [
+						pluralize(
+							items.length,
+							__(
+								'Its entries will be hidden from the frontend until the liveblog is restored.',
+								'newspack-rolling-coverage'
+							),
+							__(
+								'Their entries will be hidden from the frontend until the liveblogs are restored.',
+								'newspack-rolling-coverage'
+							)
 						),
-						__(
-							'Their entries will be hidden from the frontend until the coverages are restored.',
-							'newspack-rolling-coverage'
+						// A trashed coverage takes no messages from its Slack channel.
+						items.some(
+							( coverage ) =>
+								!! coverage.meta
+									?.rolling_coverage_slack_channel_id
 						)
-					),
+							? pluralize(
+									items.length,
+									__(
+										'Messages posted in its linked Slack channel while it’s in the trash won’t become entries, and restoring it won’t bring them in.',
+										'newspack-rolling-coverage'
+									),
+									__(
+										'Messages posted in their linked Slack channels while they’re in the trash won’t become entries, and restoring them won’t bring them in.',
+										'newspack-rolling-coverage'
+									)
+								)
+							: '',
+					]
+						.filter( Boolean )
+						.join( ' ' ),
 					confirmLabel: __( 'Trash', 'newspack-rolling-coverage' ),
 					intent: 'irreversible',
 					onConfirm: async () => {
@@ -145,7 +197,7 @@ function getCoverageActions(
 							const error =
 								failed[ 0 ].error ||
 								__(
-									'Failed to trash coverage.',
+									'Failed to trash liveblog.',
 									'newspack-rolling-coverage'
 								);
 							// Some items went through, so a retry would resend those too.
@@ -162,14 +214,23 @@ function getCoverageActions(
 							pluralize(
 								items.length,
 								__(
-									'Coverage trashed.',
+									'Liveblog trashed.',
 									'newspack-rolling-coverage'
 								),
 								__(
-									'Coverages trashed.',
+									'Liveblogs trashed.',
 									'newspack-rolling-coverage'
 								)
-							)
+							),
+							[
+								{
+									label: __(
+										'Undo',
+										'newspack-rolling-coverage'
+									),
+									onClick: () => restoreCoverages( items ),
+								},
+							]
 						);
 						onActionPerformed();
 					},
@@ -183,37 +244,7 @@ function getCoverageActions(
 			isEligible: ( coverage: Coverage ) =>
 				canManage &&
 				coverage.meta?.[ config.taxMeta.statusKey ] === 'trash',
-			callback: async ( items: Coverage[] ) => {
-				const { failed, succeeded } = await runCoverageBulk(
-					items,
-					( id ) => restoreCoverage( restNamespace, id )
-				);
-
-				if ( succeeded ) {
-					notifySuccess(
-						pluralize(
-							items.length,
-							__(
-								'Coverage restored.',
-								'newspack-rolling-coverage'
-							),
-							__(
-								'Coverages restored.',
-								'newspack-rolling-coverage'
-							)
-						)
-					);
-					onActionPerformed();
-				} else {
-					notifyError(
-						failed[ 0 ].error ||
-							__(
-								'Failed to restore coverage.',
-								'newspack-rolling-coverage'
-							)
-					);
-				}
-			},
+			callback: restoreCoverages,
 		},
 		{
 			id: 'delete-coverage',
@@ -228,14 +259,14 @@ function getCoverageActions(
 					title: pluralize(
 						items.length,
 						__(
-							'Permanently delete this coverage?',
+							'Permanently delete this liveblog?',
 							'newspack-rolling-coverage'
 						),
 						sprintf(
-							/* translators: %d: number of coverages. */
+							/* translators: %d: number of liveblogs. */
 							_n(
-								'Permanently delete %d coverage?',
-								'Permanently delete %d coverages?',
+								'Permanently delete %d liveblog?',
+								'Permanently delete %d liveblogs?',
 								items.length,
 								'newspack-rolling-coverage'
 							),
@@ -268,7 +299,7 @@ function getCoverageActions(
 							const error =
 								failed[ 0 ].error ||
 								__(
-									'Failed to delete coverage.',
+									'Failed to delete liveblog.',
 									'newspack-rolling-coverage'
 								);
 							// Some items went through, so a retry would resend those too.
@@ -285,11 +316,11 @@ function getCoverageActions(
 							pluralize(
 								items.length,
 								__(
-									'Coverage permanently deleted.',
+									'Liveblog permanently deleted.',
 									'newspack-rolling-coverage'
 								),
 								__(
-									'Coverages permanently deleted.',
+									'Liveblogs permanently deleted.',
 									'newspack-rolling-coverage'
 								)
 							)

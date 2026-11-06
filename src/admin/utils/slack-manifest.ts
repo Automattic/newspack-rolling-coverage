@@ -18,7 +18,7 @@ function buildSlackManifest( restUrl: string ): string {
 			display_information: {
 				name: 'Rolling Coverage',
 				description:
-					'Ingest Slack channel messages as rolling coverage entries',
+					'Ingest Slack channel messages as liveblog entries',
 				background_color: '#1a1a2e',
 			},
 			features: {
@@ -30,12 +30,12 @@ function buildSlackManifest( restUrl: string ): string {
 					{
 						command: '/rolling-coverage-connect',
 						url: `${ restUrl }slack/commands`,
-						description: 'Connect this channel to a coverage',
+						description: 'Connect this channel to a liveblog',
 					},
 					{
 						command: '/rolling-coverage-unlink',
 						url: `${ restUrl }slack/commands`,
-						description: 'Unlink this channel from its coverage',
+						description: 'Unlink this channel from its liveblog',
 					},
 					{
 						command: '/rolling-coverage-status',

@@ -29,6 +29,11 @@ import {
 } from './entry-name';
 import { isSharedReply, readSharedReply, startingAdCount } from './shared-poll';
 import { shareRequests } from './shared-requests';
+import { pollWait } from './poll-backoff';
+import {
+	allowsOverflowReload,
+	OVERFLOW_RELOAD_RETRY_MS,
+} from './overflow-reload';
 import { NewEntryMarks } from './new-entry-marks';
 import { carryArrival, openSpace, stopArrivalFade } from './entry-arrival';
 import { idsNewerThan, newIdsInReplace } from './new-entry-ids';
@@ -99,18 +104,18 @@ const CLOSING_SEPARATOR = SEPARATOR_PARENTS.map(
 	( parent ) => `${ parent } > .wp-block-separator:last-child`
 ).join( ', ' );
 
-// How long an overflow holds back another reload into the same cursor. The
-// reload can land on a page cache copy from before the burst, which overflows
-// again on its next poll; without the wait the reader would reload on every
-// poll until that copy expires.
-const OVERFLOW_RELOAD_RETRY_MS = 60 * 1000;
-
 // How long a page polling its cursor waits before it asks the shared URL: one
 // that left shared polling, or one rendered without it. After a quiet spell the
 // CDN answers with its expired copy, however old, so the reply that sent the
 // page to its cursor can predate the site turning shared polling back on, as
 // can a page cache copy of the page itself.
 const SHARED_POLL_RETRY_MS = 60 * 1000;
+
+// How much of a doubled wait between failing polls this page keeps (see
+// pollWait()). Drawn once per page, so pages that failed together come back
+// at different moments, while the feeds on one page keep polling together and
+// sharing their requests.
+const POLL_BACKOFF_SPREAD = 0.5 + Math.random() / 2;
 
 // How long the jump to the live feed waits for the page before it navigates instead.
 const JUMP_TIMEOUT_MS = 8000;
@@ -143,9 +148,10 @@ const CONTROL_HEIGHT = 56;
 //
 // A site gated in front of the REST API refuses a request without credentials,
 // so sendEntriesRequest() moves the page to the browser's default on a refusal.
-let entriesCredentials: RequestCredentials = isConfigEnabled(
+const canEditPosts = isConfigEnabled(
 	window.newspackRollingCoverageFrontend?.canEditPosts
-)
+);
+let entriesCredentials: RequestCredentials = canEditPosts
 	? 'same-origin'
 	: 'omit';
 
@@ -733,6 +739,24 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 	// What the last poll found, for the next check report.
 	let checkResult: CheckResult | undefined;
 
+	// Whether new entries a poll brings get the New label. Not those of the
+	// poll a feed makes as it starts, or as it first shows when opened in a
+	// background tab: they are entries the page's copy left out, such as a
+	// cached copy older than they are, which a fresh render shows unmarked.
+	// That holds until a poll succeeds, including one the CDN answers with an
+	// expired reply as old as the page, as it can after a quiet spell: that
+	// poll brings nothing, and the next one marks what the copy left out.
+	//
+	// A feed that doesn't poll as it starts marks from its first poll: an
+	// editor's page, which no cache serves, so its polls bring only entries
+	// published while it was open, and a feed that checks only on request,
+	// whose first press can't tell entries its copy left out from ones
+	// published since. So does a feed the jump to the live feed restarted:
+	// the shared view counted the entries newer than the shared entry without
+	// showing them. An entry it did show, such as the shared entry or a
+	// pinned one, still arrives marked when the live page's copy predates it.
+	let marksArrivals = !! newSince || canEditPosts || checksOnRequest;
+
 	// Whether a poll request is in flight. At most one poll is in flight or
 	// scheduled at a time, so tab switches and back/forward navigation can't
 	// start a second chain of polls.
@@ -747,6 +771,14 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 	// Tracks forward-poll health so a sustained outage reports one error per
 	// episode (healthy->failing transition) instead of one per failed interval.
 	let isForwardPollHealthy = true;
+
+	// Polls in a row that ended without a reply the page could apply, which
+	// lengthen the wait before the next (pollWait()). One whose request fails
+	// while the browser reports itself offline doesn't count.
+	let failedPolls = 0;
+
+	// When the scheduled poll is due, in milliseconds.
+	let nextPollAt = 0;
 
 	// Edits the poll delivered for entries not yet on the page, latest HTML by
 	// entry ID: entries load more hasn't brought, and new ones waiting
@@ -934,15 +966,28 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 
 	/**
 	 * Schedules the next poll, at the block's interval or the site's minimum,
-	 * whichever is longer, in place of any poll already scheduled. Schedules
-	 * none while a poll is in flight, as that poll schedules the next, or
-	 * while the page is hidden, as showing it polls at once, or once the
-	 * coverage has ended: a reopen or a later edit shows on reload.
+	 * whichever is longer, in place of any poll already scheduled. After
+	 * failed polls the wait is longer (pollWait()). Schedules none while a
+	 * poll is in flight, as that poll schedules the next, or while the page
+	 * is hidden, as showing it polls (once any wait left by failed polls is
+	 * over), or once the coverage has ended: a reopen or a later edit shows
+	 * on reload.
 	 *
+	 * @param {number} [dueAt] When the poll is due, in epoch milliseconds, for a wait already under way.
 	 * @return {void}
 	 */
-	function schedulePoll(): void {
+	function schedulePoll( dueAt?: number ): void {
 		cancelPoll();
+
+		const interval = pollWait(
+			Math.max( pollInterval, minPollInterval ) * 1000,
+			failedPolls,
+			POLL_BACKOFF_SPREAD
+		);
+
+		// Set even when no poll is scheduled, so a page whose poll failed
+		// while it was hidden still waits once it shows.
+		nextPollAt = dueAt ?? Date.now() + interval;
 
 		if (
 			checksOnRequest ||
@@ -957,11 +1002,9 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 			return;
 		}
 
-		const interval = Math.max( pollInterval, minPollInterval ) * 1000;
-
-		pollTimeoutId = setTimeout( poll, interval );
+		pollTimeoutId = setTimeout( poll, nextPollAt - Date.now() );
 		reportCheck( 'waiting', {
-			nextCheckAt: Date.now() + interval,
+			nextCheckAt: nextPollAt,
 			interval,
 		} );
 	}
@@ -1646,7 +1689,7 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 	 * mark of those it already showed. An entry taken down earlier that the
 	 * reply lists is back. Entries the feed didn't show fade in, and those
 	 * listed above the first one it already showed are marked as new (see
-	 * newIdsInReplace()).
+	 * newIdsInReplace()) once polls mark arrivals (see marksArrivals).
 	 *
 	 * @param {PollEntry[]} entries Removals, then the newest entries, newest first.
 	 * @return {void}
@@ -1776,7 +1819,11 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 			)
 		);
 		marks?.markAll(
-			keptEls.filter( ( el ) => newIds.has( el.dataset.entryId ?? '' ) ),
+			marksArrivals
+				? keptEls.filter( ( el ) =>
+						newIds.has( el.dataset.entryId ?? '' )
+					)
+				: [],
 			keptEls.filter( ( el ) => ! newIds.has( el.dataset.entryId ?? '' ) )
 		);
 		keptEls.forEach( ( el ) => {
@@ -2983,7 +3030,7 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 				el: entryEl,
 				adSlot: entry.adSlot,
 				adEl,
-				isNew: entry.type === 'insert',
+				isNew: marksArrivals && entry.type === 'insert',
 			} );
 		} );
 
@@ -3245,38 +3292,19 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 	}
 
 	/**
-	 * Decides whether an overflow reloads the page now. A reload that lands on
-	 * a page cache copy from before the burst starts from the same cursor and
-	 * overflows again, so a repeat reload for that cursor waits until
-	 * OVERFLOW_RELOAD_RETRY_MS has passed. Polling carries on meanwhile.
+	 * Decides whether an overflow reloads the page now (see
+	 * allowsOverflowReload()). Polling carries on meanwhile.
 	 *
 	 * @return {boolean} True if the page should reload now.
 	 */
 	function shouldReloadForOverflow(): boolean {
-		const storageKey = `newspack-rolling-coverage-overflow-reload-${ coverageId }`;
-
-		try {
-			const lastReload = JSON.parse(
-				window.sessionStorage.getItem( storageKey ) || 'null'
-			);
-
-			if (
-				lastReload?.cursor === cursor &&
-				Date.now() - lastReload.time < OVERFLOW_RELOAD_RETRY_MS
-			) {
-				return false;
-			}
-
-			window.sessionStorage.setItem(
-				storageKey,
-				JSON.stringify( { cursor, time: Date.now() } )
-			);
-		} catch {
-			// Without session storage there's no record of the last reload, so
-			// reload as before.
-		}
-
-		return true;
+		return allowsOverflowReload(
+			() => window.sessionStorage,
+			`newspack-rolling-coverage-overflow-reload-${ coverageId }`,
+			cursor,
+			Date.now(),
+			performance.now()
+		);
 	}
 
 	/**
@@ -3598,25 +3626,44 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 				cursor = data.cursor || cursor;
 				polledCount = data.polledCount ?? polledCount;
 				isForwardPollHealthy = true;
+				failedPolls = 0;
 
 				// Last, so its announcement isn't replaced by the entries'.
 				if ( data.status === 'archived' ) {
 					showEndedNotice( data.latestBreakoutUrl );
 				}
-			} else if ( isForwardPollHealthy ) {
-				trackPollError( 'poll' );
-				isForwardPollHealthy = false;
+			} else {
+				failedPolls++;
+
+				if ( isForwardPollHealthy ) {
+					trackPollError( 'poll' );
+					isForwardPollHealthy = false;
+				}
 			}
 		} catch ( error ) {
+			// A reply that throws while it applies is a failed check too.
+			outcome = 'failed';
+
+			// When the browser reports itself offline, the reader's own connection
+			// is down, so the failure says nothing about the site's load, and
+			// slowing down would only delay the first check once it reconnects.
+			if ( navigator.onLine !== false ) {
+				failedPolls++;
+			}
+
 			if ( isForwardPollHealthy ) {
 				trackPollError( 'poll' );
 				isForwardPollHealthy = false;
 			}
 
-			// Network hiccups shouldn't break the page; the next poll interval retries.
+			// Network hiccups shouldn't break the page; the next poll retries.
 			console.error( error ); // eslint-disable-line no-console
 		} finally {
 			isPolling = false;
+
+			if ( outcome === 'ok' ) {
+				marksArrivals = true;
+			}
 
 			if ( isStopped || isDisposed ) {
 				checkResult = undefined;
@@ -4123,8 +4170,36 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 		} );
 	}
 
+	// A page cache or the CDN can serve a copy of the page minutes behind the
+	// coverage, so the feed checks as soon as it starts. An editor's page
+	// skips both caches, so it waits the interval, and a page opened in a
+	// background tab checks once it shows.
 	if ( cursor && status === 'active' ) {
-		schedulePoll();
+		if ( canEditPosts || checksOnRequest || document.hidden ) {
+			schedulePoll();
+		} else {
+			poll();
+		}
+	}
+
+	/**
+	 * Polls again for a page coming back into view from a background tab or
+	 * the back/forward cache, since it has been away for however long. A feed
+	 * whose polls are failing waits out the rest of its wait instead, so
+	 * readers returning to a site that can't answer don't add to its load.
+	 *
+	 * @return {void}
+	 */
+	function resumePolling(): void {
+		if ( ! cursor || status !== 'active' || checksOnRequest ) {
+			return;
+		}
+
+		if ( failedPolls > 0 && nextPollAt > Date.now() ) {
+			schedulePoll( nextPollAt );
+		} else {
+			poll();
+		}
 	}
 
 	// Resume polling when the user returns to the tab; cancel when they leave.
@@ -4132,8 +4207,8 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 		if ( document.hidden ) {
 			cancelPoll();
 			reportCheck( 'idle' );
-		} else if ( cursor && status === 'active' && ! checksOnRequest ) {
-			poll();
+		} else {
+			resumePolling();
 		}
 	};
 	document.addEventListener( 'visibilitychange', onVisibilityChange );
@@ -4154,17 +4229,17 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 	);
 
 	// Resume polling after a BFCache restore, with the control ready again if
-	// the page was left during a jump.
+	// the page was left during a jump. Where the restore also shows the tab,
+	// this and the visibilitychange handler send one poll between them, in
+	// either order: poll() skips while the tab is hidden or a poll is in
+	// flight.
 	on( window, 'pageshow', ( event ) => {
 		if ( ! event.persisted ) {
 			return;
 		}
 
 		setJumping( false );
-
-		if ( cursor && status === 'active' ) {
-			schedulePoll();
-		}
+		resumePolling();
 	} );
 
 	// The top of the bars the sticky cards were last fitted below.

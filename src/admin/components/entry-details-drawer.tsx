@@ -151,7 +151,7 @@ function EntryDateField( {
 				__nextHasNoMarginBottom
 				id={ id }
 				help={ __(
-					'When the entry was published, which sets its place in the coverage. A published entry can’t be dated in the future.',
+					'When the entry was published, which sets its place in the liveblog. A published entry can’t be dated in the future.',
 					'newspack-rolling-coverage'
 				) }
 			>

@@ -17,9 +17,8 @@ import type { Field, ViewState, ChannelRow, PublishMode } from '../types';
  * Field definitions for the Slack channel mappings DataViews table.
  *
  * @param {(channelId: string, publishMode: PublishMode) => void} onPublishModeChange Sets a channel's publish mode.
- * @param {Set<string>}                                           updatingChannelIds  Channels whose publish mode change is in flight.
  * @param {(channel: ChannelRow) => void}                         onDisconnect        Asks to disconnect a channel.
- * @param {string}                                                coveragesUrl        Admin URL of the All Coverages page.
+ * @param {string}                                                coveragesUrl        Admin URL of the All Liveblogs page.
  * @return {Field< ChannelRow >[]} Field definitions for the channel table.
  */
 function getChannelFields(
@@ -27,7 +26,6 @@ function getChannelFields(
 		channelId: string,
 		publishMode: PublishMode
 	) => void,
-	updatingChannelIds: Set< string >,
 	onDisconnect: ( channel: ChannelRow ) => void,
 	coveragesUrl: string
 ): Field< ChannelRow >[] {
@@ -55,7 +53,7 @@ function getChannelFields(
 		{
 			id: 'term_name',
 			type: 'text',
-			label: __( 'Coverage', 'newspack-rolling-coverage' ),
+			label: __( 'Liveblog', 'newspack-rolling-coverage' ),
 			enableSorting: true,
 			enableGlobalSearch: true,
 			getValue: ( { item } ) => decodeEntities( item.term_name ),
@@ -76,6 +74,7 @@ function getChannelFields(
 			type: 'text',
 			label: __( 'Last Sync', 'newspack-rolling-coverage' ),
 			enableSorting: true,
+			filterBy: false,
 			getValue: ( { item } ) => item.last_sync_ts,
 			render: ( { item } ) =>
 				item.last_sync_ts
@@ -102,7 +101,7 @@ function getChannelFields(
 						item.channel_name || item.channel_id
 					) }
 					value={ item.publish_mode }
-					disabled={ updatingChannelIds.has( item.channel_id ) }
+					disabled={ !! item.is_updating }
 					onChange={ ( next ) =>
 						onPublishModeChange( item.channel_id, next )
 					}
@@ -120,6 +119,7 @@ function getChannelFields(
 			),
 			enableSorting: false,
 			enableHiding: false,
+			filterBy: false,
 			getValue: () => '',
 			render: ( { item } ) => (
 				<Button
@@ -167,7 +167,7 @@ const defaultChannelView: ViewState = {
 	filters: [],
 	fields: [ 'term_name', 'last_sync_ts', 'publish_mode', 'disconnect' ],
 	titleField: 'channel_name',
-	layout: {},
+	layout: { styles: { disconnect: { align: 'end' } } },
 };
 
 export { getChannelFields, defaultChannelView, orderChannelFields };

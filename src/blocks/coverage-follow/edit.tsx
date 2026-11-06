@@ -111,7 +111,7 @@ export default function Edit( {
 					{ ! isInFeed && (
 						<PanelBody
 							title={ __(
-								'Coverage',
+								'Liveblog',
 								'newspack-rolling-coverage'
 							) }
 						>
@@ -123,11 +123,11 @@ export default function Edit( {
 								customChosen={ customChosen }
 								onCustomChosenChange={ setCustomChosen }
 								automaticHelp={ __(
-									'Follows the coverage on this page, or a breakout post’s coverage.',
+									'Follows the liveblog on this page, or a breakout post’s liveblog.',
 									'newspack-rolling-coverage'
 								) }
 								customHelp={ __(
-									'Always follows this coverage.',
+									'Always follows this liveblog.',
 									'newspack-rolling-coverage'
 								) }
 								taxonomySlug={ config.taxonomySlug }
@@ -140,11 +140,11 @@ export default function Edit( {
 								>
 									{ followed || isTemplate
 										? __(
-												'This coverage no longer exists, so the page’s coverage is used.',
+												'This liveblog no longer exists, so the page’s liveblog is used.',
 												'newspack-rolling-coverage'
 											)
 										: __(
-												"This coverage no longer exists, so this button won't appear on the site.",
+												"This liveblog no longer exists, so this button won't appear on the site.",
 												'newspack-rolling-coverage'
 											) }
 								</Notice>
@@ -175,7 +175,7 @@ export default function Edit( {
 									isDismissible={ false }
 								>
 									{ __(
-										"This coverage has ended, so this button won't appear on the site.",
+										"This liveblog has ended, so this button won't appear on the site.",
 										'newspack-rolling-coverage'
 									) }
 								</Notice>

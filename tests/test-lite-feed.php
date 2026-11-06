@@ -552,7 +552,7 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 		$html    = $this->render_lite_page( [ 'coverageId' => 0 ] );
 		$allowed = [ 'div' => [ 'class' => true ] ];
 
-		$this->assertStringContainsString( 'Select a coverage to display its entries.', $html );
+		$this->assertStringContainsString( 'Select a liveblog to display its entries.', $html );
 		$this->assertSame( $allowed, apply_filters( 'newspack_lite_site_allowed_html', $allowed ), 'The message adds nothing to the allowlist.' );
 	}
 

@@ -218,7 +218,7 @@ class Test_Archive_Mode extends Rolling_Coverage_TestCase {
 
 	/**
 	 * The refusal names the coverage's status as the site labels it, so it
-	 * matches what All Coverages shows.
+	 * matches what All Liveblogs shows.
 	 */
 	public function test_frozen_entry_refusal_names_the_site_label() {
 		self::log_in_as( 'editor' );

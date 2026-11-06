@@ -4,7 +4,7 @@
 	"name": "newspack-rolling-coverage/coverage-follow",
 	"title": "Follow Coverage",
 	"category": "newspack",
-	"description": "Lets readers follow a coverage to get push notifications of new entries.",
+	"description": "Lets readers follow a liveblog to get push notifications of new entries.",
 	"textdomain": "newspack-rolling-coverage",
 	"usesContext": [
 		"postId",

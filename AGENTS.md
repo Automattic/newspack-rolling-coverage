@@ -2,6 +2,15 @@
 
 Guidance for AI coding agents working in this repository. `CLAUDE.md` points here.
 
+## Coverage in code, liveblog on screen
+
+What the code calls a coverage (a `rolling_coverage` term and its entries) is a **liveblog** in anything a publisher or reader sees: UI strings, translator comments, block descriptions, `readme.txt`, block `README.md` files and the publisher pages in `site/`. "All Liveblogs", "Add Liveblog", "this liveblog has ended".
+
+- Code keeps "coverage": identifiers, routes (`/coverages`), meta keys, options, hooks, REST schema descriptions, and the developer docs (`DEVELOPMENT.md`, `.github/CONTRIBUTING.md`, `site/content/docs/developers/`). Sites and other plugins depend on those names.
+- The brand stays "Rolling Coverage": the plugin, its admin menu, the Rolling Coverage block, the Slack app, and the Coverage Status and Follow Coverage block titles.
+- "Coverage" as a mass noun stays where it reads naturally: "Coverage of this news event has concluded", the "Live coverage" status label.
+- Page slugs such as `create-your-first-coverage` stay, so existing links keep working.
+
 ## Keep the docs in step with the code
 
 A change that alters how something works updates its docs in the same pull request. The docs describe the plugin as it is, so a doc left behind describes behavior that no longer exists.

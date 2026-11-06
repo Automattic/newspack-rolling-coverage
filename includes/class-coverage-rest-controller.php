@@ -37,7 +37,7 @@ class Coverage_REST_Controller extends WP_REST_Terms_Controller {
 
 		return new WP_Error(
 			'rest_cannot_create',
-			__( 'Sorry, you are not allowed to create coverages.', 'newspack-rolling-coverage' ),
+			__( 'Sorry, you are not allowed to create liveblogs.', 'newspack-rolling-coverage' ),
 			[ 'status' => rest_authorization_required_code() ]
 		);
 	}

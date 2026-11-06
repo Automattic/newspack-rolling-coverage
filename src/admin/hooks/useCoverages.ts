@@ -85,7 +85,7 @@ function useCoverages( options: UseCoveragesOptions = {} ) {
 
 	const error =
 		hasResolved && ! records
-			? __( 'Failed to load coverages.', 'newspack-rolling-coverage' )
+			? __( 'Failed to load liveblogs.', 'newspack-rolling-coverage' )
 			: null;
 
 	return {

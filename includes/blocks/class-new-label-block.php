@@ -64,7 +64,7 @@ class New_Label_Block {
 
 		// Decoded only to test for spaces, as the editor can store a no-break space, which trim() leaves.
 		if ( 1 === preg_match( '/^[\s\x{00A0}]*$/u', html_entity_decode( $text, ENT_QUOTES | ENT_HTML5, 'UTF-8' ) ) ) {
-			/* translators: Label on a coverage entry published while the reader has the page open. */
+			/* translators: Label on a liveblog entry published while the reader has the page open. */
 			return __( 'New', 'newspack-rolling-coverage' );
 		}
 

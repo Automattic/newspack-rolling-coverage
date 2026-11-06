@@ -117,7 +117,7 @@ export default function CoveragePicker( {
 		return (
 			<LoadingState
 				label={ __(
-					'Loading coverages…',
+					'Loading liveblogs…',
 					'newspack-rolling-coverage'
 				) }
 			/>
@@ -127,10 +127,10 @@ export default function CoveragePicker( {
 	return (
 		<ComboboxControl
 			__next40pxDefaultSize
-			label={ __( 'Choose a coverage', 'newspack-rolling-coverage' ) }
+			label={ __( 'Choose a liveblog', 'newspack-rolling-coverage' ) }
 			hideLabelFromVision
 			placeholder={ __(
-				'Search for a coverage…',
+				'Search for a liveblog…',
 				'newspack-rolling-coverage'
 			) }
 			value={ value ? String( value ) : null }

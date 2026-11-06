@@ -1,16 +1,14 @@
 import type { ReactNode } from 'react';
-import { HomeLayout } from 'fumadocs-ui/layouts/home';
 import { RootProvider } from 'fumadocs-ui/provider/astro';
 import type { AstroProviderProps } from 'fumadocs-core/framework/astro';
 import { navigate } from 'astro:transitions/client';
-import { GITHUB_URL, NAV_LINKS, NAV_TITLE, SITE_TITLE } from './docs';
+import { SITE_TITLE } from './docs';
 import { Headline } from './headline';
 import { MiniFeed } from './mini-feed';
 import { PARTNERS } from './partner-logos';
 import SearchDialog from './search';
 import { SiteFooter } from './site-footer';
-import { SiteContainer } from './site-container';
-import { SiteHeader } from './site-header';
+import { SiteLayout } from './site-layout';
 
 const HERO_TEXT =
 	'Post short, timestamped entries from WordPress or Slack. Readers see each one appear on the page as it is published, without reloading.';
@@ -84,7 +82,7 @@ const features: { title: string; href: string; body: string; detail: ReactNode }
 	{
 		title: '13 layouts, in the site’s own theme',
 		href: '/docs/guides/layouts/',
-		body: 'From a full live blog to a strip under the header or a box in the sidebar. Each layout uses the site’s own fonts, colors, and spacing. One coverage can show in several places at once.',
+		body: 'From a full liveblog to a strip under the header or a box in the sidebar. Each layout uses the site’s own fonts, colors, and spacing. One liveblog can show in several places at once.',
 		detail: (
 			<p className="text-sm text-fd-muted-foreground">
 				<span className="sr-only">The layouts: </span>
@@ -106,7 +104,7 @@ const features: { title: string; href: string; body: string; detail: ReactNode }
 	{
 		title: 'A clear end',
 		href: '/docs/guides/end-a-coverage/',
-		body: 'When the story is over, end the coverage. Its entries lock, feeds stop checking for updates, and each page can show an ended notice or hide the feed.',
+		body: 'When the story is over, end the liveblog. Its entries lock, feeds stop checking for updates, and each page can show an ended notice or hide the feed.',
 		detail: (
 			<>
 				<Label>Live</Label>
@@ -131,7 +129,7 @@ const features: { title: string; href: string; body: string; detail: ReactNode }
 const steps = [
 	{
 		time: '9:02 am',
-		title: 'Create a coverage',
+		title: 'Create a liveblog',
 		href: '/docs/getting-started/create-your-first-coverage/',
 		body: 'Give the story a name, such as “Storm Ingrid: live updates”. Leave its status on Live.',
 	},
@@ -152,12 +150,12 @@ const steps = [
 const sections = [
 	{
 		title: 'Getting started',
-		description: 'Install the plugin and publish a first coverage.',
+		description: 'Install the plugin and publish a first liveblog.',
 		href: '/docs/getting-started/',
 	},
 	{
 		title: 'Guides',
-		description: 'Layouts, Slack, pinned entries, and ending a coverage.',
+		description: 'Layouts, Slack, pinned entries, and ending a liveblog.',
 		href: '/docs/guides/',
 	},
 	{
@@ -183,12 +181,7 @@ export function Home( {
 			navigate={ navigate }
 			search={ { SearchDialog } }
 		>
-			<HomeLayout
-				nav={ { title: NAV_TITLE, url: '/' } }
-				githubUrl={ GITHUB_URL }
-				links={ NAV_LINKS }
-				slots={ { header: SiteHeader, container: SiteContainer } }
-			>
+			<SiteLayout>
 				<main>
 					<div className="mx-auto w-full max-w-6xl px-4 pt-14 pb-24 md:px-6 md:pt-24 md:pb-32">
 						<section aria-labelledby="home-title">
@@ -278,13 +271,13 @@ export function Home( {
 								sizes="(min-width: 1152px) 1104px, calc(100vw - 2rem)"
 								width={ 3024 }
 								height={ 1964 }
-								alt="A live coverage of Storm Ingrid on a news site: a pinned entry from the mayor at the top, then timestamped entries with the newest first, including a Full story card, each with its reporter and a Share link."
+								alt="A liveblog of Storm Ingrid on a news site: a pinned entry from the mayor at the top, then timestamped entries with the newest first, including a Full story card, each with its reporter and a Share link."
 								loading="lazy"
 								decoding="async"
 								className="h-auto w-full rounded-xl border border-fd-border"
 							/>
 							<figcaption className="mt-3 max-w-[70ch] text-sm text-fd-muted-foreground">
-								A live coverage on a demo site: the pinned entry first, then the feed in the Clock layout,
+								A liveblog on a demo site: the pinned entry first, then the feed in the Clock layout,
 								with a full story card.
 							</figcaption>
 						</figure>
@@ -401,7 +394,7 @@ export function Home( {
 					</div>
 				</main>
 				<SiteFooter />
-			</HomeLayout>
+			</SiteLayout>
 		</RootProvider>
 	);
 }

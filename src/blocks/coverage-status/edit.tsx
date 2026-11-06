@@ -339,7 +339,7 @@ export default function Edit( {
 	};
 	const endedHidden = !! followed && status === 'archived' && hideWhenEnded;
 	const endedNotice = __(
-		"This coverage has ended, so the badge won't show on the site.",
+		"This liveblog has ended, so the badge won't show on the site.",
 		'newspack-rolling-coverage'
 	);
 	let goneNotice = '';
@@ -348,11 +348,11 @@ export default function Edit( {
 		goneNotice =
 			followed || isTemplate
 				? __(
-						'This coverage no longer exists, so the page’s coverage is used.',
+						'This liveblog no longer exists, so the page’s liveblog is used.',
 						'newspack-rolling-coverage'
 					)
 				: __(
-						'This coverage no longer exists, so this badge won’t appear on the site.',
+						'This liveblog no longer exists, so this badge won’t appear on the site.',
 						'newspack-rolling-coverage'
 					);
 	}
@@ -373,7 +373,7 @@ export default function Edit( {
 				) }
 				{ ! isInFeed && (
 					<PanelBody
-						title={ __( 'Coverage', 'newspack-rolling-coverage' ) }
+						title={ __( 'Liveblog', 'newspack-rolling-coverage' ) }
 					>
 						<CoverageChoice
 							value={ coverageId }
@@ -383,11 +383,11 @@ export default function Edit( {
 							customChosen={ customCoverageChosen }
 							onCustomChosenChange={ setCustomCoverageChosen }
 							automaticHelp={ __(
-								'Shows the coverage on this page, or a breakout post’s coverage.',
+								'Shows the liveblog on this page, or a breakout post’s liveblog.',
 								'newspack-rolling-coverage'
 							) }
 							customHelp={ __(
-								'Always shows this coverage.',
+								'Always shows this liveblog.',
 								'newspack-rolling-coverage'
 							) }
 							taxonomySlug={ config.taxonomySlug }

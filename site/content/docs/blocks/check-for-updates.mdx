@@ -3,7 +3,7 @@ title: Check for Updates block
 description: Let readers press a button to load new entries instead of checking automatically.
 ---
 
-The Check for Updates block is a button readers press to load a coverage's new entries. A feed that holds it stops checking on its own, so the page makes no background requests. That suits readers on slow or metered connections, and pages people leave open for hours.
+The Check for Updates block is a button readers press to load a liveblog's new entries. A feed that holds it stops checking on its own, so the page makes no background requests. That suits readers on slow or metered connections, and pages people leave open for hours.
 
 ## Where to use it
 
@@ -50,7 +50,7 @@ Adding the block changes how the feed behaves. With it, the feed checks only whe
 It doesn't appear:
 
 - In a feed set to show only the latest entries, such as the Ticker and Flash layouts. Those keep checking on their own.
-- Once the coverage ends. A paused coverage keeps it, so readers can see whether the coverage resumed.
+- Once the liveblog ends. A paused liveblog keeps it, so readers can see whether the liveblog resumed.
 
 ## What readers see
 
@@ -61,9 +61,9 @@ It doesn't appear:
 Because the page doesn't check on its own, these update only when a reader presses the button:
 
 - A Coverage Status block beside the feed.
-- The notice at the top of the feed when the coverage ends.
+- The notice at the top of the feed when the liveblog ends.
 - The feed's **When ended** setting.
 
-An [Update Timer](/docs/blocks/update-timer/) for the coverage stays hidden, because there is no check to count down to.
+An [Update Timer](/docs/blocks/update-timer/) for the liveblog stays hidden, because there is no check to count down to.
 
 <Screenshot label="A page with the Check for Updates button above the feed" src="/screenshots/blocks/check-for-updates-3.webp" width={3024} height={1964} />

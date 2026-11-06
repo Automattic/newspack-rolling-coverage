@@ -87,7 +87,7 @@ class Share_Block {
 		$word = Entry_Name::word( 1 );
 
 		if ( '' !== $word ) {
-			/* translators: %s: the site's own name for one coverage entry, as it reads mid-sentence. */
+			/* translators: %s: the site's own name for one liveblog entry, as it reads mid-sentence. */
 			return sprintf( __( 'Share this %s', 'newspack-rolling-coverage' ), $word );
 		}
 

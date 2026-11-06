@@ -32,7 +32,7 @@ function loadMoreButtonsTemplate(
 				'core/button',
 				{
 					tagName: 'button',
-					/* translators: Button that loads older entries at the end of a coverage's feed. */
+					/* translators: Button that loads older entries at the end of a liveblog's feed. */
 					text: __( 'Load more', 'newspack-rolling-coverage' ),
 					metadata: {
 						name: __( 'Load More', 'newspack-rolling-coverage' ),

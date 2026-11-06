@@ -42,7 +42,7 @@ class Key_Takeaways_Feature extends \WordPress\AI\Abstracts\Abstract_Feature {
 	protected function load_metadata(): array {
 		return [
 			'label'       => __( 'Rolling Coverage Key Takeaways', 'newspack-rolling-coverage' ),
-			'description' => __( 'Generates key takeaways from the published entries of a rolling coverage.', 'newspack-rolling-coverage' ),
+			'description' => __( 'Generates key takeaways from the published entries of a liveblog.', 'newspack-rolling-coverage' ),
 			'category'    => 'other',
 		];
 	}

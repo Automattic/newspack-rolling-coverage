@@ -444,7 +444,7 @@ class Slack_Monitor {
 	public static function on_channel_linked( $channel_id, $term_id ): void {
 		self::log(
 			'success',
-			'Channel linked to coverage',
+			'Channel linked to liveblog',
 			[
 				'channel_id' => $channel_id,
 				'term_id'    => $term_id,
@@ -458,7 +458,7 @@ class Slack_Monitor {
 	 * @param string $channel_id Slack channel ID.
 	 */
 	public static function on_channel_unlinked( $channel_id ): void {
-		self::log( 'info', 'Channel unlinked from coverage', [ 'channel_id' => $channel_id ] );
+		self::log( 'info', 'Channel unlinked from liveblog', [ 'channel_id' => $channel_id ] );
 	}
 
 	/**

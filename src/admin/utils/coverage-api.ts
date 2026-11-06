@@ -114,8 +114,8 @@ async function getCoverage(
 }
 
 /**
- * Soft-deletes a coverage by setting its status to 'trash' and trashing
- * all its non-trashed entries.
+ * Soft-deletes a coverage by setting its status to 'trash'. Its entries
+ * keep their status and are hidden on the site until it is restored.
  *
  * @param {string} restNamespace - REST namespace URL (from config.restBaseUrls.restNamespace).
  * @param {number} id            - The coverage term ID.
@@ -137,8 +137,9 @@ async function trashCoverage(
 }
 
 /**
- * Restores a coverage from trash, setting its status back to 'active'.
- * Entries remain trashed and must be restored individually.
+ * Restores a coverage from trash, in the status it had when it was trashed.
+ * Entries trashed on their own remain trashed and must be restored
+ * individually.
  *
  * @param {string} restNamespace - REST namespace URL.
  * @param {number} id            - The coverage term ID.

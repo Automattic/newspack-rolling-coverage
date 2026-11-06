@@ -39,6 +39,9 @@ class Entry_Ingestion_Service {
 	// Skip result when another request is still ingesting the same event.
 	const SKIP_IN_PROGRESS = -2;
 
+	// Skip result when the target coverage is in the trash.
+	const SKIP_TRASHED_COVERAGE = -3;
+
 	/**
 	 * Ingest a normalized source event into a rolling coverage entry.
 	 *
@@ -57,7 +60,8 @@ class Entry_Ingestion_Service {
 	 *                                              event's lock from going stale.
 	 * @return int|\WP_Error Post id on success, 0 on a clean skip,
 	 *                       self::SKIP_ARCHIVED_COVERAGE when the coverage is
-	 *                       archived, self::SKIP_IN_PROGRESS when another
+	 *                       archived, self::SKIP_TRASHED_COVERAGE when it is
+	 *                       in the trash, self::SKIP_IN_PROGRESS when another
 	 *                       request holds the event's lock, or WP_Error.
 	 */
 	public static function ingest(
@@ -70,6 +74,10 @@ class Entry_Ingestion_Service {
 	) {
 		if ( Archive_Mode::is_coverage_archived( $term_id ) ) {
 			return self::SKIP_ARCHIVED_COVERAGE;
+		}
+
+		if ( 'trash' === get_term_meta( $term_id, Taxonomy::STATUS_META_KEY, true ) ) {
+			return self::SKIP_TRASHED_COVERAGE;
 		}
 
 		$lock_key = self::MUTEX_PREFIX . md5( $payload->source . ':' . $payload->source_ref );

@@ -10,7 +10,7 @@ import { useEffect } from '@wordpress/element';
  * Once DataViews has rendered, its own loading treatment takes over.
  *
  * @param props       Component props.
- * @param props.label What is being fetched, e.g. "Fetching coverages…".
+ * @param props.label What is being fetched, e.g. "Fetching liveblogs…".
  */
 function LoadingState( { label }: { label: string } ) {
 	// A live region that mounts with its text already in place is announced

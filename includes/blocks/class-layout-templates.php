@@ -123,7 +123,7 @@ class Layout_Templates {
 			'font_sizes'  => array_column( $font_sizes['theme'] ?? [], 'slug' ),
 			'all_updates' => '' === $plural
 				? __( 'See all entries', 'newspack-rolling-coverage' )
-				/* translators: %s: the site's name for several coverage entries, as it reads mid-sentence, e.g. "updates". */
+				/* translators: %s: the site's name for several liveblog entries, as it reads mid-sentence, e.g. "updates". */
 				: sprintf( __( 'See all %s', 'newspack-rolling-coverage' ), $plural ),
 		];
 	}

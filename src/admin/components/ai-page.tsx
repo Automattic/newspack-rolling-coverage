@@ -52,7 +52,7 @@ function AIUnavailable( { config }: { config: AdminConfig } ) {
 			'newspack-rolling-coverage'
 		);
 		description = __(
-			'Rolling Coverage is waiting for approval to use the AI provider. Once it’s approved, editors can sum up the latest entries in a coverage from the Rolling Coverage block.',
+			'Rolling Coverage is waiting for approval to use the AI provider. Once it’s approved, editors can sum up the latest entries in a liveblog from the Rolling Coverage block.',
 			'newspack-rolling-coverage'
 		);
 		action = {
@@ -64,7 +64,7 @@ function AIUnavailable( { config }: { config: AdminConfig } ) {
 		};
 	} else if ( config.adminUrls.aiSettings ) {
 		description = __(
-			'Connect an AI provider and turn on Rolling Coverage Key Takeaways in the AI settings. Editors can then sum up the latest entries in a coverage from the Rolling Coverage block.',
+			'Connect an AI provider and turn on Rolling Coverage Key Takeaways in the AI settings. Editors can then sum up the latest entries in a liveblog from the Rolling Coverage block.',
 			'newspack-rolling-coverage'
 		);
 		action = {
@@ -78,7 +78,7 @@ function AIUnavailable( { config }: { config: AdminConfig } ) {
 		);
 	} else if ( config.adminUrls.aiPlugin ) {
 		description = __(
-			'Install and activate the WordPress AI plugin, connect an AI provider, and turn on Rolling Coverage Key Takeaways in its settings. Editors can then sum up the latest entries in a coverage from the Rolling Coverage block.',
+			'Install and activate the WordPress AI plugin, connect an AI provider, and turn on Rolling Coverage Key Takeaways in its settings. Editors can then sum up the latest entries in a liveblog from the Rolling Coverage block.',
 			'newspack-rolling-coverage'
 		);
 		action = {
@@ -318,7 +318,7 @@ function AIPage() {
 							'newspack-rolling-coverage'
 						) }
 						description={ __(
-							'The instruction the AI follows when it sums up a coverage in a short list of key takeaways for readers.',
+							'The instruction the AI follows when it sums up a liveblog in a short list of key takeaways for readers.',
 							'newspack-rolling-coverage'
 						) }
 					/>
@@ -337,7 +337,7 @@ function AIPage() {
 						help={ sprintf(
 							/* translators: 1: prompt placeholder token, 2: character count, 3: max character count */
 							__(
-								'Use %1$s where the maximum number of takeaways should go. Keep it short: the AI already has the coverage entries. (%2$d / %3$d characters)',
+								'Use %1$s where the maximum number of takeaways should go. Keep it short: the AI already has the liveblog entries. (%2$d / %3$d characters)',
 								'newspack-rolling-coverage'
 							),
 							'{max_takeaways}',

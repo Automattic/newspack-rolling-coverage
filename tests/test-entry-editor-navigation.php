@@ -118,7 +118,7 @@ class Test_Entry_Editor_Navigation extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * An entry in no coverage returns to All Coverages.
+	 * An entry in no coverage returns to All Liveblogs.
 	 */
 	public function test_entry_without_coverage_returns_to_all_coverages() {
 		$entry_id = self::create_entry();
@@ -143,7 +143,7 @@ class Test_Entry_Editor_Navigation extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * The hidden list redirects to All Coverages when no entry is known.
+	 * The hidden list redirects to All Liveblogs when no entry is known.
 	 */
 	public function test_hidden_list_redirects_to_all_coverages() {
 		$this->assertSame(

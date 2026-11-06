@@ -53,7 +53,7 @@ function PushNotificationsControl() {
 	const { editPost } = useDispatch( editorStore );
 
 	const warning = __(
-		'This entry’s coverage doesn’t have a canonical URL set yet. Set one in the coverage’s settings, or no notification will be sent.',
+		'This entry’s liveblog doesn’t have a canonical URL set yet. Set one in the liveblog’s settings, or no notification will be sent.',
 		'newspack-rolling-coverage'
 	);
 

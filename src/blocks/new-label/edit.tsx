@@ -63,7 +63,7 @@ export default function Edit( {
 				tagName="p"
 				aria-label={ __( 'Label text', 'newspack-rolling-coverage' ) }
 				placeholder={
-					/* translators: Label on a coverage entry published while the reader has the page open. */
+					/* translators: Label on a liveblog entry published while the reader has the page open. */
 					__( 'New', 'newspack-rolling-coverage' )
 				}
 				value={ content }

@@ -95,8 +95,8 @@ export function BackToCoverage( {
 		coverageId > 0 ? `${ coveragesUrl }/${ coverageId }` : coveragesUrl;
 	const label =
 		coverageId > 0
-			? __( 'Back to Coverage', 'newspack-rolling-coverage' )
-			: __( 'Back to All Coverages', 'newspack-rolling-coverage' );
+			? __( 'Back to Liveblog', 'newspack-rolling-coverage' )
+			: __( 'Back to All Liveblogs', 'newspack-rolling-coverage' );
 
 	return (
 		<MainDashboardButton>

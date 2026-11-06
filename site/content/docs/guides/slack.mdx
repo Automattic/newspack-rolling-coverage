@@ -3,7 +3,7 @@ title: Post from Slack
 description: Connect a Slack workspace and channel so messages become entries, and choose how they publish.
 ---
 
-By the end of this page, a Slack channel will be connected to a coverage, and messages posted there will become entries.
+By the end of this page, a Slack channel will be connected to a liveblog, and messages posted there will become entries.
 
 Connecting the workspace needs an Administrator account, and so does linking a channel from the dashboard. In Slack, anyone in a channel can connect it with the `/rolling-coverage-connect` command.
 
@@ -33,6 +33,8 @@ Select **Copy Manifest**. The button reads "Copied!" once the manifest is on the
 ### Create the app in Slack
 
 Open api.slack.com/apps and create a new app from a manifest. Paste the manifest when Slack asks for one.
+
+If the workspace already has another site's Rolling Coverage app, rename the commands before you create the app. See [More than one site in a workspace](#more-than-one-site-in-a-workspace).
 
 </Step>
 <Step>
@@ -72,22 +74,62 @@ In Slack, invite the bot to the channel with `/invite @Rolling Coverage`.
 </Step>
 <Step>
 
-### Link the channel to a coverage
+### Link the channel to a liveblog
 
-In **Rolling Coverage > All Coverages**, open the coverage's row actions and select **Slack Connection**. On the coverage's entries screen, the **Connect Slack** button does the same.
+In **Rolling Coverage > All Liveblogs**, open the liveblog's row actions and select **Slack Connection**. On the liveblog's entries screen, the **Connect Slack** button does the same.
 
 Enter the **Channel**, as a name such as #general or a channel ID. Choose a **Publish Mode**. Select **Connect**.
 
-<Screenshot label="The Slack Connection panel for a coverage, with the Channel field and the Publish Mode choices" src="/screenshots/guides/slack-3.webp" width={3024} height={1964} />
+<Screenshot label="The Slack Connection panel for a liveblog, with the Channel field and the Publish Mode choices" src="/screenshots/guides/slack-3.webp" width={3024} height={1964} />
 
 </Step>
 </Steps>
 
-You can also run `/rolling-coverage-connect` in the Slack channel and pick the coverage. Channels connected that way start in **Draft** mode.
+You can also run `/rolling-coverage-connect` in the Slack channel and pick the liveblog. Channels connected that way start in **Draft** mode.
 
-A channel connects to one coverage, and a coverage to one channel. `/rolling-coverage-status` shows a channel's connection, and `/rolling-coverage-unlink` removes it.
+A channel connects to one liveblog, and a liveblog to one channel. `/rolling-coverage-status` shows a channel's connection, and `/rolling-coverage-unlink` removes it. Each reply names the site that answered, such as "From Example News (example.com)".
 
 To see every linked channel, open the **Channel Mappings** tab on the Slack Connection page. To unlink one, select **Disconnect**.
+
+## More than one site in a workspace
+
+Each site sets up its own Slack app, and every app comes with the same three commands. When one workspace has apps from more than one site, Slack sends the commands to the app installed most recently. The reply then names a different site, and the liveblog list shows that site's liveblogs. If that site is offline or slow, Slack shows an error instead of a reply.
+
+Messages and reactions aren't affected. They reach every site whose bot is in the channel.
+
+The bot's own messages in a channel also name its site, such as "From Example News (example.com)". When you invite the bot with `/invite @Rolling Coverage`, its greeting shows which site's bot joined. If it names another site, invite the other Rolling Coverage bot.
+
+To use the commands with each site, give each site's app its own command names. For a new app, paste the manifest in Slack, then change the three command names there before you create the app, keeping the end of each name as in the steps below. For an app that already exists:
+
+<Steps>
+<Step>
+
+### Open the app's commands
+
+Open api.slack.com/apps and select the site's app. Open **Slash Commands**.
+
+Every site's app is named Rolling Coverage. To tell them apart, check that the **Request URL** of the commands starts with the site's address.
+
+</Step>
+<Step>
+
+### Rename each command
+
+Edit each command and change the start of its name, such as `/rolling-coverage-connect` to `/staging-coverage-connect`. Keep the end of the name: `-connect`, `-unlink`, or `-status`. Leave the **Request URL** as it is, and select **Save**.
+
+</Step>
+<Step>
+
+### Reinstall if Slack asks
+
+If Slack shows a notice asking to reinstall the app, reinstall it to the workspace.
+
+</Step>
+</Steps>
+
+Pasting the plugin's manifest into the app again, as the Slack Connection page's warning about reactions asks, puts back the original command names. Rename them again before you reinstall the app.
+
+Without the commands, everything they do is also in the dashboard: link a channel as in [Connect a channel](#connect-a-channel), and check or unlink it on the **Channel Mappings** tab.
 
 ## Choose a publish mode
 
@@ -112,7 +154,7 @@ In every mode, the bot reacts to each message it adds: a green circle when the e
 - Replies in a message's thread become entries too.
 - In **Auto-publish** and **Draft** channels, a message that starts with the ignore prefix stays in Slack, and so do its replies. The default prefix is `~~`. Change it under **Ignore Prefix** on the **Settings** tab.
 - Slack's own notices, such as someone joining the channel, and posts by bots stay in Slack.
-- Messages posted while the coverage has ended are ignored.
+- Messages and reactions posted while the liveblog has ended or is in the trash are ignored. Restoring the liveblog from the trash doesn't bring them in.
 
 Editing or deleting a Slack message after it became an entry doesn't change the entry. Edit the entry on the site instead.
 

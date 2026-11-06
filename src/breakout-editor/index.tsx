@@ -69,7 +69,7 @@ function FullStoryLabelControl( { data }: { data: BreakoutEditorData } ) {
 			help={ sprintf(
 				/* translators: %s: the Full story label every other broken-out story shows. */
 				__(
-					'Shown above this story in the coverage feed. Leave empty to use “%s”.',
+					'Shown above this story in the liveblog feed. Leave empty to use “%s”.',
 					'newspack-rolling-coverage'
 				),
 				data.siteLabel
