@@ -120,6 +120,17 @@ npm run shot -- blocks/coverage-status-2 --site https://screenshots.local \
   --spotlight '.block-editor-block-inspector .components-toggle-group-control'
 ```
 
+A panel with its fields filled in: the script opens Add Liveblog, types a name and a description, then clicks a help text so no field shows a focus ring.
+
+```bash
+npm run shot -- getting-started/create-your-first-coverage-2 --site https://screenshots.local \
+  --url "wp-admin/admin.php?page=rolling-coverage" \
+  --click 'button:has-text("Add Liveblog")' \
+  --fill 'internal:label="Name"s' --value 'Hartwell Bridge closure: live updates' \
+  --fill 'internal:label="Description"s' --value 'Closures and diversions' \
+  --click 'text=An internal note about this liveblog'
+```
+
 A page as a signed-out reader sees it:
 
 ```bash
@@ -136,6 +147,7 @@ npm run shot -- getting-started/put-the-feed-on-a-page-4 --site https://screensh
 | `--logged-out` | Opens the page in a fresh browser with no one signed in, so there's no admin bar. |
 | `--spotlight <selector>` | Spotlights the first element that matches, instead of Alt-clicking. |
 | `--click <selector>` | Clicks an element before the capture, and waits for the page to settle. Repeat it for several clicks, in order. |
+| `--fill <selector>` and `--value <text>` | Types the text into the first field that matches, such as a name in a panel or a paragraph in the entry editor. Put each `--value` right after its `--fill`. Fills and clicks run in the order you give them. |
 | `--now` | Captures as soon as the page settles, without opening a window or waiting for Enter. Use it with `--click` and `--spotlight` for screens you can reach without help. Without a saved sign-in it needs `WP_USER` and `WP_PASSWORD`, since it can't ask. |
 | `--out <file>` | Writes the image somewhere else, for trying things out. A relative path starts from the folder you ran `npm run` in. |
 
