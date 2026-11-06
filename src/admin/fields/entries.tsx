@@ -168,6 +168,7 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 				);
 			},
 			filterBy: {
+				isPrimary: false,
 				operators: [ 'contains' ],
 			},
 		},
@@ -190,6 +191,7 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 				},
 			],
 			filterBy: {
+				isPrimary: false,
 				operators: [ 'is', 'isNot' ],
 			},
 		},
@@ -264,6 +266,7 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 			render: ( { item } ) =>
 				summarizeTermNames( getTermNames( item, 'category' ) ),
 			filterBy: {
+				isPrimary: false,
 				operators: [ 'contains' ],
 			},
 		},
