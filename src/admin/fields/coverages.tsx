@@ -193,7 +193,7 @@ const defaultCoverageView: ViewState = {
 		'last_modified',
 	],
 	titleField: 'name',
-	layout: {},
+	layout: { styles: { count: { align: 'start' } } },
 };
 
 export { getCoverageFields, defaultCoverageView };
