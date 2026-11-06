@@ -1,7 +1,7 @@
 /**
  * External dependencies.
  */
-import { __, sprintf } from '@wordpress/i18n';
+import { __, _n, sprintf } from '@wordpress/i18n';
 import { decodeEntities } from '@wordpress/html-entities';
 import { Button } from '@wordpress/components';
 
@@ -73,6 +73,19 @@ function getCoverageFields(
 			label: __( 'Entries', 'newspack-rolling-coverage' ),
 			enableSorting: true,
 			getValue: ( { item } ) => item.count ?? 0,
+			render: ( { item } ) => {
+				const count = item.count ?? 0;
+				return sprintf(
+					/* translators: %d: number of entries in the liveblog. */
+					_n(
+						'%d entry',
+						'%d entries',
+						count,
+						'newspack-rolling-coverage'
+					),
+					count
+				);
+			},
 		},
 		{
 			id: 'status',
@@ -185,15 +198,10 @@ const defaultCoverageView: ViewState = {
 	sort: { field: 'name', direction: 'asc' },
 	search: '',
 	filters: [ { field: 'status', operator: 'isNot', value: 'trash' } ],
-	fields: [
-		'status',
-		'count',
-		'slack_channel',
-		'created_at',
-		'last_modified',
-	],
+	fields: [ 'status', 'slack_channel', 'created_at', 'last_modified' ],
 	titleField: 'name',
-	layout: { styles: { count: { align: 'start' } } },
+	descriptionField: 'count',
+	layout: {},
 };
 
 export { getCoverageFields, defaultCoverageView };
