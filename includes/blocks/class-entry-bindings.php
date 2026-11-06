@@ -792,7 +792,7 @@ class Entry_Bindings {
 	 * @param string $url The URL.
 	 * @return int
 	 */
-	private static function url_to_post_id( string $url ): int {
+	public static function url_to_post_id( string $url ): int {
 		if ( function_exists( 'wpcom_vip_url_to_postid' ) ) {
 			return (int) wpcom_vip_url_to_postid( $url );
 		}
@@ -919,10 +919,8 @@ class Entry_Bindings {
 	 * The link to an entry on the page showing its coverage, opened at the
 	 * entry: the coverage's canonical URL, as notifications and the entry's
 	 * own permalink use, or without one, the page found to show the coverage
-	 * (see Taxonomy::get_coverage_page_url()). The entry's share link stands
-	 * in when the coverage has no page; it isn't used first because it leads
-	 * back to the page the feed is on, which for a capped feed on a section
-	 * front isn't the coverage page.
+	 * (see Taxonomy::get_coverage_page_url()). With no page it's the entry's
+	 * own permalink, which starts redirecting once the coverage has one.
 	 *
 	 * @param int $entry_id Entry post ID.
 	 * @return string The URL, or an empty string when the entry can't be linked.
@@ -944,7 +942,7 @@ class Entry_Bindings {
 			}
 		}
 
-		return Social_Sharing::get_entry_share_url( $entry_id );
+		return (string) get_permalink( $entry );
 	}
 
 	/**

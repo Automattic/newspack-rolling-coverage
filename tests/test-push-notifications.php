@@ -5,8 +5,10 @@
  * @package Newspack_Rolling_Coverage
  */
 
+use Newspack_Rolling_Coverage\Placements;
 use Newspack_Rolling_Coverage\Post_Type;
 use Newspack_Rolling_Coverage\Push_Notifications;
+use Newspack_Rolling_Coverage\Social_Sharing;
 use Newspack_Rolling_Coverage\Taxonomy;
 
 /**
@@ -814,5 +816,49 @@ class Test_Push_Notifications extends Rolling_Coverage_TestCase {
 
 		$this->assertCount( 1, self::get_sent_notifications(), 'The notification should be sent straight away.' );
 		$this->assertFalse( wp_next_scheduled( Push_Notifications::SEND_HOOK, [ $entry_id ] ), 'Nothing should be left scheduled.' );
+	}
+
+	/**
+	 * Without a canonical URL, a notification goes to the page showing the
+	 * full feed, opened at the entry, and the editor panels say it can be sent.
+	 */
+	public function test_coverage_with_a_page_and_no_canonical_url_is_notified() {
+		$coverage_id = self::create_coverage();
+		$page_id     = self::factory()->post->create(
+			[
+				'post_status'  => 'publish',
+				'post_content' => '<!-- wp:newspack-rolling-coverage/rolling-coverage {"coverageId":' . $coverage_id . '} /-->',
+			]
+		);
+		$entry_id    = self::create_draft_entry( $coverage_id, true );
+
+		wp_publish_post( $entry_id );
+
+		$sent = self::get_sent_notifications();
+
+		$this->assertCount( 1, $sent );
+		$this->assertSame( Social_Sharing::get_entry_deep_link( get_post( $entry_id ), get_permalink( $page_id ) ), $sent[0]['url'] );
+		$this->assertTrue( Push_Notifications::has_notifiable_coverage( get_post( $entry_id ) ) );
+	}
+
+	/**
+	 * A page trashed moments before an entry publishes gets no notification
+	 * link, though the stored map hasn't been rebuilt yet.
+	 */
+	public function test_notification_does_not_link_to_a_page_just_trashed() {
+		$coverage_id = self::create_coverage();
+		$page_id     = self::factory()->post->create(
+			[
+				'post_status'  => 'publish',
+				'post_content' => '<!-- wp:newspack-rolling-coverage/rolling-coverage {"coverageId":' . $coverage_id . '} /-->',
+			]
+		);
+
+		Placements::rebuild();
+		wp_trash_post( $page_id );
+
+		wp_publish_post( self::create_draft_entry( $coverage_id, true ) );
+
+		$this->assertSame( [], self::get_sent_notifications() );
 	}
 }

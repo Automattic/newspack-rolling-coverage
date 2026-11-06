@@ -29,13 +29,14 @@ class Social_Sharing {
 	 */
 	public static function init() {
 		add_filter( 'query_vars', [ __CLASS__, 'register_query_var' ] );
+		add_action( 'wp', [ __CLASS__, 'read_entry_query_var' ] );
 		add_action( 'template_redirect', [ __CLASS__, 'redirect_entry_to_canonical' ] );
 		add_action( 'wp_head', [ __CLASS__, 'inject_redirect_script' ] );
 	}
 
 	/**
-	 * Register the entry deep-link and source query vars so WordPress
-	 * recognizes them.
+	 * Register the source query var so WordPress recognizes it. The entry
+	 * deep-link var stays unregistered: see read_entry_query_var().
 	 *
 	 * @param mixed $vars Existing public query vars (array or string).
 	 * @return array Filtered query vars.
@@ -44,9 +45,23 @@ class Social_Sharing {
 		if ( ! is_array( $vars ) ) {
 			$vars = [];
 		}
-		$vars[] = self::ENTRY_QUERY_VAR;
 		$vars[] = self::SOURCE_QUERY_VAR;
 		return $vars;
+	}
+
+	/**
+	 * Make the entry deep-link var available once the main query has run.
+	 *
+	 * Registering it as a public query var would make WordPress show the blog
+	 * posts page for a deep link to a static front page, since the front page
+	 * only resolves on a request with no public query vars.
+	 */
+	public static function read_entry_query_var(): void {
+		$slug = $_GET[ self::ENTRY_QUERY_VAR ] ?? ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended, WordPress.Security.ValidatedSanitizedInput
+
+		if ( is_string( $slug ) && '' !== $slug ) {
+			set_query_var( self::ENTRY_QUERY_VAR, sanitize_text_field( wp_unslash( $slug ) ) );
+		}
 	}
 
 	/**
@@ -114,12 +129,12 @@ class Social_Sharing {
 	/**
 	 * Redirect a plain entry permalink request to its coverage's canonical URL.
 	 *
-	 * When the entry's coverage has a canonical URL set, the entry is not a
-	 * good place to land on its own — it lacks the surrounding coverage
-	 * context. In that case the reader is sent (302) to the canonical URL with
+	 * When the entry's coverage has a page, the entry is not a good place to
+	 * land on its own — it lacks the surrounding coverage context. In that
+	 * case the reader is sent (302) to the page with
 	 * the entry deep-link query var and anchor so the feed opens at that entry.
 	 *
-	 * When no canonical URL is set, the request is left untouched and the
+	 * When the coverage has no page, the request is left untouched and the
 	 * single entry template renders as a fallback.
 	 *
 	 * Requests carrying `rc_source` come from the share button and are handled
@@ -224,13 +239,11 @@ class Social_Sharing {
 	}
 
 	/**
-	 * Resolve an entry's canonical URL from its coverage term.
-	 *
-	 * Returns the canonical URL of the first assigned coverage term that has
-	 * one set, or an empty string when none does.
+	 * The page an entry's permalink leads to: that of the first assigned
+	 * coverage term that has one (see Taxonomy::get_coverage_page_url()).
 	 *
 	 * @param WP_Post $entry Entry post object.
-	 * @return string Canonical URL, or empty string if not set.
+	 * @return string Page URL, or empty string if none has a page.
 	 */
 	public static function get_entry_canonical_url( WP_Post $entry ): string {
 		$term_ids = wp_get_post_terms( $entry->ID, Taxonomy::TAXONOMY_SLUG, [ 'fields' => 'ids' ] );
@@ -240,14 +253,43 @@ class Social_Sharing {
 		}
 
 		foreach ( $term_ids as $term_id ) {
-			$canonical_url = (string) get_term_meta( (int) $term_id, Taxonomy::CANONICAL_URL_META_KEY, true );
+			$page_url = Taxonomy::get_coverage_page_url( (int) $term_id );
 
-			if ( '' !== $canonical_url ) {
-				return $canonical_url;
+			if ( '' !== $page_url ) {
+				return $page_url;
 			}
 		}
 
 		return '';
+	}
+
+	/**
+	 * The post a capped feed's share links send readers to: the one at the
+	 * coverage's canonical URL, or else the page found to show the coverage.
+	 *
+	 * @param WP_Post $entry Entry post object.
+	 * @return int Post ID; 0 when the canonical URL has no post behind it or no
+	 *             coverage has a page, leaving the plain permalink to redirect
+	 *             there or show the entry's own page.
+	 */
+	private static function get_coverage_page_source( WP_Post $entry ): int {
+		$coverages = get_the_terms( $entry, Taxonomy::TAXONOMY_SLUG );
+
+		foreach ( is_array( $coverages ) ? $coverages : [] as $coverage ) {
+			$canonical_url = (string) get_term_meta( (int) $coverage->term_id, Taxonomy::CANONICAL_URL_META_KEY, true );
+
+			if ( '' !== $canonical_url ) {
+				return Entry_Bindings::url_to_post_id( $canonical_url );
+			}
+
+			$page_id = Placements::page_id( (int) $coverage->term_id );
+
+			if ( $page_id ) {
+				return $page_id;
+			}
+		}
+
+		return 0;
 	}
 
 	/**
@@ -256,7 +298,9 @@ class Social_Sharing {
 	 * The URL points to the entry's own permalink with an `rc_source`
 	 * query var carrying the source page's post ID so social crawlers
 	 * see correct OG tags on the entry's page, while human visitors
-	 * are redirected back to the source page.
+	 * are redirected to the source page. A full feed's source is the page
+	 * holding it. A capped feed shows only a few entries, so its source is the
+	 * coverage's page, and without one the URL is the plain permalink.
 	 *
 	 * @param int $entry_id Entry post ID.
 	 * @return string Share URL, or empty string if no entry or source URL.
@@ -274,7 +318,7 @@ class Social_Sharing {
 			return '';
 		}
 
-		$source_post_id = Rolling_Coverage_Block::get_host_post_id();
+		$source_post_id = Rolling_Coverage_Block::is_rendering_capped_feed() ? self::get_coverage_page_source( $entry ) : Rolling_Coverage_Block::get_host_post_id();
 
 		if ( ! $source_post_id ) {
 			return $entry_permalink;

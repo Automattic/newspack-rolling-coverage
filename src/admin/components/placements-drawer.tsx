@@ -211,6 +211,8 @@ function PlacementsDrawer( {
 	coverage,
 	onClose,
 }: PlacementsDrawerProps ) {
+	const placements = coverage?.placements ?? [];
+
 	return (
 		<Drawer.Root isOpen={ isOpen } onRequestClose={ onClose }>
 			<Drawer.Header>
@@ -220,23 +222,30 @@ function PlacementsDrawer( {
 				<Drawer.CloseIcon />
 			</Drawer.Header>
 			<Drawer.Content>
-				<Stack
-					render={ <ul /> }
-					role="list"
-					direction="column"
-					gap="lg"
-					className="newspack-rolling-coverage-placements"
-				>
-					{ ( coverage?.placements ?? [] ).map(
-						( placement, index ) => (
+				{ placements.length === 0 ? (
+					<Text>
+						{ __(
+							'This liveblog isn’t on any page yet. Add a Rolling Coverage block for it to a post or page, and it will be listed here.',
+							'newspack-rolling-coverage'
+						) }
+					</Text>
+				) : (
+					<Stack
+						render={ <ul /> }
+						role="list"
+						direction="column"
+						gap="lg"
+						className="newspack-rolling-coverage-placements"
+					>
+						{ placements.map( ( placement, index ) => (
 							<PlacementRow
 								key={ placement.id }
 								placement={ placement }
 								isSeparated={ index > 0 }
 							/>
-						)
-					) }
-				</Stack>
+						) ) }
+					</Stack>
+				) }
 			</Drawer.Content>
 		</Drawer.Root>
 	);

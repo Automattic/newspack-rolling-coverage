@@ -16,6 +16,7 @@ interface CoverageOption {
 	label: string;
 	status: string;
 	canonicalUrl: string;
+	pageUrl: string;
 	adsDisabled: boolean;
 }
 

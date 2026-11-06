@@ -262,7 +262,7 @@ class Test_Placements extends Rolling_Coverage_TestCase {
 		$this->assertSame( 'Page', $row['type'] );
 		$this->assertSame( get_permalink( $page_id ), $row['viewUrl'] );
 		$this->assertSame( get_edit_post_link( $page_id, 'raw' ), $row['editUrl'] );
-		$this->assertFalse( $row['isMain'] );
+		$this->assertTrue( $row['isMain'], 'A full feed makes the post the main page.' );
 	}
 
 	/**
@@ -597,8 +597,6 @@ class Test_Placements extends Rolling_Coverage_TestCase {
 			self::feed( $coverage_id, [ 'latestOnly' => true ] ),
 			[ 'post_date' => '2026-02-01 10:00:00' ]
 		);
-
-		$this->assertSame( [ 'post:' . $newer_id, 'post:' . $main_id ], array_keys( self::rows( $coverage_id ) ), 'Newest first without a canonical URL.' );
 
 		update_term_meta( $coverage_id, Taxonomy::CANONICAL_URL_META_KEY, set_url_scheme( get_permalink( $main_id ), 'https' ) );
 		$rows = Placements::for_coverage( $coverage_id );
@@ -1148,5 +1146,19 @@ class Test_Placements extends Rolling_Coverage_TestCase {
 		$this->assertFalse( get_option( Placements::OPTION ) );
 		$this->assertFalse( get_option( Placements::STALE_OPTION ) );
 		$this->assertFalse( wp_next_scheduled( Placements::REBUILD_HOOK ) );
+	}
+
+	/**
+	 * Without a canonical URL, the page found to show the full feed is the
+	 * main page.
+	 */
+	public function test_the_found_page_is_the_main_page() {
+		$coverage_id = self::create_coverage();
+		$page_id     = self::publish( self::feed( $coverage_id ), [ 'post_date' => '2026-01-01 10:00:00' ] );
+		$capped_id   = self::publish( self::feed( $coverage_id, [ 'latestOnly' => true ] ), [ 'post_date' => '2026-02-01 10:00:00' ] );
+		$rows        = Placements::for_coverage( $coverage_id );
+
+		$this->assertSame( [ 'post:' . $page_id, 'post:' . $capped_id ], array_column( $rows, 'id' ) );
+		$this->assertSame( [ true, false ], array_column( $rows, 'isMain' ) );
 	}
 }

@@ -520,8 +520,7 @@ function EntryView() {
 		[ canShowSlack, slackChannelLabel, routeCoverage, isRefreshingSlack ]
 	);
 
-	const showPlacements =
-		! isFirstLoad && ( routeCoverage?.placements ?? [] ).length > 0;
+	const showPlacements = ! isFirstLoad && !! routeCoverage;
 	const [ isPlacementsOpen, setIsPlacementsOpen ] = useState( false );
 
 	const addEntryButton = useMemo(

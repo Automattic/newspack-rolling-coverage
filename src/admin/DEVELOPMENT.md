@@ -352,7 +352,7 @@ An Automatic block in other templates, such as the page template, isn't listed.
 
 ### Order and the main page
 
-Posts come first, newest first, then templates, template parts, widget areas and synced patterns, then the breakout rows. When the coverage has a canonical URL, the row whose View link has the same path (compared decoded and in lowercase) and query is marked as the main page and moves to the top. A canonical URL that matches no place gets a row of its own at the top, with only a View link.
+Posts come first, newest first, then templates, template parts, widget areas and synced patterns, then the breakout rows. The row whose View link has the same path (compared decoded and in lowercase) and query as the coverage's page (`Taxonomy::get_coverage_page_url()`) is marked as the main page and moves to the top. A canonical URL that matches no place gets a row of its own at the top, with only a View link.
 
 ### The stored map
 
@@ -394,7 +394,7 @@ The older `pageUrl` field stays: the canonical URL, or else the newest post with
 
 ### The button
 
-A coverage with at least one placement gets a "Placements" button in its header and a "Placements" row action, however many places there are. Both open `PlacementsDrawer` (`src/admin/components/placements-drawer.tsx`), a Newspack `Drawer` listing every row as a description list. Each entry is a WP UI `Field.VisualLabel` over its value in a `Stack` with an 8px gap, as form fields lay out: the place's type over its title, with View beside the title, then "Blocks" over one block per line. The title links to the place's editor when the user can edit it, with an "Open in the editor" tooltip, and screen readers hear the title followed by "(opens in the editor)"; otherwise it is plain text. Labels show in capitals. The main page's type reads "Page · Main" (screen readers hear "Page, Main page"), or "Main page" on the canonical URL's own row. A post whose post type is no longer registered shows the post type's name as stored. Rows are a WP UI `Stack` with a 16px gap, separated by a Newspack `Divider`.
+Every coverage gets a "Placements" button in its header and a "Placements" row action, however many places there are, and the drawer says so when there are none. The list's "Main page" column links to the row marked as the main page, or says "No page yet". Both open `PlacementsDrawer` (`src/admin/components/placements-drawer.tsx`), a Newspack `Drawer` listing every row as a description list. Each entry is a WP UI `Field.VisualLabel` over its value in a `Stack` with an 8px gap, as form fields lay out: the place's type over its title, with View beside the title, then "Blocks" over one block per line. The title links to the place's editor when the user can edit it, with an "Open in the editor" tooltip, and screen readers hear the title followed by "(opens in the editor)"; otherwise it is plain text. Labels show in capitals. The main page's type reads "Page · Main" (screen readers hear "Page, Main page"), or "Main page" on the canonical URL's own row. A post whose post type is no longer registered shows the post type's name as stored. Rows are a WP UI `Stack` with a 16px gap, separated by a Newspack `Divider`.
 
 The header button lives in `entry-view.tsx`; the row action (`placements`) in `src/admin/actions/coverage-actions.ts`.
 

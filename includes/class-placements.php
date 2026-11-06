@@ -264,27 +264,27 @@ class Placements {
 			}
 		}
 
-		return self::put_main_page_first( $rows, (string) get_term_meta( $coverage_id, Taxonomy::CANONICAL_URL_META_KEY, true ) );
+		return self::put_main_page_first( $rows, Taxonomy::get_coverage_page_url( $coverage_id ) );
 	}
 
 	/**
-	 * Marks the row whose page is the coverage's canonical URL as the main
-	 * page and moves it to the top, or adds a row for the canonical URL when
-	 * no place matches it.
+	 * Marks the row whose page is the coverage's page as the main page and
+	 * moves it to the top, or adds a row for the page's URL when no place
+	 * matches it, as a canonical URL may not.
 	 *
-	 * @param array[] $rows          Placement rows.
-	 * @param string  $canonical_url Coverage's canonical URL.
+	 * @param array[] $rows     Placement rows.
+	 * @param string  $page_url Coverage's page URL.
 	 * @return array[]
 	 */
-	private static function put_main_page_first( array $rows, string $canonical_url ): array {
-		if ( '' === $canonical_url ) {
+	private static function put_main_page_first( array $rows, string $page_url ): array {
+		if ( '' === $page_url ) {
 			return $rows;
 		}
 
-		$canonical = self::comparable_url( $canonical_url );
+		$page = self::comparable_url( $page_url );
 
 		foreach ( $rows as $index => $row ) {
-			if ( ! $row['breakout'] && '' !== $row['viewUrl'] && self::comparable_url( $row['viewUrl'] ) === $canonical ) {
+			if ( ! $row['breakout'] && '' !== $row['viewUrl'] && self::comparable_url( $row['viewUrl'] ) === $page ) {
 				$row['isMain'] = true;
 				unset( $rows[ $index ] );
 				array_unshift( $rows, $row );
@@ -297,10 +297,10 @@ class Placements {
 			$rows,
 			[
 				'id'       => 'canonical',
-				'title'    => untrailingslashit( (string) preg_replace( '#^https?://#i', '', $canonical_url ) ),
+				'title'    => untrailingslashit( (string) preg_replace( '#^https?://#i', '', $page_url ) ),
 				'type'     => '',
 				'blocks'   => [],
-				'viewUrl'  => $canonical_url,
+				'viewUrl'  => $page_url,
 				'editUrl'  => '',
 				'isMain'   => true,
 				'breakout' => false,

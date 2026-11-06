@@ -198,6 +198,15 @@ class Rolling_Coverage_Block {
 	private static $host_post_id = 0;
 
 	/**
+	 * Whether the feed rendering right now is capped. It shows only a few
+	 * entries, so Social_Sharing::get_entry_share_url() sends readers to the
+	 * coverage's page rather than back to the page holding the feed.
+	 *
+	 * @var bool
+	 */
+	private static $is_capped_feed = false;
+
+	/**
 	 * How many entries are rendering right now. The entry filters below act
 	 * only while it's non-zero, so an entry's own single page is left alone.
 	 *
@@ -1289,11 +1298,16 @@ class Rolling_Coverage_Block {
 		$coverage_id     = (int) ( $attributes['coverageId'] ?? 0 );
 		$latest_count    = self::latest_count( $attributes );
 		$is_capped       = $latest_count > 0;
+		$previous_capped = self::$is_capped_feed;
+
+		self::$is_capped_feed = $is_capped;
+
 		// Capped feeds sit in site-wide placements, where readers must never see the notices meant for editors.
 		$hides_when_gone = ! empty( $attributes['hideWhenEnded'] ) || $is_capped;
 
 		if ( ! $coverage_id || ! term_exists( $coverage_id, Taxonomy::TAXONOMY_SLUG ) ) {
-			self::$host_post_id = $previous_post_id;
+			self::$host_post_id   = $previous_post_id;
+			self::$is_capped_feed = $previous_capped;
 
 			return $hides_when_gone ? '' : sprintf(
 				'<p %s>%s</p>',
@@ -1309,7 +1323,8 @@ class Rolling_Coverage_Block {
 		$status           = $status ? $status : 'active';
 
 		if ( ! empty( $attributes['hideWhenEnded'] ) && Taxonomy::STATUS_ARCHIVED === $status ) {
-			self::$host_post_id = $previous_post_id;
+			self::$host_post_id   = $previous_post_id;
+			self::$is_capped_feed = $previous_capped;
 
 			return '';
 		}
@@ -1321,7 +1336,8 @@ class Rolling_Coverage_Block {
 
 		// A trashed coverage is effectively invisible on the frontend.
 		if ( 'trash' === $status ) {
-			self::$host_post_id = $previous_post_id;
+			self::$host_post_id   = $previous_post_id;
+			self::$is_capped_feed = $previous_capped;
 
 			return $hides_when_gone ? '' : sprintf(
 				'<p %s>%s</p>',
@@ -1651,7 +1667,8 @@ class Rolling_Coverage_Block {
 				$is_lite ? $items_html : self::render_feed( $block, $items_html )
 			);
 		} finally {
-			self::$host_post_id = $previous_post_id;
+			self::$host_post_id   = $previous_post_id;
+			self::$is_capped_feed = $previous_capped;
 		}
 	}
 
@@ -4650,6 +4667,15 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
+	 * Whether the feed rendering right now is capped.
+	 *
+	 * @return bool
+	 */
+	public static function is_rendering_capped_feed(): bool {
+		return self::$is_capped_feed;
+	}
+
+	/**
 	 * Raw GMT creation date string for a post (Y-m-d H:i:s).
 	 *
 	 * @param WP_Post $post Post object.
@@ -5128,6 +5154,9 @@ class Rolling_Coverage_Block {
 		$latest_count     = $latest_count ? $latest_count : self::requested_latest_count( $params );
 		$is_capped        = $latest_count > 0;
 		$ads_interval     = max( 1, (int) $config['adsInterval'] );
+
+		self::$is_capped_feed = $is_capped;
+
 		$ads_enabled_attr = (bool) $config['adsEnabled'];
 		$ads_enabled      = ! $is_capped && $ads_enabled_attr && ! self::is_coverage_ads_disabled( $term_id );
 		$feed_layout      = is_array( $config['feedLayout'] ?? null ) ? $config['feedLayout'] : [];

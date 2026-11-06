@@ -193,7 +193,7 @@ class Test_Ticker extends Rolling_Coverage_TestCase {
 
 	/**
 	 * A title carrying the entry link class links to the published breakout
-	 * post, else to the entry on the coverage page, else to its share link.
+	 * post, else to the entry on the coverage page, else to its own permalink.
 	 */
 	public function test_entry_link_title_links_to_the_breakout_then_the_coverage_page() {
 		$title                       = '<!-- wp:post-title {"level":4,"className":"newspack-rolling-coverage-entry-link"} /-->';
@@ -201,9 +201,9 @@ class Test_Ticker extends Rolling_Coverage_TestCase {
 		$page_url                    = home_url( '/storm-coverage/' );
 
 		$this->assertStringContainsString(
-			'<a href="' . esc_url( Social_Sharing::get_entry_share_url( $entry_id ) ) . '">Bridge closed</a></h4>',
+			'<a href="' . esc_url( get_permalink( $entry_id ) ) . '">Bridge closed</a></h4>',
 			self::render_title( $entry_id, $title ),
-			'Without a coverage page: the share link.'
+			'Without a coverage page: its own permalink.'
 		);
 
 		update_term_meta( $coverage_id, Taxonomy::CANONICAL_URL_META_KEY, $page_url );

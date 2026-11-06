@@ -131,7 +131,9 @@ class Push_Notifications {
 	}
 
 	/**
-	 * Whether the entry's coverage has a canonical URL set.
+	 * Whether the entry's coverage has a page to send readers to. Reads the
+	 * stored map as it is, since this runs on every entry REST response; the
+	 * send itself rebuilds an out-of-date map first.
 	 *
 	 * @param WP_Post $post Entry post.
 	 * @return bool
@@ -144,7 +146,7 @@ class Push_Notifications {
 		}
 
 		foreach ( $term_ids as $term_id ) {
-			if ( ! empty( get_term_meta( $term_id, Taxonomy::CANONICAL_URL_META_KEY, true ) ) ) {
+			if ( '' !== Taxonomy::get_coverage_page_url( (int) $term_id ) ) {
 				return true;
 			}
 		}
@@ -595,15 +597,17 @@ class Push_Notifications {
 	 *
 	 * @param int     $coverage_id Coverage term id.
 	 * @param WP_Post $entry       Entry post the notification is about.
-	 * @return string Notification URL, or an empty string if no canonical URL is set.
+	 * @return string Notification URL, or an empty string if the coverage has no page.
 	 */
 	private static function resolve_coverage_url( int $coverage_id, WP_Post $entry ): string {
-		$canonical_url = get_term_meta( $coverage_id, Taxonomy::CANONICAL_URL_META_KEY, true );
+		Placements::ensure_fresh();
 
-		if ( empty( $canonical_url ) ) {
+		$page_url = Taxonomy::get_coverage_page_url( $coverage_id );
+
+		if ( '' === $page_url ) {
 			return '';
 		}
 
-		return Social_Sharing::get_entry_deep_link( $entry, $canonical_url );
+		return Social_Sharing::get_entry_deep_link( $entry, $page_url );
 	}
 }
