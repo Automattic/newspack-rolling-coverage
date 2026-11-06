@@ -151,7 +151,7 @@ npm run shot -- getting-started/put-the-feed-on-a-page-4 --site https://screensh
 | `--now` | Captures as soon as the page settles, without opening a window or waiting for Enter. Use it with `--click` and `--spotlight` for screens you can reach without help. Without a saved sign-in it needs `WP_USER` and `WP_PASSWORD`, since it can't ask. |
 | `--out <file>` | Writes the image somewhere else, for trying things out. A relative path starts from the folder you ran `npm run` in. |
 
-Selectors can be CSS, or Playwright's text selectors such as `button:has-text("Add Entry")` and `text=Downtown Water Main Break`. They also find elements inside the block editor's canvas.
+Selectors can be CSS, or Playwright's text selectors such as `button:has-text("Add Entry")` and `text=Downtown Water Main Break`. To find a field by its label, use `internal:label="<label>"s`, where the `s` makes the match exact. They also find elements inside the block editor's canvas.
 
 The script also captures without waiting when it isn't run from a terminal.
 
