@@ -842,10 +842,12 @@ class Test_Push_Notifications extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * A page trashed moments before an entry publishes gets no notification
-	 * link, though the stored map hasn't been rebuilt yet.
+	 * A page trashed while another rebuild holds the lock gets no notification
+	 * link, though the stored map still names it.
 	 */
 	public function test_notification_does_not_link_to_a_page_just_trashed() {
+		global $wpdb;
+
 		$coverage_id = self::create_coverage();
 		$page_id     = self::factory()->post->create(
 			[
@@ -855,6 +857,14 @@ class Test_Push_Notifications extends Rolling_Coverage_TestCase {
 		);
 
 		Placements::rebuild();
+		$wpdb->insert( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+			$wpdb->options,
+			[
+				'option_name'  => Placements::LOCK_OPTION,
+				'option_value' => (string) ( time() + 60 ),
+				'autoload'     => 'off',
+			]
+		);
 		wp_trash_post( $page_id );
 
 		wp_publish_post( self::create_draft_entry( $coverage_id, true ) );

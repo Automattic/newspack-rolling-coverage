@@ -309,12 +309,14 @@ class Test_Placements extends Rolling_Coverage_TestCase {
 
 	/**
 	 * Once a coverage has ended, a full feed set to hide when ended shows
-	 * nothing, so it can't be the page readers are sent to.
+	 * nothing, so it can't be the page readers are sent to. A capped feed
+	 * still can't take over.
 	 */
 	public function test_an_ended_coverage_skips_a_full_feed_that_hides_when_ended() {
 		$coverage_id = self::create_coverage();
 		$stays_id    = self::publish( self::feed( $coverage_id ), [ 'post_date' => '2026-01-01 00:00:00' ] );
 		$hides_id    = self::publish( self::feed( $coverage_id, [ 'hideWhenEnded' => true ] ) );
+		self::publish( self::feed( $coverage_id, [ 'latestOnly' => true ] ) );
 		Placements::ensure_fresh();
 
 		$this->assertSame( $hides_id, Placements::page_id( $coverage_id ), 'A live coverage uses its newest full feed.' );
@@ -700,11 +702,12 @@ class Test_Placements extends Rolling_Coverage_TestCase {
 		$coverage_id = self::create_coverage();
 		self::publish( self::feed( $coverage_id ) );
 		$stored = [
-			'pages'    => [],
-			'places'   => [],
-			'breakout' => [],
-			'patterns' => [],
-			'theme'    => self::theme(),
+			'pages'       => [],
+			'ended_pages' => [],
+			'places'      => [],
+			'breakout'    => [],
+			'patterns'    => [],
+			'theme'       => self::theme(),
 		];
 		update_option( Placements::OPTION, $stored, false );
 		$taken_over = false;
@@ -761,11 +764,12 @@ class Test_Placements extends Rolling_Coverage_TestCase {
 		update_option(
 			Placements::OPTION,
 			[
-				'pages'    => [ 1 => 1 ],
-				'places'   => [],
-				'breakout' => [],
-				'patterns' => $patterns,
-				'theme'    => self::theme(),
+				'pages'       => [ 1 => 1 ],
+				'ended_pages' => [],
+				'places'      => [],
+				'breakout'    => [],
+				'patterns'    => $patterns,
+				'theme'       => self::theme(),
 			],
 			false
 		);
@@ -1015,11 +1019,12 @@ class Test_Placements extends Rolling_Coverage_TestCase {
 		update_option(
 			Placements::OPTION,
 			[
-				'pages'    => [],
-				'places'   => [],
-				'breakout' => [],
-				'patterns' => [],
-				'theme'    => 'another-theme@1.0',
+				'pages'       => [],
+				'ended_pages' => [],
+				'places'      => [],
+				'breakout'    => [],
+				'patterns'    => [],
+				'theme'       => 'another-theme@1.0',
 			],
 			false
 		);
@@ -1027,6 +1032,31 @@ class Test_Placements extends Rolling_Coverage_TestCase {
 
 		$this->assertSame( 0, Placements::page_id( $coverage_id ), 'The front end keeps the stored map.' );
 		$this->assertSame( [ 'post:' . $page_id ], array_keys( self::rows( $coverage_id ) ), 'An admin read rebuilds a map built for another theme.' );
+		$this->assertSame( $page_id, Placements::page_id( $coverage_id ) );
+	}
+
+	/**
+	 * A map stored by an older version lacks a key this version reads, so it
+	 * is rebuilt rather than read.
+	 */
+	public function test_admin_reads_rebuild_a_map_stored_by_an_older_version() {
+		$coverage_id = self::create_coverage();
+		$page_id     = self::publish( self::feed( $coverage_id ) );
+
+		update_option(
+			Placements::OPTION,
+			[
+				'pages'    => [],
+				'places'   => [],
+				'breakout' => [],
+				'patterns' => [],
+				'theme'    => self::theme(),
+			],
+			false
+		);
+		delete_option( Placements::STALE_OPTION );
+
+		$this->assertSame( [ 'post:' . $page_id ], array_keys( self::rows( $coverage_id ) ) );
 		$this->assertSame( $page_id, Placements::page_id( $coverage_id ) );
 	}
 
@@ -1128,11 +1158,12 @@ class Test_Placements extends Rolling_Coverage_TestCase {
 		$coverage_id = self::create_coverage();
 		$page_id     = self::publish( self::feed( $coverage_id ) );
 		$stored      = [
-			'pages'    => [],
-			'places'   => [],
-			'breakout' => [],
-			'patterns' => [],
-			'theme'    => self::theme(),
+			'pages'       => [],
+			'ended_pages' => [],
+			'places'      => [],
+			'breakout'    => [],
+			'patterns'    => [],
+			'theme'       => self::theme(),
 		];
 		update_option( Placements::OPTION, $stored, false );
 		wp_clear_scheduled_hook( Placements::REBUILD_HOOK );
