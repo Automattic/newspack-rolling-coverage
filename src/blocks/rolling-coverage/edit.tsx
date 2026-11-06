@@ -2422,7 +2422,7 @@ export default function Edit( {
 								onChange={ setPendingCanonicalUrl }
 								disabled={ isApplyingUrl }
 								help={ __(
-									"The page readers land on when they open a link to one of this liveblog's entries. Shared across every block connected to this liveblog.",
+									"The page readers land on when they open a link to one of this liveblog's entries. Leave blank to use the newest published post with Show set to All. Shared across every block connected to this liveblog.",
 									'newspack-rolling-coverage'
 								) }
 							/>

@@ -102,7 +102,7 @@ class Entry_Bindings {
 	const CONTROL_BLOCKS = [ 'core/buttons', 'core/button', 'core/file', 'core/social-links', 'core/social-link', 'core/search', 'core/navigation' ];
 
 	/**
-	 * Object cache group for the post IDs embed URLs on this site resolve to.
+	 * Object cache group for the post IDs URLs on this site resolve to.
 	 */
 	const URL_CACHE_GROUP = 'newspack_rolling_coverage_url_post_id';
 

@@ -127,7 +127,7 @@ class Social_Sharing {
 	}
 
 	/**
-	 * Redirect a plain entry permalink request to its coverage's canonical URL.
+	 * Redirect a plain entry permalink request to its coverage's page.
 	 *
 	 * When the entry's coverage has a page, the entry is not a good place to
 	 * land on its own — it lacks the surrounding coverage context. In that
@@ -190,7 +190,7 @@ class Social_Sharing {
 		 * Return an empty string or false to disable the redirect and render
 		 * the single entry template instead.
 		 *
-		 * @param string  $redirect_url Canonical URL with the entry deep-link.
+		 * @param string  $redirect_url The coverage's page URL with the entry deep-link.
 		 * @param WP_Post $entry        Entry post object.
 		 */
 		$redirect_url = apply_filters( 'newspack_rolling_coverage_entry_redirect_url', $redirect_url, $entry );
@@ -199,7 +199,7 @@ class Social_Sharing {
 			return;
 		}
 
-		// Avoid a redirect loop when the canonical resolves to the entry's own
+		// Avoid a redirect loop when the page resolves to the entry's own
 		// permalink path (the query var/fragment would defeat a string compare).
 		$current_path  = (string) wp_parse_url( get_permalink( $entry ), PHP_URL_PATH );
 		$redirect_path = (string) wp_parse_url( $redirect_url, PHP_URL_PATH );
@@ -209,9 +209,9 @@ class Social_Sharing {
 		}
 
 		/**
-		 * Filters the HTTP status used when redirecting an entry to its canonical URL.
+		 * Filters the HTTP status used when redirecting an entry to its coverage's page.
 		 *
-		 * Defaults to 302 (temporary) so a later-unset canonical URL is not
+		 * Defaults to 302 (temporary) so a page that later changes is not
 		 * cached permanently by browsers.
 		 *
 		 * @param int     $status       HTTP redirect status.

@@ -405,10 +405,10 @@ class Test_Push_Notifications extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * With no canonical URL there is nowhere to send readers, so nothing is
+	 * With no page there is nowhere to send readers, so nothing is
 	 * sent. The opt-in is kept rather than spent on a send that did not happen.
 	 */
-	public function test_coverage_without_a_canonical_url_sends_nothing_and_keeps_the_opt_in() {
+	public function test_coverage_without_a_page_sends_nothing_and_keeps_the_opt_in() {
 		$entry_id = self::create_draft_entry( self::create_coverage(), true );
 
 		wp_publish_post( $entry_id );

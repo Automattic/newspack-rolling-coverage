@@ -26,7 +26,7 @@ class Push_Notifications {
 	// Entry post meta: editor opt-in checkbox, unchecked by default. Protected so the Custom Fields box can't write it back.
 	const NOTIFY_META_KEY = '_rolling_coverage_notify_on_publish';
 
-	// Read-only REST field: whether the entry's coverage has a canonical URL to send readers to.
+	// Read-only REST field: whether the entry's coverage has a page to send readers to.
 	const NOTIFIABLE_FIELD = 'rolling_coverage_has_notifiable_coverage';
 
 	// OneSignal tag key prefix written by the Follow Coverage block; sends are scoped to it via follow_tag().
@@ -591,7 +591,7 @@ class Push_Notifications {
 	}
 
 	/**
-	 * Builds the notification URL from the coverage's canonical URL, using
+	 * Builds the notification URL from the coverage's page, using
 	 * the deep-link format the social-sharing feature understands
 	 * (`?rolling-coverage-entry={slug}#newspack-rolling-coverage-entry-{id}`).
 	 *
