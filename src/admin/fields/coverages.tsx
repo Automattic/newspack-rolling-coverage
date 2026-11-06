@@ -14,6 +14,7 @@ import {
 	getSlackChannelLabel,
 	COVERAGE_STATUS_INDICATORS,
 } from '../utils/fields';
+import type { View } from '@wordpress/dataviews';
 import type { Field, ViewState, Coverage, StatusLabels } from '../types';
 
 /**
@@ -73,6 +74,15 @@ function getCoverageFields(
 			label: __( 'Entries', 'newspack-rolling-coverage' ),
 			enableSorting: true,
 			getValue: ( { item } ) => item.count ?? 0,
+		},
+		{
+			id: 'entry_count',
+			type: 'text',
+			label: __( 'Entry count', 'newspack-rolling-coverage' ),
+			enableSorting: false,
+			enableHiding: false,
+			filterBy: false,
+			getValue: ( { item } ) => String( item.count ?? 0 ),
 			render: ( { item } ) => {
 				const count = item.count ?? 0;
 				return sprintf(
@@ -200,8 +210,24 @@ const defaultCoverageView: ViewState = {
 	filters: [ { field: 'status', operator: 'isNot', value: 'trash' } ],
 	fields: [ 'status', 'slack_channel', 'created_at', 'last_modified' ],
 	titleField: 'name',
-	descriptionField: 'count',
-	layout: {},
+	descriptionField: 'entry_count',
+	layout: { styles: { count: { align: 'start' } } },
 };
 
-export { getCoverageFields, defaultCoverageView };
+/**
+ * The view as the list shows it: the entry count sits under each liveblog's
+ * name while the Entries column is hidden, and not in both places once it's
+ * shown.
+ *
+ * @param {View} view The stored view.
+ * @return {View} The view to render.
+ */
+function withEntryCount< V extends View >( view: V ): V {
+	const hasColumn = ( view.fields ?? [] ).includes( 'count' );
+	return {
+		...view,
+		descriptionField: hasColumn ? undefined : 'entry_count',
+	};
+}
+
+export { getCoverageFields, defaultCoverageView, withEntryCount };
