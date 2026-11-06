@@ -57,6 +57,7 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 			enableSorting: false,
 			getValue: ( { item } ) => String( item.id ),
 			filterBy: {
+				isPrimary: false,
 				operators: [ 'is' ],
 			},
 		},
@@ -131,6 +132,7 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 				);
 			},
 			filterBy: {
+				isPrimary: false,
 				operators: [ 'contains' ],
 			},
 		},
@@ -274,6 +276,7 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 			render: ( { item } ) =>
 				summarizeTermNames( getTermNames( item, 'post_tag' ) ),
 			filterBy: {
+				isPrimary: false,
 				operators: [ 'contains' ],
 			},
 		},
@@ -307,6 +310,7 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 			},
 			elements: BREAKOUT_ELEMENTS,
 			filterBy: {
+				isPrimary: false,
 				operators: [ 'is', 'isNot' ],
 			},
 		},
@@ -318,6 +322,7 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 			getValue: ( { item } ) => getArchivedStatus( item ),
 			elements: ARCHIVED_ELEMENTS,
 			filterBy: {
+				isPrimary: false,
 				operators: [ 'is', 'isNot' ],
 			},
 		},

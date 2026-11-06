@@ -76,6 +76,7 @@ function getChannelFields(
 			type: 'text',
 			label: __( 'Last Sync', 'newspack-rolling-coverage' ),
 			enableSorting: true,
+			filterBy: false,
 			getValue: ( { item } ) => item.last_sync_ts,
 			render: ( { item } ) =>
 				item.last_sync_ts
