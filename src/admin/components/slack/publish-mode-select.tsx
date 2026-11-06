@@ -11,6 +11,7 @@ import { Button, Icon, Menu } from '@wordpress/ui';
  */
 import type { PublishMode, PublishModeSelectProps } from '../../types';
 import {
+	getPublishModeDescription,
 	getPublishModeHelp,
 	getPublishModeOptions,
 } from '../../utils/publish-modes';
@@ -81,7 +82,7 @@ function PublishModeSelect( {
 					>
 						<Menu.ItemLabel>{ option.label }</Menu.ItemLabel>
 						<Menu.ItemDescription>
-							{ getPublishModeHelp( option.value ) }
+							{ getPublishModeDescription( option.value ) }
 						</Menu.ItemDescription>
 					</Menu.CheckboxItem>
 				) ) }
