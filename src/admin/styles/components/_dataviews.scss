@@ -5,7 +5,39 @@
 	display: contents;
 }
 
-.newspack-rolling-coverage-admin {
+body.newspack-rolling-coverage-admin-screen {
+
+	.dataviews-filters__summary-chip-container .dataviews-filters__summary-chip {
+		background: none;
+	}
+
+	.dataviews-filters__summary-chip-container .dataviews-filters__summary-chip:focus-visible,
+	.dataviews-filters__summary-chip-container .dataviews-filters__summary-chip-remove:focus-visible {
+		box-shadow: none;
+	}
+
+	.dataviews-filters__summary-chip-container .dataviews-filters__summary-chip-remove svg {
+		fill: currentcolor;
+	}
+
+	.dataviews-filters__summary-operators-container .dataviews-filters__summary-operators-filter-select {
+		overflow: visible;
+		white-space: normal;
+		width: auto;
+	}
+
+	.dataviews-bulk-actions-footer__item-count {
+		font-size: inherit;
+		font-weight: inherit;
+		text-transform: none;
+	}
+
+	.dataviews-view-table tr th:first-child .dataviews-view-table-header-button {
+		margin-left: 0;
+	}
+}
+
+body.newspack-rolling-coverage-admin-screen .newspack-rolling-coverage-admin {
 
 	.dataviews-wrapper {
 		overflow: visible;
