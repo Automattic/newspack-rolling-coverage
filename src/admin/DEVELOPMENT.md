@@ -40,7 +40,7 @@ Tables get even column widths (`evenColumns()` in `src/admin/utils/even-columns.
 
 ## Bulk actions
 
-Selecting rows in All Liveblogs or a coverage's entries replaces the table's column headings with DataViews' bulk actions: the selection count, a button for each action, and Cancel. Below 782px the actions are listed under an **Actions** menu instead. The list's footer, with the item count and the pages, stays at the bottom of the window while the list scrolls. Other plugins (newspack-blocks, newspack-listings, newspack-popups, newspack-manager) load an older DataViews stylesheet on these screens that gives `.dataviews-wrapper` `overflow: auto`. That makes the wrapper the footer's scroll container, and since the wrapper is as tall as its rows, the footer would sit after the last row. `_dataviews.scss` sets `overflow: visible` back on the plugin's screens.
+Selecting rows in All Liveblogs or a coverage's entries replaces the table's column headings with DataViews' bulk actions: the selection count, a button for each action, and Cancel. At 782px and below, the actions are listed under an **Actions** menu instead. The list's footer, with the item count and the pages, stays at the bottom of the window while the list scrolls. Other plugins (newspack-blocks, newspack-listings, newspack-popups, newspack-manager) load an older DataViews stylesheet on these screens that gives `.dataviews-wrapper` `overflow: auto`. That makes the wrapper the footer's scroll container, and since the wrapper is as tall as its rows, the footer would sit after the last row. `_dataviews.scss` sets `overflow: visible` back on the plugin's screens.
 
 ## All Liveblogs
 
