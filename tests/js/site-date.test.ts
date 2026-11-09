@@ -103,9 +103,13 @@ describe( 'site date helpers', () => {
 describe( 'withSeconds', () => {
 	it.each( [
 		[ 'g:i a', 'g:i:s a' ],
-		[ 'g:i A', 'g:i:s A' ],
 		[ 'H:i', 'H:i:s' ],
+		[ 'H.i', 'H.i.s' ],
 		[ 'G\\hi', 'G\\hi:s' ],
+		[ 'Hi', 'Hi:s' ],
+		[ 'H i', 'H i:s' ],
+		[ '\\s H:i', '\\s H:i:s' ],
+		[ 'H \\i\\n i', 'H \\i\\n i:s' ],
 	] )( 'adds seconds after the minutes in %s', ( pattern, expected ) => {
 		expect( withSeconds( pattern ) ).toBe( expected );
 	} );
@@ -116,9 +120,4 @@ describe( 'withSeconds', () => {
 			expect( withSeconds( pattern ) ).toBe( pattern );
 		}
 	);
-
-	it( 'skips escaped characters', () => {
-		expect( withSeconds( '\\s H:i' ) ).toBe( '\\s H:i:s' );
-		expect( withSeconds( 'H \\i\\n i' ) ).toBe( 'H \\i\\n i:s' );
-	} );
 } );
