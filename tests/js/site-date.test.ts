@@ -108,6 +108,8 @@ describe( 'withSeconds', () => {
 		[ 'G\\hi', 'G\\hi:s' ],
 		[ 'Hi', 'Hi:s' ],
 		[ 'H i', 'H i:s' ],
+		[ 'G時i分', 'G時i:s分' ],
+		[ 'H\\\\i', 'H\\\\i:s' ],
 		[ '\\s H:i', '\\s H:i:s' ],
 		[ 'H \\i\\n i', 'H \\i\\n i:s' ],
 	] )( 'adds seconds after the minutes in %s', ( pattern, expected ) => {

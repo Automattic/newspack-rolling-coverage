@@ -23,10 +23,11 @@ type TimeOptions = {
 /**
  * Adds seconds to a PHP time format, right after its minutes (`i`), with the
  * same separator the format puts before the minutes: `g:i a` becomes
- * `g:i:s a` and `H.i` becomes `H.i.s`. When the character before the
- * minutes is a letter, a digit or a space, as in `G\hi`, a colon is used. A
- * format with no minutes, or one that already shows seconds, is returned as
- * it is. Backslash-escaped characters are literal text, so they are skipped.
+ * `g:i:s a` and `H.i` becomes `H.i.s`. Only ASCII punctuation is reused;
+ * anything else before the minutes, such as the `h` in `G\hi` or the `時` in
+ * `G時i分`, gets a colon. A format with no minutes, or one that already shows
+ * seconds, is returned as it is. Backslash-escaped characters are literal
+ * text, so they are skipped.
  *
  * @param {string} pattern A PHP date format.
  * @return {string} The format with seconds.
@@ -47,7 +48,8 @@ function withSeconds( pattern: string ): string {
 		return pattern;
 	}
 	const before = pattern[ minutes - 1 ] ?? '';
-	const separator = /^[^\sA-Za-z0-9\\]$/.test( before ) ? before : ':';
+	const separator =
+		before !== '\\' && /^[!-/:-@[-`{-~]$/.test( before ) ? before : ':';
 	return (
 		pattern.slice( 0, minutes + 1 ) +
 		separator +
