@@ -309,6 +309,13 @@ function EntryView() {
 	}, [] );
 
 	const entryFields = useMemo( () => getEntryFields( config ), [ config ] );
+	const fitColumns = useMemo(
+		() =>
+			entryFields
+				.map( ( field ) => field.id )
+				.filter( ( id ) => id !== 'title' ),
+		[ entryFields ]
+	);
 
 	const { data: mappedData, paginationInfo } = useMemo( () => {
 		const mapped = ( rows ?? [] ).map( toEntry );
@@ -672,6 +679,7 @@ function EntryView() {
 					actions={ actions }
 					paginationInfo={ paginationInfo }
 					isLoading={ isResolving || isTrashCheckPending }
+					fitColumns={ fitColumns }
 				/>
 			) }
 			{ quickEditEntry && (
