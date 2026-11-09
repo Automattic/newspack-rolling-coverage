@@ -87,7 +87,7 @@
 	"dependencies": {
 		"classnames": "^2.5.1",
 		"newspack-colors": "~1.1.5",
-		"newspack-components": "~4.10.0",
+		"newspack-components": "~4.11.0",
 		"newspack-icons": "~1.2.0"
 	}
 }
