@@ -52,7 +52,11 @@ import type {
 	EntryPageResponse,
 	SyncNotice,
 } from '../types';
-import { getEntryFields, defaultEntryView } from '../fields/entries';
+import {
+	getEntryFields,
+	defaultEntryView,
+	ENTRY_FIT_COLUMNS,
+} from '../fields/entries';
 
 /**
  * Threshold at which individual sync notices collapse into a single grouped
@@ -672,6 +676,7 @@ function EntryView() {
 					actions={ actions }
 					paginationInfo={ paginationInfo }
 					isLoading={ isResolving || isTrashCheckPending }
+					fitColumns={ ENTRY_FIT_COLUMNS }
 				/>
 			) }
 			{ quickEditEntry && (

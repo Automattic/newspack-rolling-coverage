@@ -65,6 +65,10 @@
 		width: auto !important;
 	}
 
+	.dataviews-view-table td[style*="width: 1%"] .dataviews-view-table__cell-content-wrapper {
+		min-width: 0;
+	}
+
 	.dataviews-view-table tr td:last-child,
 	.dataviews-view-table thead tr th:last-child {
 		padding-right: wp-vars.$grid-unit-60;
