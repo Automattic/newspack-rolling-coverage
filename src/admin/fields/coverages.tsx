@@ -52,7 +52,7 @@ function getMainPage( coverage: Coverage ): Placement | undefined {
 
 /**
  * Field definitions for the coverage DataViews table.
- * Configures columns: term ID, name, entry count, status, created date, modified date.
+ * Configures columns: term ID, name, entry count, status, main page, created date, modified date.
  *
  * @param {string}                       statusKey            Meta key for the coverage status (from AdminConfig).
  * @param {string}                       lastModifiedKey      Meta key for the coverage's latest entry activity (from AdminConfig).
