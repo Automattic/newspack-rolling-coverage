@@ -141,14 +141,20 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 			type: 'datetime',
 			label: __( 'Created', 'newspack-rolling-coverage' ),
 			enableSorting: true,
-			render: ( { item } ) => formatSiteDateTime( item.date ) || '—',
+			getValueFormatted: ( { item, field } ) =>
+				formatSiteDateTime( field.getValue( { item } ) ),
+			render: ( { item, field } ) =>
+				field.getValueFormatted( { item, field } ) || '—',
 		},
 		{
 			id: 'modified',
 			type: 'datetime',
 			label: __( 'Modified', 'newspack-rolling-coverage' ),
 			enableSorting: true,
-			render: ( { item } ) => formatSiteDateTime( item.modified ) || '—',
+			getValueFormatted: ( { item, field } ) =>
+				formatSiteDateTime( field.getValue( { item } ) ),
+			render: ( { item, field } ) =>
+				field.getValueFormatted( { item, field } ) || '—',
 		},
 		{
 			id: 'author',

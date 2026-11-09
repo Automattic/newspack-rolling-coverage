@@ -2,6 +2,7 @@
  * External dependencies.
  */
 import { dateI18n, getDate, getSettings } from '@wordpress/date';
+import { __, sprintf } from '@wordpress/i18n';
 
 /**
  * Formats a value in the site's date format (Settings > General), in the
@@ -29,16 +30,24 @@ function formatSiteTime( value: Date | string | null | undefined ): string {
 
 /**
  * Formats a value in the site's date and time formats (Settings > General),
- * in the site's time zone. Core's `formats.datetime` is a fixed string, not
- * a site setting, so the two formats are joined here.
+ * in the site's time zone. Core's `formats.datetime` is the locale's default,
+ * not the site's setting, so the two site formats are joined here instead.
  *
  * @param {Date|string|null|undefined} value A Date, or a date string. A string
  *                                           with no offset is read as site time.
  * @return {string} The formatted date and time, or '' with no valid value.
  */
 function formatSiteDateTime( value: Date | string | null | undefined ): string {
-	const { date, time } = getSettings().formats;
-	return format( `${ date } ${ time }`, value );
+	const date = formatSiteDate( value );
+	if ( ! date ) {
+		return '';
+	}
+	return sprintf(
+		/* translators: 1: Date in the site's date format, 2: Time in the site's time format. */
+		__( '%1$s %2$s', 'newspack-rolling-coverage' ),
+		date,
+		formatSiteTime( value )
+	);
 }
 
 function format(

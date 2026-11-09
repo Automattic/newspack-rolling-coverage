@@ -180,8 +180,10 @@ function getCoverageFields(
 			label: __( 'Created', 'newspack-rolling-coverage' ),
 			enableSorting: true,
 			getValue: ( { item } ) => toISODate( item.meta?.created_at ),
+			getValueFormatted: ( { item, field } ) =>
+				formatSiteDateTime( field.getValue( { item } ) ),
 			render: ( { item, field } ) =>
-				formatSiteDateTime( field.getValue( { item } ) ) || '—',
+				field.getValueFormatted( { item, field } ) || '—',
 		},
 		{
 			id: 'last_modified',
@@ -192,8 +194,10 @@ function getCoverageFields(
 				toISODate(
 					item.meta?.[ lastModifiedKey ] as string | undefined
 				),
+			getValueFormatted: ( { item, field } ) =>
+				formatSiteDateTime( field.getValue( { item } ) ),
 			render: ( { item, field } ) =>
-				formatSiteDateTime( field.getValue( { item } ) ) || '—',
+				field.getValueFormatted( { item, field } ) || '—',
 		},
 	];
 }
