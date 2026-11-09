@@ -14,6 +14,7 @@ import {
 	getSlackChannelLabel,
 	COVERAGE_STATUS_INDICATORS,
 } from '../utils/fields';
+import { formatSiteDateTime } from '../utils/site-date';
 import type { View } from '@wordpress/dataviews';
 import type { Field, ViewState, Coverage, StatusLabels } from '../types';
 
@@ -180,7 +181,7 @@ function getCoverageFields(
 			enableSorting: true,
 			getValue: ( { item } ) => toISODate( item.meta?.created_at ),
 			render: ( { item, field } ) =>
-				field.getValueFormatted( { item, field } ) || '—',
+				formatSiteDateTime( field.getValue( { item } ) ) || '—',
 		},
 		{
 			id: 'last_modified',
@@ -192,7 +193,7 @@ function getCoverageFields(
 					item.meta?.[ lastModifiedKey ] as string | undefined
 				),
 			render: ( { item, field } ) =>
-				field.getValueFormatted( { item, field } ) || '—',
+				formatSiteDateTime( field.getValue( { item } ) ) || '—',
 		},
 	];
 }
