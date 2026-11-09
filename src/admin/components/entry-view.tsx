@@ -40,6 +40,7 @@ import { getEntryActions } from '../actions/entry-actions';
 import { getEntryNoticeMessage } from '../utils/notices';
 import {
 	applyEntryFilters,
+	hasFilterValue,
 	ARCHIVED_VALUE,
 	getSlackChannelLabel,
 	NOT_ARCHIVED_VALUE,
@@ -173,14 +174,7 @@ function EntryView() {
 		const params: Record< string, string > = {};
 
 		for ( const f of filters ) {
-			// Skip filters with no value yet — don't narrow the query until the
-			// user actually picks something.
-			if (
-				f.value === undefined ||
-				f.value === null ||
-				f.value === '' ||
-				( Array.isArray( f.value ) && f.value.length === 0 )
-			) {
+			if ( ! hasFilterValue( f.value ) ) {
 				continue;
 			}
 
