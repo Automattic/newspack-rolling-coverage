@@ -1,7 +1,7 @@
 /**
  * External dependencies.
  */
-import type { ComponentType, FocusEvent, ReactNode } from 'react';
+import type { ComponentType, ReactNode } from 'react';
 import { DataViews } from '@wordpress/dataviews/wp';
 import { useMemo } from '@wordpress/element';
 import { Stack } from '@wordpress/ui';
@@ -64,25 +64,6 @@ function InlineFiltersLayout( { header }: { header?: ReactNode } ) {
 }
 
 /**
- * Scrolls a bulk action that takes keyboard focus fully into its row. On narrow
- * screens the row scrolls sideways under a fade and a pinned Cancel, and
- * browsers leave a mostly visible button where it is, half hidden.
- *
- * @param {FocusEvent<HTMLDivElement>} event The focus event.
- */
-function revealFocusedBulkAction( event: FocusEvent< HTMLDivElement > ) {
-	const target: Element = event.target;
-	if (
-		target.matches( ':focus-visible' ) &&
-		target.parentElement?.classList.contains(
-			'dataviews-bulk-actions-footer__action-buttons'
-		)
-	) {
-		target.scrollIntoView( { block: 'nearest', inline: 'nearest' } );
-	}
-}
-
-/**
  * Type-safe wrapper around WordPress DataViews that fills in default props
  * (getItemId, defaultLayouts, isItemClickable) so consumers don't have to, and
  * lays out the shared list toolbar with declared filters as chips.
@@ -122,10 +103,7 @@ function DataViewsWrapper< T extends { id: number | string } >( {
 	);
 
 	return (
-		<div
-			className="newspack-rolling-coverage-dataviews"
-			onFocus={ revealFocusedBulkAction }
-		>
+		<div className="newspack-rolling-coverage-dataviews">
 			<TypedDataViews
 				data={ data }
 				fields={ shownFields }
