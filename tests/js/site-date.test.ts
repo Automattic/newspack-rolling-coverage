@@ -4,8 +4,10 @@ import {
 	formatSiteDate,
 	formatSiteDateTime,
 	formatSiteTime,
+	withSeconds,
 } from '../../src/admin/utils/site-date';
 import { safeFormatSlackTimestamp } from '../../src/admin/utils/fields';
+import { formatEventTime } from '../../src/admin/fields/monitor';
 
 const original = getSettings();
 
@@ -70,4 +72,54 @@ describe( 'site date helpers', () => {
 		);
 		expect( safeFormatSlackTimestamp( '' ) ).toBe( '—' );
 	} );
+
+	it( 'adds seconds when asked', () => {
+		useSite( 'j F Y', 'g:i a', 'UTC' );
+		expect(
+			formatSiteTime( '2026-03-04T15:09:42Z', { seconds: true } )
+		).toBe( '3:09:42 pm' );
+		expect(
+			formatSiteDateTime( '2026-03-04T15:09:42Z', { seconds: true } )
+		).toBe( '4 March 2026 3:09:42 pm' );
+		expect( formatSiteDateTime( '2026-03-04T15:09:42Z' ) ).toBe(
+			'4 March 2026 3:09 pm'
+		);
+	} );
+
+	it( "shows seconds in the Slack monitor's times", () => {
+		useSite( 'j F Y', 'H:i', 'Pacific/Auckland' );
+		expect(
+			formatEventTime( {
+				id: 1,
+				timestamp: '2026-03-04T15:09:42Z',
+				level: 'info',
+				message: 'Message received',
+				context: {},
+			} )
+		).toBe( '5 March 2026 04:09:42' );
+	} );
+} );
+
+describe( 'withSeconds', () => {
+	it.each( [
+		[ 'g:i a', 'g:i:s a' ],
+		[ 'H:i', 'H:i:s' ],
+		[ 'H.i', 'H.i.s' ],
+		[ 'G\\hi', 'G\\hi:s' ],
+		[ 'Hi', 'Hi:s' ],
+		[ 'H i', 'H i:s' ],
+		[ 'G時i分', 'G時i:s分' ],
+		[ 'H\\\\i', 'H\\\\i:s' ],
+		[ '\\s H:i', '\\s H:i:s' ],
+		[ 'H \\i\\n i', 'H \\i\\n i:s' ],
+	] )( 'adds seconds after the minutes in %s', ( pattern, expected ) => {
+		expect( withSeconds( pattern ) ).toBe( expected );
+	} );
+
+	it.each( [ 'H:i:s', 'g:i:s a', 'g a', 'U', '\\i\\s' ] )(
+		'leaves %s as it is',
+		( pattern ) => {
+			expect( withSeconds( pattern ) ).toBe( pattern );
+		}
+	);
 } );

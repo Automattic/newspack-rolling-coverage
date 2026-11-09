@@ -163,7 +163,7 @@ Tests: `tests/test-entry-details.php` and `tests/test-entry-author.php`. The ent
 
 ## Dates and times
 
-Every date in the admin lists (Created and Modified, the archived tooltip, Slack Last Sync and the Slack monitor's Time) and the entry drawer's Date is formatted with `formatSiteDateTime()` in `utils/site-date.ts`. It follows Settings > General: the site's date format and time format, joined by a translatable pattern, in the site's time zone. A string with no offset is read as site time. The Created and Modified fields set it as their `getValueFormatted`, so an active filter's chip shows the same format as the cells. Don't use `getSettings().formats.datetime`, which DataViews' `datetime` type uses by default: it is the locale's default format, not the site's setting.
+Every date in the admin lists (Created and Modified, the archived tooltip, Slack Last Sync and the Slack monitor's Time) and the entry drawer's Date is formatted with `formatSiteDateTime()` in `utils/site-date.ts`. It follows Settings > General: the site's date format and time format, joined by a translatable pattern, in the site's time zone. A string with no offset is read as site time. The Created and Modified fields set it as their `getValueFormatted`, so an active filter's chip shows the same format as the cells. The Slack monitor's Time, in the list and the event drawer, passes `{ seconds: true }`, which adds seconds to the site's time format right after its minutes, so events a few seconds apart can be told apart (`withSeconds()`). Don't use `getSettings().formats.datetime`, which DataViews' `datetime` type uses by default: it is the locale's default format, not the site's setting.
 
 ## Quick Edit
 
