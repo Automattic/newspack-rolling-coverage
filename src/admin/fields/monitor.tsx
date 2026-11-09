@@ -91,13 +91,16 @@ function EventChannel( {
 }
 
 /**
- * Formats a monitor event's time in the site's timezone.
+ * Formats a monitor event's time in the site's date and time formats, with
+ * seconds, in the site's time zone.
  *
  * @param {SlackMonitorEvent} event Monitor event.
  * @return {string} Formatted date and time.
  */
 function formatEventTime( event: SlackMonitorEvent ): string {
-	return formatSiteDateTime( new Date( event.timestamp ) );
+	return formatSiteDateTime( new Date( event.timestamp ), {
+		seconds: true,
+	} );
 }
 
 /**
