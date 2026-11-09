@@ -196,7 +196,8 @@ class Placements {
 	 * Coverage block for a coverage. A capped block only shows a few entries
 	 * and links to the coverage page, so it never makes a post that page.
 	 * Nor does a block hidden once the coverage has ended, while it has ended.
-	 * The map can be out of date, so a post readers can't open doesn't count.
+	 * The map can be out of date, so a post readers can't open, or that now
+	 * asks for a password, doesn't count.
 	 *
 	 * @param int $coverage_id Coverage term ID.
 	 * @return int Post ID, or 0 when there is none.
@@ -205,7 +206,7 @@ class Placements {
 		$has_ended = Taxonomy::STATUS_ARCHIVED === get_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, true );
 		$post_id   = (int) ( self::get_map()[ $has_ended ? 'ended_pages' : 'pages' ][ $coverage_id ] ?? 0 );
 
-		return $post_id && is_post_publicly_viewable( $post_id ) ? $post_id : 0;
+		return $post_id && is_post_publicly_viewable( $post_id ) && '' === get_post_field( 'post_password', $post_id ) ? $post_id : 0;
 	}
 
 	/**

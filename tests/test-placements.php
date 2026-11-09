@@ -342,6 +342,26 @@ class Test_Placements extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * A page given a password since the map was built isn't used, even before
+	 * the scheduled rebuild: readers would only reach the password form.
+	 */
+	public function test_a_password_protected_page_is_not_used_before_the_rebuild() {
+		$coverage_id = self::create_coverage();
+		$page_id     = self::publish( self::feed( $coverage_id ) );
+		Placements::ensure_fresh();
+
+		wp_update_post(
+			[
+				'ID'            => $page_id,
+				'post_password' => 'secret',
+			]
+		);
+
+		$this->assertSame( 0, Placements::page_id( $coverage_id ) );
+		$this->assertSame( '', Taxonomy::get_coverage_page_url( $coverage_id ) );
+	}
+
+	/**
 	 * A row lists feeds that show every entry, then capped feeds, then
 	 * Coverage Status and Follow Coverage, and lists a label once even when
 	 * two blocks read the same.

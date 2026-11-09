@@ -268,9 +268,10 @@ class Social_Sharing {
 	 * coverage's canonical URL, or else the page found to show the coverage.
 	 *
 	 * @param WP_Post $entry Entry post object.
-	 * @return int Post ID; 0 when the canonical URL has no post behind it or no
-	 *             coverage has a page, leaving the plain permalink to redirect
-	 *             there or show the entry's own page.
+	 * @return int Post ID; 0 when the canonical URL has no post behind it, or
+	 *             has a query the post's permalink doesn't, or no coverage has
+	 *             a page, leaving the plain permalink to redirect there or
+	 *             show the entry's own page.
 	 */
 	private static function get_coverage_page_source( WP_Post $entry ): int {
 		$coverages = get_the_terms( $entry, Taxonomy::TAXONOMY_SLUG );
@@ -279,7 +280,14 @@ class Social_Sharing {
 			$canonical_url = (string) get_term_meta( (int) $coverage->term_id, Taxonomy::CANONICAL_URL_META_KEY, true );
 
 			if ( '' !== $canonical_url ) {
-				return Entry_Bindings::url_to_post_id( $canonical_url );
+				$post_id = Entry_Bindings::url_to_post_id( $canonical_url );
+
+				// The redirect rebuilds an `rc_source` link from the permalink, which would drop the query.
+				if ( $post_id && (string) wp_parse_url( $canonical_url, PHP_URL_QUERY ) !== (string) wp_parse_url( (string) get_permalink( $post_id ), PHP_URL_QUERY ) ) {
+					return 0;
+				}
+
+				return $post_id;
 			}
 
 			$page_id = Placements::page_id( (int) $coverage->term_id );

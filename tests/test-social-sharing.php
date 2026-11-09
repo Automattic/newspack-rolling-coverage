@@ -181,6 +181,21 @@ class Test_Social_Sharing extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * The redirect rebuilds an `rc_source` link from the source's permalink,
+	 * so a canonical URL whose query the permalink doesn't carry is shared as
+	 * the plain permalink, which redirects to the canonical URL as written.
+	 */
+	public function test_capped_feed_shares_the_permalink_when_the_canonical_url_adds_a_query() {
+		$coverage_id  = self::create_coverage();
+		$entry_id     = self::create_entry( $coverage_id );
+		$canonical_id = self::factory()->post->create();
+
+		update_term_meta( $coverage_id, Taxonomy::CANONICAL_URL_META_KEY, add_query_arg( 'view', 'all', get_permalink( $canonical_id ) ) );
+
+		$this->assertSame( get_permalink( $entry_id ), self::rendered_share_url( $coverage_id, self::factory()->post->create(), true ) );
+	}
+
+	/**
 	 * With no page to send readers to, a capped feed shares the plain
 	 * permalink: the page holding the feed may not show the entry, and the
 	 * permalink starts redirecting once the coverage has a page.
