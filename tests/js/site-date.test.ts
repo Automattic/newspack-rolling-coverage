@@ -1,4 +1,4 @@
-import { dateI18n, getSettings, setSettings } from '@wordpress/date';
+import { getSettings, setSettings } from '@wordpress/date';
 
 import {
 	formatSiteDate,
@@ -37,9 +37,9 @@ describe( 'site date helpers', () => {
 	} );
 
 	it( 'keeps AM/PM when the site time format has it', () => {
-		useSite( 'F j, Y', 'g:i a', 'UTC' );
+		useSite( 'F j, Y', 'g:i A', 'UTC' );
 		expect( formatSiteDateTime( '2026-03-04T15:09:00Z' ) ).toBe(
-			'March 4, 2026 3:09 pm'
+			'March 4, 2026 3:09 PM'
 		);
 	} );
 
@@ -65,9 +65,6 @@ describe( 'site date helpers', () => {
 
 	it( 'formats a Slack timestamp with the site settings', () => {
 		useSite( 'd/m/Y', 'H:i', 'Pacific/Auckland' );
-		expect( safeFormatSlackTimestamp( '1772636940.000100' ) ).toBe(
-			dateI18n( 'd/m/Y H:i', new Date( 1772636940000 ) )
-		);
 		expect( safeFormatSlackTimestamp( '1772636940.000100' ) ).toBe(
 			'05/03/2026 04:09'
 		);
