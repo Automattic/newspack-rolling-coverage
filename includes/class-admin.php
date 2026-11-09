@@ -400,6 +400,7 @@ class Admin {
 			[ 'wp-components' ],
 			$asset['version']
 		);
+		wp_style_add_data( 'newspack-rolling-coverage-admin', 'rtl', 'replace' );
 
 		wp_enqueue_script( 'wp-edit-post' );
 		wp_enqueue_style( 'wp-edit-post' );
