@@ -16,14 +16,10 @@ body.newspack-rolling-coverage-admin-screen {
 		box-shadow: none;
 	}
 
-	.dataviews-filters__summary-chip-container .dataviews-filters__summary-chip-remove svg {
-		fill: currentcolor;
-	}
-
 	.dataviews-filters__summary-operators-container .dataviews-filters__summary-operators-filter-select {
 		overflow: visible;
 		white-space: normal;
-		width: auto;
+		width: fit-content;
 	}
 
 	.dataviews-bulk-actions-footer__item-count {
@@ -33,7 +29,7 @@ body.newspack-rolling-coverage-admin-screen {
 	}
 
 	.dataviews-view-table tr th:first-child .dataviews-view-table-header-button {
-		margin-left: 0;
+		margin-inline: 0;
 	}
 }
 
@@ -41,6 +37,23 @@ body.newspack-rolling-coverage-admin-screen .newspack-rolling-coverage-admin {
 
 	.dataviews-wrapper {
 		overflow: visible;
+	}
+
+	@container dataviews-wrapper (min-width: 431px) {
+
+		.dataviews__view-actions,
+		.dataviews-filters__container,
+		.dataviews-bulk-actions,
+		.dataviews-footer,
+		.dataviews-loading,
+		.dataviews-no-results {
+			padding-inline: wp-vars.$grid-unit-60;
+		}
+
+		.dataviews-view-table tr td:first-child,
+		.dataviews-view-table tr th:first-child {
+			padding-left: wp-vars.$grid-unit-60;
+		}
 	}
 
 	.dataviews-view-table__primary-column-content:not(.dataviews-column-primary__media) {
