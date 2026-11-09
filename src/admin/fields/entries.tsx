@@ -360,20 +360,4 @@ const defaultEntryView: ViewState = {
 	titleField: 'title',
 };
 
-/**
- * Every entry column but the title sizes to its content, so dates show whole
- * and the title takes the rest of the table.
- */
-const ENTRY_FIT_COLUMNS = [
-	'date',
-	'modified',
-	'author',
-	'source',
-	'status',
-	'categories',
-	'tags',
-	'breakout',
-	'archived',
-];
-
-export { getEntryFields, defaultEntryView, ENTRY_FIT_COLUMNS };
+export { getEntryFields, defaultEntryView };

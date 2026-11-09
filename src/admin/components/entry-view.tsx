@@ -52,11 +52,7 @@ import type {
 	EntryPageResponse,
 	SyncNotice,
 } from '../types';
-import {
-	getEntryFields,
-	defaultEntryView,
-	ENTRY_FIT_COLUMNS,
-} from '../fields/entries';
+import { getEntryFields, defaultEntryView } from '../fields/entries';
 
 /**
  * Threshold at which individual sync notices collapse into a single grouped
@@ -313,6 +309,13 @@ function EntryView() {
 	}, [] );
 
 	const entryFields = useMemo( () => getEntryFields( config ), [ config ] );
+	const fitColumns = useMemo(
+		() =>
+			entryFields
+				.map( ( field ) => field.id )
+				.filter( ( id ) => id !== 'title' ),
+		[ entryFields ]
+	);
 
 	const { data: mappedData, paginationInfo } = useMemo( () => {
 		const mapped = ( rows ?? [] ).map( toEntry );
@@ -676,7 +679,7 @@ function EntryView() {
 					actions={ actions }
 					paginationInfo={ paginationInfo }
 					isLoading={ isResolving || isTrashCheckPending }
-					fitColumns={ ENTRY_FIT_COLUMNS }
+					fitColumns={ fitColumns }
 				/>
 			) }
 			{ quickEditEntry && (
