@@ -14,6 +14,7 @@ import {
 	getSlackChannelLabel,
 	COVERAGE_STATUS_INDICATORS,
 } from '../utils/fields';
+import { formatSiteDateTime } from '../utils/site-date';
 import type { View } from '@wordpress/dataviews';
 import type { Field, ViewState, Coverage, StatusLabels } from '../types';
 
@@ -179,6 +180,8 @@ function getCoverageFields(
 			label: __( 'Created', 'newspack-rolling-coverage' ),
 			enableSorting: true,
 			getValue: ( { item } ) => toISODate( item.meta?.created_at ),
+			getValueFormatted: ( { item, field } ) =>
+				formatSiteDateTime( field.getValue( { item } ) ),
 			render: ( { item, field } ) =>
 				field.getValueFormatted( { item, field } ) || '—',
 		},
@@ -191,6 +194,8 @@ function getCoverageFields(
 				toISODate(
 					item.meta?.[ lastModifiedKey ] as string | undefined
 				),
+			getValueFormatted: ( { item, field } ) =>
+				formatSiteDateTime( field.getValue( { item } ) ),
 			render: ( { item, field } ) =>
 				field.getValueFormatted( { item, field } ) || '—',
 		},

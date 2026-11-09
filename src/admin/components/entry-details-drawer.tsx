@@ -15,12 +15,7 @@ import { __experimentalPublishDateTimePicker as PublishDateTimePicker } from '@w
 import { useDebounce, useInstanceId } from '@wordpress/compose';
 import { store as coreStore } from '@wordpress/core-data';
 import { useDispatch, useSelect } from '@wordpress/data';
-import {
-	date as formatDate,
-	dateI18n,
-	getDate,
-	getSettings,
-} from '@wordpress/date';
+import { date as formatDate, getSettings } from '@wordpress/date';
 import { decodeEntities } from '@wordpress/html-entities';
 import { __, _n, sprintf } from '@wordpress/i18n';
 import { Stack } from '@wordpress/ui';
@@ -33,6 +28,7 @@ import { Drawer } from 'newspack-components/dist/esm/drawer';
 import { useAdminContext } from '../hooks/useAdminContext';
 import { editEntriesDetails } from '../utils/entries-api';
 import { notifyError, notifySuccess } from '../utils/notices';
+import { formatSiteDateTime } from '../utils/site-date';
 import { TermTokenField, getTermQueries } from './term-token-field';
 import type {
 	Entry,
@@ -141,9 +137,7 @@ function EntryDateField( {
 		} ),
 		[ anchor ]
 	);
-	const label = value
-		? dateI18n( getSettings().formats.datetime, getDate( value ) )
-		: '';
+	const label = formatSiteDateTime( value );
 
 	return (
 		<div ref={ setAnchor }>

@@ -2,7 +2,6 @@
  * External dependencies
  */
 import { Tooltip } from '@wordpress/components';
-import { dateI18n, getSettings } from '@wordpress/date';
 import { __, sprintf } from '@wordpress/i18n';
 import { Link, Stack, VisuallyHidden } from '@wordpress/ui';
 import { Icon, pinSmall, wordpress } from '@wordpress/icons';
@@ -13,6 +12,7 @@ import { Icon, pinSmall, wordpress } from '@wordpress/icons';
 import type { Field, ViewState, Entry, AdminConfig } from '../types';
 import { SlackIcon } from '../shared/icons/slack-icon';
 import { UserRow } from '../shared/user-row';
+import { formatSiteDateTime } from '../utils/site-date';
 import StatusIndicator from 'newspack-components/dist/esm/status-indicator';
 import {
 	getEntrySource,
@@ -141,12 +141,20 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 			type: 'datetime',
 			label: __( 'Created', 'newspack-rolling-coverage' ),
 			enableSorting: true,
+			getValueFormatted: ( { item, field } ) =>
+				formatSiteDateTime( field.getValue( { item } ) ),
+			render: ( { item, field } ) =>
+				field.getValueFormatted( { item, field } ) || '—',
 		},
 		{
 			id: 'modified',
 			type: 'datetime',
 			label: __( 'Modified', 'newspack-rolling-coverage' ),
 			enableSorting: true,
+			getValueFormatted: ( { item, field } ) =>
+				formatSiteDateTime( field.getValue( { item } ) ),
+			render: ( { item, field } ) =>
+				field.getValueFormatted( { item, field } ) || '—',
 		},
 		{
 			id: 'author',
@@ -226,8 +234,7 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 						? __( 'Archived', 'newspack-rolling-coverage' )
 						: getStatusLabel( item.status );
 
-				const archivedDate = dateI18n(
-					getSettings().formats.datetime,
+				const archivedDate = formatSiteDateTime(
 					new Date( archivedAt * 1000 )
 				);
 

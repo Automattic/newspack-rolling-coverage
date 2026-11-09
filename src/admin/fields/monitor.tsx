@@ -2,13 +2,13 @@
  * External dependencies.
  */
 import { Badge } from '@wordpress/ui';
-import { dateI18n } from '@wordpress/date';
 import { __ } from '@wordpress/i18n';
 
 /**
  * Internal dependencies.
  */
 import { formatSlackChannel } from '../utils/fields';
+import { formatSiteDateTime } from '../utils/site-date';
 import type {
 	Field,
 	ViewState,
@@ -97,11 +97,7 @@ function EventChannel( {
  * @return {string} Formatted date and time.
  */
 function formatEventTime( event: SlackMonitorEvent ): string {
-	return dateI18n(
-		/* translators: Monitor event time format, see https://www.php.net/manual/datetime.format.php */
-		__( 'M j, Y g:i:s a', 'newspack-rolling-coverage' ),
-		new Date( event.timestamp )
-	);
+	return formatSiteDateTime( new Date( event.timestamp ) );
 }
 
 /**
