@@ -294,19 +294,19 @@ function LayoutPickerCard( {
  * its final size, or until a timeout passes, so a slow preview or layouts
  * request can't keep it closed.
  *
- * @param {Object}   props                 Component props.
- * @param {number}   props.currentLayoutId The block's layout pattern ID, or 0.
- * @param {Function} props.onSelect        Called with the picked layout.
- * @param {Function} props.onClose         Closes the picker.
- * @param {Function} props.onReady         Called when the modal is revealed.
+ * @param {Object}   props            Component props.
+ * @param {string}   props.currentKey The key of the block's shared layout's card: a built-in layout's slug or a pattern's ID, or empty.
+ * @param {Function} props.onSelect   Called with the picked layout.
+ * @param {Function} props.onClose    Closes the picker.
+ * @param {Function} props.onReady    Called when the modal is revealed.
  */
 export default function LayoutPickerModal( {
-	currentLayoutId,
+	currentKey,
 	onSelect,
 	onClose,
 	onReady,
 }: {
-	currentLayoutId: number;
+	currentKey: string;
 	onSelect: ( choice: LayoutChoice ) => void;
 	onClose: () => void;
 	onReady?: () => void;
@@ -544,8 +544,7 @@ export default function LayoutPickerModal( {
 								key={ card.key }
 								card={ card }
 								isCurrent={
-									currentLayoutId > 0 &&
-									card.patternId === currentLayoutId
+									'' !== currentKey && card.key === currentKey
 								}
 								isPending={ pendingKey === card.key }
 								isDisabled={

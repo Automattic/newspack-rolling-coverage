@@ -72,6 +72,8 @@ import {
 	generateKeyTakeaways,
 	getLayoutEditUrl,
 	getLayoutId,
+	getLayoutReference,
+	canCreateLayouts,
 	getLayoutCategoryId,
 	createLayout,
 } from './utils';
@@ -204,8 +206,9 @@ const NEUTRAL_ENTRY_CONTEXT: EntryContext = {
 };
 
 /**
- * Resets `layoutId` on every Rolling Coverage block nested in a layout, so a
- * synced block pasted into the layout can't preview the layout inside itself.
+ * Resets `layoutId` and `layoutSlug` on every Rolling Coverage block nested
+ * in a layout, so a synced block pasted into the layout can't preview the
+ * layout inside itself.
  *
  * @param {Object[]} blocks Parsed blocks.
  * @return {Object[]} The blocks, with nested Rolling Coverage blocks detached.
@@ -215,7 +218,11 @@ function detachNestedBlocks( blocks: TemplateBlocks ): TemplateBlocks {
 		...block,
 		attributes:
 			block.name === BLOCK_NAME
-				? { ...( block.attributes as object ), layoutId: 0 }
+				? {
+						...( block.attributes as object ),
+						layoutId: 0,
+						layoutSlug: '',
+					}
 				: block.attributes,
 		innerBlocks: detachNestedBlocks(
 			( block.innerBlocks ?? [] ) as TemplateBlocks
@@ -861,6 +868,7 @@ export default function Edit( {
 		archivedNoticeLinkUrl,
 		archivedNoticeLinkLabel,
 		layoutId,
+		layoutSlug,
 		align,
 	} = attributes;
 	const pageSize = clampEntriesPerPage( entriesPerPage );
@@ -932,10 +940,24 @@ export default function Edit( {
 			 ).getBlockCount( clientId ),
 		[ clientId ]
 	);
+	// Re-reads the reference once Edit Layout has created a built-in
+	// layout's pattern, which only the module's own map of IDs records.
+	const [ , setCreatedLayoutId ] = useState( 0 );
+	const reference = getLayoutReference( layoutId, layoutSlug ?? '' );
+	const hasReference = reference.kind !== 'none';
+	// The pattern a synced block previews: its own, or its built-in
+	// layout's, 0 when the site has none for it.
+	let syncedPatternId = 0;
+	if ( reference.kind === 'pattern' ) {
+		syncedPatternId = reference.id;
+	} else if ( reference.kind === 'built-in' ) {
+		syncedPatternId = reference.patternId;
+	}
+	const builtInSlug = reference.kind === 'built-in' ? reference.slug : null;
 	// The layout picker previews each layout as this block with the layout
 	// as its inner blocks, rendering sample entries.
 	const isSamplePreview =
-		isPreviewMode && ! coverageId && ! layoutId && innerBlockCount > 0;
+		isPreviewMode && ! coverageId && ! hasReference && innerBlockCount > 0;
 	const showsSamples = isLayoutPattern || isSamplePreview;
 	const [ isPickingLayout, setIsPickingLayout ] = useState( false );
 	const [ isPickerReady, setIsPickerReady ] = useState( false );
@@ -947,7 +969,14 @@ export default function Edit( {
 		string | null
 	>( null );
 	const registry = useRegistry();
-	const isSynced = layoutId > 0 && ! isNested;
+	const isSynced = hasReference && ! isNested;
+	// The picker card of the block's shared layout.
+	let currentLayoutKey = '';
+	if ( isSynced && builtInSlug ) {
+		currentLayoutKey = builtInSlug;
+	} else if ( isSynced && reference.kind === 'pattern' ) {
+		currentLayoutKey = String( reference.id );
+	}
 	const defaultTemplate = useMemo( innerTemplate, [] );
 	const patternTemplate = useMemo(
 		() =>
@@ -1039,7 +1068,7 @@ export default function Edit( {
 	const needsDefaultLayout =
 		hadCoverageOnLoad &&
 		coverageId > 0 &&
-		! layoutId &&
+		! hasReference &&
 		! innerBlockCount &&
 		! isNested &&
 		! isLayoutPattern &&
@@ -1096,11 +1125,12 @@ export default function Edit( {
 
 	const { layoutRecord, hasResolvedLayout, canEditLayout } = useSelect(
 		( select ) => {
-			if ( ! isSynced ) {
+			if ( ! isSynced || ! syncedPatternId ) {
 				return {
 					layoutRecord: null,
 					hasResolvedLayout: true,
-					canEditLayout: false,
+					// Edit Layout creates a built-in layout's pattern first.
+					canEditLayout: isSynced && canCreateLayouts(),
 				};
 			}
 			const core = select( coreStore ) as unknown as {
@@ -1128,14 +1158,14 @@ export default function Edit( {
 			const args = [
 				'postType',
 				'wp_block',
-				layoutId,
+				syncedPatternId,
 				{ context: 'view' },
 			];
 			return {
 				layoutRecord: core.getEntityRecord(
 					'postType',
 					'wp_block',
-					layoutId,
+					syncedPatternId,
 					{ context: 'view' }
 				),
 				hasResolvedLayout: core.hasFinishedResolution(
@@ -1146,15 +1176,15 @@ export default function Edit( {
 					core.canUser( 'update', {
 						kind: 'postType',
 						name: 'wp_block',
-						id: layoutId,
+						id: syncedPatternId,
 					} )
 				),
 			};
 		},
-		[ isSynced, layoutId ]
+		[ isSynced, syncedPatternId ]
 	);
 
-	const layoutBlocks = useMemo( () => {
+	const patternBlocks = useMemo( () => {
 		if ( ! layoutRecord || layoutRecord.status !== 'publish' ) {
 			return null;
 		}
@@ -1165,20 +1195,48 @@ export default function Edit( {
 		const holder = parse( raw ?? '' ).find(
 			( block ) => block.name === BLOCK_NAME
 		);
-		return holder
+		// An emptied layout block renders as no layout, as on the page.
+		return holder?.innerBlocks.length
 			? detachNestedBlocks(
 					holder.innerBlocks as unknown as TemplateBlocks
 				)
 			: null;
 	}, [ layoutRecord ] );
+	const builtInLayout = useMemo(
+		() =>
+			builtInSlug
+				? getBuiltInLayouts().find(
+						( layout ) => layout.slug === builtInSlug
+					)
+				: undefined,
+		[ builtInSlug ]
+	);
+	// A built-in layout whose pattern is missing or can't render shows the
+	// layout as the plugin ships it, as the page does
+	// (`Layout::resolve_layout_blocks()`).
+	const builtInBlocks = useMemo(
+		() =>
+			builtInLayout && hasResolvedLayout && ! patternBlocks
+				? detachNestedBlocks(
+						createBlocksFromInnerBlocksTemplate(
+							builtInLayout.template()
+						) as unknown as TemplateBlocks
+					)
+				: null,
+		[ builtInLayout, hasResolvedLayout, patternBlocks ]
+	);
+	const layoutBlocks = patternBlocks ?? builtInBlocks;
 	const isLayoutMissing = isSynced && hasResolvedLayout && ! layoutBlocks;
-	const layoutTitle = layoutBlocks
-		? decodeEntities(
-				( typeof layoutRecord?.title === 'string'
-					? layoutRecord.title
-					: layoutRecord?.title?.raw ) ?? ''
-			).trim()
-		: '';
+	let layoutTitle = '';
+	if ( patternBlocks ) {
+		layoutTitle = decodeEntities(
+			( typeof layoutRecord?.title === 'string'
+				? layoutRecord.title
+				: layoutRecord?.title?.raw ) ?? ''
+		).trim();
+	} else if ( builtInBlocks && builtInLayout ) {
+		layoutTitle = builtInLayout.title;
+	}
 	let layoutDescription:
 		ReturnType< typeof createInterpolateElement > | string = __(
 		'Uses its own layout, detached from the shared one.',
@@ -1202,7 +1260,7 @@ export default function Edit( {
 	const isChoosing =
 		! isLayoutPattern &&
 		! isNested &&
-		( ( ! layoutId && ! innerBlockCount ) || isLayoutMissing );
+		( ( ! hasReference && ! innerBlockCount ) || isLayoutMissing );
 	const needsLayout = isChoosing && coverageId > 0 && ! needsDefaultLayout;
 	const hasLayout = coverageId > 0 || showsSamples;
 	const canChangeLayout =
@@ -1899,7 +1957,11 @@ export default function Edit( {
 				),
 				false
 			);
-			setAttributes( { layoutId: 0, allUpdatesLinkText: '' } );
+			setAttributes( {
+				layoutId: 0,
+				layoutSlug: '',
+				allUpdatesLinkText: '',
+			} );
 		} );
 	}, [
 		registry,
@@ -1908,6 +1970,65 @@ export default function Edit( {
 		clientId,
 		replaceInnerBlocks,
 		setAttributes,
+	] );
+
+	// A built-in layout without a pattern gets one the first time someone
+	// edits it. The tab opens in the click itself, since browsers block a tab
+	// opened once the request returns.
+	const [ isCreatingLayout, setIsCreatingLayout ] = useState( false );
+	const editBuiltInLayout = useCallback( () => {
+		if ( ! builtInLayout || isCreatingLayout ) {
+			return;
+		}
+
+		const editor = window.open( '', '_blank' );
+
+		if ( editor ) {
+			editor.opener = null;
+		}
+
+		setIsCreatingLayout( true );
+		createLayout( builtInLayout.slug, builtInLayout.template )
+			.then( ( id ) => {
+				setCreatedLayoutId( id );
+				if ( getLayoutCategoryId() ) {
+					invalidateResolution( 'getEntityRecords', [
+						'postType',
+						'wp_block',
+						layoutsQuery( getLayoutCategoryId() ),
+					] );
+				}
+				if ( editor ) {
+					editor.location.href = getLayoutEditUrl( id );
+				} else {
+					// A blocked tab: the button is a plain link from now on,
+					// which the browser lets open.
+					createSuccessNotice(
+						__(
+							'The layout is ready to edit. Select Edit Layout again to open it.',
+							'newspack-rolling-coverage'
+						),
+						{ type: 'snackbar' }
+					);
+				}
+			} )
+			.catch( () => {
+				editor?.close();
+				createErrorNotice(
+					__(
+						'The layout couldn’t be opened for editing. Try again.',
+						'newspack-rolling-coverage'
+					),
+					{ type: 'snackbar' }
+				);
+			} )
+			.finally( () => setIsCreatingLayout( false ) );
+	}, [
+		builtInLayout,
+		isCreatingLayout,
+		invalidateResolution,
+		createSuccessNotice,
+		createErrorNotice,
 	] );
 
 	const closePicker = useCallback( () => {
@@ -1930,9 +2051,7 @@ export default function Edit( {
 		( choice: LayoutChoice ) => {
 			closePicker();
 
-			const syncedSlug = isSynced
-				? builtInLayoutSlugFor( layoutId )
-				: null;
+			const syncedSlug = isSynced ? builtInSlug : null;
 			let replaced: BuiltInLayoutSlug[] = [];
 
 			if ( syncedSlug ) {
@@ -1942,12 +2061,18 @@ export default function Edit( {
 			}
 
 			if ( choice.kind === 'pattern' ) {
-				if ( isSynced && choice.id === layoutId ) {
+				// Picking the block's built-in layout creates its pattern when
+				// it has none yet, under a new ID; it's still the same layout.
+				const isCurrent =
+					choice.id === syncedPatternId ||
+					( !! builtInSlug &&
+						builtInLayoutSlugFor( choice.id ) === builtInSlug );
+				if ( isSynced && isCurrent ) {
 					if ( isLayoutMissing ) {
 						invalidateResolution( 'getEntityRecord', [
 							'postType',
 							'wp_block',
-							layoutId,
+							syncedPatternId,
 							{ context: 'view' },
 						] );
 					}
@@ -1960,6 +2085,7 @@ export default function Edit( {
 					const patternSlug = builtInLayoutSlugFor( choice.id );
 					setAttributes( {
 						layoutId: choice.id,
+						layoutSlug: '',
 						...( patternSlug
 							? switchLayoutAttributes(
 									patternSlug,
@@ -1976,7 +2102,9 @@ export default function Edit( {
 				( item ) => item.slug === choice.slug
 			);
 
-			if ( ! layout ) {
+			// The block's own built-in layout stays shared when its pattern
+			// couldn't be created, rather than turning into a detached copy.
+			if ( ! layout || ( isSynced && choice.slug === builtInSlug ) ) {
 				return;
 			}
 
@@ -1988,6 +2116,7 @@ export default function Edit( {
 				);
 				setAttributes( {
 					layoutId: 0,
+					layoutSlug: '',
 					allUpdatesLinkText: '',
 					...switchLayoutAttributes( layout.slug, replaced, align ),
 				} );
@@ -1997,9 +2126,10 @@ export default function Edit( {
 			align,
 			closePicker,
 			isSynced,
+			builtInSlug,
+			syncedPatternId,
 			isLayoutMissing,
 			invalidateResolution,
-			layoutId,
 			innerBlockCount,
 			registry,
 			clientId,
@@ -3261,12 +3391,21 @@ export default function Edit( {
 
 			{ ! isLoading && isSynced && coverageId > 0 && (
 				<BlockControls group="other">
-					{ canEditLayout && (
+					{ canEditLayout && syncedPatternId > 0 && (
 						<ToolbarButton
 							{ ...{
-								href: getLayoutEditUrl( layoutId ),
+								href: getLayoutEditUrl( syncedPatternId ),
 								target: '_blank',
 							} }
+						>
+							{ __( 'Edit Layout', 'newspack-rolling-coverage' ) }
+						</ToolbarButton>
+					) }
+					{ canEditLayout && ! syncedPatternId && (
+						<ToolbarButton
+							onClick={ editBuiltInLayout }
+							isBusy={ isCreatingLayout }
+							aria-disabled={ isCreatingLayout }
 						>
 							{ __( 'Edit Layout', 'newspack-rolling-coverage' ) }
 						</ToolbarButton>
@@ -3279,7 +3418,7 @@ export default function Edit( {
 
 			{ isPickingLayout && (
 				<LayoutPickerModal
-					currentLayoutId={ isSynced ? layoutId : 0 }
+					currentKey={ currentLayoutKey }
 					onSelect={ applyLayout }
 					onClose={ closePicker }
 					onReady={ () => setIsPickerReady( true ) }

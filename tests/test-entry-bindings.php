@@ -1958,6 +1958,26 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * A block naming a built-in layout by its slug shares that layout, so it
+	 * reads its own link text too.
+	 */
+	public function test_all_updates_reads_the_link_text_of_a_layout_named_by_slug() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id );
+		update_term_meta( $coverage_id, Taxonomy::CANONICAL_URL_META_KEY, 'https://example.org/storm-coverage/' );
+
+		$html = self::render_capped_coverage(
+			$coverage_id,
+			[
+				'layoutSlug'         => 'ticker',
+				'allUpdatesLinkText' => 'Follow the storm',
+			]
+		);
+
+		$this->assertStringContainsString( '<a href="https://example.org/storm-coverage/">Follow the storm</a>', $html );
+	}
+
+	/**
 	 * Blank link text, or a detached layout, keeps the layout's own text.
 	 */
 	public function test_all_updates_keeps_the_layouts_text() {

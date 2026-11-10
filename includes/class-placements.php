@@ -65,10 +65,11 @@ class Placements {
 	const TYPE_WIDGET_AREA   = 'widget_area';
 
 	// Block tags, before they are turned into labels. A Rolling Coverage
-	// block's tag is feed:<layout>:<count>, its layout being a layout ID,
-	// detached, or empty when it has neither, and its count how many entries
-	// it shows, 0 for all of them. A block without a usable layout renders
-	// the built-in Bulletin template, so it is labeled with that.
+	// block's tag is feed:<layout>:<count>, its layout being a layout ID, a
+	// built-in layout's slug, detached, or empty when it has none of them,
+	// and its count how many entries it shows, 0 for all of them. A block
+	// without a usable layout renders the built-in Bulletin template, so it
+	// is labeled with that.
 	const TAG_FEED   = 'feed';
 	const TAG_STATUS = 'status';
 	const TAG_FOLLOW = 'follow';
@@ -455,8 +456,16 @@ class Placements {
 
 		[ $layout, $count ] = self::parse_feed_tag( $tag );
 
-		$name   = __( 'Rolling Coverage', 'newspack-rolling-coverage' );
-		$layout = self::LAYOUT_DETACHED === $layout ? _x( 'Detached', 'layout', 'newspack-rolling-coverage' ) : self::layout_title( (int) $layout );
+		$name = __( 'Rolling Coverage', 'newspack-rolling-coverage' );
+
+		if ( self::LAYOUT_DETACHED === $layout ) {
+			$layout = _x( 'Detached', 'layout', 'newspack-rolling-coverage' );
+		} elseif ( in_array( $layout, Layout::BUILT_IN_SLUGS, true ) ) {
+			$layout = self::slug_title( $layout );
+		} else {
+			$layout = self::layout_title( (int) $layout );
+		}
+
 		$layout = '' === $layout ? Layout::get_title( 'default' ) : $layout;
 
 		if ( '' !== $layout && $count > 0 ) {
@@ -481,7 +490,7 @@ class Placements {
 	 * A feed tag's layout and count.
 	 *
 	 * @param string $tag Feed tag.
-	 * @return array{0: string, 1: int} Layout (ID, detached, or empty) and count.
+	 * @return array{0: string, 1: int} Layout (ID, built-in slug, detached, or empty) and count.
 	 */
 	private static function parse_feed_tag( string $tag ): array {
 		$parts = array_pad( explode( ':', $tag, 3 ), 3, '' );
@@ -490,8 +499,25 @@ class Placements {
 	}
 
 	/**
+	 * A built-in layout's name: its pattern's title while that pattern
+	 * renders, else the layout's built-in name. A pattern that can't render
+	 * would send layout_title() back here for its own slug.
+	 *
+	 * @param string $slug Built-in layout slug.
+	 * @return string
+	 */
+	private static function slug_title( string $slug ): string {
+		$layout_id = Layout::get_stored_layout_id( $slug );
+		$title     = $layout_id && ! empty( Layout::get_layout_blocks( $layout_id ) ) ? self::layout_title( $layout_id ) : '';
+
+		return '' === $title ? Layout::get_title( $slug ) : $title;
+	}
+
+	/**
 	 * A shared layout's name, or an empty string when the layout has no
 	 * blocks the site can render, so the block renders the built-in default.
+	 * A built-in layout's pattern that can't render, or that left the site,
+	 * gives the layout's name, since the block renders that layout instead.
 	 * Worked out once per layout and request until the next change.
 	 *
 	 * @param int $layout_id Layout (wp_block) ID.
@@ -506,6 +532,8 @@ class Placements {
 			if ( ! empty( Layout::get_layout_blocks( $layout_id ) ) ) {
 				$title = html_entity_decode( wp_strip_all_tags( get_the_title( $layout_id ) ), ENT_QUOTES, 'UTF-8' );
 				$title = '' === $title ? __( 'Untitled layout', 'newspack-rolling-coverage' ) : $title;
+			} elseif ( null !== Layout::get_built_in_slug( $layout_id ) ) {
+				$title = self::slug_title( Layout::get_built_in_slug( $layout_id ) );
 			}
 
 			self::$layout_titles[ $blog_id ][ $layout_id ] = $title;
@@ -1665,9 +1693,19 @@ class Placements {
 				$coverage_id = (int) ( $attrs['coverageId'] ?? 0 );
 
 				if ( ! $in_pattern && $coverage_id > 0 ) {
-					$layout_id = (int) ( $attrs['layoutId'] ?? 0 );
-					$layout    = $layout_id > 0 ? (string) $layout_id : ( empty( $block['innerBlocks'] ) ? '' : self::LAYOUT_DETACHED );
-					$tag       = implode( ':', [ self::TAG_FEED, $layout, Rolling_Coverage_Block::latest_count( $attrs ) ] );
+					$layout_id   = (int) ( $attrs['layoutId'] ?? 0 );
+					$layout_slug = (string) ( $attrs['layoutSlug'] ?? '' );
+					$layout      = '';
+
+					if ( $layout_id > 0 ) {
+						$layout = (string) $layout_id;
+					} elseif ( in_array( $layout_slug, Layout::BUILT_IN_SLUGS, true ) ) {
+						$layout = $layout_slug;
+					} elseif ( ! empty( $block['innerBlocks'] ) ) {
+						$layout = self::LAYOUT_DETACHED;
+					}
+
+					$tag = implode( ':', [ self::TAG_FEED, $layout, Rolling_Coverage_Block::latest_count( $attrs ) ] );
 					self::add_tags( $found['coverages'], $coverage_id, [ $tag ] );
 				}
 
