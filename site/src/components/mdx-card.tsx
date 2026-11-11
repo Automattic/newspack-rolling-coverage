@@ -22,7 +22,9 @@ export function Card( {
 	const card = (
 		<UiCard className="h-full transition-colors duration-(--newspack-ui-duration-color) group-hover:border-(color:--newspack-ui-color-border-hover)">
 			<CardHeader>
-				<CardTitle>{ title }</CardTitle>
+				<CardTitle>
+					<h3 className="m-0 [font:inherit] [letter-spacing:inherit]">{ title }</h3>
+				</CardTitle>
 				{ description && <CardDescription>{ description }</CardDescription> }
 			</CardHeader>
 			{ children && <CardContent className="type-small text-muted-foreground">{ children }</CardContent> }
