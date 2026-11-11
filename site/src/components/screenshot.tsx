@@ -19,7 +19,7 @@ export function Screenshot( {
 } ) {
 	if ( src ) {
 		return (
-			<figure className="not-prose my-6">
+			<figure className="not-prose my-(--newspack-ui-spacer-5)">
 				<img
 					src={ src }
 					alt={ label }
@@ -27,7 +27,7 @@ export function Screenshot( {
 					height={ height }
 					loading="lazy"
 					decoding="async"
-					className="h-auto w-full rounded-xl border border-fd-border"
+					className="h-auto w-full rounded-(--newspack-ui-radius-surface) border border-border"
 				/>
 			</figure>
 		);
@@ -37,7 +37,7 @@ export function Screenshot( {
 		<figure
 			role="img"
 			aria-label={ `Screenshot placeholder: ${ label }` }
-			className={ `not-prose my-6 flex w-full items-center justify-center rounded-xl border border-dashed border-fd-border bg-fd-muted p-6 text-center text-sm text-fd-muted-foreground ${ ASPECTS[ aspect ] }` }
+			className={ `not-prose my-(--newspack-ui-spacer-5) flex w-full items-center justify-center rounded-(--newspack-ui-radius-surface) border border-dashed border-border bg-(--newspack-ui-color-surface-subtle) p-(--newspack-ui-spacer-5) text-center type-small text-muted-foreground ${ ASPECTS[ aspect ] }` }
 		>
 			<span aria-hidden="true">Screenshot: { label }</span>
 		</figure>

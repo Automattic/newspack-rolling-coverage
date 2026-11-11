@@ -27,7 +27,7 @@ export function DrawerA11y() {
 			( el ) => el !== drawer && el !== overlay
 		);
 		const trigger = document.querySelector< HTMLElement >(
-			'#nd-subnav [aria-controls="nd-sidebar-mobile"]'
+			'header [aria-controls="nd-sidebar-mobile"]'
 		);
 		behind.forEach( ( el ) => el.setAttribute( 'inert', '' ) );
 		drawer

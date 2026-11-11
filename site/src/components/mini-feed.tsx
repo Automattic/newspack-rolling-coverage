@@ -10,7 +10,7 @@ const ENTRIES = [
 
 function Feed( { arrived }: { arrived: boolean } ) {
 	return (
-		<div className="w-full max-w-[16rem] rounded-xl border border-fd-border bg-fd-card text-sm">
+		<div className="w-full max-w-[16rem] rounded-(--newspack-ui-radius-surface) border border-border bg-card text-sm">
 			<div
 				className={ `grid transition-[grid-template-rows] duration-400 ease-out-strong motion-reduce:transition-none ${
 					arrived ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
@@ -18,27 +18,27 @@ function Feed( { arrived }: { arrived: boolean } ) {
 			>
 				<div className="overflow-hidden">
 					<div
-						className={ `flex gap-3 rounded-t-xl border-b border-fd-border px-3.5 py-3 transition-[opacity,translate] delay-[120ms] duration-300 ease-out-strong motion-reduce:transition-none ${
+						className={ `flex gap-3 rounded-t-(--newspack-ui-radius-surface) border-b border-border px-3.5 py-3 transition-[opacity,translate] delay-[120ms] duration-300 ease-out-strong motion-reduce:transition-none ${
 							arrived ? 'rc-arrived translate-y-0 opacity-100' : '-translate-y-1 opacity-0'
 						}` }
 					>
-						<span className="flex w-16 shrink-0 items-center gap-1.5 self-start text-xs font-medium whitespace-nowrap text-fd-primary tabular-nums">
-							<span aria-hidden="true" className="size-1.5 rounded-full bg-fd-primary" />
+						<span className="flex w-16 shrink-0 items-center gap-1.5 self-start text-xs font-medium whitespace-nowrap text-foreground tabular-nums">
+							<span aria-hidden="true" className="size-1.5 rounded-full bg-foreground" />
 							5:36 pm
 						</span>
-						<span className="font-medium text-fd-foreground">{ NEW_ENTRY }</span>
+						<span className="font-medium text-foreground">{ NEW_ENTRY }</span>
 					</div>
 				</div>
 			</div>
 			{ ENTRIES.map( ( entry, i ) => (
 				<div
 					key={ entry.time }
-					className={ `flex gap-3 px-3.5 py-3 ${ i < ENTRIES.length - 1 ? 'border-b border-fd-border' : '' }` }
+					className={ `flex gap-3 px-3.5 py-3 ${ i < ENTRIES.length - 1 ? 'border-b border-border' : '' }` }
 				>
-					<span className="w-16 shrink-0 text-xs whitespace-nowrap text-fd-muted-foreground tabular-nums">
+					<span className="w-16 shrink-0 text-xs whitespace-nowrap text-muted-foreground tabular-nums">
 						{ entry.time }
 					</span>
-					<span className="text-fd-foreground">{ entry.title }</span>
+					<span className="text-foreground">{ entry.title }</span>
 				</div>
 			) ) }
 		</div>

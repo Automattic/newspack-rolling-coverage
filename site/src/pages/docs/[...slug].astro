@@ -4,6 +4,7 @@ import defaultMdxComponents from 'fumadocs-ui/mdx';
 import { Step, Steps } from 'fumadocs-ui/components/steps';
 import type { TOCItemType } from 'fumadocs-core/toc';
 import { Callout } from '@/components/callout';
+import { Card, Cards } from '@/components/mdx-card';
 import { Docs, SITE_TITLE } from '@/components/docs';
 import { headingComponents } from '@/components/heading';
 import { Screenshot } from '@/components/screenshot';
@@ -31,7 +32,7 @@ const toc: TOCItemType[] = headings.map( ( heading ) => ( {
 } ) );
 ---
 
-<Layout title={ `${ page.data.title } | ${ SITE_TITLE }` } description={ page.data.description }>
+<Layout title={ `${ page.data.title } | ${ SITE_TITLE }` } description={ page.data.description } skipTo="#nd-page">
 	<Docs
 		tree={ source.getPageTree() }
 		pathname={ Astro.url.pathname }
@@ -39,10 +40,10 @@ const toc: TOCItemType[] = headings.map( ( heading ) => ( {
 		page={ { toc } }
 		client:load
 	>
-		<h1 class="font-semibold text-3xl">{ page.data.title }</h1>
-		<p class="text-lg text-fd-muted-foreground mb-8">{ page.data.description }</p>
-		<div class="prose flex-1">
-			<Content components={ { ...defaultMdxComponents, ...headingComponents, Callout, Screenshot, Step, Steps } } />
+		<h1 class="docs-title">{ page.data.title }</h1>
+		<p class="docs-lead">{ page.data.description }</p>
+		<div class="prose docs-prose flex-1">
+			<Content components={ { ...defaultMdxComponents, ...headingComponents, Callout, Card, Cards, Screenshot, Step, Steps } } />
 		</div>
 	</Docs>
 </Layout>

@@ -4,7 +4,7 @@ const WORDS = [ 'story', 'flood', 'trial', 'vote', 'game' ];
 const STEP_MS = 2500;
 
 const wordClassName =
-	'inline-grid min-w-[2.65em] justify-items-start text-newspack-600 dark:text-newspack-300';
+	'inline-grid min-w-[2.65em] justify-items-start text-brand';
 
 /**
  * The homepage headline, whose last word cycles through a few kinds of story while the
