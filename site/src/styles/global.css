@@ -899,6 +899,34 @@ html:not([data-astro-transition]) body {
 	}
 }
 
+#nd-sidebar-mobile {
+	--animate-fd-sidebar-in: fd-sidebar-in var(--newspack-ui-duration-sheet) var(--newspack-ui-ease-drawer);
+	--animate-fd-sidebar-out: fd-sidebar-out var(--newspack-ui-duration-sheet) var(--newspack-ui-ease-drawer);
+	z-index: 50;
+	inline-size: min(var(--newspack-ui-width-s), calc(100vw - var(--newspack-ui-spacer-6)));
+	max-inline-size: none;
+	border-color: var(--newspack-ui-color-border);
+	border-start-start-radius: var(--newspack-ui-radius-sheet);
+	border-end-start-radius: var(--newspack-ui-radius-sheet);
+	background: var(--newspack-ui-color-surface);
+	box-shadow: var(--nui-elevation-4);
+}
+
+:has(+ #nd-sidebar-mobile)[data-state] {
+	--animate-fd-fade-in: fd-fade-in var(--newspack-ui-duration-sheet) var(--newspack-ui-ease-drawer);
+	--animate-fd-fade-out: fd-fade-out var(--newspack-ui-duration-sheet) var(--newspack-ui-ease-drawer);
+	z-index: 50;
+	background: var(--newspack-ui-color-overlay-50);
+	backdrop-filter: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	#nd-sidebar-mobile {
+		--animate-fd-sidebar-in: fd-fade-in var(--newspack-ui-duration-sheet) var(--newspack-ui-ease-drawer);
+		--animate-fd-sidebar-out: fd-fade-out var(--newspack-ui-duration-sheet) var(--newspack-ui-ease-drawer);
+	}
+}
+
 #nd-sidebar [class*='rounded-[inherit]'] {
 	padding-inline-start: 0;
 }

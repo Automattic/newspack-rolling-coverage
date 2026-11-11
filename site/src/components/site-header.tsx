@@ -1,11 +1,14 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { Menu, Search } from 'lucide-react';
 import { useSearchContext } from 'fumadocs-ui/contexts/search';
 import { useSidebar } from 'fumadocs-ui/layouts/notebook/slots/sidebar';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { useMobileMenu } from '@/lib/theme';
 import { cn } from '@/lib/utils';
 import { LiveIcon } from './live-icon';
+import { MenuSearchField } from './menu-search';
 import { ThemeToggle } from './theme-toggle';
 
 export const SITE_TITLE = 'Rolling Coverage';
@@ -55,11 +58,11 @@ function SearchButton() {
 			variant="outline"
 			size="sm"
 			aria-label="Search the docs"
-			className="w-(--newspack-ui-spacer-7) p-0 [&_svg]:size-(--newspack-ui-spacer-3) md:w-auto md:px-[calc(var(--newspack-ui-spacer-1)*1.75)]"
+			className="px-[calc(var(--newspack-ui-spacer-1)*1.75)] max-md:hidden [&_svg]:size-(--newspack-ui-spacer-3)"
 			onClick={ () => setOpenSearch( true ) }
 		>
 			<Search aria-hidden="true" />
-			<span className="max-md:hidden">Search</span>
+			Search
 		</Button>
 	);
 }
@@ -92,45 +95,63 @@ function DocsMenuButton() {
 
 function SiteMenuButton( { pathname }: { pathname: string } ) {
 	const [ open, setOpen ] = useState( false );
+	const mobile = useMobileMenu();
+	const trigger = useRef< HTMLButtonElement >( null );
+	const searching = useRef( false );
+
+	useEffect( () => {
+		if ( ! mobile ) {
+			setOpen( false );
+		}
+	}, [ mobile ] );
+
+	const leaveForSearch = () => {
+		searching.current = true;
+		flushSync( () => setOpen( false ) );
+		trigger.current?.focus();
+	};
+
 	return (
-		<Dialog open={ open } onOpenChange={ setOpen }>
-			<DialogTrigger asChild>
-				<Button type="button" variant="ghost" size="icon-sm" className="md:hidden [&_svg]:size-(--newspack-ui-spacer-4)">
+		<Sheet open={ open } onOpenChange={ setOpen }>
+			<SheetTrigger asChild>
+				<Button ref={ trigger } type="button" variant="ghost" size="icon-sm" className="md:hidden [&_svg]:size-(--newspack-ui-spacer-4)">
 					<MenuIcon />
 				</Button>
-			</DialogTrigger>
-			<DialogContent
+			</SheetTrigger>
+			<SheetContent
 				aria-describedby={ undefined }
 				onOpenAutoFocus={ ( event ) => {
-					event.preventDefault();
-					event.currentTarget.querySelector< HTMLElement >( 'nav a' )?.focus();
+					const close = event.currentTarget instanceof HTMLElement ? event.currentTarget.querySelector( 'button' ) : null;
+					if ( close ) {
+						event.preventDefault();
+						close.focus();
+					}
+				} }
+				onCloseAutoFocus={ ( event ) => {
+					if ( searching.current ) {
+						searching.current = false;
+						event.preventDefault();
+					}
 				} }
 			>
-				<DialogHeader>
-					<DialogTitle>{ SITE_TITLE }</DialogTitle>
-				</DialogHeader>
-				<nav aria-label="Main" className="px-(--newspack-ui-spacer-3) pt-(--newspack-ui-spacer-2)">
+				<SheetHeader>
+					<SheetTitle>{ SITE_TITLE }</SheetTitle>
+				</SheetHeader>
+				<MenuSearchField onLeave={ leaveForSearch } className="mx-(--newspack-ui-spacer-5) mb-(--newspack-ui-spacer-3)" />
+				<nav aria-label="Main" className="px-(--newspack-ui-spacer-3)">
 					<NavList
 						pathname={ pathname }
 						className="flex-col"
 						linkClassName="flex min-h-(--newspack-ui-spacer-8) text-(length:--newspack-ui-font-size-body)"
 					/>
 				</nav>
-				<MenuFooter className="mx-(--newspack-ui-spacer-5) mt-(--newspack-ui-spacer-3)" />
-			</DialogContent>
-		</Dialog>
-	);
-}
-
-export function MenuFooter( { className }: { className?: string } ) {
-	return (
-		<div className={ cn( 'flex items-center justify-end gap-(--newspack-ui-spacer-2) border-t border-border pt-(--newspack-ui-spacer-3)', className ) }>
-			<ThemeToggle />
-		</div>
+			</SheetContent>
+		</Sheet>
 	);
 }
 
 export function SiteHeader( { pathname, docs = false }: { pathname: string; docs?: boolean } ) {
+	const mobile = useMobileMenu();
 	return (
 		<header
 			className={ cn(
@@ -151,7 +172,7 @@ export function SiteHeader( { pathname, docs = false }: { pathname: string; docs
 						<NavList pathname={ pathname } className="gap-(--newspack-ui-spacer-half)" />
 					</nav>
 					<SearchButton />
-					<ThemeToggle className="max-md:hidden" />
+					{ ! mobile && <ThemeToggle className="max-md:hidden" /> }
 					{ docs ? <DocsMenuButton /> : <SiteMenuButton pathname={ pathname } /> }
 				</div>
 			</div>
