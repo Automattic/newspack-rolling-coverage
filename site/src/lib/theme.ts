@@ -2,7 +2,7 @@ import { useSyncExternalStore } from 'react';
 
 export type Theme = 'light' | 'dark';
 
-export const MOBILE_MENU_QUERY = '(max-width: 767px)';
+export const MOBILE_MENU_QUERY = '(width < 48rem)';
 
 /**
  * The `dark` class on `html` is the one record of the theme. A stored choice

@@ -3,14 +3,13 @@ import { DocsPage, type DocsPageProps } from 'fumadocs-ui/layouts/notebook/page'
 import { useSidebar } from 'fumadocs-ui/layouts/notebook/slots/sidebar';
 import type { Root } from 'fumadocs-core/page-tree';
 import type { ComponentProps, CSSProperties, ReactNode } from 'react';
-import { flushSync } from 'react-dom';
 import { navigate } from 'astro:transitions/client';
 import { RootProvider } from 'fumadocs-ui/provider/astro';
 import type { AstroProviderProps } from 'fumadocs-core/framework/astro';
 import { cn } from '@/lib/utils';
 import SearchDialog from './search';
 import { DrawerA11y } from './drawer-a11y';
-import { MenuSearchField } from './menu-search';
+import { DrawerSearch } from './drawer-search';
 import { NAV_LINKS, SiteHeader } from './site-header';
 
 export { SITE_TITLE } from './site-header';
@@ -18,12 +17,12 @@ export { SITE_TITLE } from './site-header';
 export const ROOT_THEME = { enabled: false } as const;
 
 function SidebarBanner( { className, children, ...props }: ComponentProps< 'div' > ) {
-	const { mode, setOpen } = useSidebar();
+	const { mode, open, setOpen } = useSidebar();
 	return (
 		<div { ...props } className={ cn( 'flex flex-col gap-3 p-4 pb-2 empty:hidden', className ) }>
 			{ children }
 			{ mode === 'drawer' && (
-				<MenuSearchField onLeave={ () => flushSync( () => setOpen( false ) ) } />
+				<DrawerSearch open={ open } onNavigate={ () => setOpen( false ) } />
 			) }
 		</div>
 	);

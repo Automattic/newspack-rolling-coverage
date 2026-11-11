@@ -1,19 +1,10 @@
-import { useEffect, useLayoutEffect, useRef, useSyncExternalStore } from 'react';
+import { useLayoutEffect, useRef, useSyncExternalStore } from 'react';
 import { SearchDialog, SearchDialogList, useSearch, type SharedProps } from 'fumadocs-ui/components/dialog/search';
 import { useStaticSearch } from 'fumadocs-core/search/client';
 import { Button } from '@/components/ui/button';
 import { DialogClose, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { CloseIcon } from '@/lib/newspack-ui-icons';
-
-let applyQuery: ( ( query: string ) => void ) | null = null;
-
-/**
- * Sets the search dialog's query from outside it, such as the drawer's search field.
- */
-export function setSearchQuery( query: string ) {
-	applyQuery?.( query );
-}
 
 function SearchField() {
 	const { search, onSearchChange, getActive, subscribeActive } = useSearch();
@@ -61,16 +52,6 @@ function SearchEmpty() {
 export default function DocsSearchDialog( props: SharedProps ) {
 	const search = useStaticSearch();
 	const returnFocus = useRef< HTMLElement | null >( null );
-	const { onSearchChange } = search;
-
-	useEffect( () => {
-		applyQuery = onSearchChange;
-		return () => {
-			if ( applyQuery === onSearchChange ) {
-				applyQuery = null;
-			}
-		};
-	}, [ onSearchChange ] );
 
 	useLayoutEffect( () => {
 		if ( props.open ) {

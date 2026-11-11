@@ -912,6 +912,24 @@ html:not([data-astro-transition]) body {
 	box-shadow: var(--nui-elevation-4);
 }
 
+#nd-sidebar-mobile:has([data-drawer-search][data-querying]) > :not(:has([data-drawer-search])) {
+	display: none;
+}
+
+#nd-sidebar-mobile > :has(> [data-drawer-search][data-querying]) {
+	flex: 1;
+	min-block-size: 0;
+}
+
+[data-slot='sheet-content']:has([data-drawer-search][data-querying]) .site-menu {
+	display: none;
+}
+
+[data-slot='sheet-content'] > :has(> [data-drawer-search][data-querying]) {
+	flex: 1;
+	min-block-size: 0;
+}
+
 :has(+ #nd-sidebar-mobile)[data-state] {
 	--animate-fd-fade-in: fd-fade-in var(--newspack-ui-duration-sheet) var(--newspack-ui-ease-drawer);
 	--animate-fd-fade-out: fd-fade-out var(--newspack-ui-duration-sheet) var(--newspack-ui-ease-drawer);
