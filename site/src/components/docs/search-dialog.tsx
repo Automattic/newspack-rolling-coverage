@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { DialogClose, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { CloseIcon } from '@/lib/newspack-ui-icons';
+import { SEARCH_INDEX } from '@/lib/site';
 
 function SearchField() {
 	const { search, onSearchChange, getActive, subscribeActive } = useSearch();
@@ -40,17 +41,14 @@ function SearchField() {
 function SearchEmpty() {
 	const { error } = useSearch();
 	return (
-		<div
-			role="status"
-			className="px-(--newspack-ui-spacer-5) py-(--newspack-ui-spacer-8) text-center text-(length:--newspack-ui-font-size-small) leading-(--newspack-ui-line-height-small) text-muted-foreground"
-		>
-			{ error ? "Search couldn't load. Reload the page and try again." : 'No pages match. Try another word, such as Slack or layout.' }
+		<div role="status" className="px-(--newspack-ui-spacer-5) py-(--newspack-ui-spacer-8) text-center text-(length:--newspack-ui-font-size-small) leading-(--newspack-ui-line-height-small) text-(color:--newspack-ui-color-text-muted)">
+			{ error ? "Search couldn't load. Reload the page and try again." : 'No pages match. Try another word.' }
 		</div>
 	);
 }
 
 export default function DocsSearchDialog( props: SharedProps ) {
-	const search = useStaticSearch();
+	const search = useStaticSearch( { from: SEARCH_INDEX } );
 	const returnFocus = useRef< HTMLElement | null >( null );
 
 	useLayoutEffect( () => {

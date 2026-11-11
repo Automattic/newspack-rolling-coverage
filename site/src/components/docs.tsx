@@ -1,39 +1,19 @@
-import { DocsLayout } from 'fumadocs-ui/layouts/notebook';
-import { DocsPage, type DocsPageProps } from 'fumadocs-ui/layouts/notebook/page';
-import { useSidebar } from 'fumadocs-ui/layouts/notebook/slots/sidebar';
-import type { Root } from 'fumadocs-core/page-tree';
-import type { ComponentProps, CSSProperties, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { navigate } from 'astro:transitions/client';
-import { RootProvider } from 'fumadocs-ui/provider/astro';
+import type { Root } from 'fumadocs-core/page-tree';
 import type { AstroProviderProps } from 'fumadocs-core/framework/astro';
-import { cn } from '@/lib/utils';
-import SearchDialog from './search';
-import { DrawerA11y } from './drawer-a11y';
-import { DrawerSearch } from './drawer-search';
-import { DRAWER_SIDEBAR_SLOT, DrawerClose } from './drawer-sidebar';
-import { PAGE_SLOTS } from './page-chrome';
-import { SiteHeader } from './site-header';
-
-export { SITE_TITLE } from '@/lib/site';
+import type { DocsPageProps } from 'fumadocs-ui/layouts/notebook/page';
+import { RootProvider } from 'fumadocs-ui/provider/astro';
+import { DocsShell } from '@/components/docs/docs-shell';
+import SearchDialog from '@/components/docs/search-dialog';
+import { Wordmark } from './brand';
 
 export const ROOT_THEME = { enabled: false } as const;
 
-function SidebarBanner( { className, children, ...props }: ComponentProps< 'div' > ) {
-	const { mode, open, setOpen } = useSidebar();
-	return (
-		<div { ...props } className={ cn( 'flex flex-col gap-3 p-4 pb-2 empty:hidden', className ) }>
-			{ mode === 'drawer' ? (
-				<>
-					<DrawerClose />
-					<DrawerSearch open={ open } onNavigate={ () => setOpen( false ) } />
-				</>
-			) : (
-				children
-			) }
-		</div>
-	);
-}
-
+/**
+ * The docs page island. It renders the kit's `DocsShell` in a provider that passes Astro's
+ * `navigate`, so search results open through the client router like every other link.
+ */
 export function Docs( {
 	tree,
 	children,
@@ -55,17 +35,9 @@ export function Docs( {
 			theme={ ROOT_THEME }
 			search={ { SearchDialog } }
 		>
-			<DocsLayout
-				tree={ tree }
-				themeSwitch={ { enabled: false } }
-				slots={ { sidebar: DRAWER_SIDEBAR_SLOT } }
-				nav={ { component: <SiteHeader docs pathname={ pathname } />, mode: 'top' } }
-				sidebar={ { collapsible: false, 'aria-label': 'Site navigation', banner: SidebarBanner } }
-				containerProps={ { style: { '--fd-header-height': 'var(--site-header-height)' } as CSSProperties } }
-			>
-				<DrawerA11y />
-				<DocsPage { ...page } slots={ PAGE_SLOTS }>{ children }</DocsPage>
-			</DocsLayout>
+			<DocsShell tree={ tree } pathname={ pathname } page={ page } wordmark={ <Wordmark /> }>
+				{ children }
+			</DocsShell>
 		</RootProvider>
 	);
 }

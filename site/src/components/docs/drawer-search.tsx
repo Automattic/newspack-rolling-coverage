@@ -5,6 +5,7 @@ import { useHighlightQuery, useStaticSearch, type SearchResultRecord, type Searc
 import { toJsxRuntime, type Components, type Options } from 'hast-util-to-jsx-runtime';
 import { Input } from '@/components/ui/input';
 import { CloseIcon } from '@/lib/newspack-ui-icons';
+import { SEARCH_INDEX } from '@/lib/site';
 import { cn } from '@/lib/utils';
 
 type Result = { record: SearchResultRecord; table?: SearchResultTable };
@@ -64,9 +65,9 @@ function ResultLink( { result, query, onNavigate }: { result: Result; query: str
 						nested
 							? cn(
 									'line-clamp-2 border-s border-(--newspack-ui-color-border) ps-(--newspack-ui-spacer-3) text-(length:--newspack-ui-font-size-small) leading-(--newspack-ui-line-height-small)',
-									record.type === 'heading' ? 'font-(--newspack-ui-font-weight-medium)' : 'text-(color:--newspack-ui-color-text-muted)'
+									record.type === 'heading' ? 'font-(weight:--newspack-ui-font-weight-medium)' : 'text-(color:--newspack-ui-color-text-muted)'
 							  )
-							: 'font-(--newspack-ui-font-weight-medium)'
+							: 'font-(weight:--newspack-ui-font-weight-medium)'
 					}
 				>
 					{ content }
@@ -84,7 +85,7 @@ function ResultLink( { result, query, onNavigate }: { result: Result; query: str
 export function DrawerSearch( {
 	onNavigate,
 	open = true,
-	from,
+	from = SEARCH_INDEX,
 	className,
 }: {
 	onNavigate: () => void;
@@ -203,7 +204,7 @@ export function DrawerSearch( {
 					<button
 						type="button"
 						aria-label="Clear search"
-						className="absolute end-(--newspack-ui-spacer-1) top-1/2 inline-flex -translate-y-1/2 items-center justify-center rounded-md p-1.5 text-(color:--newspack-ui-color-text-muted) transition-colors duration-100 hover:bg-fd-accent hover:text-fd-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fd-ring [&_svg]:size-4.5"
+						className="absolute end-(--newspack-ui-spacer-1) top-1/2 inline-flex -translate-y-1/2 items-center justify-center rounded-md p-1.5 text-(color:--newspack-ui-color-text-muted) transition-colors duration-100 hover:bg-(color:--newspack-ui-color-neutral-fill) hover:text-(color:--newspack-ui-color-text) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(color:--newspack-ui-color-focus) [&_svg]:size-4.5"
 						onClick={ () => {
 							onSearchChange( '' );
 							field.current?.focus();

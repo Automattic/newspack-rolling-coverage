@@ -21,16 +21,7 @@ import {
 } from 'fumadocs-ui/layouts/notebook/slots/sidebar';
 import { cn } from '@/lib/utils';
 import { CloseIcon } from '@/lib/newspack-ui-icons';
-import {
-	DRAWER_CLOSE,
-	DRAWER_ITEM,
-	DRAWER_ITEM_BASE,
-	DRAWER_ITEM_HIGHLIGHT,
-	DRAWER_ITEM_HOVER,
-	FolderChevron,
-	drawerOffset,
-	drawerTree,
-} from './drawer-nav';
+import { DRAWER_CLOSE, DRAWER_ITEM, DRAWER_ITEM_BASE, DRAWER_ITEM_HOVER, DRAWER_LINKS, FolderChevron, drawerOffset } from '@/components/site/drawer-nav';
 
 function normalize( url: string ) {
 	return url.length > 1 && url.endsWith( '/' ) ? url.slice( 0, -1 ) : url;
@@ -61,7 +52,7 @@ function DrawerFolderHead( { item }: { item: PageTree.Folder } ) {
 				href={ item.index.url }
 				external={ item.index.external }
 				data-active={ active }
-				className={ cn( DRAWER_ITEM, depth > 1 && DRAWER_ITEM_HIGHLIGHT, 'w-full' ) }
+				className={ cn( DRAWER_ITEM, 'w-full' ) }
 				style={ style }
 				onClick={ ( event ) => {
 					if ( ! collapsible ) {
@@ -106,7 +97,7 @@ function DrawerFolderBody( { children }: { children: ReactNode } ) {
 		<SidebarFolderContent
 			className={ cn(
 				'relative',
-				depth === 1 && "before:content-[''] before:absolute before:w-px before:inset-y-1 before:bg-fd-border before:inset-s-2.5"
+				depth === 1 && "before:content-[''] before:absolute before:w-px before:inset-y-1 before:bg-(--newspack-ui-color-border) before:inset-s-2.5"
 			) }
 		>
 			<div className="flex flex-col gap-0.5 pt-0.5">{ children }</div>
@@ -127,9 +118,26 @@ function DrawerFolder( { item, children }: { item: PageTree.Folder; children: Re
 const DRAWER_COMPONENTS = { Folder: DrawerFolder, Separator: DrawerSeparator };
 
 /**
- * The notebook sidebar. Both modes render folders with the WordPress chevron in place of
- * Fumadocs' lucide one. In drawer mode it renders the site links with the docs tree nested
- * under Docs, from `drawerTree()`.
+ * The page tree the docs drawer renders: the site links at the top level, with the docs tree
+ * nested as an open folder under the link marked `drawer: 'tree'`.
+ */
+export function drawerTree( root: PageTree.Root ): PageTree.Root {
+	return {
+		...root,
+		$id: `drawer:${ root.$id ?? 'root' }`,
+		fallback: undefined,
+		children: DRAWER_LINKS.map( ( link ): PageTree.Node =>
+			link.drawer === 'tree'
+				? { type: 'folder', $id: `drawer:${ link.href }`, name: link.text, defaultOpen: true, children: root.children }
+				: { type: 'page', $id: `drawer:${ link.href }`, name: link.text, url: link.href, external: link.external }
+		),
+	};
+}
+
+/**
+ * The notebook sidebar. Both modes render folders and separators with the components above, so
+ * no lucide chevron is drawn. In drawer mode it renders the site links with the docs tree nested
+ * under the `drawer: 'tree'` link, from `drawerTree()`.
  */
 function DocsSidebar( props: SidebarProps ) {
 	const { mode } = useSidebar();

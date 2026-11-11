@@ -1,13 +1,28 @@
-export const SITE_TITLE = 'Rolling Coverage';
-export const GITHUB_URL = 'https://github.com/Automattic/newspack-rolling-coverage';
+export type NavLink = {
+	href: string;
+	text: string;
+	section?: string;
+	drawer?: 'tree' | false;
+	external?: boolean;
+};
+
+export const SITE_NAME = 'Rolling Coverage';
+
+export const NAV_LINKS: NavLink[] = [
+	{ href: '/', text: 'Home', section: '/' },
+	{ href: '/docs/', text: 'Docs', section: '/docs/', drawer: 'tree' },
+	{ href: '/about/', text: 'About', section: '/about/' },
+	// `external: true` would make the docs drawer draw Fumadocs' lucide external-link icon.
+	{ href: 'https://github.com/Automattic/newspack-rolling-coverage', text: 'GitHub', external: false },
+];
+
+export const FOOTER_LINKS: NavLink[] = [];
 
 /**
- * Header links. In the mobile drawer, `drawer: 'tree'` holds the docs page tree as a folder,
- * and `drawer: false` leaves out a link that is already a section of that tree.
+ * Below this width the header shows the menu button and the site follows the system color
+ * scheme. Keep it equal to Tailwind's `md` breakpoint, which the header's classes use.
  */
-export const NAV_LINKS: { text: string; url: string; external?: boolean; drawer?: 'tree' | false }[] = [
-	{ text: 'Home', url: '/' },
-	{ text: 'Docs', url: '/docs/', drawer: 'tree' },
-	{ text: 'About', url: '/about/' },
-	{ text: 'GitHub', url: GITHUB_URL, external: true },
-];
+export const MOBILE_MENU_QUERY = '(width < 48rem)';
+
+/** The static search index the docs search reads. */
+export const SEARCH_INDEX = '/api/search';
