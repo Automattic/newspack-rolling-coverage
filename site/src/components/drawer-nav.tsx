@@ -51,7 +51,14 @@ export function drawerTree( root: PageTree.Root ): PageTree.Root {
 		fallback: undefined,
 		children: DRAWER_LINKS.map( ( link ): PageTree.Node =>
 			link.drawer === 'tree'
-				? { type: 'folder', $id: `drawer:${ link.url }`, name: link.text, defaultOpen: true, children: root.children }
+				? {
+						type: 'folder',
+						$id: `drawer:${ link.url }`,
+						name: link.text,
+						defaultOpen: true,
+						index: { type: 'page', $id: `drawer:${ link.url }:index`, name: link.text, url: link.url },
+						children: root.children,
+				  }
 				: {
 						type: 'page',
 						$id: `drawer:${ link.url }`,
