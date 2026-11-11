@@ -8,7 +8,7 @@ import { CloseIcon } from '@/lib/newspack-ui-icons';
 import { NAV_LINKS, SITE_TITLE } from '@/lib/site';
 import { useMobileMenu } from '@/lib/theme';
 import { cn } from '@/lib/utils';
-import { DRAWER_CLOSE, DRAWER_ITEM, DRAWER_LINKS, ExternalIcon, FolderChevron } from './drawer-nav';
+import { DRAWER_CLOSE, DRAWER_ITEM, DRAWER_LINKS, FolderChevron } from './drawer-nav';
 import { DrawerSearch } from './drawer-search';
 import { LiveIcon } from './live-icon';
 import { ThemeToggle } from './theme-toggle';
@@ -136,7 +136,6 @@ function SiteMenuButton( { pathname }: { pathname: string } ) {
 								data-active={ current }
 								aria-current={ current ? 'page' : undefined }
 							>
-								{ link.external && <ExternalIcon /> }
 								{ link.text }
 								{ link.drawer === 'tree' && <FolderChevron open={ false } /> }
 							</a>
