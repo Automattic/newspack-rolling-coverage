@@ -15,9 +15,10 @@ function topLevelBlocks( selector ) {
 }
 
 const light = topLevelBlocks( ':root' );
+const dark = { ...light, ...topLevelBlocks( '.dark' ) };
 const modes = {
-	light,
-	dark: { ...light, ...topLevelBlocks( '.dark' ) },
+	light: { page: light, sidebar: light },
+	dark: { page: dark, sidebar: { ...dark, ...topLevelBlocks( '.dark #nd-sidebar' ) } },
 };
 
 function hexToRgb( hex ) {
@@ -101,7 +102,9 @@ const PAIRS = [
 	[ 'muted text', '--newspack-ui-color-text-muted', surface, TEXT ],
 	[ 'placeholder text', '--newspack-ui-color-text-subtle', surface, TEXT ],
 	[ 'links and the active sidebar and TOC item', '--color-fd-primary', surface, TEXT ],
-	[ 'muted text on the sidebar and code surfaces', '--color-fd-muted-foreground', '--color-fd-muted', TEXT ],
+	[ 'muted text on the code surfaces', '--color-fd-muted-foreground', '--color-fd-muted', TEXT ],
+	[ 'muted text on the docs sidebar', '--color-fd-muted-foreground', '--color-fd-muted', TEXT, 'sidebar' ],
+	[ 'muted text on the docs sidebar hover', '--color-fd-muted-foreground', '--color-fd-secondary', TEXT, 'sidebar' ],
 	[ 'button text', '--newspack-ui-color-btn-ink', '--newspack-ui-color-btn', TEXT ],
 	[ 'brand button text', '--newspack-ui-color-btn-brand-on', '--newspack-ui-color-btn-brand', TEXT ],
 	[ 'brand outline button text', '--newspack-ui-color-btn-brand-text', surface, TEXT ],
@@ -120,8 +123,9 @@ const PAIRS = [
 
 const failures = [];
 
-for ( const [ mode, map ] of Object.entries( modes ) ) {
-	for ( const [ label, text, background, min ] of PAIRS ) {
+for ( const [ mode, maps ] of Object.entries( modes ) ) {
+	for ( const [ label, text, background, min, scope = 'page' ] of PAIRS ) {
+		const map = maps[ scope ];
 		const lc = apca( resolve( map[ text ] ?? `var(${ text })`, map ), resolve( map[ background ] ?? `var(${ background })`, map ) );
 		console.log( `${ mode }: ${ label } = Lc ${ lc.toFixed( 1 ) } (needs ${ min })` );
 		if ( lc < min ) {
