@@ -952,10 +952,6 @@ html:not([data-astro-transition]) body {
 	padding-inline-start: 0;
 }
 
-#nd-sidebar a[class~='lg:hidden'] {
-	display: none;
-}
-
 a.sr-only[href='#nd-page'] {
 	display: none;
 }

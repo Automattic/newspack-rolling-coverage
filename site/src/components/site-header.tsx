@@ -5,26 +5,16 @@ import { useSidebar } from 'fumadocs-ui/layouts/notebook/slots/sidebar';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { CloseIcon } from '@/lib/newspack-ui-icons';
+import { NAV_LINKS, SITE_TITLE } from '@/lib/site';
 import { useMobileMenu } from '@/lib/theme';
 import { cn } from '@/lib/utils';
+import { DRAWER_CLOSE, DRAWER_ITEM, DRAWER_LINKS, ExternalIcon, FolderChevron } from './drawer-nav';
 import { DrawerSearch } from './drawer-search';
 import { LiveIcon } from './live-icon';
 import { ThemeToggle } from './theme-toggle';
 
-export const SITE_TITLE = 'Rolling Coverage';
-export const GITHUB_URL = 'https://github.com/Automattic/newspack-rolling-coverage';
-export const NAV_LINKS = [
-	{ text: 'Home', url: '/' },
-	{ text: 'Docs', url: '/docs/' },
-	{ text: 'About', url: '/about/' },
-	{ text: 'GitHub', url: GITHUB_URL, external: true },
-];
-
 const navLinkClassName =
 	'inline-flex min-h-(--newspack-ui-spacer-7) items-center rounded-(--newspack-ui-radius-control) px-(--newspack-ui-spacer-1) text-(length:--newspack-ui-font-size-small) font-(weight:--newspack-ui-font-weight-medium) text-muted-foreground transition-colors duration-(--newspack-ui-duration-color) hover:bg-(--newspack-ui-color-neutral-fill) hover:text-foreground aria-[current=page]:text-foreground aria-[current=page]:underline aria-[current=page]:decoration-(--newspack-ui-color-accent) aria-[current=page]:decoration-2 aria-[current=page]:underline-offset-8';
-
-const MENU_ITEM = 'relative flex flex-row items-center gap-2 rounded-lg p-2 text-start text-fd-muted-foreground wrap-anywhere [&_svg]:size-4 [&_svg]:shrink-0 transition-colors hover:bg-fd-accent/50 hover:text-fd-accent-foreground/80 hover:transition-none data-[active=true]:bg-fd-primary/10 data-[active=true]:text-fd-primary data-[active=true]:hover:transition-colors';
-const MENU_CLOSE = 'inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors duration-100 disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fd-ring hover:bg-fd-accent hover:text-fd-accent-foreground p-1.5 [&_svg]:size-4.5 ms-auto text-fd-muted-foreground';
 
 function isCurrent( url: string, pathname: string ) {
 	if ( url.startsWith( 'http' ) ) {
@@ -128,25 +118,27 @@ function SiteMenuButton( { pathname }: { pathname: string } ) {
 				<SheetTitle className="sr-only">Menu</SheetTitle>
 				<SheetDescription className="sr-only">Site navigation</SheetDescription>
 				<div className="flex flex-col gap-3 p-4 pb-2">
-					<SheetClose className={ MENU_CLOSE }>
+					<SheetClose className={ DRAWER_CLOSE }>
 						<CloseIcon />
 						<span className="sr-only">Close</span>
 					</SheetClose>
 					<DrawerSearch onNavigate={ () => setOpen( false ) } />
 				</div>
 				<nav className="site-menu flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto overscroll-contain p-4" aria-label="Main">
-					{ NAV_LINKS.map( ( link ) => {
-						const current = isCurrent( link.url, pathname );
+					{ DRAWER_LINKS.map( ( link ) => {
+						const current = link.drawer !== 'tree' && isCurrent( link.url, pathname );
 						return (
 							<a
 								key={ link.url }
 								href={ link.url }
 								rel={ link.external ? 'noopener' : undefined }
-								className={ MENU_ITEM }
+								className={ link.drawer === 'tree' ? `${ DRAWER_ITEM } w-full` : DRAWER_ITEM }
 								data-active={ current }
 								aria-current={ current ? 'page' : undefined }
 							>
+								{ link.external && <ExternalIcon /> }
 								{ link.text }
+								{ link.drawer === 'tree' && <FolderChevron open={ false } /> }
 							</a>
 						);
 					} ) }

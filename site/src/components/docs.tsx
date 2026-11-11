@@ -10,9 +10,10 @@ import { cn } from '@/lib/utils';
 import SearchDialog from './search';
 import { DrawerA11y } from './drawer-a11y';
 import { DrawerSearch } from './drawer-search';
-import { NAV_LINKS, SiteHeader } from './site-header';
+import { DRAWER_SIDEBAR_SLOT, DrawerClose } from './drawer-sidebar';
+import { SiteHeader } from './site-header';
 
-export { SITE_TITLE } from './site-header';
+export { SITE_TITLE } from '@/lib/site';
 
 export const ROOT_THEME = { enabled: false } as const;
 
@@ -20,9 +21,13 @@ function SidebarBanner( { className, children, ...props }: ComponentProps< 'div'
 	const { mode, open, setOpen } = useSidebar();
 	return (
 		<div { ...props } className={ cn( 'flex flex-col gap-3 p-4 pb-2 empty:hidden', className ) }>
-			{ children }
-			{ mode === 'drawer' && (
-				<DrawerSearch open={ open } onNavigate={ () => setOpen( false ) } />
+			{ mode === 'drawer' ? (
+				<>
+					<DrawerClose />
+					<DrawerSearch open={ open } onNavigate={ () => setOpen( false ) } />
+				</>
+			) : (
+				children
 			) }
 		</div>
 	);
@@ -52,7 +57,7 @@ export function Docs( {
 			<DocsLayout
 				tree={ tree }
 				themeSwitch={ { enabled: false } }
-				links={ NAV_LINKS.map( ( link ) => ( { ...link, on: 'menu' as const } ) ) }
+				slots={ { sidebar: DRAWER_SIDEBAR_SLOT } }
 				nav={ { component: <SiteHeader docs pathname={ pathname } />, mode: 'top' } }
 				sidebar={ { collapsible: false, 'aria-label': 'Site navigation', banner: SidebarBanner } }
 				containerProps={ { style: { '--fd-header-height': 'var(--site-header-height)' } as CSSProperties } }
