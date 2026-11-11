@@ -5,7 +5,7 @@ import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/ca
 import { Headline } from './headline';
 import { MiniFeed } from './mini-feed';
 import { PARTNERS } from './partner-logos';
-import { SITE_TITLE } from '@/lib/site';
+import { SITE_NAME } from '@/lib/site';
 import { SiteLayout, type SitePageProps } from './site-layout';
 
 const HERO_TEXT =
@@ -166,7 +166,7 @@ export function Home( props: SitePageProps ) {
 						</span>
 						Beta
 					</Badge>
-					<span>{ SITE_TITLE } for WordPress</span>
+					<span>{ SITE_NAME } for WordPress</span>
 				</p>
 				<h1 id="home-title" className="mt-(--newspack-ui-spacer-3) max-w-[9.25em] type-display text-foreground">
 					<Headline />

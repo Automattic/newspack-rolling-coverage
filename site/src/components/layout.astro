@@ -2,15 +2,14 @@
 import { ClientRouter } from 'astro:transitions';
 import '@/styles/global.css';
 import interLatin from '@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url';
-import { MOBILE_MENU_QUERY } from '@/lib/theme';
+import ThemeScript from '@/components/site/theme-script.astro';
 
 interface Props {
 	title: string;
 	description: string;
-	skipTo?: string;
 }
 
-const { title, description, skipTo = '#main' } = Astro.props;
+const { title, description } = Astro.props;
 ---
 
 <html lang="en" suppressHydrationWarning>
@@ -22,42 +21,7 @@ const { title, description, skipTo = '#main' } = Astro.props;
 		<meta name="description" content={ description } />
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 		<link rel="preload" href={ interLatin } as="font" type="font/woff2" crossorigin />
-		<script is:inline define:vars={ { mobileMenuQuery: MOBILE_MENU_QUERY } }>
-			( function () {
-				const query = window.matchMedia( '(prefers-color-scheme: dark)' );
-				const mobile = window.matchMedia( mobileMenuQuery );
-				function stored() {
-					try {
-						const value = localStorage.getItem( 'theme' );
-						return value === 'dark' || value === 'light' ? value : null;
-					} catch {
-						return null;
-					}
-				}
-				function apply( root ) {
-					const target = root || document.documentElement;
-					const system = query.matches ? 'dark' : 'light';
-					const dark = ( mobile.matches ? system : stored() || system ) === 'dark';
-					target.classList.toggle( 'dark', dark );
-					target.style.colorScheme = dark ? 'dark' : 'light';
-				}
-				apply();
-				document.addEventListener( 'astro:before-swap', function ( event ) {
-					apply( event.newDocument.documentElement );
-				} );
-				query.addEventListener( 'change', function () {
-					apply();
-				} );
-				mobile.addEventListener( 'change', function () {
-					apply();
-				} );
-				window.addEventListener( 'storage', function ( event ) {
-					if ( event.key === 'theme' || event.key === null ) {
-						apply();
-					}
-				} );
-			} )();
-		</script>
+		<ThemeScript />
 		<script is:inline>
 			try {
 				if ( ! sessionStorage.getItem( 'rc-on-air' ) ) {
@@ -69,12 +33,11 @@ const { title, description, skipTo = '#main' } = Astro.props;
 		<ClientRouter />
 	</head>
 	<body
-		class="flex flex-col min-h-screen"
+		class="newspack-ui flex flex-col min-h-screen"
 		transition:persist
 		transition:animate="none"
 		transition:name="page-layout"
 	>
-		<a class="skip-link" href={ skipTo }>Skip to content</a>
 		<slot />
 	</body>
 </html>

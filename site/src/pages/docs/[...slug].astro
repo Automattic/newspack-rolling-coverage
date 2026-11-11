@@ -5,11 +5,12 @@ import { Step, Steps } from 'fumadocs-ui/components/steps';
 import type { TOCItemType } from 'fumadocs-core/toc';
 import { Callout } from '@/components/callout';
 import { Card, Cards } from '@/components/mdx-card';
-import { Docs, SITE_TITLE } from '@/components/docs';
-import { docsMdxComponents } from '@/components/mdx';
+import { Footer } from '@/components/brand';
+import { Docs } from '@/components/docs';
+import { docsMdxComponents } from '@/components/docs/mdx';
 import { Screenshot } from '@/components/screenshot';
-import { SiteFooter } from '@/components/site-footer';
 import Layout from '@/components/layout.astro';
+import { SITE_NAME } from '@/lib/site';
 import { source } from '@/lib/source';
 
 interface Props {
@@ -33,7 +34,7 @@ const toc: TOCItemType[] = headings.map( ( heading ) => ( {
 } ) );
 ---
 
-<Layout title={ `${ page.data.title } | ${ SITE_TITLE }` } description={ page.data.description } skipTo="#nd-page">
+<Layout title={ `${ page.data.title } | ${ SITE_NAME }` } description={ page.data.description }>
 	<Docs
 		tree={ source.getPageTree() }
 		pathname={ Astro.url.pathname }
@@ -47,9 +48,9 @@ const toc: TOCItemType[] = headings.map( ( heading ) => ( {
 			<Content components={ { ...defaultMdxComponents, ...docsMdxComponents, Callout, Card, Cards, Screenshot, Step, Steps } } />
 		</div>
 	</Docs>
-	<SiteFooter />
+	<Footer />
 </Layout>
 
 <script>
-	import '@/components/copy-buttons';
+	import '@/components/docs/copy-buttons';
 </script>

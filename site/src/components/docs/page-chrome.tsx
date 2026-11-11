@@ -1,3 +1,5 @@
+"use client"
+
 import { Fragment, createContext, use, useEffect, useEffectEvent, useMemo, useRef, useState, type ReactNode } from 'react';
 import Link from 'fumadocs-core/link';
 import { usePathname } from 'fumadocs-core/framework';
@@ -14,7 +16,7 @@ import { cn } from '@/lib/utils';
 /*
  * Copies of the notebook page slots (breadcrumb, footer, table of contents) that render
  * @wordpress/icons in place of Fumadocs' hard-coded lucide icons. Markup and classes otherwise
- * match fumadocs-ui 16.17.7; each WordPress icon is sized so its box takes the same space.
+ * match fumadocs-ui 16.17 and 16.18; each WordPress icon is sized so its box takes the same space.
  */
 
 function normalize( url: string ) {
@@ -64,7 +66,7 @@ function FooterItem( { item, index }: { item: FooterItemType; index: 0 | 1 } ) {
 				<Icon icon={ index === 0 ? chevronLeft : chevronRight } size={ 20 } className="-mx-1.5 shrink-0 fill-current rtl:rotate-180" />
 				<p>{ item.name }</p>
 			</div>
-			<p className="truncate text-fd-muted-foreground">{ item.description ?? ( index === 0 ? 'Previous Page' : 'Next Page' ) }</p>
+			<p className="truncate text-fd-muted-foreground">{ item.description ?? ( index === 0 ? 'Previous page' : 'Next page' ) }</p>
 		</Link>
 	);
 }

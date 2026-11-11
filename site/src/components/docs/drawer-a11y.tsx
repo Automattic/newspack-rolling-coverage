@@ -1,3 +1,5 @@
+"use client"
+
 import { useEffect } from 'react';
 import { useSidebar } from 'fumadocs-ui/layouts/notebook/slots/sidebar';
 
@@ -31,7 +33,7 @@ export function DrawerA11y() {
 			}
 		}
 		const trigger = document.querySelector< HTMLElement >(
-			'header [aria-controls="nd-sidebar-mobile"]'
+			'[aria-controls="nd-sidebar-mobile"]'
 		);
 		behind.forEach( ( el ) => el.setAttribute( 'inert', '' ) );
 		drawer
