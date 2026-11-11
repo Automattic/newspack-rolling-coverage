@@ -105,7 +105,7 @@ export function About( props: SitePageProps ) {
 					</Section>
 
 					<div className="mt-(--newspack-ui-spacer-9) flex flex-col gap-(--newspack-ui-spacer-1) sm:flex-row">
-						<Button asChild>
+						<Button asChild variant="brand">
 							<a href="/docs/getting-started/">Get started</a>
 						</Button>
 						<Button asChild variant="outline">

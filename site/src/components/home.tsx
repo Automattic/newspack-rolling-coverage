@@ -173,7 +173,7 @@ export function Home( props: SitePageProps ) {
 				</h1>
 				<p className="mt-(--newspack-ui-spacer-3) max-w-[58ch] type-lead text-muted-foreground">{ HERO_TEXT }</p>
 				<div className="mt-(--newspack-ui-spacer-5) flex flex-col gap-(--newspack-ui-spacer-1) sm:flex-row">
-					<Button asChild className="group">
+					<Button asChild variant="brand" className="group">
 						<a href="/docs/getting-started/">
 							Get started
 							<Arrow className="transition-transform duration-200 ease-out-strong group-hover:translate-x-0.5 motion-reduce:transition-none" />

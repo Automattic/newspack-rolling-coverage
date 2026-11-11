@@ -103,6 +103,8 @@ const PAIRS = [
 	[ 'links and the active sidebar and TOC item', '--color-fd-primary', surface, TEXT ],
 	[ 'muted text on the sidebar and code surfaces', '--color-fd-muted-foreground', '--color-fd-muted', TEXT ],
 	[ 'button text', '--newspack-ui-color-btn-ink', '--newspack-ui-color-btn', TEXT ],
+	[ 'brand button text', '--newspack-ui-color-btn-brand-on', '--newspack-ui-color-btn-brand', TEXT ],
+	[ 'brand outline button text', '--newspack-ui-color-btn-brand-text', surface, TEXT ],
 	[ 'badge text', '--newspack-ui-color-text', '--newspack-ui-color-neutral-fill', TEXT ],
 	[ 'brand headline word', '--rc-brand', surface, TEXT ],
 	[ 'callout text, info', '--newspack-ui-color-text', '--newspack-ui-color-surface-subtle', TEXT ],

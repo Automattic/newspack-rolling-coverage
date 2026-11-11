@@ -1,4 +1,4 @@
-import { useState, type ComponentProps } from 'react';
+import { useState } from 'react';
 import { Menu, Search } from 'lucide-react';
 import { useSearchContext } from 'fumadocs-ui/contexts/search';
 import { useSidebar } from 'fumadocs-ui/layouts/notebook/slots/sidebar';
@@ -11,14 +11,19 @@ import { ThemeToggle } from './theme-toggle';
 export const SITE_TITLE = 'Rolling Coverage';
 export const GITHUB_URL = 'https://github.com/Automattic/newspack-rolling-coverage';
 export const NAV_LINKS = [
+	{ text: 'Home', url: '/' },
 	{ text: 'Docs', url: '/docs/' },
 	{ text: 'About', url: '/about/' },
+	{ text: 'GitHub', url: GITHUB_URL, external: true },
 ];
 
 const navLinkClassName =
 	'inline-flex min-h-(--newspack-ui-spacer-7) items-center rounded-(--newspack-ui-radius-control) px-(--newspack-ui-spacer-1) text-(length:--newspack-ui-font-size-small) font-(weight:--newspack-ui-font-weight-medium) text-muted-foreground transition-colors duration-(--newspack-ui-duration-color) hover:bg-(--newspack-ui-color-neutral-fill) hover:text-foreground aria-[current=page]:text-foreground aria-[current=page]:underline aria-[current=page]:decoration-(--newspack-ui-color-accent) aria-[current=page]:decoration-2 aria-[current=page]:underline-offset-8';
 
 function isCurrent( url: string, pathname: string ) {
+	if ( url.startsWith( 'http' ) ) {
+		return false;
+	}
 	const path = pathname.replace( /\/?$/, '/' );
 	return url === '/docs/' ? path.startsWith( url ) : path === url;
 }
@@ -30,6 +35,7 @@ function NavList( { pathname, className, linkClassName }: { pathname: string; cl
 				<li key={ link.url }>
 					<a
 						href={ link.url }
+						rel={ link.external ? 'noopener' : undefined }
 						aria-current={ isCurrent( link.url, pathname ) ? 'page' : undefined }
 						className={ cn( navLinkClassName, linkClassName ) }
 					>
@@ -38,24 +44,6 @@ function NavList( { pathname, className, linkClassName }: { pathname: string; cl
 				</li>
 			) ) }
 		</ul>
-	);
-}
-
-export function GitHubIcon( props: ComponentProps< 'svg' > ) {
-	return (
-		<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" { ...props }>
-			<path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" />
-		</svg>
-	);
-}
-
-export function GitHubLink( { className }: { className?: string } ) {
-	return (
-		<Button asChild variant="ghost" size="icon-sm" className={ cn( '[&_svg]:size-(--newspack-ui-spacer-3)', className ) }>
-			<a href={ GITHUB_URL } aria-label="GitHub">
-				<GitHubIcon />
-			</a>
-		</Button>
 	);
 }
 
@@ -130,8 +118,7 @@ function SiteMenuButton( { pathname }: { pathname: string } ) {
 
 export function MenuFooter( { className }: { className?: string } ) {
 	return (
-		<div className={ cn( 'flex items-center justify-between gap-(--newspack-ui-spacer-2) border-t border-border pt-(--newspack-ui-spacer-3)', className ) }>
-			<GitHubLink className="-ms-(--newspack-ui-spacer-1)" />
+		<div className={ cn( 'flex items-center justify-end gap-(--newspack-ui-spacer-2) border-t border-border pt-(--newspack-ui-spacer-3)', className ) }>
 			<ThemeToggle />
 		</div>
 	);
@@ -158,7 +145,6 @@ export function SiteHeader( { pathname, docs = false }: { pathname: string; docs
 						<NavList pathname={ pathname } className="gap-(--newspack-ui-spacer-half)" />
 					</nav>
 					<SearchButton />
-					<GitHubLink className="max-md:hidden" />
 					<ThemeToggle className="max-md:hidden" />
 					{ docs ? <DocsMenuButton /> : <SiteMenuButton pathname={ pathname } /> }
 				</div>

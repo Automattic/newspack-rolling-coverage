@@ -23,6 +23,10 @@ const buttonVariants = cva(
       variant: {
         default:
           "[--btn-bg:var(--newspack-ui-color-btn)] [--btn-bg-hover:var(--newspack-ui-color-btn-hover)] [--btn-bg-pressed:var(--newspack-ui-color-btn-pressed)] [--btn-ink:var(--newspack-ui-color-btn-ink)] [--btn-focus:var(--newspack-ui-color-focus-on-brand)] hover:text-(color:--newspack-ui-color-button-text-hover)",
+        brand:
+          "[--btn-bg:var(--newspack-ui-color-btn-brand)] [--btn-bg-hover:var(--newspack-ui-color-btn-brand-hover)] [--btn-bg-pressed:var(--newspack-ui-color-btn-brand-pressed)] [--btn-ink:var(--newspack-ui-color-btn-brand-on)] [--btn-focus:var(--newspack-ui-color-btn-brand-on)]",
+        "brand-outline":
+          "[--btn-bg:var(--newspack-ui-color-surface)] [--btn-bg-hover:var(--newspack-ui-color-neutral-fill)] [--btn-bg-pressed:var(--newspack-ui-color-neutral-fill-hover)] [--btn-ink:var(--newspack-ui-color-btn-brand-text)] [--btn-border:var(--newspack-ui-color-btn-brand)] [--btn-focus:var(--newspack-ui-color-btn-brand-text)]",
         secondary:
           "[--btn-bg:var(--newspack-ui-color-neutral-fill)] [--btn-bg-hover:var(--newspack-ui-color-neutral-fill-hover)] [--btn-bg-pressed:var(--newspack-ui-color-neutral-fill-pressed)] [--btn-ink:var(--newspack-ui-color-text)]",
         outline:
