@@ -99,7 +99,13 @@ function SiteMenuButton( { pathname }: { pathname: string } ) {
 					<MenuIcon />
 				</Button>
 			</DialogTrigger>
-			<DialogContent aria-describedby={ undefined }>
+			<DialogContent
+				aria-describedby={ undefined }
+				onOpenAutoFocus={ ( event ) => {
+					event.preventDefault();
+					event.currentTarget.querySelector< HTMLElement >( 'nav a' )?.focus();
+				} }
+			>
 				<DialogHeader>
 					<DialogTitle>{ SITE_TITLE }</DialogTitle>
 				</DialogHeader>
