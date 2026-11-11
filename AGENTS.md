@@ -78,6 +78,7 @@ npm run shot -- <section>/<name>-<n> --site <url>   # Retakes a screenshot
   - Technical words (hooks, REST API, attributes, meta) belong only in `site/content/docs/developers/`, which explains what each thing is for before how to use it.
   - Quote UI labels exactly as they appear on screen, checked against the plugin source.
   - Every step that changes what's on screen gets a `<Screenshot label="..." />` naming the screen and what's highlighted.
+- **Reading text:** newspack-ui's scale is for reader UI and short headings; the site sets long text itself. Leads (`type-lead`, `.docs-lead`) are 20px at the body line height (1.5); docs and About body text is 16px at `--rc-line-height-prose` (1.65). Don't change newspack-ui's own tokens for this.
 - **Screenshots** live in `site/public/screenshots/<section>/<page>-<n>.webp` and all show the same demo site.
   - A change to a screen publishers see retakes the screenshots that show it, with the seed and capture command in `site/screenshots/`. [`site/screenshots/README.md`](site/screenshots/README.md) has the steps.
   - House settings, for checking a pull request's images: 3024×1964 WebP (a 1512×982 viewport at 2x), light mode, viewport only, the Newspack Block Theme with the seeded demo content, signed in as the seeded "James Smith" administrator, and at most one spotlight. `npm test` checks that every screenshot the docs pages use is a WebP of that size.

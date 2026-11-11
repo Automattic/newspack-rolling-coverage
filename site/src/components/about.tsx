@@ -15,7 +15,7 @@ function Section( { id, title, children }: { id: string; title: string; children
 			<h2 id={ id } className="type-section text-foreground">
 				{ title }
 			</h2>
-			<div className="mt-(--newspack-ui-spacer-2) space-y-(--newspack-ui-spacer-2) text-pretty text-muted-foreground md:type-lead">
+			<div className="mt-(--newspack-ui-spacer-2) space-y-(--newspack-ui-spacer-2) type-prose text-muted-foreground md:type-lead">
 				{ children }
 			</div>
 		</section>

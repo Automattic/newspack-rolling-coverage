@@ -616,6 +616,7 @@
 	--site-header-height: var(--newspack-ui-spacer-10);
 	--site-wide-width: calc(var(--newspack-ui-width-l) + var(--newspack-ui-width-sidebar));
 	--section-space: calc(var(--newspack-ui-spacer-9) * 2);
+	--rc-line-height-prose: 1.65;
 	--color-fd-background: var(--newspack-ui-color-surface);
 	--color-fd-foreground: var(--newspack-ui-color-text);
 	--color-fd-muted: var(--newspack-ui-color-surface-subtle);
@@ -737,7 +738,13 @@
 
 @utility type-lead {
 	font-size: var(--newspack-ui-font-size-m);
-	line-height: var(--newspack-ui-line-height-m);
+	line-height: var(--newspack-ui-line-height-body);
+	text-wrap: pretty;
+}
+
+@utility type-prose {
+	font-size: var(--newspack-ui-font-size-body);
+	line-height: var(--rc-line-height-prose);
 	text-wrap: pretty;
 }
 
@@ -899,8 +906,9 @@ a.sr-only[href='#nd-page'] {
 .docs-lead {
 	margin: var(--newspack-ui-spacer-1) 0 var(--newspack-ui-spacer-6);
 	color: var(--newspack-ui-color-text-muted);
+	max-width: 60ch;
 	font-size: var(--newspack-ui-font-size-m);
-	line-height: var(--newspack-ui-line-height-m);
+	line-height: var(--newspack-ui-line-height-body);
 	text-wrap: pretty;
 }
 
@@ -919,7 +927,19 @@ a.sr-only[href='#nd-page'] {
 
 .docs-prose {
 	font-size: var(--newspack-ui-font-size-body);
-	line-height: var(--newspack-ui-line-height-body);
+	line-height: var(--rc-line-height-prose);
+}
+
+.docs-prose :where(p, li, td, th, blockquote):not(:where(.not-prose *)) {
+	line-height: var(--rc-line-height-prose);
+}
+
+.docs-prose :where(p):not(:where(.not-prose *)) {
+	margin-block: 1.25em;
+}
+
+.docs-prose :where(li):not(:where(.not-prose *)) {
+	margin-block: 0.5em;
 }
 
 .docs-prose :where(h2):not(:where(.not-prose *)) {
