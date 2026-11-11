@@ -804,6 +804,16 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+	[data-slot='dialog-content'],
+	[data-slot='dialog-overlay'] {
+		--tw-enter-scale: 1;
+		--tw-exit-scale: 1;
+		--tw-enter-translate-x: 0;
+		--tw-enter-translate-y: 0;
+		--tw-exit-translate-x: 0;
+		--tw-exit-translate-y: 0;
+	}
+
 	:root {
 		--animate-fd-dialog-in: fd-fade-in 150ms ease;
 		--animate-fd-dialog-out: fd-fade-out 150ms ease;
