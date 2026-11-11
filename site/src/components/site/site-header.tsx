@@ -1,6 +1,4 @@
-"use client"
-
-import { useEffect, useState, type ReactNode } from 'react';
+import { Children, useEffect, useState, type ReactNode } from 'react';
 import { Icon, menu } from '@wordpress/icons';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
@@ -9,7 +7,8 @@ import { NAV_LINKS, SITE_NAME } from '@/lib/site';
 import { useMobileMenu } from '@/lib/theme';
 import { cn } from '@/lib/utils';
 import { DRAWER_CLOSE, DRAWER_ITEM, DRAWER_LINKS, FolderChevron, currentLink, linkRel } from './drawer-nav';
-import { ThemeToggle } from './theme-toggle';
+import { SkipLink } from './skip-link';
+import { ThemeToggle, type ThemeToggleHandler } from './theme-toggle';
 
 const NAV_LINK =
 	'inline-flex min-h-(--newspack-ui-spacer-7) items-center rounded-(--newspack-ui-radius-control) px-(--newspack-ui-spacer-1) text-(length:--newspack-ui-font-size-small) font-(weight:--newspack-ui-font-weight-medium) text-(color:--newspack-ui-color-text-muted) no-underline transition-colors duration-(--newspack-ui-duration-color) ease-(--newspack-ui-ease-color) hover:bg-(color:--newspack-ui-color-neutral-fill) hover:text-(color:--newspack-ui-color-text) aria-[current=page]:text-(color:--newspack-ui-color-text) aria-[current=page]:underline aria-[current=page]:decoration-(color:--newspack-ui-color-accent) aria-[current=page]:decoration-(length:--site-nav-underline) aria-[current=page]:underline-offset-(--newspack-ui-spacer-1)';
@@ -92,9 +91,16 @@ function SiteMenu( { pathname, drawerSearch }: { pathname: string; drawerSearch?
  * button that opens a Sheet from the right with the same links.
  *
  * - `wordmark`: replaces the site name in the home link. The link keeps `SITE_NAME` as its name.
+ *   It sits in a centered flex row with a spacer-1 gap, so a mark and a name can be passed side
+ *   by side. Text passed as a string ends in an ellipsis when it is too long; give a text element
+ *   of your own `min-w-0 truncate` for the same.
  * - `search`: a search trigger shown from `md` up, such as the docs search button.
  * - `drawerSearch`: rendered at the top of the Sheet; call `close` when a result is followed.
  * - `menuButton`: replaces the Sheet and its button, such as the Fumadocs docs drawer button.
+ * - `onThemeToggle`: passed to the theme toggle as `onToggle`, to apply the theme the site's
+ *   own way.
+ * - `skipTo`: the target of the "Skip to content" link rendered before the header, `#main` by
+ *   default; `false` leaves it out, as the docs layout does, which renders its own.
  */
 export function SiteHeader( {
 	pathname,
@@ -102,6 +108,8 @@ export function SiteHeader( {
 	search,
 	drawerSearch,
 	menuButton,
+	onThemeToggle,
+	skipTo = '#main',
 	className,
 }: {
 	pathname: string;
@@ -109,47 +117,56 @@ export function SiteHeader( {
 	search?: ReactNode;
 	drawerSearch?: ( close: () => void ) => ReactNode;
 	menuButton?: ReactNode;
+	onThemeToggle?: ThemeToggleHandler;
+	skipTo?: string | false;
 	className?: string;
 } ) {
 	const mobile = useMobileMenu();
 	const current = currentLink( pathname );
 	return (
-		<header
-			className={ cn(
-				'sticky top-0 z-40 h-(--site-header-height) bg-(--newspack-ui-color-surface) shadow-[inset_0_-1px_0_var(--newspack-ui-color-border)]',
-				className
-			) }
-		>
-			<div className="mx-auto box-content flex h-full max-w-(--site-wide-width) items-center justify-between gap-(--newspack-ui-spacer-2) px-(--newspack-ui-spacer-3) min-[782px]:px-(--newspack-ui-spacer-6)">
-				<a
-					href="/"
-					aria-label={ wordmark ? SITE_NAME : undefined }
-					className="inline-flex items-center gap-(--newspack-ui-spacer-1) rounded-(--newspack-ui-radius-control) text-(length:--newspack-ui-font-size-body) font-(weight:--newspack-ui-font-weight-strong) tracking-(--newspack-ui-letter-spacing-title-m) whitespace-nowrap text-(color:--newspack-ui-color-text) no-underline"
-				>
-					{ wordmark ?? SITE_NAME }
-				</a>
-				<div className="flex items-center gap-(--newspack-ui-spacer-half)">
-					<nav aria-label="Main" className="me-(--newspack-ui-spacer-1) max-md:hidden">
-						<ul className="m-0 flex list-none gap-(--newspack-ui-spacer-half) p-0">
-							{ NAV_LINKS.map( ( link ) => (
-								<li key={ link.href }>
-									<a
-										href={ link.href }
-										rel={ linkRel( link ) }
-										aria-current={ link === current ? 'page' : undefined }
-										className={ NAV_LINK }
-									>
-										{ link.text }
-									</a>
-								</li>
-							) ) }
-						</ul>
-					</nav>
-					{ search }
-					{ ! mobile && <ThemeToggle /> }
-					{ menuButton ?? <SiteMenu pathname={ pathname } drawerSearch={ drawerSearch } /> }
+		<>
+			{ skipTo !== false && <SkipLink href={ skipTo } /> }
+			<header
+				className={ cn(
+					'sticky top-0 z-40 h-(--site-header-height) bg-(--newspack-ui-color-surface) shadow-[inset_0_-1px_0_var(--newspack-ui-color-border)]',
+					className
+				) }
+			>
+				<div className="mx-auto box-content flex h-full max-w-(--site-wide-width) items-center justify-between gap-(--newspack-ui-spacer-2) px-(--newspack-ui-spacer-3) min-[782px]:px-(--newspack-ui-spacer-6)">
+					<a
+						href="/"
+						aria-label={ wordmark ? SITE_NAME : undefined }
+						className="inline-flex min-w-0 items-center gap-(--newspack-ui-spacer-1) rounded-(--newspack-ui-radius-control) text-(length:--newspack-ui-font-size-body) font-(weight:--newspack-ui-font-weight-strong) tracking-(--newspack-ui-letter-spacing-title-m) whitespace-nowrap text-(color:--newspack-ui-color-text) no-underline"
+					>
+						<span className="flex min-w-0 items-center gap-(--newspack-ui-spacer-1)">
+							{ Children.map( wordmark ?? SITE_NAME, ( child ) =>
+								typeof child === 'string' || typeof child === 'number' ? <span className="min-w-0 truncate">{ child }</span> : child
+							) }
+						</span>
+					</a>
+					<div className="flex shrink-0 items-center gap-(--newspack-ui-spacer-half)">
+						<nav aria-label="Main" className="me-(--newspack-ui-spacer-1) max-md:hidden">
+							<ul className="m-0 flex list-none gap-(--newspack-ui-spacer-half) p-0">
+								{ NAV_LINKS.map( ( link ) => (
+									<li key={ link.href }>
+										<a
+											href={ link.href }
+											rel={ linkRel( link ) }
+											aria-current={ link === current ? 'page' : undefined }
+											className={ NAV_LINK }
+										>
+											{ link.text }
+										</a>
+									</li>
+								) ) }
+							</ul>
+						</nav>
+						{ search }
+						{ ! mobile && <ThemeToggle onToggle={ onThemeToggle } /> }
+						{ menuButton ?? <SiteMenu pathname={ pathname } drawerSearch={ drawerSearch } /> }
+					</div>
 				</div>
-			</div>
-		</header>
+			</header>
+		</>
 	);
 }

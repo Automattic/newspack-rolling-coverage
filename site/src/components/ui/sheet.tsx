@@ -62,15 +62,15 @@ function SheetContent({
         data-slot="sheet-content"
         data-side={side}
         className={cn(
-          "fixed z-50 flex flex-col overflow-auto overscroll-contain border-(--newspack-ui-color-border) bg-(--newspack-ui-color-surface) font-(family-name:--newspack-ui-font-family-body) text-(length:--newspack-ui-font-size-body) leading-(--newspack-ui-line-height-body) text-(color:--newspack-ui-color-text) duration-(--newspack-ui-duration-sheet) outline-none [box-shadow:var(--nui-elevation-4)] ease-(--newspack-ui-ease-drawer) data-[state=closed]:animate-out data-[state=open]:animate-in motion-reduce:data-[state=closed]:fade-out-0 motion-reduce:data-[state=open]:fade-in-0",
+          "fixed z-50 flex flex-col overflow-auto overscroll-contain bg-(--newspack-ui-color-surface) font-(family-name:--newspack-ui-font-family-body) text-(length:--newspack-ui-font-size-body) leading-(--newspack-ui-line-height-body) text-(color:--newspack-ui-color-text) duration-(--newspack-ui-duration-sheet) outline-none [box-shadow:var(--nui-elevation-4)] ease-(--newspack-ui-ease-drawer) data-[state=closed]:animate-out data-[state=open]:animate-in motion-reduce:data-[state=closed]:fade-out-0 motion-reduce:data-[state=open]:fade-in-0",
           side === "right" &&
-            "inset-y-0 right-0 h-full w-[min(var(--newspack-ui-width-s),calc(100vw-var(--newspack-ui-spacer-6)))] rounded-l-(--newspack-ui-radius-sheet) border-l motion-safe:data-[state=closed]:slide-out-to-right motion-safe:data-[state=open]:slide-in-from-right",
+            "inset-y-0 right-0 h-full w-[min(var(--newspack-ui-width-s),calc(100vw-var(--newspack-ui-spacer-6)))] motion-safe:data-[state=closed]:slide-out-to-right motion-safe:data-[state=open]:slide-in-from-right",
           side === "left" &&
-            "inset-y-0 left-0 h-full w-[min(var(--newspack-ui-width-s),calc(100vw-var(--newspack-ui-spacer-6)))] rounded-r-(--newspack-ui-radius-sheet) border-r motion-safe:data-[state=closed]:slide-out-to-left motion-safe:data-[state=open]:slide-in-from-left",
+            "inset-y-0 left-0 h-full w-[min(var(--newspack-ui-width-s),calc(100vw-var(--newspack-ui-spacer-6)))] motion-safe:data-[state=closed]:slide-out-to-left motion-safe:data-[state=open]:slide-in-from-left",
           side === "top" &&
-            "inset-x-0 top-0 max-h-[calc(100%-var(--newspack-ui-spacer-6))] rounded-b-(--newspack-ui-radius-sheet) border-b motion-safe:data-[state=closed]:slide-out-to-top motion-safe:data-[state=open]:slide-in-from-top",
+            "inset-x-0 top-0 max-h-[calc(100%-var(--newspack-ui-spacer-6))] motion-safe:data-[state=closed]:slide-out-to-top motion-safe:data-[state=open]:slide-in-from-top",
           side === "bottom" &&
-            "inset-x-0 bottom-0 max-h-[calc(100%-var(--newspack-ui-spacer-6))] rounded-t-(--newspack-ui-radius-sheet) border-t pb-[env(safe-area-inset-bottom)] motion-safe:data-[state=closed]:slide-out-to-bottom motion-safe:data-[state=open]:slide-in-from-bottom",
+            "inset-x-0 bottom-0 max-h-[calc(100%-var(--newspack-ui-spacer-6))] pb-[env(safe-area-inset-bottom)] motion-safe:data-[state=closed]:slide-out-to-bottom motion-safe:data-[state=open]:slide-in-from-bottom",
           className
         )}
         {...props}

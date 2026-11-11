@@ -6,6 +6,7 @@ import { useSearchContext } from 'fumadocs-ui/contexts/search';
 import { useSidebar } from 'fumadocs-ui/layouts/notebook/slots/sidebar';
 import { Button } from '@/components/ui/button';
 import { MenuIcon, SiteHeader } from '@/components/site/site-header';
+import type { ThemeToggleHandler } from '@/components/site/theme-toggle';
 import { DrawerSearch } from './drawer-search';
 
 export function SearchButton() {
@@ -44,14 +45,29 @@ function DocsMenuButton() {
 /**
  * The site header with the docs search: the Search button opens the Fumadocs search dialog,
  * and the mobile Sheet searches inline. With `docs`, the menu button opens the Fumadocs docs
- * drawer instead of the Sheet. Render it inside a Fumadocs `RootProvider`, and with `docs`
- * inside the notebook `DocsLayout`.
+ * drawer instead of the Sheet, and the header leaves the skip link to the docs layout. Render it
+ * inside a Fumadocs `RootProvider`, and with `docs` inside the notebook `DocsLayout`.
+ * `onThemeToggle` and `skipTo` work as on `SiteHeader`.
  */
-export function DocsSiteHeader( { pathname, docs = false, wordmark }: { pathname: string; docs?: boolean; wordmark?: ReactNode } ) {
+export function DocsSiteHeader( {
+	pathname,
+	docs = false,
+	wordmark,
+	onThemeToggle,
+	skipTo,
+}: {
+	pathname: string;
+	docs?: boolean;
+	wordmark?: ReactNode;
+	onThemeToggle?: ThemeToggleHandler;
+	skipTo?: string | false;
+} ) {
 	return (
 		<SiteHeader
 			pathname={ pathname }
 			wordmark={ wordmark }
+			onThemeToggle={ onThemeToggle }
+			skipTo={ docs ? false : skipTo }
 			search={ <SearchButton /> }
 			drawerSearch={ ( close ) => <DrawerSearch onNavigate={ close } /> }
 			menuButton={ docs ? <DocsMenuButton /> : undefined }

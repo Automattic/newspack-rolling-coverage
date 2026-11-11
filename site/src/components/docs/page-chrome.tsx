@@ -1,3 +1,5 @@
+"use client"
+
 import { Fragment, createContext, use, useEffect, useEffectEvent, useMemo, useRef, useState, type ReactNode } from 'react';
 import Link from 'fumadocs-core/link';
 import { usePathname } from 'fumadocs-core/framework';

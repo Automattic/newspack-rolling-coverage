@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from 'react';
+import { useMemo, useRef, type ReactNode } from 'react';
 import Link from 'fumadocs-core/link';
 import { usePathname } from 'fumadocs-core/framework';
 import type * as PageTree from 'fumadocs-core/page-tree';
@@ -8,8 +8,10 @@ import {
 	SidebarFolder,
 	SidebarFolderContent,
 	SidebarSeparator,
+	useAutoScroll,
 	useFolder,
 	useFolderDepth,
+	useSidebar as useSidebarBase,
 } from 'fumadocs-ui/components/sidebar/base';
 import {
 	Sidebar,
@@ -27,6 +29,54 @@ function normalize( url: string ) {
 	return url.length > 1 && url.endsWith( '/' ) ? url.slice( 0, -1 ) : url;
 }
 
+const INDEX_HIGHLIGHT =
+	"data-[active=true]:before:content-[''] data-[active=true]:before:absolute data-[active=true]:before:w-px data-[active=true]:before:inset-y-2.5 data-[active=true]:before:inset-s-2.5 data-[active=true]:before:bg-(--newspack-ui-color-accent)";
+
+function hasPage( nodes: PageTree.Node[], url: string ): boolean {
+	return nodes.some( ( node ) =>
+		node.type === 'page'
+			? normalize( node.url ) === url
+			: node.type === 'folder' && ( ( !! node.index && normalize( node.index.url ) === url ) || hasPage( node.children, url ) )
+	);
+}
+
+function DrawerFolderLink( { item, index }: { item: PageTree.Folder; index: PageTree.Item } ) {
+	const { open, setOpen, depth, collapsible } = useFolder()!;
+	const { prefetch } = useSidebarBase();
+	const pathname = usePathname();
+	const ref = useRef< HTMLAnchorElement >( null );
+	const url = normalize( index.url );
+	const active = url === normalize( pathname ) && ! hasPage( item.children, url );
+	useAutoScroll( active, ref );
+
+	return (
+		<Link
+			ref={ ref }
+			href={ index.url }
+			external={ index.external }
+			prefetch={ prefetch }
+			data-active={ active }
+			className={ cn( DRAWER_ITEM, depth > 1 && INDEX_HIGHLIGHT, 'w-full' ) }
+			style={ drawerOffset( depth - 1 ) }
+			onClick={ ( event ) => {
+				if ( ! collapsible ) {
+					return;
+				}
+				if ( event.target instanceof Element && event.target.matches( '[data-icon], [data-icon] *' ) ) {
+					setOpen( ! open );
+					event.preventDefault();
+				} else {
+					setOpen( active ? ! open : true );
+				}
+			} }
+		>
+			{ item.icon }
+			{ item.name }
+			{ collapsible && <FolderChevron open={ open } /> }
+		</Link>
+	);
+}
+
 function DrawerSeparator( { item }: { item: PageTree.Separator } ) {
 	const depth = useFolderDepth();
 	return (
@@ -41,36 +91,11 @@ function DrawerSeparator( { item }: { item: PageTree.Separator } ) {
 }
 
 function DrawerFolderHead( { item }: { item: PageTree.Folder } ) {
-	const { open, setOpen, depth, collapsible } = useFolder()!;
-	const pathname = usePathname();
+	const { open, depth, collapsible } = useFolder()!;
 	const style = drawerOffset( depth - 1 );
 
 	if ( item.index ) {
-		const active = normalize( item.index.url ) === normalize( pathname );
-		return (
-			<Link
-				href={ item.index.url }
-				external={ item.index.external }
-				data-active={ active }
-				className={ cn( DRAWER_ITEM, 'w-full' ) }
-				style={ style }
-				onClick={ ( event ) => {
-					if ( ! collapsible ) {
-						return;
-					}
-					if ( event.target instanceof Element && event.target.matches( '[data-icon], [data-icon] *' ) ) {
-						setOpen( ! open );
-						event.preventDefault();
-					} else {
-						setOpen( active ? ! open : true );
-					}
-				} }
-			>
-				{ item.icon }
-				{ item.name }
-				{ collapsible && <FolderChevron open={ open } /> }
-			</Link>
-		);
+		return <DrawerFolderLink item={ item } index={ item.index } />;
 	}
 
 	if ( ! collapsible ) {
@@ -118,19 +143,23 @@ function DrawerFolder( { item, children }: { item: PageTree.Folder; children: Re
 const DRAWER_COMPONENTS = { Folder: DrawerFolder, Separator: DrawerSeparator };
 
 /**
- * The page tree the docs drawer renders: the site links at the top level, with the docs tree
- * nested as an open folder under the link marked `drawer: 'tree'`.
+ * The page tree the docs drawer renders: the site links at the top level as plain rows, with the
+ * docs tree nested as an open folder under the link marked `drawer: 'tree'`. That folder's row
+ * links to the link's `href` and keeps its own toggle. It is active only on that page, and only
+ * when the docs tree has no page of its own there (such as an Introduction at `/docs/`), so one
+ * row is ever active.
  */
 export function drawerTree( root: PageTree.Root ): PageTree.Root {
 	return {
 		...root,
 		$id: `drawer:${ root.$id ?? 'root' }`,
 		fallback: undefined,
-		children: DRAWER_LINKS.map( ( link ): PageTree.Node =>
-			link.drawer === 'tree'
-				? { type: 'folder', $id: `drawer:${ link.href }`, name: link.text, defaultOpen: true, children: root.children }
-				: { type: 'page', $id: `drawer:${ link.href }`, name: link.text, url: link.href, external: link.external }
-		),
+		children: DRAWER_LINKS.map( ( link ): PageTree.Node => {
+			const page: PageTree.Item = { type: 'page', $id: `drawer:${ link.href }`, name: link.text, url: link.href, external: false };
+			return link.drawer === 'tree'
+				? { type: 'folder', $id: `drawer:folder:${ link.href }`, name: link.text, defaultOpen: true, index: page, children: root.children }
+				: page;
+		} ),
 	};
 }
 

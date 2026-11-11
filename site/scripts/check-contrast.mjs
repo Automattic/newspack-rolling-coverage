@@ -1,7 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-const css = readFileSync( fileURLToPath( new URL( '../src/styles/global.css', import.meta.url ) ), 'utf8' );
+// The kit's stylesheets come first, as global.css imports them before its own rules.
+const css = [ 'newspack-ui-site.css', 'newspack-ui-fumadocs.css', 'global.css' ]
+	.map( ( file ) => readFileSync( fileURLToPath( new URL( `../src/styles/${ file }`, import.meta.url ) ), 'utf8' ) )
+	.join( '\n' );
 
 function topLevelBlocks( selector ) {
 	const declarations = {};

@@ -7,10 +7,9 @@ import ThemeScript from '@/components/site/theme-script.astro';
 interface Props {
 	title: string;
 	description: string;
-	skipTo?: string | false;
 }
 
-const { title, description, skipTo = '#main' } = Astro.props;
+const { title, description } = Astro.props;
 ---
 
 <html lang="en" suppressHydrationWarning>
@@ -34,12 +33,11 @@ const { title, description, skipTo = '#main' } = Astro.props;
 		<ClientRouter />
 	</head>
 	<body
-		class="flex flex-col min-h-screen"
+		class="newspack-ui flex flex-col min-h-screen"
 		transition:persist
 		transition:animate="none"
 		transition:name="page-layout"
 	>
-		{ skipTo && <a class="skip-link" href={ skipTo }>Skip to content</a> }
 		<slot />
 	</body>
 </html>

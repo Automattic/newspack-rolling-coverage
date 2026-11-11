@@ -1,3 +1,5 @@
+"use client"
+
 import { Fragment, useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import * as JsxRuntime from 'react/jsx-runtime';
 import { chevronRightSmall, Icon, search as searchIcon } from '@wordpress/icons';
@@ -8,7 +10,23 @@ import { CloseIcon } from '@/lib/newspack-ui-icons';
 import { SEARCH_INDEX } from '@/lib/site';
 import { cn } from '@/lib/utils';
 
-type Result = { record: SearchResultRecord; table?: SearchResultTable };
+export type SearchResult = { record: SearchResultRecord; table?: SearchResultTable };
+
+/** One result per record, with each table row as its own result, in the order they are listed. */
+export function flattenResults( items: ( SearchResultRecord | SearchResultTable )[] | undefined ): SearchResult[] {
+	return (
+		items?.flatMap( ( item ): SearchResult[] =>
+			item.type === 'table' ? item.rows.map( ( record ) => ( { record, table: item } ) ) : [ { record: item } ]
+		) ?? []
+	);
+}
+
+/** The row box shared by the drawer search and the search overlay. */
+export const SEARCH_RESULT_ROW =
+	'flex min-h-(--newspack-ui-touch-target) flex-col justify-center rounded-(--newspack-ui-radius-control) px-(--newspack-ui-spacer-2) py-(--newspack-ui-spacer-1) text-(color:--newspack-ui-color-text) no-underline transition-colors duration-(--newspack-ui-duration-color) ease-(--newspack-ui-ease-color)';
+
+/** Matches of the query: the accent color, underlined. */
+export const SEARCH_HIGHLIGHT = '[&_::highlight(fd-search)]:text-(color:--newspack-ui-color-accent) [&_::highlight(fd-search)]:underline';
 
 const Pass = ( { children }: { children?: ReactNode } ) => <>{ children }</>;
 const Cell = ( { children }: { children?: ReactNode } ) => <span className="me-(--newspack-ui-spacer-2)">{ children }</span>;
@@ -31,47 +49,52 @@ function render( tree: SearchResultRecord[ 'hastContent' ], components: Partial<
 	return toJsxRuntime( tree, { ...JsxRuntime, development: false, components } as Options );
 }
 
-function ResultLink( { result, query, onNavigate }: { result: Result; query: string; onNavigate: () => void } ) {
+/** A result's breadcrumbs and its text, with the matches of `query` highlighted. */
+export function SearchResultBody( { result, query }: { result: SearchResult; query: string } ) {
 	const { record, table } = result;
 	const highlight = useHighlightQuery( query );
 	const content = useMemo( () => render( record.hastContent, table?.header ? rowWithHeader : inline ), [ record, table ] );
 	const nested = record.type !== 'page';
 
 	return (
-		<li>
-			<a
-				href={ record.url }
-				onClick={ onNavigate }
-				className="flex min-h-(--newspack-ui-touch-target) flex-col justify-center rounded-(--newspack-ui-radius-control) px-(--newspack-ui-spacer-2) py-(--newspack-ui-spacer-1) text-(color:--newspack-ui-color-text) no-underline transition-colors duration-(--newspack-ui-duration-color) ease-(--newspack-ui-ease-color) hover:bg-(--newspack-ui-color-neutral-fill)"
-			>
-				{ !! record.breadcrumbs?.length && (
-					<span className="flex flex-wrap items-center text-(length:--newspack-ui-font-size-small) leading-(--newspack-ui-line-height-small) text-(color:--newspack-ui-color-text-muted)">
-						{ record.breadcrumbs.map( ( crumb, index ) => (
-							<Fragment key={ index }>
-								{ index > 0 && (
-									<>
-										<Icon icon={ chevronRightSmall } size={ 16 } aria-hidden="true" className="fill-current rtl:rotate-180" />
-										<span className="sr-only">, </span>
-									</>
-								) }
-								{ crumb }
-							</Fragment>
-						) ) }
-					</span>
-				) }
-				<span
-					ref={ highlight }
-					className={
-						nested
-							? cn(
-									'line-clamp-2 border-s border-(--newspack-ui-color-border) ps-(--newspack-ui-spacer-3) text-(length:--newspack-ui-font-size-small) leading-(--newspack-ui-line-height-small)',
-									record.type === 'heading' ? 'font-(weight:--newspack-ui-font-weight-medium)' : 'text-(color:--newspack-ui-color-text-muted)'
-							  )
-							: 'font-(weight:--newspack-ui-font-weight-medium)'
-					}
-				>
-					{ content }
+		<>
+			{ !! record.breadcrumbs?.length && (
+				<span className="flex flex-wrap items-center text-(length:--newspack-ui-font-size-small) leading-(--newspack-ui-line-height-small) text-(color:--newspack-ui-color-text-muted)">
+					{ record.breadcrumbs.map( ( crumb, index ) => (
+						<Fragment key={ index }>
+							{ index > 0 && (
+								<>
+									<Icon icon={ chevronRightSmall } size={ 16 } aria-hidden="true" className="fill-current rtl:rotate-180" />
+									<span className="sr-only">, </span>
+								</>
+							) }
+							{ crumb }
+						</Fragment>
+					) ) }
 				</span>
+			) }
+			<span
+				ref={ highlight }
+				className={
+					nested
+						? cn(
+								'line-clamp-2 border-s border-(--newspack-ui-color-border) ps-(--newspack-ui-spacer-3) text-(length:--newspack-ui-font-size-small) leading-(--newspack-ui-line-height-small)',
+								record.type === 'heading' ? 'font-(weight:--newspack-ui-font-weight-medium)' : 'text-(color:--newspack-ui-color-text-muted)'
+						  )
+						: 'font-(weight:--newspack-ui-font-weight-medium)'
+				}
+			>
+				{ content }
+			</span>
+		</>
+	);
+}
+
+function ResultLink( { result, query, onNavigate }: { result: SearchResult; query: string; onNavigate: () => void } ) {
+	return (
+		<li>
+			<a href={ result.record.url } onClick={ onNavigate } className={ cn( SEARCH_RESULT_ROW, 'hover:bg-(--newspack-ui-color-neutral-fill)' ) }>
+				<SearchResultBody result={ result } query={ query } />
 			</a>
 		</li>
 	);
@@ -108,13 +131,7 @@ export function DrawerSearch( {
 		}
 	}
 
-	const results = useMemo(
-		() =>
-			data?.items.flatMap( ( item ): Result[] =>
-				item.type === 'table' ? item.rows.map( ( record ) => ( { record, table: item } ) ) : [ { record: item } ]
-			) ?? [],
-		[ data ]
-	);
+	const results = useMemo( () => flattenResults( data?.items ), [ data ] );
 
 	useEffect( () => {
 		const onEscape = ( event: globalThis.KeyboardEvent ) => {
@@ -228,7 +245,7 @@ export function DrawerSearch( {
 				<ul
 					ref={ list }
 					aria-label="Search results"
-					className="-mx-(--newspack-ui-spacer-2) mt-(--newspack-ui-spacer-1) flex min-h-0 flex-1 flex-col gap-(--newspack-ui-spacer-half) overflow-y-auto overscroll-contain p-(--newspack-ui-spacer-2) [&_::highlight(fd-search)]:text-(color:--newspack-ui-color-accent) [&_::highlight(fd-search)]:underline"
+					className={ cn( "-mx-(--newspack-ui-spacer-2) mt-(--newspack-ui-spacer-1) flex min-h-0 flex-1 flex-col gap-(--newspack-ui-spacer-half) overflow-y-auto overscroll-contain p-(--newspack-ui-spacer-2)", SEARCH_HIGHLIGHT ) }
 				>
 					{ results.map( ( result ) => (
 						<ResultLink key={ result.record.id } result={ result } query={ data.query } onNavigate={ onNavigate } />
