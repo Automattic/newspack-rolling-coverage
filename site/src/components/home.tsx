@@ -185,36 +185,35 @@ export function Home( props: SitePageProps ) {
 				</div>
 			</section>
 
-			<section
-				aria-labelledby="home-partners"
-				className="site-container mt-(--newspack-ui-spacer-9) flex flex-col gap-(--newspack-ui-spacer-5) lg:flex-row lg:items-center lg:justify-between lg:gap-(--newspack-ui-spacer-11)"
-			>
-				<div className="max-w-[34ch]">
-					<h2 id="home-partners" className="type-small font-(weight:--newspack-ui-font-weight-medium) text-foreground">
-						Part of{ ' ' }
-						<a href="https://emergencymode.news/" className="text-link">
-							Emergency Mode for News
-						</a>
-					</h2>
-					<p className="mt-(--newspack-ui-spacer-half) type-small text-pretty text-muted-foreground">
-						A collaboration between OpenNews, Newspack, and NC Local, supported by Press Forward.
-					</p>
-				</div>
-				<ul className="flex flex-wrap items-center gap-x-(--newspack-ui-spacer-8) gap-y-(--newspack-ui-spacer-4) lg:gap-x-(--newspack-ui-spacer-11)">
-					{ PARTNERS.map( ( partner ) => (
-						<li key={ partner.url }>
-							<a
-								href={ partner.url }
-								aria-label={ partner.name }
-								className="flex text-muted-foreground transition-colors duration-(--newspack-ui-duration-color) hover:text-foreground"
-							>
-								<svg aria-hidden="true" viewBox={ partner.viewBox } className={ `w-auto ${ partner.className }` }>
-									<path fill="currentColor" fillRule={ partner.evenOdd ? 'evenodd' : undefined } d={ partner.path } />
-								</svg>
+			<section aria-labelledby="home-partners" className="site-container mt-(--newspack-ui-spacer-9)">
+				<div className="flex flex-col gap-(--newspack-ui-spacer-5) border-y border-(--newspack-ui-color-border) py-(--newspack-ui-spacer-5) lg:flex-row lg:items-center lg:justify-between lg:gap-(--newspack-ui-spacer-11)">
+					<div className="max-w-[34ch]">
+						<h2 id="home-partners" className="type-small font-(weight:--newspack-ui-font-weight-medium) text-foreground">
+							Part of{ ' ' }
+							<a href="https://emergencymode.news/" className="text-link">
+								Emergency Mode for News
 							</a>
-						</li>
-					) ) }
-				</ul>
+						</h2>
+						<p className="mt-(--newspack-ui-spacer-half) type-small text-pretty text-muted-foreground">
+							A collaboration between OpenNews, Newspack, and NC Local, supported by Press Forward.
+						</p>
+					</div>
+					<ul className="flex flex-wrap items-center gap-x-(--newspack-ui-spacer-8) gap-y-(--newspack-ui-spacer-4) lg:gap-x-(--newspack-ui-spacer-11)">
+						{ PARTNERS.map( ( partner ) => (
+							<li key={ partner.url }>
+								<a
+									href={ partner.url }
+									aria-label={ partner.name }
+									className="flex text-muted-foreground transition-colors duration-(--newspack-ui-duration-color) hover:text-foreground"
+								>
+									<svg aria-hidden="true" viewBox={ partner.viewBox } className={ `w-auto ${ partner.className }` }>
+										<path fill="currentColor" fillRule={ partner.evenOdd ? 'evenodd' : undefined } d={ partner.path } />
+									</svg>
+								</a>
+							</li>
+						) ) }
+					</ul>
+				</div>
 			</section>
 
 			<figure className="site-container mt-(--newspack-ui-spacer-8)">
