@@ -927,6 +927,11 @@ html:not([data-astro-transition]) body {
 	}
 }
 
+#nd-toc .prose {
+	font-size: var(--newspack-ui-font-size-body);
+	line-height: var(--newspack-ui-line-height-body);
+}
+
 #nd-sidebar [class*='rounded-[inherit]'] {
 	padding-inline-start: 0;
 }
