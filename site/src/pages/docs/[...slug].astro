@@ -6,7 +6,7 @@ import type { TOCItemType } from 'fumadocs-core/toc';
 import { Callout } from '@/components/callout';
 import { Card, Cards } from '@/components/mdx-card';
 import { Docs, SITE_TITLE } from '@/components/docs';
-import { headingComponents } from '@/components/heading';
+import { docsMdxComponents } from '@/components/mdx';
 import { Screenshot } from '@/components/screenshot';
 import { SiteFooter } from '@/components/site-footer';
 import Layout from '@/components/layout.astro';
@@ -44,8 +44,12 @@ const toc: TOCItemType[] = headings.map( ( heading ) => ( {
 		<h1 class="docs-title">{ page.data.title }</h1>
 		<p class="docs-lead">{ page.data.description }</p>
 		<div class="prose docs-prose flex-1">
-			<Content components={ { ...defaultMdxComponents, ...headingComponents, Callout, Card, Cards, Screenshot, Step, Steps } } />
+			<Content components={ { ...defaultMdxComponents, ...docsMdxComponents, Callout, Card, Cards, Screenshot, Step, Steps } } />
 		</div>
 	</Docs>
 	<SiteFooter />
 </Layout>
+
+<script>
+	import '@/components/copy-buttons';
+</script>

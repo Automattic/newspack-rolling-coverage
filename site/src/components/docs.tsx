@@ -11,6 +11,7 @@ import SearchDialog from './search';
 import { DrawerA11y } from './drawer-a11y';
 import { DrawerSearch } from './drawer-search';
 import { DRAWER_SIDEBAR_SLOT, DrawerClose } from './drawer-sidebar';
+import { PAGE_SLOTS } from './page-chrome';
 import { SiteHeader } from './site-header';
 
 export { SITE_TITLE } from '@/lib/site';
@@ -63,7 +64,7 @@ export function Docs( {
 				containerProps={ { style: { '--fd-header-height': 'var(--site-header-height)' } as CSSProperties } }
 			>
 				<DrawerA11y />
-				<DocsPage { ...page }>{ children }</DocsPage>
+				<DocsPage { ...page } slots={ PAGE_SLOTS }>{ children }</DocsPage>
 			</DocsLayout>
 		</RootProvider>
 	);
