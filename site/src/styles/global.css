@@ -299,7 +299,10 @@
 	--newspack-ui-color-btn-brand-hover: color-mix(in oklab, var(--newspack-ui-color-btn-brand) var(--newspack-ui-color-mix-hover), var(--newspack-ui-color-surface));
 	--newspack-ui-color-btn-brand-pressed: color-mix(in oklab, var(--newspack-ui-color-btn-brand) var(--newspack-ui-color-mix-pressed), var(--newspack-ui-color-surface));
 	--newspack-ui-color-btn-brand-on: var(--newspack-ui-color-neutral-0);
-	--newspack-ui-color-btn-brand-text: var(--newspack-ui-color-btn-brand);
+	--newspack-ui-color-mix-lighten-hover: 75%;
+	--newspack-ui-color-mix-lighten-pressed: 60%;
+	--newspack-ui-color-brand-text: var(--newspack-ui-color-primary-60);
+	--newspack-ui-color-btn-brand-text: var(--newspack-ui-color-brand-text);
 }
 
 .dark {
@@ -476,8 +479,11 @@
 	--chart-3: var(--newspack-ui-chart-1);
 	--chart-4: var(--newspack-ui-chart-4);
 	--chart-5: var(--newspack-ui-chart-6);
-	--newspack-ui-color-btn-brand: #6086c7;
-	--newspack-ui-color-btn-brand-on: var(--newspack-ui-color-neutral-100);
+	--newspack-ui-color-btn-brand: var(--newspack-ui-color-primary-30);
+	--newspack-ui-color-btn-brand-hover: color-mix(in oklab, var(--newspack-ui-color-btn-brand) var(--newspack-ui-color-mix-lighten-hover), var(--newspack-ui-color-neutral-100));
+	--newspack-ui-color-btn-brand-pressed: color-mix(in oklab, var(--newspack-ui-color-btn-brand) var(--newspack-ui-color-mix-lighten-pressed), var(--newspack-ui-color-neutral-100));
+	--newspack-ui-color-btn-brand-on: var(--newspack-ui-color-neutral-0);
+	--newspack-ui-color-brand-text: var(--newspack-ui-color-primary-30);
 	--newspack-ui-color-btn-brand-text: #bfcfe9;
 }
 .dark [data-slot="select-content"] {
@@ -602,7 +608,7 @@
 }
 
 @theme inline {
-	--color-brand: var(--rc-brand);
+	--color-brand: var(--newspack-ui-color-brand-text);
 	--shadow-xs: var(--nui-elevation-1);
 	--shadow-sm: var(--nui-elevation-1);
 	--shadow-md: var(--nui-elevation-2);
@@ -612,7 +618,6 @@
 }
 
 :root {
-	--rc-brand: var(--newspack-ui-color-primary);
 	--site-header-height: var(--newspack-ui-spacer-10);
 	--site-wide-width: calc(var(--newspack-ui-width-l) + var(--newspack-ui-width-sidebar));
 	--section-space: calc(var(--newspack-ui-spacer-9) * 2);
@@ -641,9 +646,6 @@
 	--color-fd-idea: var(--newspack-ui-color-warning);
 }
 
-.dark {
-	--rc-brand: var(--newspack-ui-color-primary-30);
-}
 
 .dark #nd-sidebar {
 	--color-fd-muted: var(--newspack-ui-color-surface-subtle);

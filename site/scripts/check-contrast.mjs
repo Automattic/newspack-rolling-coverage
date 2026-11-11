@@ -52,6 +52,11 @@ function oklabToRgb( [ L, A, B ] ) {
 	].map( ( c ) => Math.min( 1, Math.max( 0, toGamma( c ) ) ) );
 }
 
+function resolvePercent( value, map ) {
+	const ref = value.match( /^var\((--[\w-]+)\)$/ );
+	return ref ? String( map[ ref[ 1 ] ] ).replace( '%', '' ) : value.replace( '%', '' );
+}
+
 function resolve( value, map, depth = 0 ) {
 	if ( depth > 20 ) {
 		throw new Error( `check-contrast: can't resolve "${ value }"` );
@@ -65,11 +70,11 @@ function resolve( value, map, depth = 0 ) {
 		}
 		return resolve( next, map, depth + 1 );
 	}
-	const mix = trimmed.match( /^color-mix\(in oklab, (.+?) ([\d.]+)%, (.+)\)$/ );
+	const mix = trimmed.match( /^color-mix\(in oklab, (.+?) (var\(--[\w-]+\)|[\d.]+%), (.+)\)$/ );
 	if ( mix ) {
 		const a = rgbToOklab( resolve( mix[ 1 ], map, depth + 1 ) );
 		const b = rgbToOklab( resolve( mix[ 3 ], map, depth + 1 ) );
-		const t = Number( mix[ 2 ] ) / 100;
+		const t = Number( resolvePercent( mix[ 2 ], map ) ) / 100;
 		return oklabToRgb( a.map( ( channel, i ) => channel * t + b[ i ] * ( 1 - t ) ) );
 	}
 	if ( /^#[0-9a-f]{3}([0-9a-f]{3})?$/i.test( trimmed ) ) {
@@ -107,13 +112,20 @@ const PAIRS = [
 	[ 'muted text on the docs sidebar hover', '--color-fd-muted-foreground', '--color-fd-secondary', TEXT, 'sidebar' ],
 	[ 'button text', '--newspack-ui-color-btn-ink', '--newspack-ui-color-btn', TEXT ],
 	[ 'brand button text', '--newspack-ui-color-btn-brand-on', '--newspack-ui-color-btn-brand', TEXT ],
+	[ 'brand button text, hover', '--newspack-ui-color-btn-brand-on', '--newspack-ui-color-btn-brand-hover', TEXT ],
+	[ 'brand button text, pressed', '--newspack-ui-color-btn-brand-on', '--newspack-ui-color-btn-brand-pressed', TEXT ],
+	[ 'brand button fill', '--newspack-ui-color-btn-brand', surface, MARK ],
+	[ 'brand button fill, hover', '--newspack-ui-color-btn-brand-hover', surface, MARK ],
+	[ 'brand button fill, pressed', '--newspack-ui-color-btn-brand-pressed', surface, MARK ],
 	[ 'brand outline button text', '--newspack-ui-color-btn-brand-text', surface, TEXT ],
+	[ 'brand outline button text, hover', '--newspack-ui-color-btn-brand-text', '--newspack-ui-color-neutral-fill', TEXT ],
+	[ 'brand outline button text, pressed', '--newspack-ui-color-btn-brand-text', '--newspack-ui-color-neutral-fill-hover', TEXT ],
 	[ 'badge text', '--newspack-ui-color-text', '--newspack-ui-color-neutral-fill', TEXT ],
-	[ 'brand headline word', '--rc-brand', surface, TEXT ],
+	[ 'brand headline word', '--newspack-ui-color-brand-text', surface, TEXT ],
 	[ 'callout text, info', '--newspack-ui-color-text', '--newspack-ui-color-surface-subtle', TEXT ],
 	[ 'callout text, warning', '--newspack-ui-color-text', '--newspack-ui-color-warning-tint', TEXT ],
 	[ 'callout text, error', '--newspack-ui-color-text', '--newspack-ui-color-error-tint', TEXT ],
-	[ 'logo mark', '--rc-brand', surface, MARK ],
+	[ 'logo mark', '--newspack-ui-color-brand-text', surface, MARK ],
 	[ 'focus ring', '--newspack-ui-color-focus', surface, MARK ],
 	[ 'field border', '--newspack-ui-color-input-border', surface, MARK ],
 	[ 'live dot', '--newspack-ui-color-error', surface, MARK ],
