@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import { chevronDown, external, Icon } from '@wordpress/icons';
+import { chevronDown, Icon } from '@wordpress/icons';
 import type * as PageTree from 'fumadocs-core/page-tree';
 import { NAV_LINKS } from '@/lib/site';
 import { cn } from '@/lib/utils';
@@ -32,11 +32,6 @@ export function FolderChevron( { open }: { open: boolean } ) {
 	);
 }
 
-/** The external link mark, in the 16px slot Fumadocs gives an item icon. */
-export function ExternalIcon() {
-	return <Icon icon={ external } size={ 20 } aria-hidden="true" style={ { width: 20, height: 20 } } className="-mx-0.5 fill-current" />;
-}
-
 /** The site links shown in the drawer. Links marked `drawer: false` are sections of the docs tree. */
 export const DRAWER_LINKS = NAV_LINKS.filter( ( link ) => link.drawer !== false );
 
@@ -64,8 +59,7 @@ export function drawerTree( root: PageTree.Root ): PageTree.Root {
 						$id: `drawer:${ link.url }`,
 						name: link.text,
 						url: link.url,
-						external: link.external,
-						icon: link.external ? <ExternalIcon /> : undefined,
+						external: false,
 				  }
 		),
 	};
