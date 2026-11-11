@@ -4,6 +4,7 @@ import { chevronRightSmall, Icon, search as searchIcon } from '@wordpress/icons'
 import { useHighlightQuery, useStaticSearch, type SearchResultRecord, type SearchResultTable } from 'fumadocs-core/search/client';
 import { toJsxRuntime, type Components, type Options } from 'hast-util-to-jsx-runtime';
 import { Input } from '@/components/ui/input';
+import { CloseIcon } from '@/lib/newspack-ui-icons';
 import { cn } from '@/lib/utils';
 
 type Result = { record: SearchResultRecord; table?: SearchResultTable };
@@ -195,9 +196,22 @@ export function DrawerSearch( {
 					spellCheck={ false }
 					enterKeyHint="search"
 					value={ search }
-					className="ps-[calc(var(--newspack-ui-spacer-2)+var(--newspack-ui-spacer-4)+var(--newspack-ui-spacer-1))]"
+					className="ps-[calc(var(--newspack-ui-spacer-2)+var(--newspack-ui-spacer-4)+var(--newspack-ui-spacer-1))] pe-[calc(var(--newspack-ui-spacer-1)+var(--newspack-ui-spacer-6))] [&::-webkit-search-cancel-button]:appearance-none"
 					onChange={ ( event ) => onSearchChange( event.target.value ) }
 				/>
+				{ search && (
+					<button
+						type="button"
+						aria-label="Clear search"
+						className="absolute end-(--newspack-ui-spacer-1) top-1/2 inline-flex -translate-y-1/2 items-center justify-center rounded-md p-1.5 text-(color:--newspack-ui-color-text-muted) transition-colors duration-100 hover:bg-fd-accent hover:text-fd-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fd-ring [&_svg]:size-4.5"
+						onClick={ () => {
+							onSearchChange( '' );
+							field.current?.focus();
+						} }
+					>
+						<CloseIcon />
+					</button>
+				) }
 			</div>
 			<p
 				role="status"
