@@ -5,7 +5,7 @@ import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/ca
 import { Headline } from './headline';
 import { MiniFeed } from './mini-feed';
 import { PARTNERS } from './partner-logos';
-import { SITE_TITLE } from './site-header';
+import { SITE_TITLE } from '@/lib/site';
 import { SiteLayout, type SitePageProps } from './site-layout';
 
 const HERO_TEXT =

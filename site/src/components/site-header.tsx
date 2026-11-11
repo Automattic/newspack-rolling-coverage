@@ -1,21 +1,17 @@
-import { useState } from 'react';
-import { Menu, Search } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Icon, menu, search } from '@wordpress/icons';
 import { useSearchContext } from 'fumadocs-ui/contexts/search';
 import { useSidebar } from 'fumadocs-ui/layouts/notebook/slots/sidebar';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Sheet, SheetClose, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { CloseIcon } from '@/lib/newspack-ui-icons';
+import { NAV_LINKS, SITE_TITLE } from '@/lib/site';
+import { useMobileMenu } from '@/lib/theme';
 import { cn } from '@/lib/utils';
+import { DRAWER_CLOSE, DRAWER_ITEM, DRAWER_LINKS, ExternalIcon, FolderChevron } from './drawer-nav';
+import { DrawerSearch } from './drawer-search';
 import { LiveIcon } from './live-icon';
 import { ThemeToggle } from './theme-toggle';
-
-export const SITE_TITLE = 'Rolling Coverage';
-export const GITHUB_URL = 'https://github.com/Automattic/newspack-rolling-coverage';
-export const NAV_LINKS = [
-	{ text: 'Home', url: '/' },
-	{ text: 'Docs', url: '/docs/' },
-	{ text: 'About', url: '/about/' },
-	{ text: 'GitHub', url: GITHUB_URL, external: true },
-];
 
 const navLinkClassName =
 	'inline-flex min-h-(--newspack-ui-spacer-7) items-center rounded-(--newspack-ui-radius-control) px-(--newspack-ui-spacer-1) text-(length:--newspack-ui-font-size-small) font-(weight:--newspack-ui-font-weight-medium) text-muted-foreground transition-colors duration-(--newspack-ui-duration-color) hover:bg-(--newspack-ui-color-neutral-fill) hover:text-foreground aria-[current=page]:text-foreground aria-[current=page]:underline aria-[current=page]:decoration-(--newspack-ui-color-accent) aria-[current=page]:decoration-2 aria-[current=page]:underline-offset-8';
@@ -28,7 +24,7 @@ function isCurrent( url: string, pathname: string ) {
 	return url === '/docs/' ? path.startsWith( url ) : path === url;
 }
 
-function NavList( { pathname, className, linkClassName }: { pathname: string; className?: string; linkClassName?: string } ) {
+function NavList( { pathname, className }: { pathname: string; className?: string } ) {
 	return (
 		<ul className={ cn( 'm-0 flex list-none p-0', className ) }>
 			{ NAV_LINKS.map( ( link ) => (
@@ -37,7 +33,7 @@ function NavList( { pathname, className, linkClassName }: { pathname: string; cl
 						href={ link.url }
 						rel={ link.external ? 'noopener' : undefined }
 						aria-current={ isCurrent( link.url, pathname ) ? 'page' : undefined }
-						className={ cn( navLinkClassName, linkClassName ) }
+						className={ navLinkClassName }
 					>
 						{ link.text }
 					</a>
@@ -55,11 +51,11 @@ function SearchButton() {
 			variant="outline"
 			size="sm"
 			aria-label="Search the docs"
-			className="w-(--newspack-ui-spacer-7) p-0 [&_svg]:size-(--newspack-ui-spacer-3) md:w-auto md:px-[calc(var(--newspack-ui-spacer-1)*1.75)]"
+			className="px-[calc(var(--newspack-ui-spacer-1)*1.75)] max-md:hidden"
 			onClick={ () => setOpenSearch( true ) }
 		>
-			<Search aria-hidden="true" />
-			<span className="max-md:hidden">Search</span>
+			<Icon icon={ search } aria-hidden="true" />
+			Search
 		</Button>
 	);
 }
@@ -67,7 +63,7 @@ function SearchButton() {
 function MenuIcon() {
 	return (
 		<>
-			<Menu aria-hidden="true" />
+			<Icon icon={ menu } aria-hidden="true" />
 			<span className="sr-only">Menu</span>
 		</>
 	);
@@ -80,7 +76,7 @@ function DocsMenuButton() {
 			type="button"
 			variant="ghost"
 			size="icon-sm"
-			className="md:hidden [&_svg]:size-(--newspack-ui-spacer-4)"
+			className="md:hidden"
 			aria-expanded={ open }
 			aria-controls="nd-sidebar-mobile"
 			onClick={ () => setOpen( ! open ) }
@@ -92,45 +88,68 @@ function DocsMenuButton() {
 
 function SiteMenuButton( { pathname }: { pathname: string } ) {
 	const [ open, setOpen ] = useState( false );
+	const mobile = useMobileMenu();
+
+	useEffect( () => {
+		if ( ! mobile ) {
+			setOpen( false );
+		}
+	}, [ mobile ] );
+
 	return (
-		<Dialog open={ open } onOpenChange={ setOpen }>
-			<DialogTrigger asChild>
-				<Button type="button" variant="ghost" size="icon-sm" className="md:hidden [&_svg]:size-(--newspack-ui-spacer-4)">
+		<Sheet open={ open } onOpenChange={ setOpen }>
+			<SheetTrigger asChild>
+				<Button type="button" variant="ghost" size="icon-sm" className="md:hidden">
 					<MenuIcon />
 				</Button>
-			</DialogTrigger>
-			<DialogContent
+			</SheetTrigger>
+			<SheetContent
+				showCloseButton={ false }
 				aria-describedby={ undefined }
+				className="gap-0 overflow-hidden text-[0.9375rem]"
 				onOpenAutoFocus={ ( event ) => {
-					event.preventDefault();
-					event.currentTarget.querySelector< HTMLElement >( 'nav a' )?.focus();
+					const close = event.currentTarget instanceof HTMLElement ? event.currentTarget.querySelector( 'button' ) : null;
+					if ( close ) {
+						event.preventDefault();
+						close.focus();
+					}
 				} }
 			>
-				<DialogHeader>
-					<DialogTitle>{ SITE_TITLE }</DialogTitle>
-				</DialogHeader>
-				<nav aria-label="Main" className="px-(--newspack-ui-spacer-3) pt-(--newspack-ui-spacer-2)">
-					<NavList
-						pathname={ pathname }
-						className="flex-col"
-						linkClassName="flex min-h-(--newspack-ui-spacer-8) text-(length:--newspack-ui-font-size-body)"
-					/>
+				<SheetTitle className="sr-only">Menu</SheetTitle>
+				<SheetDescription className="sr-only">Site navigation</SheetDescription>
+				<div className="flex flex-col gap-3 p-4 pb-2">
+					<SheetClose className={ DRAWER_CLOSE }>
+						<CloseIcon />
+						<span className="sr-only">Close</span>
+					</SheetClose>
+					<DrawerSearch onNavigate={ () => setOpen( false ) } />
+				</div>
+				<nav className="site-menu flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto overscroll-contain p-4" aria-label="Main">
+					{ DRAWER_LINKS.map( ( link ) => {
+						const current = link.drawer !== 'tree' && isCurrent( link.url, pathname );
+						return (
+							<a
+								key={ link.url }
+								href={ link.url }
+								rel={ link.external ? 'noopener' : undefined }
+								className={ link.drawer === 'tree' ? `${ DRAWER_ITEM } w-full` : DRAWER_ITEM }
+								data-active={ current }
+								aria-current={ current ? 'page' : undefined }
+							>
+								{ link.external && <ExternalIcon /> }
+								{ link.text }
+								{ link.drawer === 'tree' && <FolderChevron open={ false } /> }
+							</a>
+						);
+					} ) }
 				</nav>
-				<MenuFooter className="mx-(--newspack-ui-spacer-5) mt-(--newspack-ui-spacer-3)" />
-			</DialogContent>
-		</Dialog>
-	);
-}
-
-export function MenuFooter( { className }: { className?: string } ) {
-	return (
-		<div className={ cn( 'flex items-center justify-end gap-(--newspack-ui-spacer-2) border-t border-border pt-(--newspack-ui-spacer-3)', className ) }>
-			<ThemeToggle />
-		</div>
+			</SheetContent>
+		</Sheet>
 	);
 }
 
 export function SiteHeader( { pathname, docs = false }: { pathname: string; docs?: boolean } ) {
+	const mobile = useMobileMenu();
 	return (
 		<header
 			className={ cn(
@@ -151,7 +170,7 @@ export function SiteHeader( { pathname, docs = false }: { pathname: string; docs
 						<NavList pathname={ pathname } className="gap-(--newspack-ui-spacer-half)" />
 					</nav>
 					<SearchButton />
-					<ThemeToggle className="max-md:hidden" />
+					{ ! mobile && <ThemeToggle className="max-md:hidden" /> }
 					{ docs ? <DocsMenuButton /> : <SiteMenuButton pathname={ pathname } /> }
 				</div>
 			</div>

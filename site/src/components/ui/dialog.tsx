@@ -37,7 +37,7 @@ function DialogOverlay({
     <DialogPrimitive.Overlay
       data-slot="dialog-overlay"
       className={cn(
-        "fixed inset-0 z-50 bg-(--newspack-ui-color-overlay-50) duration-(--newspack-ui-duration-modal) [animation-timing-function:var(--newspack-ui-ease-out)] data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0 max-[599px]:duration-(--newspack-ui-duration-sheet)",
+        "fixed inset-0 z-50 bg-(--newspack-ui-color-overlay-50) duration-(--newspack-ui-duration-modal) ease-(--newspack-ui-ease-out) data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0 max-[599px]:duration-(--newspack-ui-duration-sheet)",
         className
       )}
       {...props}
@@ -61,9 +61,8 @@ function DialogContent({
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
-          "fixed top-[50%] left-[50%] z-50 flex max-h-[90%] w-full max-w-(--newspack-ui-width-m) translate-x-[-50%] translate-y-[-50%] flex-col overflow-auto overscroll-contain rounded-(--newspack-ui-radius-surface) bg-(--newspack-ui-color-surface) pb-(--newspack-ui-spacer-5) font-(family-name:--newspack-ui-font-family-body) text-(length:--newspack-ui-font-size-body) leading-(--newspack-ui-line-height-body) text-(color:--newspack-ui-color-text) duration-(--newspack-ui-duration-modal) outline-none [box-shadow:var(--nui-elevation-4)] [animation-timing-function:var(--newspack-ui-ease-out)] data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-96 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-96",
-          "max-[599px]:top-auto max-[599px]:bottom-0 max-[599px]:left-0 max-[599px]:max-h-[calc(100%-var(--newspack-ui-spacer-5))] max-[599px]:max-w-full max-[599px]:translate-x-0 max-[599px]:translate-y-0 max-[599px]:rounded-t-(--newspack-ui-radius-sheet) max-[599px]:rounded-b-none max-[599px]:pb-[max(var(--newspack-ui-spacer-5),env(safe-area-inset-bottom))] max-[599px]:duration-(--newspack-ui-duration-sheet) max-[599px]:[animation-timing-function:var(--newspack-ui-ease-drawer)] max-[599px]:data-[state=closed]:slide-out-to-bottom max-[599px]:data-[state=closed]:zoom-out-100 max-[599px]:data-[state=open]:slide-in-from-bottom max-[599px]:data-[state=open]:zoom-in-100",
-          "before:absolute before:inset-x-0 before:top-(--newspack-ui-spacer-1) before:mx-auto before:hidden before:h-(--newspack-ui-spacer-half) before:w-(--newspack-ui-spacer-8) before:rounded-(--newspack-ui-radius-sheet-handle) before:bg-[color-mix(in_oklab,currentcolor_23%,transparent)] before:content-[''] max-[599px]:before:block",
+          "fixed top-[50%] left-[50%] z-50 flex max-h-[90%] w-full max-w-(--newspack-ui-width-m) translate-x-[-50%] translate-y-[-50%] flex-col overflow-auto overscroll-contain rounded-(--newspack-ui-radius-surface) bg-(--newspack-ui-color-surface) pb-(--newspack-ui-spacer-5) font-(family-name:--newspack-ui-font-family-body) text-(length:--newspack-ui-font-size-body) leading-(--newspack-ui-line-height-body) text-(color:--newspack-ui-color-text) duration-(--newspack-ui-duration-modal) outline-none [box-shadow:var(--nui-elevation-4)] ease-(--newspack-ui-ease-out) data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-96 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-96",
+          "max-[599px]:top-auto max-[599px]:bottom-0 max-[599px]:left-0 max-[599px]:max-h-[calc(100%-var(--newspack-ui-spacer-5))] max-[599px]:max-w-full max-[599px]:translate-x-0 max-[599px]:translate-y-0 max-[599px]:rounded-t-(--newspack-ui-radius-sheet) max-[599px]:rounded-b-none max-[599px]:pb-[max(var(--newspack-ui-spacer-5),env(safe-area-inset-bottom))] max-[599px]:duration-(--newspack-ui-duration-sheet) max-[599px]:ease-(--newspack-ui-ease-drawer) max-[599px]:data-[state=closed]:slide-out-to-bottom max-[599px]:data-[state=closed]:zoom-out-100 max-[599px]:data-[state=open]:slide-in-from-bottom max-[599px]:data-[state=open]:zoom-in-100",
           className
         )}
         {...props}
@@ -74,7 +73,7 @@ function DialogContent({
             <Button
               variant="ghost"
               size="icon"
-              className="absolute end-[calc(var(--newspack-ui-spacer-5)-(var(--newspack-ui-spacer-8)-var(--newspack-ui-spacer-4))/2)] top-[calc(var(--newspack-ui-spacer-4)+(max(18px,var(--newspack-ui-font-size-title-m))*var(--newspack-ui-line-height-title-m)-var(--newspack-ui-spacer-8))/2)] rounded-(--newspack-ui-radius-pill) max-[599px]:top-[calc(var(--newspack-ui-spacer-6)+(max(18px,var(--newspack-ui-font-size-title-m))*var(--newspack-ui-line-height-title-m)-var(--newspack-ui-touch-target))/2)] max-[599px]:size-(--newspack-ui-touch-target) max-[599px]:end-[calc(var(--newspack-ui-spacer-5)-(var(--newspack-ui-touch-target)-var(--newspack-ui-spacer-4))/2)] [&_svg]:size-(--newspack-ui-spacer-4)"
+              className="absolute end-[calc(var(--newspack-ui-spacer-5)-(var(--newspack-ui-spacer-8)-var(--newspack-ui-spacer-4))/2)] top-[calc(var(--newspack-ui-spacer-4)+(max(18px,var(--newspack-ui-font-size-title-m))*var(--newspack-ui-line-height-title-m)-var(--newspack-ui-spacer-8))/2)] rounded-(--newspack-ui-radius-pill) max-[599px]:top-[calc(var(--newspack-ui-spacer-5)+(max(18px,var(--newspack-ui-font-size-title-m))*var(--newspack-ui-line-height-title-m)-var(--newspack-ui-touch-target))/2)] max-[599px]:size-(--newspack-ui-touch-target) max-[599px]:end-[calc(var(--newspack-ui-spacer-5)-(var(--newspack-ui-touch-target)-var(--newspack-ui-spacer-4))/2)] [&_svg]:size-(--newspack-ui-spacer-4)"
             >
               <CloseIcon />
               <span className="sr-only">Close</span>
@@ -91,7 +90,7 @@ function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="dialog-header"
       className={cn(
-        "flex flex-col px-(--newspack-ui-spacer-5) pt-(--newspack-ui-spacer-4) pe-[calc(var(--newspack-ui-spacer-5)+(var(--newspack-ui-spacer-8)+var(--newspack-ui-spacer-4))/2+var(--newspack-ui-spacer-3))] max-[599px]:pt-(--newspack-ui-spacer-6)",
+        "flex flex-col px-(--newspack-ui-spacer-5) pt-(--newspack-ui-spacer-4) pe-[calc(var(--newspack-ui-spacer-5)+(var(--newspack-ui-spacer-8)+var(--newspack-ui-spacer-4))/2+var(--newspack-ui-spacer-3))] max-[599px]:pt-(--newspack-ui-spacer-5)",
         className
       )}
       {...props}

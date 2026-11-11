@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from 'react';
+import { useLayoutEffect, useRef, useSyncExternalStore } from 'react';
 import { SearchDialog, SearchDialogList, useSearch, type SharedProps } from 'fumadocs-ui/components/dialog/search';
 import { useStaticSearch } from 'fumadocs-core/search/client';
 import { Button } from '@/components/ui/button';
@@ -51,13 +51,34 @@ function SearchEmpty() {
 
 export default function DocsSearchDialog( props: SharedProps ) {
 	const search = useStaticSearch();
+	const returnFocus = useRef< HTMLElement | null >( null );
+
+	useLayoutEffect( () => {
+		if ( props.open ) {
+			returnFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+		}
+	}, [ props.open ] );
 
 	return (
 		<SearchDialog { ...search } { ...props }>
 			<DialogContent
 				showCloseButton={ false }
 				aria-describedby={ undefined }
-				className="top-[calc(50%-15rem)] max-w-(--newspack-ui-width-m) translate-y-0 gap-0 overflow-hidden p-0 max-[599px]:top-(--newspack-ui-spacer-3) max-[599px]:bottom-auto max-[599px]:left-1/2 max-[599px]:w-[calc(100%-var(--newspack-ui-spacer-3))] max-[599px]:-translate-x-1/2 max-[599px]:rounded-(--newspack-ui-radius-surface) max-[599px]:before:hidden"
+				onOpenAutoFocus={ ( event ) => {
+					const input = event.currentTarget instanceof HTMLElement ? event.currentTarget.querySelector( 'input' ) : null;
+					if ( input ) {
+						event.preventDefault();
+						input.focus();
+						input.setSelectionRange( input.value.length, input.value.length );
+					}
+				} }
+				onCloseAutoFocus={ ( event ) => {
+					if ( returnFocus.current?.isConnected ) {
+						event.preventDefault();
+						returnFocus.current.focus();
+					}
+				} }
+				className="top-[calc(50%-15rem)] max-w-(--newspack-ui-width-m) translate-y-0 gap-0 overflow-hidden p-0 max-[599px]:top-(--newspack-ui-spacer-3) max-[599px]:bottom-auto max-[599px]:left-1/2 max-[599px]:w-[calc(100%-var(--newspack-ui-spacer-3))] max-[599px]:-translate-x-1/2 max-[599px]:rounded-(--newspack-ui-radius-surface)"
 			>
 				<DialogTitle className="sr-only">Search the docs</DialogTitle>
 				<SearchField />

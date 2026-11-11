@@ -16,16 +16,20 @@ export function DrawerA11y() {
 			return;
 		}
 		const drawer = document.getElementById( 'nd-sidebar-mobile' );
-		const layout = drawer?.parentElement;
-		if ( ! drawer || ! layout ) {
+		if ( ! drawer ) {
 			return;
 		}
 		const overlay = drawer.previousElementSibling?.hasAttribute( 'data-state' )
 			? drawer.previousElementSibling
 			: null;
-		const behind = Array.from( layout.children ).filter(
-			( el ) => el !== drawer && el !== overlay
-		);
+		const behind: Element[] = [];
+		for ( let node: Element | null = drawer; node && node !== document.body; node = node.parentElement ) {
+			for ( const sibling of Array.from( node.parentElement?.children ?? [] ) ) {
+				if ( sibling !== node && sibling !== overlay && ! sibling.hasAttribute( 'inert' ) && ! [ 'SCRIPT', 'STYLE', 'TEMPLATE' ].includes( sibling.tagName ) ) {
+					behind.push( sibling );
+				}
+			}
+		}
 		const trigger = document.querySelector< HTMLElement >(
 			'header [aria-controls="nd-sidebar-mobile"]'
 		);

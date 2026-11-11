@@ -2,6 +2,7 @@
 import { ClientRouter } from 'astro:transitions';
 import '@/styles/global.css';
 import interLatin from '@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url';
+import { MOBILE_MENU_QUERY } from '@/lib/theme';
 
 interface Props {
 	title: string;
@@ -21,9 +22,10 @@ const { title, description, skipTo = '#main' } = Astro.props;
 		<meta name="description" content={ description } />
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 		<link rel="preload" href={ interLatin } as="font" type="font/woff2" crossorigin />
-		<script is:inline>
+		<script is:inline define:vars={ { mobileMenuQuery: MOBILE_MENU_QUERY } }>
 			( function () {
 				const query = window.matchMedia( '(prefers-color-scheme: dark)' );
+				const mobile = window.matchMedia( mobileMenuQuery );
 				function stored() {
 					try {
 						const value = localStorage.getItem( 'theme' );
@@ -34,7 +36,8 @@ const { title, description, skipTo = '#main' } = Astro.props;
 				}
 				function apply( root ) {
 					const target = root || document.documentElement;
-					const dark = ( stored() || ( query.matches ? 'dark' : 'light' ) ) === 'dark';
+					const system = query.matches ? 'dark' : 'light';
+					const dark = ( mobile.matches ? system : stored() || system ) === 'dark';
 					target.classList.toggle( 'dark', dark );
 					target.style.colorScheme = dark ? 'dark' : 'light';
 				}
@@ -43,9 +46,10 @@ const { title, description, skipTo = '#main' } = Astro.props;
 					apply( event.newDocument.documentElement );
 				} );
 				query.addEventListener( 'change', function () {
-					if ( ! stored() ) {
-						apply();
-					}
+					apply();
+				} );
+				mobile.addEventListener( 'change', function () {
+					apply();
 				} );
 				window.addEventListener( 'storage', function ( event ) {
 					if ( event.key === 'theme' || event.key === null ) {
