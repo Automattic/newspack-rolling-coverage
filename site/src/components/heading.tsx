@@ -18,7 +18,7 @@ export function Heading( { as, ...props }: ComponentProps< 'h1' > & { as: Elemen
 			<a
 				href={ `#${ props.id }` }
 				aria-label="Link to this section"
-				className="not-prose inline-flex shrink-0 items-center justify-center rounded-md p-1 text-fd-muted-foreground opacity-0 transition-[opacity,background-color,color] duration-100 hover:bg-fd-accent hover:text-fd-accent-foreground focus-visible:ring-2 focus-visible:ring-fd-ring focus-visible:outline-none [&_svg]:size-4 focus-visible:opacity-100 group-hover/heading:opacity-100"
+				className="not-prose inline-flex shrink-0 items-center justify-center rounded-(--newspack-ui-radius-control) p-1 text-muted-foreground opacity-0 transition-[opacity,background-color,color] duration-(--newspack-ui-duration-color) hover:bg-(--newspack-ui-color-neutral-fill) hover:text-foreground [&_svg]:size-4 focus-visible:opacity-100 group-hover/heading:opacity-100"
 			>
 				<svg
 					xmlns="http://www.w3.org/2000/svg"

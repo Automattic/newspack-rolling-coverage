@@ -1,32 +1,23 @@
 import { DocsLayout } from 'fumadocs-ui/layouts/notebook';
 import { DocsPage, type DocsPageProps } from 'fumadocs-ui/layouts/notebook/page';
+import { useSidebar } from 'fumadocs-ui/layouts/notebook/slots/sidebar';
 import type { Root } from 'fumadocs-core/page-tree';
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { navigate } from 'astro:transitions/client';
 import { RootProvider } from 'fumadocs-ui/provider/astro';
 import type { AstroProviderProps } from 'fumadocs-core/framework/astro';
-import { LiveIcon } from './live-icon';
 import SearchDialog from './search';
 import { DrawerA11y } from './drawer-a11y';
+import { MenuFooter, NAV_LINKS, SiteHeader } from './site-header';
 
-export const SITE_TITLE = 'Rolling Coverage';
-export const NAV_TITLE = (
-	<>
-		<LiveIcon onAir className="-ms-1 -me-1 size-7 text-newspack-600 dark:text-newspack-300" />
-		<span className="whitespace-nowrap">{ SITE_TITLE }</span>
-	</>
-);
-export const GITHUB_URL = 'https://github.com/Automattic/newspack-rolling-coverage';
-export const NAV_LINKS = [
-	{ text: 'Docs', url: '/docs/' },
-	{ text: 'About', url: '/about/' },
-];
-export const LAYOUT_PROPS = {
-	nav: { title: NAV_TITLE, url: '/', mode: 'top' as const },
-	links: NAV_LINKS,
-	githubUrl: GITHUB_URL,
-	sidebar: { collapsible: false, 'aria-label': 'Site navigation' },
-};
+export { SITE_TITLE } from './site-header';
+
+export const ROOT_THEME = { enabled: false } as const;
+
+function DrawerFooter() {
+	const { mode } = useSidebar();
+	return mode === 'drawer' ? <MenuFooter className="mx-4 mb-4" /> : null;
+}
 
 export function Docs( {
 	tree,
@@ -46,9 +37,17 @@ export function Docs( {
 			pathname={ pathname }
 			params={ params }
 			navigate={ navigate }
+			theme={ ROOT_THEME }
 			search={ { SearchDialog } }
 		>
-			<DocsLayout tree={ tree } { ...LAYOUT_PROPS }>
+			<DocsLayout
+				tree={ tree }
+				themeSwitch={ { enabled: false } }
+				links={ NAV_LINKS.map( ( link ) => ( { ...link, on: 'menu' as const } ) ) }
+				nav={ { component: <SiteHeader docs pathname={ pathname } />, mode: 'top' } }
+				sidebar={ { collapsible: false, 'aria-label': 'Site navigation', footer: DrawerFooter } }
+				containerProps={ { style: { '--fd-header-height': 'var(--site-header-height)' } as CSSProperties } }
+			>
 				<DrawerA11y />
 				<DocsPage { ...page }>{ children }</DocsPage>
 			</DocsLayout>

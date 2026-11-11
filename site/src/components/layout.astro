@@ -6,34 +6,53 @@ import interLatin from '@fontsource-variable/inter/files/inter-latin-wght-normal
 interface Props {
 	title: string;
 	description: string;
+	skipTo?: string;
 }
 
-const { title, description } = Astro.props;
+const { title, description, skipTo = '#main' } = Astro.props;
 ---
 
 <html lang="en" suppressHydrationWarning>
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="color-scheme" content="light dark" />
 		<title>{ title }</title>
 		<meta name="description" content={ description } />
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 		<link rel="preload" href={ interLatin } as="font" type="font/woff2" crossorigin />
 		<script is:inline>
-			// The React theme provider only runs after hydration, and the client router swaps <html> attributes on every navigation, so set the theme class before paint and again after each swap.
-			function applyTheme() {
-				let theme = null;
-				try {
-					theme = localStorage.getItem( 'theme' );
-				} catch {}
-				const dark =
-					theme === 'dark' ||
-					( theme !== 'light' && window.matchMedia( '(prefers-color-scheme: dark)' ).matches );
-				document.documentElement.classList.toggle( 'dark', dark );
-				document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
-			}
-			applyTheme();
-			document.addEventListener( 'astro:after-swap', applyTheme );
+			( function () {
+				const query = window.matchMedia( '(prefers-color-scheme: dark)' );
+				function stored() {
+					try {
+						const value = localStorage.getItem( 'theme' );
+						return value === 'dark' || value === 'light' ? value : null;
+					} catch {
+						return null;
+					}
+				}
+				function apply( root ) {
+					const target = root || document.documentElement;
+					const dark = ( stored() || ( query.matches ? 'dark' : 'light' ) ) === 'dark';
+					target.classList.toggle( 'dark', dark );
+					target.style.colorScheme = dark ? 'dark' : 'light';
+				}
+				apply();
+				document.addEventListener( 'astro:before-swap', function ( event ) {
+					apply( event.newDocument.documentElement );
+				} );
+				query.addEventListener( 'change', function () {
+					if ( ! stored() ) {
+						apply();
+					}
+				} );
+				window.addEventListener( 'storage', function ( event ) {
+					if ( event.key === 'theme' || event.key === null ) {
+						apply();
+					}
+				} );
+			} )();
 		</script>
 		<script is:inline>
 			try {
@@ -51,6 +70,7 @@ const { title, description } = Astro.props;
 		transition:animate="none"
 		transition:name="page-layout"
 	>
+		<a class="skip-link" href={ skipTo }>Skip to content</a>
 		<slot />
 	</body>
 </html>

@@ -1,33 +1,30 @@
 import { LiveIcon } from './live-icon';
 
-const linkClassName =
-	'font-medium text-fd-foreground underline decoration-fd-border underline-offset-4 transition-colors hover:decoration-fd-foreground motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fd-ring';
-
 /**
  * The credit line shared by the homepage and the About page.
  */
 export function SiteFooter() {
 	return (
-		<footer className="border-t border-fd-border">
-			<div className="mx-auto w-full max-w-6xl px-4 py-10 text-sm text-pretty text-fd-muted-foreground md:px-6">
+		<footer className="pt-[calc(var(--section-space)/2)] pb-(--newspack-ui-spacer-8) type-small text-pretty text-muted-foreground">
+			<div className="site-container">
 				<a
 					href="/"
-					className="inline-flex items-center gap-1.5 rounded-sm text-base font-semibold text-fd-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fd-ring"
+					className="inline-flex items-center gap-(--newspack-ui-spacer-half) rounded-(--newspack-ui-radius-control) text-(length:--newspack-ui-font-size-body) font-(weight:--newspack-ui-font-weight-strong) text-foreground"
 				>
-					<LiveIcon className="-ms-1 size-7 text-newspack-600 dark:text-newspack-300" />
+					<LiveIcon className="-ms-1 size-7 text-brand" />
 					Rolling Coverage
 				</a>
-				<p className="mt-4 max-w-[70ch]">
+				<p className="mt-(--newspack-ui-spacer-2) max-w-[70ch]">
 					Rolling Coverage is built by{ ' ' }
-					<a href="https://newspack.com/" className={ linkClassName }>
+					<a href="https://newspack.com/" className="text-link">
 						Newspack
 					</a>{ ' ' }
 					as part of{ ' ' }
-					<a href="https://emergencymode.news/" className={ linkClassName }>
+					<a href="https://emergencymode.news/" className="text-link">
 						Emergency Mode for News
 					</a>
 					, a program supported by{ ' ' }
-					<a href="https://www.pressforward.news/" className={ linkClassName }>
+					<a href="https://www.pressforward.news/" className="text-link">
 						Press Forward
 					</a>
 					’s local news infrastructure initiative.
