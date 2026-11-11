@@ -161,7 +161,7 @@ export function Home( props: SitePageProps ) {
 				<p className="flex flex-wrap items-center gap-(--newspack-ui-spacer-1) type-small font-(weight:--newspack-ui-font-weight-medium) text-muted-foreground">
 					<Badge variant="outline" className="gap-(--newspack-ui-spacer-half) uppercase">
 						<span aria-hidden="true" className="relative flex size-1.5">
-							<span className="absolute inline-flex size-full animate-ping rounded-full [animation-iteration-count:3] bg-(--newspack-ui-color-error) opacity-75 motion-reduce:animate-none" />
+							<span className="absolute inline-flex size-full animate-ping rounded-full bg-(--newspack-ui-color-error) opacity-75 motion-reduce:animate-none" />
 							<span className="relative inline-flex size-1.5 rounded-full bg-(--newspack-ui-color-error)" />
 						</span>
 						Beta
