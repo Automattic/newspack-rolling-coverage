@@ -1,8 +1,8 @@
-@import "tailwindcss";
-@import "tw-animate-css";
-@import "@fontsource-variable/inter";
-@import "./newspack-ui-site.css";
-@import "./newspack-ui-fumadocs.css";
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import '@fontsource-variable/inter';
+@import './newspack-ui-site.css';
+@import './newspack-ui-fumadocs.css';
 
 @custom-variant dark (&:where(.dark, .dark *));
 
