@@ -32,7 +32,7 @@ function SearchField() {
 				aria-activedescendant={ active !== null ? `fd-search-option-${ active }` : undefined }
 				aria-label="Search the docs"
 				aria-autocomplete="list"
-				aria-controls="fd-search-list"
+				aria-controls={ active !== null ? 'fd-search-list' : undefined }
 				placeholder="Search the docs"
 				autoComplete="off"
 				autoCapitalize="off"
@@ -87,7 +87,8 @@ function SearchResults() {
 	useLayoutEffect( () => setActive( error ? null : results?.[ 0 ]?.record.id ?? null ), [ setActive, results, error ] );
 
 	const onKey = useEffectEvent( ( event: KeyboardEvent ) => {
-		if ( ! results || event.isComposing || event.keyCode === 229 ) {
+		const target = event.target;
+		if ( ! results || event.isComposing || event.keyCode === 229 || ! ( target instanceof HTMLInputElement ) || target.getAttribute( 'role' ) !== 'combobox' ) {
 			return;
 		}
 		if ( event.key === 'ArrowDown' || event.key === 'ArrowUp' ) {
@@ -115,36 +116,47 @@ function SearchResults() {
 		return () => window.removeEventListener( 'keydown', listener );
 	}, [] );
 
-	if ( ! error && results === null ) {
-		return null;
+	const empty = ! error && results?.length === 0;
+	let status = '';
+	if ( error ) {
+		status = "Search couldn't load. Reload the page and try again.";
+	} else if ( empty ) {
+		status = SEARCH_EMPTY_HINT;
+	} else if ( results?.length ) {
+		status = results.length === 1 ? '1 result' : `${ results.length } results`;
 	}
 
 	return (
-		<Card
-			data-search-results=""
-			className="mt-(--newspack-ui-spacer-3) gap-0 bg-(--newspack-ui-color-surface) p-(--newspack-ui-spacer-2) [box-shadow:var(--nui-elevation-2)]"
-		>
-			{ error && (
-				<p role="status" className={ STATUS }>
-					Search couldn&apos;t load. Reload the page and try again.
-				</p>
+		<>
+			<p role="status" className="sr-only">
+				{ status }
+			</p>
+			{ ( error || results !== null ) && (
+				<Card
+					data-search-results=""
+					className="mt-(--newspack-ui-spacer-3) gap-0 bg-(--newspack-ui-color-surface) p-(--newspack-ui-spacer-2) [box-shadow:var(--nui-elevation-2)]"
+				>
+					{ error && (
+						<p className={ STATUS }>Search couldn&apos;t load. Reload the page and try again.</p>
+					) }
+					{ empty && (
+						<p className={ STATUS }>
+							{ SEARCH_EMPTY_HINT }
+						</p>
+					) }
+					<div
+						id="fd-search-list"
+						role={ results?.length ? 'listbox' : undefined }
+						aria-label={ results?.length ? 'Search results' : undefined }
+						className={ cn( 'flex flex-col gap-(--newspack-ui-spacer-half)', SEARCH_HIGHLIGHT, ! results?.length && 'hidden' ) }
+					>
+						{ results?.map( ( result ) => (
+							<ResultOption key={ result.record.id } result={ result } query={ query } />
+						) ) }
+					</div>
+				</Card>
 			) }
-			{ results?.length === 0 && ! error && (
-				<p role="status" className={ STATUS }>
-					{ SEARCH_EMPTY_HINT }
-				</p>
-			) }
-			<div
-				id="fd-search-list"
-				role={ results?.length ? 'listbox' : undefined }
-				aria-label={ results?.length ? 'Search results' : undefined }
-				className={ cn( 'flex flex-col gap-(--newspack-ui-spacer-half)', SEARCH_HIGHLIGHT, ! results?.length && 'hidden' ) }
-			>
-				{ results?.map( ( result ) => (
-					<ResultOption key={ result.record.id } result={ result } query={ query } />
-				) ) }
-			</div>
-		</Card>
+		</>
 	);
 }
 
