@@ -3,6 +3,7 @@ import { Dialog as DialogPrimitive } from 'radix-ui';
 import { Icon, search as searchIcon } from '@wordpress/icons';
 import { SearchDialog, useSearch, type SharedProps } from 'fumadocs-ui/components/dialog/search';
 import { useStaticSearch } from 'fumadocs-core/search/client';
+import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { CloseIcon } from '@/lib/newspack-ui-icons';
 import { SEARCH_EMPTY_HINT, SEARCH_INDEX } from '@/lib/site';
@@ -10,7 +11,7 @@ import { cn } from '@/lib/utils';
 import { SEARCH_HIGHLIGHT, SEARCH_RESULT_ROW, SearchResultBody, flattenResults, type SearchResult } from './drawer-search';
 
 const STATUS =
-	'm-0 px-(--newspack-ui-spacer-2) pt-(--newspack-ui-spacer-3) text-(length:--newspack-ui-font-size-small) leading-(--newspack-ui-line-height-small) text-(color:--newspack-ui-color-text-muted)';
+	'm-0 px-(--newspack-ui-spacer-2) py-(--newspack-ui-spacer-2) text-(length:--newspack-ui-font-size-small) leading-(--newspack-ui-line-height-small) text-(color:--newspack-ui-color-text-muted)';
 
 function SearchField() {
 	const { search, onSearchChange, getActive, subscribeActive } = useSearch();
@@ -114,8 +115,15 @@ function SearchResults() {
 		return () => window.removeEventListener( 'keydown', listener );
 	}, [] );
 
+	if ( ! error && results === null ) {
+		return null;
+	}
+
 	return (
-		<div data-search-results="" className="mt-(--newspack-ui-spacer-3)">
+		<Card
+			data-search-results=""
+			className="mt-(--newspack-ui-spacer-3) gap-0 bg-(--newspack-ui-color-surface) p-(--newspack-ui-spacer-2) [box-shadow:var(--nui-elevation-2)]"
+		>
 			{ error && (
 				<p role="status" className={ STATUS }>
 					Search couldn&apos;t load. Reload the page and try again.
@@ -130,22 +138,22 @@ function SearchResults() {
 				id="fd-search-list"
 				role={ results?.length ? 'listbox' : undefined }
 				aria-label={ results?.length ? 'Search results' : undefined }
-				className={ cn( '-mx-(--newspack-ui-spacer-2) flex flex-col gap-(--newspack-ui-spacer-half)', SEARCH_HIGHLIGHT, ! results?.length && 'hidden' ) }
+				className={ cn( 'flex flex-col gap-(--newspack-ui-spacer-half)', SEARCH_HIGHLIGHT, ! results?.length && 'hidden' ) }
 			>
 				{ results?.map( ( result ) => (
 					<ResultOption key={ result.record.id } result={ result } query={ query } />
 				) ) }
 			</div>
-		</div>
+		</Card>
 	);
 }
 
 /**
  * The docs search, opened by the header's Search button or Ctrl or Cmd+K: a full-screen overlay
  * like the Newspack block theme's Overlay Search, with the field near the top of a centered
- * column and the results under it. Radix Dialog keeps focus inside, locks the page scroll, hides
- * the page from assistive technology and closes on Escape; the page behind is also made inert, and
- * focus goes back to what opened it.
+ * column and the results in a card under it. Radix Dialog keeps focus inside, locks the page
+ * scroll, hides the page from assistive technology and closes on Escape; the page behind is also
+ * made inert, and focus goes back to what opened it.
  */
 export default function DocsSearchDialog( props: SharedProps ) {
 	const search = useStaticSearch( { from: SEARCH_INDEX } );
@@ -183,7 +191,7 @@ export default function DocsSearchDialog( props: SharedProps ) {
 				<DialogPrimitive.Overlay
 					ref={ setOverlay }
 					data-search-overlay=""
-					className="fixed inset-0 z-50 overflow-y-auto overscroll-contain bg-(--newspack-ui-color-overlay-90) text-(color:--search-overlay-ink) duration-(--newspack-ui-duration-modal) ease-(--newspack-ui-ease-out) data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0"
+					className="fixed inset-0 z-50 overflow-y-auto overscroll-contain bg-(--newspack-ui-color-overlay-70) text-(color:--search-overlay-ink) duration-(--newspack-ui-duration-modal) ease-(--newspack-ui-ease-out) data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0"
 				>
 					<DialogPrimitive.Content
 						aria-describedby={ undefined }
