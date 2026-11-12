@@ -136,11 +136,11 @@ function SlackSettingsPage() {
 
 	const subTitles: Record< string, string > = {
 		channels: __(
-			'Choose which Slack channel posts to which liveblog.',
+			'See which Slack channel posts to which liveblog, and set how each one publishes.',
 			'newspack-rolling-coverage'
 		),
 		monitor: __(
-			'See recent Slack messages and whether they became entries.',
+			'Watch Slack messages and commands as they arrive, and whether they became entries.',
 			'newspack-rolling-coverage'
 		),
 	};

@@ -10,7 +10,7 @@ The plugin's admin screens live in `src/admin/`: the coverages list, each covera
 | --- | --- |
 | `#/coverages` | All Liveblogs (`coverage-view.tsx`) |
 | `#/coverages/<id>` | A coverage's entries (`entry-view.tsx`) |
-| `#/connection/<tab>` | Slack Connection (`slack-settings-page.tsx`): the connect flow, then the Channel Mappings and Monitor tabs in `src/admin/utils/slack-tabs.ts` |
+| `#/connection/<tab>` | Slack Connection (`slack-settings-page.tsx`): the connect flow, then the Channel Mappings and Monitor tabs in `src/admin/utils/slack-tabs.ts`. Each tab sets a header subtitle; the setup screen has none |
 | `#/settings/<tab>` | Settings (`settings-page.tsx`), with the General, Slack and AI tabs in `src/admin/utils/settings-tabs.ts`. See [Settings](#settings). |
 
 Old addresses still work. `admin.php?page=rolling-coverage-ai`, no longer registered, reaches `admin_page_access_denied`, where `Admin::redirect_legacy_ai_page()` sends it to `#/settings/ai` on the Settings page. The `#/ai` route goes to the same tab in the app, and `#/connection/settings` loads the Settings page's Slack tab (`slack-settings-page.tsx`), since a hash never reaches the server. The block's Edit the prompt link uses `Admin::get_settings_url( 'ai' )`.
@@ -56,7 +56,7 @@ Selecting rows in All Liveblogs or a coverage's entries replaces the table's col
 
 ## All Liveblogs
 
-The header holds Settings and Add Liveblog. Add Liveblog and the Edit action open `CoverageDrawer` (`coverage-drawer.tsx`), a DataForm with Name, Description, Canonical URL, Status and Advertising. Status options are named after the site's status labels. Description is an internal note, which the core terms route returns only in the `edit` context; the coverages list asks for that context when the user has `canManageTerms`, as everyone who can open the drawer does. In Edit, Save stays disabled until a field changes. A successful save closes the drawer with a snackbar, "Changes saved." for an edit or "Liveblog added." for a new coverage; a failed one keeps it open with the error. The drawer saves through the core terms route, served by `Coverage_REST_Controller`: core lets anyone who can assign coverages to entries (`edit_posts`) create one, since the taxonomy isn't hierarchical, so the controller also requires `manage_categories` to create. The drawer sends every field each time, so each meta key it sends must be writable by anyone who can edit a coverage. A stricter `auth_callback` on one of them fails those users' saves after the other fields are already written.
+The header holds Settings and Add Liveblog, with a subtitle that depends on whether the user can manage liveblogs. Add Liveblog and the Edit action open `CoverageDrawer` (`coverage-drawer.tsx`), a DataForm with Name, Description, Canonical URL, Status and Advertising. Status options are named after the site's status labels. Description is an internal note, which the core terms route returns only in the `edit` context; the coverages list asks for that context when the user has `canManageTerms`, as everyone who can open the drawer does. In Edit, Save stays disabled until a field changes. A successful save closes the drawer with a snackbar, "Changes saved." for an edit or "Liveblog added." for a new coverage; a failed one keeps it open with the error. The drawer saves through the core terms route, served by `Coverage_REST_Controller`: core lets anyone who can assign coverages to entries (`edit_posts`) create one, since the taxonomy isn't hierarchical, so the controller also requires `manage_categories` to create. The drawer sends every field each time, so each meta key it sends must be writable by anyone who can edit a coverage. A stricter `auth_callback` on one of them fails those users' saves after the other fields are already written.
 
 Each liveblog's entry count shows under its name ("21 entries", from the `entry_count` field as the view's `descriptionField`). Entries (`count`) is also a column, hidden by default and sortable. While it's shown, the line under the name goes, so the count appears once (`withEntryCount()` in `src/admin/fields/coverages.tsx`).
 
@@ -107,7 +107,7 @@ The options, their limits and what reads them are documented with the blocks: th
 
 ## A coverage's entries
 
-`EntryView` (`entry-view.tsx`) lists one coverage's entries. Its header holds the Slack channel button ("Connect Slack", or the connected channel's name), Placements, and Add Entry. Add Entry opens [Quick Edit](#quick-edit) on a new entry in the coverage, without leaving the list. On an ended coverage, Add Entry stays disabled, with a tooltip saying which status allows new entries; on a trashed coverage it is hidden.
+`EntryView` (`entry-view.tsx`) lists one coverage's entries. Its header holds a subtitle, the Slack channel button ("Connect Slack", or the connected channel's name), Placements, and Add Entry. Add Entry opens [Quick Edit](#quick-edit) on a new entry in the coverage, without leaving the list. On an ended coverage, Add Entry stays disabled, with a tooltip saying which status allows new entries; on a trashed coverage it is hidden.
 
 ### Data and live sync
 
