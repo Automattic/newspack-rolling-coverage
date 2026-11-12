@@ -71,8 +71,11 @@ function getBreadcrumbItems(
 		];
 	}
 
-	if ( pathname === '/ai' ) {
-		return [ root, { label: __( 'AI', 'newspack-rolling-coverage' ) } ];
+	if ( pathname.startsWith( '/settings' ) ) {
+		return [
+			root,
+			{ label: __( 'Settings', 'newspack-rolling-coverage' ) },
+		];
 	}
 
 	if ( isEmpty ) {
@@ -130,6 +133,7 @@ function AdminLayout() {
 			className="newspack-rolling-coverage-admin"
 			breadcrumbItems={ breadcrumbItems }
 			actions={ header.actions }
+			subTitle={ header.subTitle }
 			tabbedNavigation={ header.tabbedNavigation }
 		>
 			<div className="newspack-rolling-coverage-admin__content">

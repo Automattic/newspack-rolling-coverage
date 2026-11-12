@@ -349,14 +349,7 @@ const defaultEntryView: ViewState = {
 	sort: { field: 'date', direction: 'desc' },
 	search: '',
 	filters: [ { field: 'status', operator: 'isNot', value: 'trash' } ],
-	fields: [
-		'status',
-		'author',
-		'breakout',
-		'categories',
-		'tags',
-		'modified',
-	],
+	fields: [ 'status', 'author', 'breakout', 'categories', 'modified' ],
 	titleField: 'title',
 };
 

@@ -17,7 +17,7 @@ import { SnackbarList } from '@wordpress/components';
 import AdminLayout from './components/admin-layout';
 import CoverageView from './components/coverage-view';
 import EntryView from './components/entry-view';
-import AIPage from './components/ai-page';
+import SettingsPage from './components/settings-page';
 import ConnectionPage from './components/connection-page';
 import SlackSettingsPage from './components/slack-settings-page';
 import { useAdminContext } from './hooks/useAdminContext';
@@ -30,7 +30,8 @@ import { announceTrashedEntry } from './utils/notices';
  * the SPA tracks its own route in the hash. Routes:
  *   /coverages                   — coverage list (auto-redirected from root)
  *   /coverages/{id}              — rolling coverage entries
- *   /ai                          — AI prompt settings
+ *   /settings/{tab}              — Settings: general labels, AI prompts
+ *   /ai                          — old AI page, sent to the Settings AI tab
  *   /connection                  — connection page (adapter dispatch)
  *   /connection/{tab}            — adapter-specific settings tab
  */
@@ -98,14 +99,12 @@ function App() {
 							element={ <EntryView /> }
 						/>
 						<Route
+							path="/settings/:tab?"
+							element={ <SettingsPage /> }
+						/>
+						<Route
 							path="/ai"
-							element={
-								config.capabilities.canManageOptions ? (
-									<AIPage />
-								) : (
-									<Navigate to="/coverages" replace />
-								)
-							}
+							element={ <Navigate to="/settings/ai" replace /> }
 						/>
 						<Route
 							path="*"

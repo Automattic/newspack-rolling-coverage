@@ -164,3 +164,15 @@ declare module 'newspack-components/dist/esm/section-header' {
 	} >;
 	export default SectionHeader;
 }
+
+declare module 'newspack-components/dist/esm/hooks/use-unsaved-changes-dialog' {
+	import type { JSX } from 'react';
+
+	function useUnsavedChangesDialog( options: { when: boolean } ): {
+		confirmDialog: JSX.Element;
+		requestConfirm: ( callback: () => void ) => void;
+		cancelConfirm: () => void;
+		allowNextUnload: () => void;
+	};
+	export default useUnsavedChangesDialog;
+}

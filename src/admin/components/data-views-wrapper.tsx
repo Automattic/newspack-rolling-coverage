@@ -10,7 +10,11 @@ import { Stack } from '@wordpress/ui';
  * Internal dependencies.
  */
 import type { DataViewsWrapperProps } from '../types';
-import { evenColumns, withoutColumnWidths } from '../utils/even-columns';
+import {
+	evenColumns,
+	titleColumnWidth,
+	withoutColumnWidths,
+} from '../utils/even-columns';
 
 // DataViews has complex conditional prop types that don't cast directly.
 // Double-assert through unknown to bridge the type gap (per TS2352 suggestion).
@@ -102,8 +106,23 @@ function DataViewsWrapper< T extends { id: number | string } >( {
 		[ view, fitColumns ]
 	);
 
+	const titleWidth = useMemo(
+		() => titleColumnWidth( view, fitColumns ),
+		[ view, fitColumns ]
+	);
+
 	return (
-		<div className="newspack-rolling-coverage-dataviews">
+		<div
+			className="newspack-rolling-coverage-dataviews"
+			style={
+				titleWidth
+					? ( {
+							'--newspack-rolling-coverage-title-width':
+								titleWidth,
+						} as React.CSSProperties )
+					: undefined
+			}
+		>
 			<TypedDataViews
 				data={ data }
 				fields={ shownFields }

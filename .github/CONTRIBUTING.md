@@ -35,7 +35,7 @@ How each feature works is documented next to its code; this section says what ea
 
 ### Editorial workflow
 
-The Rolling Coverage admin menu holds the coverages list, each coverage's entries list, Quick Edit, the Settings modal, and the Slack Connection and AI pages. The entries list picks up changes as they happen and offers row and bulk actions, among them Reassign, pinning, and restoring entries from its "Trashed" status filter. See [`src/admin/DEVELOPMENT.md`](../src/admin/DEVELOPMENT.md).
+The Rolling Coverage admin menu holds All Liveblogs (the coverages list, each coverage's entries list and Quick Edit), Slack Connection, and Settings. All Rolling Coverage settings are on one page, Rolling Coverage > Settings (`rolling-coverage-settings`), with General, Slack and AI tabs; each tab shows only to users with its capability, and the menu item to anyone who can open one. The entries list picks up changes as they happen and offers row and bulk actions, among them Reassign, pinning, and restoring entries from its "Trashed" status filter. See [`src/admin/DEVELOPMENT.md`](../src/admin/DEVELOPMENT.md).
 
 ### Blocks
 
@@ -60,6 +60,7 @@ The feed also sends analytics events as readers see entries and when a poll fail
 Connect a Slack channel to a coverage, from the Slack Connection page or with the `/rolling-coverage-connect` slash command, and its messages become entries. Each channel's Publish Mode publishes them right away, saves them as drafts, or waits for an emoji reaction. The Slack sections of [`src/admin/DEVELOPMENT.md`](../src/admin/DEVELOPMENT.md) cover which messages become entries, Publish Mode, how authors are matched, titles and headings, slash commands, and webhooks. The rest:
 
 - **Ignore prefix** — in Auto-publish and Draft channels, messages beginning with a configurable prefix (default `~~`) are skipped.
+- **Settings**: the ignore prefix, the Publish and Draft emoji, Highest Heading and the bot user are on the Slack tab of Rolling Coverage > Settings. Slack Connection holds the connect flow, Channel Mappings and Monitor.
 - **Content conversion** — the message's Slack rich text (or its `mrkdwn` as the fallback) is converted to Gutenberg blocks, with user/channel/link mentions turned into readable text. Images uploaded with a message are imported into the media library and added as image blocks; other uploads are left out.
 - **Slash commands** — `/rolling-coverage-connect`, `/rolling-coverage-unlink`, `/rolling-coverage-status`. They're recognized by the end of their names, so a site can rename them when another site's app in the workspace has the same ones, and every reply and every message the bot posts in a channel names the site it came from.
 - **Ended and trashed coverages** — messages for a coverage that has ended or is in the trash don't become entries, and the publish emoji leaves their drafts alone.
@@ -103,7 +104,7 @@ When [Newspack Ads](https://github.com/Automattic/newspack-ads) is active, Rolli
 When the WordPress AI plugin and a provider are configured:
 
 - A **Generate Key Takeaways** action in the block editor summarizes up to 20 published entries (pinned first) into a configurable number of takeaways (1–10), and copies the result to the clipboard.
-- Administrators edit the prompt on the **AI** admin page (`rolling-coverage-ai`), with a `{max_takeaways}` placeholder. The block's AI panel links to it for users who can `manage_options`. When key takeaways can't run, the page shows what to set up instead of the prompt.
+- Administrators edit the prompt on the **AI** tab of Rolling Coverage > Settings (`rolling-coverage-settings`, `#/settings/ai`), with a `{max_takeaways}` placeholder. The old `rolling-coverage-ai` page address redirects there. The block's AI panel links to it for users who can `manage_options`. When key takeaways can't run, the tab shows what to set up instead of the prompt.
 - Exposed both as a REST endpoint and as a WordPress Abilities API ability (`rolling-coverage/generate-key-takeaways`).
 - Prompt and entry context are capped, and the entries are wrapped in delimiters with an anti-prompt-injection instruction.
 
@@ -149,7 +150,7 @@ includes/
     class-entry-ingestion-service.php  Generic ingestion + dedup/mutex
     class-source-event-payload.php     Normalized payload value object
 src/
-  admin/                         React/TypeScript admin app (DataViews, modals, Slack settings, AI page)
+  admin/                         React/TypeScript admin app (DataViews, drawers, Slack Connection, Settings)
   blocks/                        Block editor + frontend view sources (edit.tsx, view.ts, block.json)
   entry-editor/                  Entry editor script (Push Notifications panel, back-to-coverage link)
   breakout-editor/               Full story label field in a breakout post's settings sidebar
@@ -347,6 +348,6 @@ Useful query vars for developers on `WP_Query`:
 | :--- | :--- |
 | `edit_posts` | Access All Liveblogs, view/author entries, generate takeaways, view trashed entries. |
 | `publish_posts` | Publish own entries. |
-| `edit_others_posts` / Editor+ | View and manage all entries, pin, archive, breakout, change entry authors, and edit status labels and reader-facing labels. |
+| `edit_others_posts` / Editor+ | View and manage all entries, pin, archive, breakout, change entry authors, and edit status labels and reader-facing labels (the Settings page's General tab). |
 | `manage_categories` | Create/edit/trash/restore/delete coverages. |
-| `manage_options` | Slack connection and monitor, the AI page and its prompt settings, and admin-UI-only Slack term meta writes. |
+| `manage_options` | Slack connection and monitor, the Settings page's Slack and AI tabs, and admin-UI-only Slack term meta writes. |

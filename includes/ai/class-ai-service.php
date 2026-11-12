@@ -178,7 +178,7 @@ class AI_Service {
 	 * URL of the AI plugin's Connector Approvals screen, or the Tools menu
 	 * when the Connector Approval experiment isn't active.
 	 *
-	 * Points the AI page's empty state at the screen where an administrator
+	 * Points the Settings page's AI tab, in its empty state, at the screen where an administrator
 	 * approves this plugin for a connector.
 	 *
 	 * @return string Admin URL.

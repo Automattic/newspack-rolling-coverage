@@ -60,7 +60,8 @@
 			"@wordpress/i18n": "^6.28.0",
 			"@wordpress/icons": "^16.0.0",
 			"@wordpress/keycodes": "^4.55.0",
-			"@wordpress/url": "^4.55.0"
+			"@wordpress/url": "^4.55.0",
+			"newspack-icons": "$newspack-icons"
 		}
 	},
 	"devDependencies": {
@@ -87,7 +88,7 @@
 	"dependencies": {
 		"classnames": "^2.5.1",
 		"newspack-colors": "~1.1.5",
-		"newspack-components": "~4.10.0",
+		"newspack-components": "~4.12.1",
 		"newspack-icons": "~1.2.0"
 	}
 }

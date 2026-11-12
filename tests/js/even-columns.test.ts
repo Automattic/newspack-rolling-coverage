@@ -5,6 +5,7 @@
 import type { View } from '@wordpress/dataviews';
 import {
 	evenColumns,
+	titleColumnWidth,
 	withoutColumnWidths,
 } from '../../src/admin/utils/even-columns';
 
@@ -34,7 +35,17 @@ describe( 'evenColumns', () => {
 		 ).layout.styles;
 
 		expect( styles.time ).toEqual( { align: 'start', width: '1%' } );
-		expect( styles.level.width ).toBe( '35%' );
-		expect( styles.channel.width ).toBe( '35%' );
+		expect( styles.level.width ).toBe( '33.33%' );
+		expect( styles.channel.width ).toBe( '33.33%' );
+	} );
+
+	it( 'gives the title an equal share, never under 30%', () => {
+		expect( titleColumnWidth( view, [ 'time' ] ) ).toBe( '33.33%' );
+		expect( titleColumnWidth( view ) ).toBe( '30%' );
+		const wide = {
+			...view,
+			fields: [ 'a', 'b', 'c', 'd', 'e' ],
+		} as unknown as View;
+		expect( titleColumnWidth( wide ) ).toBe( '30%' );
 	} );
 } );

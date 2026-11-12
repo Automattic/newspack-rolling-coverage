@@ -95,7 +95,7 @@ Readers who already have the page open when the liveblog ends see the notice at 
 
 ### AI
 
-Appears when AI is set up on the site. Generate Key Takeaways sums up the liveblog's latest entries, shows the summary in Generated Output, and copies it to the clipboard, ready to paste into the page. Generate again as new entries come in for an updated summary. Copy Generated Output copies it again. Administrators also see Edit the prompt, which opens Rolling Coverage > AI in a new tab.
+Appears when AI is set up on the site. Generate Key Takeaways sums up the liveblog's latest entries, shows the summary in Generated Output, and copies it to the clipboard, ready to paste into the page. Generate again as new entries come in for an updated summary. Copy Generated Output copies it again. Administrators also see Edit the prompt, which opens the AI tab of Rolling Coverage > Settings in a new tab.
 
 ### Ads
 

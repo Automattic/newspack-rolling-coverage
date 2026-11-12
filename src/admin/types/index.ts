@@ -51,6 +51,8 @@ interface AdminConfig {
 	supportsHandoff: boolean;
 	adminUrls: {
 		coverages: string;
+		settings: string;
+		slackConnection: string;
 		editEntry: string;
 		editUser: string;
 		editTerm: string;
@@ -107,6 +109,7 @@ interface HeaderState {
 	actions?: ReactNode;
 	count?: number;
 	isEmpty?: boolean;
+	subTitle?: ReactNode;
 	tabbedNavigation?: ReactNode;
 }
 
