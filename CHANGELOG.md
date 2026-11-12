@@ -1,3 +1,11 @@
+# [0.3.0](https://github.com/Automattic/newspack-rolling-coverage/compare/v0.2.1...v0.3.0) (2026-11-12)
+
+
+### Features
+
+* New release ([#326](https://github.com/Automattic/newspack-rolling-coverage/issues/326)) ([bb48bca](https://github.com/Automattic/newspack-rolling-coverage/commit/bb48bca74b944e03f16fd90dc509380432eeeac3)), closes [#295](https://github.com/Automattic/newspack-rolling-coverage/issues/295) [#298](https://github.com/Automattic/newspack-rolling-coverage/issues/298)
+* trigger release ([3784ca7](https://github.com/Automattic/newspack-rolling-coverage/commit/3784ca7c46d14011f6424fa9e4ac64ca0fe31c32))
+
 ## [0.2.1](https://github.com/Automattic/newspack-rolling-coverage/compare/v0.2.0...v0.2.1) (2026-10-28)
 
 

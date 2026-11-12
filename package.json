@@ -1,6 +1,6 @@
 {
 	"name": "newspack-rolling-coverage",
-	"version": "0.2.1",
+	"version": "0.3.0",
 	"description": "Liveblog and rolling coverage of ongoing news events for Newspack",
 	"license": "GPL-3.0",
 	"repository": {
@@ -52,7 +52,7 @@
 			"@wordpress/components": "^40.1.0",
 			"@wordpress/compose": "^8.8.0",
 			"@wordpress/data": "^10.55.0",
-			"@wordpress/dataviews": "^19.1.0",
+			"@wordpress/dataviews": "^22.0.0",
 			"@wordpress/dom-ready": "^4.55.0",
 			"@wordpress/element": "^8.7.0",
 			"@wordpress/hooks": "^4.55.0",
@@ -60,7 +60,8 @@
 			"@wordpress/i18n": "^6.28.0",
 			"@wordpress/icons": "^16.0.0",
 			"@wordpress/keycodes": "^4.55.0",
-			"@wordpress/url": "^4.55.0"
+			"@wordpress/url": "^4.55.0",
+			"newspack-icons": "$newspack-icons"
 		}
 	},
 	"devDependencies": {
@@ -72,7 +73,7 @@
 		"@wordpress/components": "^40.1.0",
 		"@wordpress/core-data": "^8.0.0",
 		"@wordpress/data": "^10.57.0",
-		"@wordpress/dataviews": "^19.1.0",
+		"@wordpress/dataviews": "^22.0.0",
 		"@wordpress/date": "^5.57.0",
 		"@wordpress/editor": "^15.2.0",
 		"@wordpress/element": "^8.7.0",
@@ -80,14 +81,14 @@
 		"@wordpress/icons": "^16.0.0",
 		"@wordpress/notices": "^5.55.0",
 		"@wordpress/preferences": "^4.55.0",
-		"@wordpress/ui": "^0.24.0",
+		"@wordpress/ui": "^0.26.0",
 		"newspack-scripts": "^5.12.0",
 		"react-router": "^7.18.0"
 	},
 	"dependencies": {
 		"classnames": "^2.5.1",
 		"newspack-colors": "~1.1.5",
-		"newspack-components": "~4.10.0",
+		"newspack-components": "~4.12.1",
 		"newspack-icons": "~1.2.0"
 	}
 }

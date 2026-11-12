@@ -1,7 +1,7 @@
 /**
  * External dependencies.
  */
-import { __, sprintf } from '@wordpress/i18n';
+import { __, _n, sprintf } from '@wordpress/i18n';
 import { decodeEntities } from '@wordpress/html-entities';
 import { Button } from '@wordpress/components';
 
@@ -14,6 +14,8 @@ import {
 	getSlackChannelLabel,
 	COVERAGE_STATUS_INDICATORS,
 } from '../utils/fields';
+import { formatSiteDateTime } from '../utils/site-date';
+import type { View } from '@wordpress/dataviews';
 import type { Field, ViewState, Coverage, StatusLabels } from '../types';
 
 /**
@@ -73,6 +75,28 @@ function getCoverageFields(
 			label: __( 'Entries', 'newspack-rolling-coverage' ),
 			enableSorting: true,
 			getValue: ( { item } ) => item.count ?? 0,
+		},
+		{
+			id: 'entry_count',
+			type: 'text',
+			label: __( 'Entry count', 'newspack-rolling-coverage' ),
+			enableSorting: false,
+			enableHiding: false,
+			filterBy: false,
+			getValue: ( { item } ) => String( item.count ?? 0 ),
+			render: ( { item } ) => {
+				const count = item.count ?? 0;
+				return sprintf(
+					/* translators: %d: number of entries in the liveblog. */
+					_n(
+						'%d entry',
+						'%d entries',
+						count,
+						'newspack-rolling-coverage'
+					),
+					count
+				);
+			},
 		},
 		{
 			id: 'status',
@@ -156,6 +180,8 @@ function getCoverageFields(
 			label: __( 'Created', 'newspack-rolling-coverage' ),
 			enableSorting: true,
 			getValue: ( { item } ) => toISODate( item.meta?.created_at ),
+			getValueFormatted: ( { item, field } ) =>
+				formatSiteDateTime( field.getValue( { item } ) ),
 			render: ( { item, field } ) =>
 				field.getValueFormatted( { item, field } ) || '—',
 		},
@@ -168,6 +194,8 @@ function getCoverageFields(
 				toISODate(
 					item.meta?.[ lastModifiedKey ] as string | undefined
 				),
+			getValueFormatted: ( { item, field } ) =>
+				formatSiteDateTime( field.getValue( { item } ) ),
 			render: ( { item, field } ) =>
 				field.getValueFormatted( { item, field } ) || '—',
 		},
@@ -175,8 +203,9 @@ function getCoverageFields(
 }
 
 /**
- * Default view state for the coverage list: table layout, unsorted,
- * showing count, status, created_at, and last_modified columns.
+ * Default view state for the coverage list: a table sorted by name, without
+ * trashed coverages, with the entry count under each name and the Entries
+ * column hidden.
  */
 const defaultCoverageView: ViewState = {
 	type: 'table',
@@ -185,15 +214,26 @@ const defaultCoverageView: ViewState = {
 	sort: { field: 'name', direction: 'asc' },
 	search: '',
 	filters: [ { field: 'status', operator: 'isNot', value: 'trash' } ],
-	fields: [
-		'count',
-		'status',
-		'slack_channel',
-		'created_at',
-		'last_modified',
-	],
+	fields: [ 'status', 'slack_channel', 'created_at', 'last_modified' ],
 	titleField: 'name',
-	layout: {},
+	descriptionField: 'entry_count',
+	layout: { styles: { count: { align: 'start' } } },
 };
 
-export { getCoverageFields, defaultCoverageView };
+/**
+ * The view as the list shows it: the entry count sits under each liveblog's
+ * name while the Entries column is hidden, and not in both places once it's
+ * shown.
+ *
+ * @param {View} view The stored view.
+ * @return {View} The view to render.
+ */
+function withEntryCount< V extends View >( view: V ): V {
+	const hasColumn = ( view.fields ?? [] ).includes( 'count' );
+	return {
+		...view,
+		descriptionField: hasColumn ? undefined : 'entry_count',
+	};
+}
+
+export { getCoverageFields, defaultCoverageView, withEntryCount };

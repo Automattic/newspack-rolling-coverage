@@ -1,65 +1,33 @@
-import { RootProvider } from 'fumadocs-ui/provider/astro';
-import type { AstroProviderProps } from 'fumadocs-core/framework/astro';
-import { navigate } from 'astro:transitions/client';
-import SearchDialog from './search';
-import { SiteFooter } from './site-footer';
-import { SiteLayout } from './site-layout';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { SiteLayout, type SitePageProps } from './site-layout';
 
 export const NOT_FOUND_DESCRIPTION = 'This page may have moved, or the link may be out of date.';
 
-const focusRing =
-	'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fd-ring';
-
-const buttonBase = `inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-[color,background-color,scale] duration-[160ms] ease-out-strong active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100 ${ focusRing }`;
-
-export function NotFound( {
-	pathname,
-	params,
-}: {
-	pathname: string;
-	params: AstroProviderProps[ 'params' ];
-} ) {
+export function NotFound( props: SitePageProps ) {
 	return (
-		<RootProvider
-			pathname={ pathname }
-			params={ params }
-			navigate={ navigate }
-			search={ { SearchDialog } }
-		>
-			<SiteLayout>
-				<main className="flex-1">
-					<div className="mx-auto w-full max-w-6xl px-4 pt-14 pb-24 md:px-6 md:pt-24 md:pb-32">
-						<p className="flex flex-wrap items-center gap-3 text-sm font-medium text-fd-muted-foreground">
-							<span className="inline-flex items-center gap-2 rounded-full border border-fd-border bg-fd-card px-3 py-1 text-xs font-semibold tracking-wide text-fd-foreground uppercase">
-								<span aria-hidden="true" className="size-2 rounded-full bg-fd-muted-foreground" />
-								Ended
-							</span>
-							<span>Page not found</span>
-						</p>
-						<h1 className="mt-4 max-w-[10.55em] text-[2.75rem] leading-[1.05] font-semibold tracking-tight text-balance text-fd-foreground sm:text-6xl">
-							This page isn’t live
-						</h1>
-						<p className="mt-6 max-w-[52ch] text-lg text-pretty text-fd-muted-foreground md:text-xl md:leading-relaxed">
-							It may have moved, or the link may be out of date. Browse the docs, or start again from the homepage.
-						</p>
-						<div className="mt-8 flex flex-col gap-3 sm:flex-row">
-							<a
-								href="/docs/"
-								className={ `${ buttonBase } bg-fd-primary text-fd-primary-foreground hover:bg-fd-primary/85` }
-							>
-								Browse the docs
-							</a>
-							<a
-								href="/"
-								className={ `${ buttonBase } border border-fd-border text-fd-foreground hover:bg-fd-accent hover:text-fd-accent-foreground` }
-							>
-								Go to the homepage
-							</a>
-						</div>
-					</div>
-				</main>
-				<SiteFooter />
-			</SiteLayout>
-		</RootProvider>
+		<SiteLayout { ...props }>
+			<div className="site-container pt-[calc(var(--section-space)/2)]">
+				<p className="flex flex-wrap items-center gap-(--newspack-ui-spacer-1) type-small font-(weight:--newspack-ui-font-weight-medium) text-muted-foreground">
+					<Badge variant="outline" className="gap-(--newspack-ui-spacer-half) uppercase">
+						<span aria-hidden="true" className="size-1.5 rounded-full bg-muted-foreground" />
+						Ended
+					</Badge>
+					<span>Page not found</span>
+				</p>
+				<h1 className="mt-(--newspack-ui-spacer-3) max-w-[10.55em] type-display text-foreground">This page isn’t live</h1>
+				<p className="mt-(--newspack-ui-spacer-3) max-w-[52ch] type-lead text-muted-foreground">
+					It may have moved, or the link may be out of date. Browse the docs, or start again from the homepage.
+				</p>
+				<div className="mt-(--newspack-ui-spacer-5) flex flex-col gap-(--newspack-ui-spacer-1) sm:flex-row">
+					<Button asChild>
+						<a href="/docs/">Browse the docs</a>
+					</Button>
+					<Button asChild variant="outline">
+						<a href="/">Go to the homepage</a>
+					</Button>
+				</div>
+			</div>
+		</SiteLayout>
 	);
 }

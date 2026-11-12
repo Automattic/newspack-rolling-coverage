@@ -1072,7 +1072,7 @@ class Post_Type {
 		add_filter( 'excerpt_length', $length, PHP_INT_MAX );
 		add_filter( 'excerpt_more', $more, PHP_INT_MAX );
 		try {
-			$text = apply_filters( 'get_the_excerpt', $open->post_excerpt, $open );
+			$text = apply_filters( 'get_the_excerpt', $open->post_excerpt, $open ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Core hook.
 		} finally {
 			remove_filter( 'excerpt_length', $length, PHP_INT_MAX );
 			remove_filter( 'excerpt_more', $more, PHP_INT_MAX );
@@ -1080,7 +1080,7 @@ class Post_Type {
 
 		return [
 			'raw'       => trim( html_entity_decode( wp_strip_all_tags( $text ), ENT_QUOTES | ENT_HTML5, 'UTF-8' ) ),
-			'rendered'  => $protected ? '' : apply_filters( 'the_excerpt', apply_filters( 'get_the_excerpt', $entry->post_excerpt, $entry ) ),
+			'rendered'  => $protected ? '' : apply_filters( 'the_excerpt', apply_filters( 'get_the_excerpt', $entry->post_excerpt, $entry ) ), // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Core hooks.
 			'protected' => $protected,
 		];
 	}

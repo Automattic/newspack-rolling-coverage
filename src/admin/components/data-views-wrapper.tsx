@@ -1,13 +1,20 @@
 /**
  * External dependencies.
  */
-import type { ComponentType, FocusEvent } from 'react';
+import type { ComponentType, ReactNode } from 'react';
 import { DataViews } from '@wordpress/dataviews/wp';
+import { useMemo } from '@wordpress/element';
+import { Stack } from '@wordpress/ui';
 
 /**
  * Internal dependencies.
  */
 import type { DataViewsWrapperProps } from '../types';
+import {
+	evenColumns,
+	titleColumnWidth,
+	withoutColumnWidths,
+} from '../utils/even-columns';
 
 // DataViews has complex conditional prop types that don't cast directly.
 // Double-assert through unknown to bridge the type gap (per TS2352 suggestion).
@@ -16,27 +23,54 @@ const TypedDataViews = DataViews as unknown as ComponentType<
 >;
 
 /**
- * Scrolls a bulk action that takes keyboard focus fully into its row. On narrow
- * screens the row scrolls sideways under a fade and a pinned Cancel, and
- * browsers leave a mostly visible button where it is, half hidden.
+ * The list toolbar: filter chips beside the search, view options and any
+ * `header` content on the right. Replaces the default funnel toggle, which
+ * hid the filters behind a button and listed them on a row of their own.
  *
- * @param {FocusEvent<HTMLDivElement>} event The focus event.
+ * @param {Object}    props        Component props.
+ * @param {ReactNode} props.header Content shown after the view options.
  */
-function revealFocusedBulkAction( event: FocusEvent< HTMLDivElement > ) {
-	const target: Element = event.target;
-	if (
-		target.matches( ':focus-visible' ) &&
-		target.parentElement?.classList.contains(
-			'dataviews-bulk-actions-footer__action-buttons'
-		)
-	) {
-		target.scrollIntoView( { block: 'nearest', inline: 'nearest' } );
-	}
+function InlineFiltersLayout( { header }: { header?: ReactNode } ) {
+	return (
+		<>
+			<Stack
+				direction="row"
+				justify="space-between"
+				align="flex-start"
+				gap="xs"
+				className="dataviews__view-actions"
+			>
+				<Stack
+					direction="row"
+					align="center"
+					gap="sm"
+					wrap="wrap"
+					className="dataviews__search"
+				>
+					<DataViews.Search />
+					<DataViews.Filters />
+				</Stack>
+				<Stack
+					direction="row"
+					align="center"
+					gap="xs"
+					style={ { flexShrink: 0 } }
+				>
+					<DataViews.LayoutSwitcher />
+					<DataViews.ViewConfig />
+					{ header }
+				</Stack>
+			</Stack>
+			<DataViews.Layout />
+			<DataViews.Footer />
+		</>
+	);
 }
 
 /**
  * Type-safe wrapper around WordPress DataViews that fills in default props
- * (getItemId, defaultLayouts, isItemClickable) so consumers don't have to.
+ * (getItemId, defaultLayouts, isItemClickable) so consumers don't have to, and
+ * lays out the shared list toolbar with declared filters as chips.
  */
 function DataViewsWrapper< T extends { id: number | string } >( {
 	data,
@@ -50,27 +84,63 @@ function DataViewsWrapper< T extends { id: number | string } >( {
 	header,
 	defaultLayouts,
 	config,
+	fitColumns,
 }: DataViewsWrapperProps< T > ) {
+	// "Add filter" only renders beside a visible chip, so a declared filter is
+	// made primary unless it opts out with `isPrimary: false`. A list with no
+	// chip at all would show no filter UI.
+	const shownFields = useMemo(
+		() =>
+			fields.map( ( field ) =>
+				field.filterBy && field.filterBy.isPrimary !== false
+					? {
+							...field,
+							filterBy: { ...field.filterBy, isPrimary: true },
+						}
+					: field
+			),
+		[ fields ]
+	);
+	const evenView = useMemo(
+		() => evenColumns( view, fitColumns ),
+		[ view, fitColumns ]
+	);
+
+	const titleWidth = useMemo(
+		() => titleColumnWidth( view, fitColumns ),
+		[ view, fitColumns ]
+	);
+
 	return (
 		<div
 			className="newspack-rolling-coverage-dataviews"
-			onFocus={ revealFocusedBulkAction }
+			style={
+				titleWidth
+					? ( {
+							'--newspack-rolling-coverage-title-width':
+								titleWidth,
+						} as React.CSSProperties )
+					: undefined
+			}
 		>
 			<TypedDataViews
 				data={ data }
-				fields={ fields }
-				view={ view }
-				onChangeView={ onChangeView }
+				fields={ shownFields }
+				view={ evenView }
+				onChangeView={ ( next: typeof view ) =>
+					onChangeView( withoutColumnWidths( next ) )
+				}
 				actions={ actions }
 				paginationInfo={ paginationInfo }
 				isLoading={ isLoading }
 				defaultLayouts={ defaultLayouts ?? { table: {} } }
 				isItemClickable={ onClickItem ? () => true : undefined }
 				onClickItem={ onClickItem }
-				header={ header }
 				config={ config }
 				getItemId={ ( item: T ) => String( item.id ) }
-			/>
+			>
+				<InlineFiltersLayout header={ header } />
+			</TypedDataViews>
 		</div>
 	);
 }

@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Newspack Rolling Coverage
  * Description: Liveblog and rolling coverage of ongoing news events.
- * Version: 0.2.1
+ * Version: 0.3.0
  * Requires at least: 7.1
  * Requires PHP: 8.0
  * Author: Automattic
@@ -26,7 +26,7 @@ if ( ! defined( 'NEWSPACK_ROLLING_COVERAGE_PLUGIN_FILE' ) ) {
 	define( 'NEWSPACK_ROLLING_COVERAGE_PLUGIN_FILE', __FILE__ );
 }
 
-define( 'NEWSPACK_ROLLING_COVERAGE_VERSION', '0.2.1' );
+define( 'NEWSPACK_ROLLING_COVERAGE_VERSION', '0.3.0' );
 define( 'NEWSPACK_ROLLING_COVERAGE_URL', plugin_dir_url( __FILE__ ) );
 define( 'NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE', 'rolling-coverage/v1' );
 
@@ -38,6 +38,6 @@ Newspack_Rolling_Coverage\Initializer::init();
 add_action(
 	'init',
 	function () {
-		load_plugin_textdomain( 'newspack-rolling-coverage', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
+		load_plugin_textdomain( 'newspack-rolling-coverage', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' ); // phpcs:ignore PluginCheck.CodeAnalysis.DiscouragedFunctions.load_plugin_textdomainFound -- Loads translations bundled in languages/, since the plugin ships outside WordPress.org.
 	}
 );

@@ -29,8 +29,8 @@ import { useAdminContext } from '../../../hooks/useAdminContext';
 const TOP_HEADING_LEVELS = [ 0, 2, 3, 4, 5, 6 ];
 
 /**
- * Renders the Settings tab: the message ignore prefix, the emoji that publish
- * or draft a message in channels set to Emoji trigger, the Highest Heading
+ * Renders the Slack tab of Settings: the message ignore prefix, the emoji that publish
+ * or draft a message in channels set to Emoji trigger, the Highest heading
  * for titles and headings typed with # (or Off), and the WordPress bot user
  * that authors ingested entries. Saving happens from the page header.
  *
@@ -98,11 +98,11 @@ function IngestionSettingsTab( {
 				destinationUrl,
 				handoffReturnUrl: window.location.href,
 				bannerText: __(
-					'Return to the Slack connection after editing the bot user.',
+					'Return to the Slack settings after editing the bot user.',
 					'newspack-rolling-coverage'
 				),
 				bannerButtonText: __(
-					'Back to Slack Connection',
+					'Back to Settings',
 					'newspack-rolling-coverage'
 				),
 			},
@@ -129,8 +129,10 @@ function IngestionSettingsTab( {
 				/>
 				<Stack direction="column" gap="xl">
 					<TextControl
+						__nextHasNoMarginBottom
+						__next40pxDefaultSize
 						label={ __(
-							'Ignore Prefix',
+							'Ignore prefix',
 							'newspack-rolling-coverage'
 						) }
 						value={ ignorePrefix }
@@ -141,8 +143,10 @@ function IngestionSettingsTab( {
 						) }
 					/>
 					<TextControl
+						__nextHasNoMarginBottom
+						__next40pxDefaultSize
 						label={ __(
-							'Publish Emoji',
+							'Publish emoji',
 							'newspack-rolling-coverage'
 						) }
 						value={ publishReaction }
@@ -153,8 +157,10 @@ function IngestionSettingsTab( {
 						) }
 					/>
 					<TextControl
+						__nextHasNoMarginBottom
+						__next40pxDefaultSize
 						label={ __(
-							'Draft Emoji',
+							'Draft emoji',
 							'newspack-rolling-coverage'
 						) }
 						value={ draftReaction }
@@ -177,39 +183,42 @@ function IngestionSettingsTab( {
 						'newspack-rolling-coverage'
 					) }
 				/>
-				<SelectControl
-					__next40pxDefaultSize
-					label={ __(
-						'Highest Heading',
-						'newspack-rolling-coverage'
-					) }
-					value={ String( topHeadingLevel ) }
-					options={ TOP_HEADING_LEVELS.map( ( level ) => ( {
-						value: String( level ),
-						label:
-							0 === level
-								? _x(
-										'Off',
-										'Highest Heading option: no titles or headings',
-										'newspack-rolling-coverage'
-									)
-								: sprintf(
-										/* translators: %d: heading level, from 2 to 6. */
-										__(
-											'Heading %d',
+				<Stack direction="column" gap="xl">
+					<SelectControl
+						__nextHasNoMarginBottom
+						__next40pxDefaultSize
+						label={ __(
+							'Highest heading',
+							'newspack-rolling-coverage'
+						) }
+						value={ String( topHeadingLevel ) }
+						options={ TOP_HEADING_LEVELS.map( ( level ) => ( {
+							value: String( level ),
+							label:
+								0 === level
+									? _x(
+											'Off',
+											'Highest heading option: no titles or headings',
 											'newspack-rolling-coverage'
+										)
+									: sprintf(
+											/* translators: %d: heading level, from 2 to 6. */
+											__(
+												'Heading %d',
+												'newspack-rolling-coverage'
+											),
+											level
 										),
-										level
-									),
-					} ) ) }
-					onChange={ ( next ) =>
-						setTopHeadingLevel( Number( next ) )
-					}
-					help={ __(
-						"When set, lines that start with #, ## or ### and a space become headings. A marked first line becomes the entry title instead when no other heading in the message is at its level or higher. A message's highest heading takes this level and the others follow it, one level lower per extra #, down to Heading 6. Most feed layouts show entry titles as Heading 4, so Heading 5 or 6 keeps headings below them. Entries already added keep their formatting.",
-						'newspack-rolling-coverage'
-					) }
-				/>
+						} ) ) }
+						onChange={ ( next ) =>
+							setTopHeadingLevel( Number( next ) )
+						}
+						help={ __(
+							"When set, lines that start with #, ## or ### and a space become headings. A marked first line becomes the entry title instead when no other heading in the message is at its level or higher. A message's highest heading takes this level and the others follow it, one level lower per extra #, down to Heading 6. Most feed layouts show entry titles as Heading 4, so Heading 5 or 6 keeps headings below them. Entries already added keep their formatting.",
+							'newspack-rolling-coverage'
+						) }
+					/>
+				</Stack>
 			</Grid>
 			<Divider alignment="full-width" variant="tertiary" />
 			<Grid columns={ 2 } gutter={ 32 } noMargin>

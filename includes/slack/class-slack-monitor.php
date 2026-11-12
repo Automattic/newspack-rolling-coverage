@@ -313,10 +313,10 @@ class Slack_Monitor {
 				// Enforce size cap by truncating if the file is too large.
 				if ( fstat( $handle )['size'] > self::MAX_LOG_BYTES ) {
 					ftruncate( $handle, 0 ); // phpcs:ignore WordPressVIPMinimum.Functions.RestrictedFunctions.file_ops_ftruncate
-					fwrite( $handle, self::PHP_GUARD ); // phpcs:ignore WordPressVIPMinimum.Functions.RestrictedFunctions.file_ops_fwrite
+					fwrite( $handle, self::PHP_GUARD ); // phpcs:ignore WordPressVIPMinimum.Functions.RestrictedFunctions.file_ops_fwrite, WordPress.WP.AlternativeFunctions.file_system_operations_fwrite
 				}
 
-				fwrite( $handle, $entry . "\n" ); // phpcs:ignore WordPressVIPMinimum.Functions.RestrictedFunctions.file_ops_fwrite
+				fwrite( $handle, $entry . "\n" ); // phpcs:ignore WordPressVIPMinimum.Functions.RestrictedFunctions.file_ops_fwrite, WordPress.WP.AlternativeFunctions.file_system_operations_fwrite
 				fflush( $handle );
 				flock( $handle, LOCK_UN ); // phpcs:ignore WordPressVIPMinimum.Functions.RestrictedFunctions.file_ops_flock
 			}

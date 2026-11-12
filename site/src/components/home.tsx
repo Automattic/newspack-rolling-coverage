@@ -1,14 +1,12 @@
 import type { ReactNode } from 'react';
-import { RootProvider } from 'fumadocs-ui/provider/astro';
-import type { AstroProviderProps } from 'fumadocs-core/framework/astro';
-import { navigate } from 'astro:transitions/client';
-import { SITE_TITLE } from './docs';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Headline } from './headline';
 import { MiniFeed } from './mini-feed';
 import { PARTNERS } from './partner-logos';
-import SearchDialog from './search';
-import { SiteFooter } from './site-footer';
-import { SiteLayout } from './site-layout';
+import { SITE_NAME } from '@/lib/site';
+import { SiteLayout, type SitePageProps } from './site-layout';
 
 const HERO_TEXT =
 	'Post short, timestamped entries from WordPress or Slack. Readers see each one appear on the page as it is published, without reloading.';
@@ -31,17 +29,8 @@ const LAYOUTS = [
 	'Alert',
 ];
 
-const focusRing =
-	'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fd-ring';
-
-const linkClassName = `font-medium text-fd-primary underline decoration-fd-primary/40 underline-offset-4 transition-colors hover:decoration-fd-primary motion-reduce:transition-none ${ focusRing }`;
-
 function Label( { children }: { children: ReactNode } ) {
-	return (
-		<span className="inline-flex items-center rounded-md border border-fd-border bg-fd-card px-2 py-0.5 text-xs font-medium whitespace-nowrap text-fd-card-foreground">
-			{ children }
-		</span>
-	);
+	return <Badge variant="secondary">{ children }</Badge>;
 }
 
 function Arrow( { className = '' }: { className?: string } ) {
@@ -84,7 +73,7 @@ const features: { title: string; href: string; body: string; detail: ReactNode }
 		href: '/docs/guides/layouts/',
 		body: 'From a full liveblog to a strip under the header or a box in the sidebar. Each layout uses the site’s own fonts, colors, and spacing. One liveblog can show in several places at once.',
 		detail: (
-			<p className="text-sm text-fd-muted-foreground">
+			<p className="type-small text-muted-foreground">
 				<span className="sr-only">The layouts: </span>
 				{ LAYOUTS.join( ', ' ) }
 			</p>
@@ -165,236 +154,177 @@ const sections = [
 	},
 ];
 
-const buttonBase = `inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-[color,background-color,scale] duration-[160ms] ease-out-strong active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100 ${ focusRing }`;
-
-export function Home( {
-	pathname,
-	params,
-}: {
-	pathname: string;
-	params: AstroProviderProps[ 'params' ];
-} ) {
+export function Home( props: SitePageProps ) {
 	return (
-		<RootProvider
-			pathname={ pathname }
-			params={ params }
-			navigate={ navigate }
-			search={ { SearchDialog } }
-		>
-			<SiteLayout>
-				<main>
-					<div className="mx-auto w-full max-w-6xl px-4 pt-14 pb-24 md:px-6 md:pt-24 md:pb-32">
-						<section aria-labelledby="home-title">
-							<p className="flex flex-wrap items-center gap-3 text-sm font-medium text-fd-muted-foreground">
-								<span className="inline-flex items-center gap-2 rounded-full border border-fd-border bg-fd-card px-3 py-1 text-xs font-semibold tracking-wide text-fd-foreground uppercase">
-									<span aria-hidden="true" className="relative flex size-2">
-										<span className="absolute inline-flex size-full animate-ping rounded-full [animation-iteration-count:3] bg-fd-error opacity-75 motion-reduce:animate-none" />
-										<span className="relative inline-flex size-2 rounded-full bg-fd-error" />
-									</span>
-									Beta
-								</span>
-								<span>{ SITE_TITLE } for WordPress</span>
-							</p>
-							<h1
-								id="home-title"
-								className="mt-4 max-w-[9.25em] text-[2.75rem] leading-[1.05] font-semibold tracking-tight text-balance text-fd-foreground sm:text-6xl lg:text-7xl"
-							>
-								<Headline />
-							</h1>
-							<p className="mt-6 max-w-[58ch] text-lg text-pretty text-fd-muted-foreground md:text-xl md:leading-relaxed">
-								{ HERO_TEXT }
-							</p>
-							<div className="mt-8 flex flex-col gap-3 sm:flex-row">
-								<a
-									href="/docs/getting-started/"
-									className={ `${ buttonBase } group bg-fd-primary text-fd-primary-foreground hover:bg-fd-primary/85` }
-								>
-									Get started
-									<Arrow className="transition-transform duration-200 ease-out-strong group-hover:translate-x-0.5 motion-reduce:transition-none" />
-								</a>
-								<a
-									href="/docs/"
-									className={ `${ buttonBase } border border-fd-border text-fd-foreground hover:bg-fd-accent hover:text-fd-accent-foreground` }
-								>
-									Browse the docs
-								</a>
-							</div>
-						</section>
+		<SiteLayout { ...props }>
+			<section aria-labelledby="home-title" className="site-container pt-[calc(var(--section-space)/2)]">
+				<p className="flex flex-wrap items-center gap-(--newspack-ui-spacer-1) type-small font-(weight:--newspack-ui-font-weight-medium) text-muted-foreground">
+					<Badge variant="outline" className="gap-(--newspack-ui-spacer-half) uppercase">
+						<span aria-hidden="true" className="relative flex size-1.5">
+							<span className="absolute inline-flex size-full animate-ping rounded-full bg-(--newspack-ui-color-error) opacity-75 motion-reduce:animate-none" />
+							<span className="relative inline-flex size-1.5 rounded-full bg-(--newspack-ui-color-error)" />
+						</span>
+						Beta
+					</Badge>
+					<span>{ SITE_NAME } for WordPress</span>
+				</p>
+				<h1 id="home-title" className="mt-(--newspack-ui-spacer-3) max-w-[9.25em] type-display text-foreground">
+					<Headline />
+				</h1>
+				<p className="mt-(--newspack-ui-spacer-3) max-w-[58ch] type-lead text-muted-foreground">{ HERO_TEXT }</p>
+				<div className="mt-(--newspack-ui-spacer-5) flex flex-col gap-(--newspack-ui-spacer-1) sm:flex-row">
+					<Button asChild variant="brand" className="group">
+						<a href="/docs/getting-started/">
+							Get started
+							<Arrow className="transition-transform duration-200 ease-out-strong group-hover:translate-x-0.5 motion-reduce:transition-none" />
+						</a>
+					</Button>
+					<Button asChild variant="outline">
+						<a href="/docs/">Browse the docs</a>
+					</Button>
+				</div>
+			</section>
 
-						<section
-							aria-labelledby="home-partners"
-							className="mt-14 flex flex-col gap-6 border-y border-fd-border py-7 md:mt-20 lg:flex-row lg:items-center lg:justify-between lg:gap-16"
-						>
-							<div className="max-w-[34ch]">
-								<h2 id="home-partners" className="text-sm font-medium text-fd-foreground">
-									Part of{ ' ' }
-									<a
-										href="https://emergencymode.news/"
-										className={ `underline decoration-fd-border underline-offset-4 transition-colors hover:decoration-fd-foreground motion-reduce:transition-none ${ focusRing }` }
-									>
-										Emergency Mode for News
-									</a>
-								</h2>
-								<p className="mt-1 text-sm text-pretty text-fd-muted-foreground">
-									A collaboration between OpenNews, Newspack, and NC Local, supported by Press Forward.
-								</p>
-							</div>
-							<ul className="flex flex-wrap items-center gap-x-10 gap-y-5 lg:gap-x-14">
-								{ PARTNERS.map( ( partner ) => (
-									<li key={ partner.url }>
-										<a
-											href={ partner.url }
-											aria-label={ partner.name }
-											className={ `flex rounded-sm text-fd-muted-foreground transition-colors hover:text-fd-foreground motion-reduce:transition-none ${ focusRing }` }
-										>
-											<svg
-												aria-hidden="true"
-												viewBox={ partner.viewBox }
-												className={ `w-auto ${ partner.className }` }
-											>
-												<path
-													fill="currentColor"
-													fillRule={ partner.evenOdd ? 'evenodd' : undefined }
-													d={ partner.path }
-												/>
-											</svg>
-										</a>
-									</li>
-								) ) }
-							</ul>
-						</section>
-
-						<figure className="mt-10 md:mt-12">
-							<img
-								src="/images/home/live-feed.webp"
-								srcSet="/images/home/live-feed-1672.webp 1512w, /images/home/live-feed.webp 3024w"
-								sizes="(min-width: 1152px) 1104px, calc(100vw - 2rem)"
-								width={ 3024 }
-								height={ 1964 }
-								alt="A liveblog of Storm Ingrid on a news site: a pinned entry from the mayor at the top, then timestamped entries with the newest first, including a Full story card, each with its reporter and a Share link."
-								loading="lazy"
-								decoding="async"
-								className="h-auto w-full rounded-xl border border-fd-border"
-							/>
-							<figcaption className="mt-3 max-w-[70ch] text-sm text-fd-muted-foreground">
-								A liveblog on a demo site: the pinned entry first, then the feed in the Clock layout,
-								with a full story card.
-							</figcaption>
-						</figure>
-
-						<section
-							aria-labelledby="home-audience"
-							className="mt-24 grid gap-10 md:mt-36 lg:grid-cols-[minmax(0,1fr)_16rem] lg:items-center lg:gap-16"
-						>
-							<div>
-								<h2
-									id="home-audience"
-									className="max-w-[15.85em] text-3xl font-semibold tracking-tight text-balance text-fd-foreground md:text-4xl"
-								>
-									For any story that unfolds live
-								</h2>
-								<p className="mt-4 max-w-[60ch] text-pretty text-fd-muted-foreground md:text-lg md:leading-relaxed">
-									A storm, an election night, a council meeting, or a big game. Rolling Coverage puts a live
-									feed on the newsroom’s own WordPress site for any story that changes by the minute, with
-									tools the team already knows.
-								</p>
-								<a href="/about/" className={ `mt-4 inline-flex min-h-6 items-center py-1 text-sm ${ linkClassName }` }>
-									Why we built it
-								</a>
-							</div>
-							<MiniFeed />
-						</section>
-
-						<section aria-labelledby="home-features" className="mt-24 md:mt-36">
-							<h2
-								id="home-features"
-								className="text-3xl font-semibold tracking-tight text-balance text-fd-foreground md:text-4xl"
-							>
-								What the newsroom gets
-							</h2>
-							<p className="mt-4 max-w-[60ch] text-pretty text-fd-muted-foreground">
-								Editors stay in control of the story: what goes out, what stays on top, and when it ends.
-							</p>
-							<ul className="mt-10 divide-y divide-fd-border border-y border-fd-border">
-								{ features.map( ( feature ) => (
-									<li
-										key={ feature.title }
-										className="grid gap-3 py-7 md:grid-cols-[minmax(0,16rem)_minmax(0,1fr)] md:gap-x-10 lg:grid-cols-[minmax(0,18rem)_minmax(0,1fr)_minmax(0,16rem)]"
-									>
-										<h3 className="text-lg leading-snug font-semibold text-balance text-fd-foreground">
-											<a href={ feature.href } className={ `rounded-sm hover:text-fd-primary ${ focusRing }` }>
-												{ feature.title }
-											</a>
-										</h3>
-										<p className="max-w-[62ch] text-pretty text-fd-muted-foreground">{ feature.body }</p>
-										<div className="flex flex-wrap content-start gap-2 md:col-start-2 lg:col-start-auto">
-											{ feature.detail }
-										</div>
-									</li>
-								) ) }
-							</ul>
-						</section>
-
-						<section aria-labelledby="home-steps" className="mt-24 md:mt-36">
-							<h2
-								id="home-steps"
-								className="text-3xl font-semibold tracking-tight text-fd-foreground md:text-4xl"
-							>
-								How it works
-							</h2>
-							<p className="mt-4 max-w-[60ch] text-pretty text-fd-muted-foreground">
-								Three steps from a breaking story to a live feed. On a Newspack site, the support team installs
-								the plugin for you.
-							</p>
-							<ol className="mt-10 grid gap-8 md:grid-cols-3 md:gap-6">
-								{ steps.map( ( step, index ) => (
-									<li key={ step.href } className="border-t-2 border-fd-foreground pt-5">
-										<span className="text-sm font-medium text-fd-muted-foreground tabular-nums">
-											<span className="sr-only">Step { index + 1 }, </span>
-											{ step.time }
-										</span>
-										<h3 className="mt-2 text-xl font-semibold tracking-tight text-fd-foreground">
-											{ step.title }
-										</h3>
-										<p className="mt-2 max-w-[38ch] text-pretty text-fd-muted-foreground">{ step.body }</p>
-										<a
-											href={ step.href }
-											className={ `mt-3 inline-flex min-h-6 items-center py-1 text-sm ${ linkClassName }` }
-										>
-											Read the step<span className="sr-only">: { step.title }</span>
-										</a>
-									</li>
-								) ) }
-							</ol>
-						</section>
-
-						<section aria-labelledby="home-docs" className="mt-24 md:mt-36">
-							<h2 id="home-docs" className="text-2xl font-semibold tracking-tight text-fd-foreground">
-								Read the docs
-							</h2>
-							<ul className="mt-6 grid gap-3 sm:grid-cols-3">
-								{ sections.map( ( section ) => (
-									<li key={ section.href }>
-										<a
-											href={ section.href }
-											className={ `group flex h-full flex-col gap-1 rounded-xl border border-fd-border p-4 transition-[background-color,scale] duration-[160ms] ease-out-strong hover:bg-fd-accent/40 active:scale-[0.985] motion-reduce:transition-none motion-reduce:active:scale-100 ${ focusRing }` }
-										>
-											<span
-												className="flex items-center justify-between gap-2 font-medium text-fd-foreground"
-											>
-												{ section.title }
-												<Arrow className="transition-transform duration-200 ease-out-strong group-hover:translate-x-0.5 motion-reduce:transition-none" />
-											</span>
-											<span className="text-sm text-fd-muted-foreground">{ section.description }</span>
-										</a>
-									</li>
-								) ) }
-							</ul>
-						</section>
+			<section aria-labelledby="home-partners" className="site-container mt-(--newspack-ui-spacer-9)">
+				<div className="flex flex-col gap-(--newspack-ui-spacer-5) border-y border-(--newspack-ui-color-border) py-(--newspack-ui-spacer-5) lg:flex-row lg:items-center lg:justify-between lg:gap-(--newspack-ui-spacer-11)">
+					<div className="max-w-[34ch]">
+						<h2 id="home-partners" className="type-small font-(weight:--newspack-ui-font-weight-medium) text-foreground">
+							Part of{ ' ' }
+							<a href="https://emergencymode.news/" className="text-link">
+								Emergency Mode for News
+							</a>
+						</h2>
+						<p className="mt-(--newspack-ui-spacer-half) type-small text-pretty text-muted-foreground">
+							A collaboration between OpenNews, Newspack, and NC Local, supported by Press Forward.
+						</p>
 					</div>
-				</main>
-				<SiteFooter />
-			</SiteLayout>
-		</RootProvider>
+					<ul className="flex flex-wrap items-center gap-x-(--newspack-ui-spacer-8) gap-y-(--newspack-ui-spacer-4) lg:gap-x-(--newspack-ui-spacer-11)">
+						{ PARTNERS.map( ( partner ) => (
+							<li key={ partner.url }>
+								<a
+									href={ partner.url }
+									aria-label={ partner.name }
+									className="flex text-muted-foreground transition-colors duration-(--newspack-ui-duration-color) hover:text-foreground"
+								>
+									<svg aria-hidden="true" viewBox={ partner.viewBox } className={ `w-auto ${ partner.className }` }>
+										<path fill="currentColor" fillRule={ partner.evenOdd ? 'evenodd' : undefined } d={ partner.path } />
+									</svg>
+								</a>
+							</li>
+						) ) }
+					</ul>
+				</div>
+			</section>
+
+			<figure className="site-container mt-(--newspack-ui-spacer-8)">
+				<img
+					src="/images/home/live-feed.webp"
+					srcSet="/images/home/live-feed-1672.webp 1512w, /images/home/live-feed.webp 3024w"
+					sizes="(min-width: 1328px) 1264px, (min-width: 782px) calc(100vw - 4rem), calc(100vw - 2rem)"
+					width={ 3024 }
+					height={ 1964 }
+					alt="A liveblog of Storm Ingrid on a news site: a pinned entry from the mayor at the top, then timestamped entries with the newest first, including a Full story card, each with its reporter and a Share link."
+					loading="lazy"
+					decoding="async"
+					className="h-auto w-full rounded-(--newspack-ui-radius-surface) border border-border"
+				/>
+				<figcaption className="mt-(--newspack-ui-spacer-2) max-w-[70ch] type-small text-muted-foreground">
+					A liveblog on a demo site: the pinned entry first, then the feed in the Clock layout, with a full story card.
+				</figcaption>
+			</figure>
+
+			<section
+				aria-labelledby="home-audience"
+				className="site-container section-space mt-[calc(var(--section-space)/2)] grid gap-(--newspack-ui-spacer-8) lg:grid-cols-[minmax(0,1fr)_16rem] lg:items-center lg:gap-(--newspack-ui-spacer-11)"
+			>
+				<div>
+					<h2 id="home-audience" className="max-w-[15.85em] type-section text-foreground">
+						For any story that unfolds live
+					</h2>
+					<p className="mt-(--newspack-ui-spacer-2) max-w-[60ch] type-lead text-muted-foreground">
+						A storm, an election night, a council meeting, or a big game. Rolling Coverage puts a live feed on the
+						newsroom’s own WordPress site for any story that changes by the minute, with tools the team already knows.
+					</p>
+					<a href="/about/" className="mt-(--newspack-ui-spacer-2) inline-flex min-h-6 items-center py-1 type-small text-link">
+						Why we built it
+					</a>
+				</div>
+				<MiniFeed />
+			</section>
+
+			<section aria-labelledby="home-features" className="site-container section-space">
+				<h2 id="home-features" className="type-section text-foreground">
+					What the newsroom gets
+				</h2>
+				<p className="mt-(--newspack-ui-spacer-2) max-w-[60ch] type-lead text-muted-foreground">
+					Editors stay in control of the story: what goes out, what stays on top, and when it ends.
+				</p>
+				<ul className="mt-(--newspack-ui-spacer-6) divide-y divide-border">
+					{ features.map( ( feature ) => (
+						<li
+							key={ feature.title }
+							className="grid gap-(--newspack-ui-spacer-2) py-(--newspack-ui-spacer-5) first:pt-0 last:pb-0 md:grid-cols-[minmax(0,16rem)_minmax(0,1fr)] md:gap-x-(--newspack-ui-spacer-8) lg:grid-cols-[minmax(0,18rem)_minmax(0,1fr)_minmax(0,16rem)]"
+						>
+							<h3 className="type-title text-foreground">
+								<a href={ feature.href } className="rounded-(--newspack-ui-border-radius-xs) underline-offset-3 hover:underline">
+									{ feature.title }
+								</a>
+							</h3>
+							<p className="max-w-[62ch] text-pretty text-muted-foreground">{ feature.body }</p>
+							<div className="flex flex-wrap content-start gap-(--newspack-ui-spacer-1) md:col-start-2 lg:col-start-auto">
+								{ feature.detail }
+							</div>
+						</li>
+					) ) }
+				</ul>
+			</section>
+
+			<section aria-labelledby="home-steps" className="site-container section-space">
+				<h2 id="home-steps" className="type-section text-foreground">
+					How it works
+				</h2>
+				<p className="mt-(--newspack-ui-spacer-2) max-w-[60ch] type-lead text-muted-foreground">
+					Three steps from a breaking story to a live feed. On a Newspack site, the support team installs the plugin for you.
+				</p>
+				<ol className="mt-(--newspack-ui-spacer-6) grid gap-(--newspack-ui-spacer-6) md:grid-cols-3 md:gap-(--newspack-ui-spacer-5)">
+					{ steps.map( ( step, index ) => (
+						<li key={ step.href } className="border-t-2 border-foreground pt-(--newspack-ui-spacer-3)">
+							<span className="type-small font-(weight:--newspack-ui-font-weight-medium) text-muted-foreground tabular-nums">
+								<span className="sr-only">Step { index + 1 }, </span>
+								{ step.time }
+							</span>
+							<h3 className="mt-(--newspack-ui-spacer-1) type-title text-foreground">{ step.title }</h3>
+							<p className="mt-(--newspack-ui-spacer-1) max-w-[38ch] text-pretty text-muted-foreground">{ step.body }</p>
+							<a href={ step.href } className="mt-(--newspack-ui-spacer-2) inline-flex min-h-6 items-center py-1 type-small text-link">
+								Read the step<span className="sr-only">: { step.title }</span>
+							</a>
+						</li>
+					) ) }
+				</ol>
+			</section>
+
+			<section aria-labelledby="home-docs" className="site-container section-space">
+				<h2 id="home-docs" className="type-section text-foreground">
+					Read the docs
+				</h2>
+				<ul className="mt-(--newspack-ui-spacer-6) grid gap-(--newspack-ui-spacer-2) sm:grid-cols-3">
+					{ sections.map( ( section ) => (
+						<li key={ section.href }>
+							<a href={ section.href } className="group block h-full rounded-(--newspack-ui-radius-surface)">
+								<Card className="h-full transition-colors duration-(--newspack-ui-duration-color) group-hover:border-(color:--newspack-ui-color-border-hover)">
+									<CardHeader>
+										<CardTitle className="flex items-center justify-between gap-(--newspack-ui-spacer-1)">
+											{ section.title }
+											<Arrow className="transition-transform duration-200 ease-out-strong group-hover:translate-x-0.5 motion-reduce:transition-none" />
+										</CardTitle>
+										<CardDescription>{ section.description }</CardDescription>
+									</CardHeader>
+								</Card>
+							</a>
+						</li>
+					) ) }
+				</ul>
+			</section>
+		</SiteLayout>
 	);
 }

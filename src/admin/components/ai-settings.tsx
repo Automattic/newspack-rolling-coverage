@@ -1,7 +1,13 @@
 /**
  * WordPress dependencies
  */
-import { useState, useEffect, useCallback, useMemo } from '@wordpress/element';
+import {
+	useState,
+	useEffect,
+	useCallback,
+	useMemo,
+	useRef,
+} from '@wordpress/element';
 import {
 	Button,
 	DropdownMenu,
@@ -22,6 +28,7 @@ import { ai } from 'newspack-icons';
  */
 import { useAdminContext } from '../hooks/useAdminContext';
 import { useHeader } from '../hooks/useHeader';
+import { useReportDirty } from '../hooks/useReportDirty';
 import { useConfirmDialog } from './confirm-dialog';
 import {
 	fetchAiSettings,
@@ -30,9 +37,10 @@ import {
 } from '../utils/ai-settings-api';
 import { notifySuccess } from '../utils/notices';
 import type { AiSettings as AiSettingsType, AdminConfig } from '../types';
+import type { ReactNode } from 'react';
 
 /**
- * What the AI page shows when key takeaways can't run: what is missing, and a
+ * What the AI tab shows when key takeaways can't run: what is missing, and a
  * link to the screen where an administrator sets it up.
  *
  * @param {Object}      props        Component props.
@@ -111,14 +119,24 @@ function AIUnavailable( { config }: { config: AdminConfig } ) {
 }
 
 /**
- * AI settings page for configuring AI prompts. Save and Reset to Defaults
- * live in the page header.
+ * The AI tab of Settings, for configuring AI prompts. Save and Reset to
+ * Defaults live in the page header.
  *
  * Settings are loaded from the REST API on mount and pre-populated from
  * the server-localized config as initial values. Changes are saved via
  * a POST request to the AI settings endpoint.
+ *
+ * @param {Object}    props                  Component props.
+ * @param {ReactNode} props.tabbedNavigation The Settings tabs.
+ * @param {Function}  props.onDirtyChange    Receives whether the tab has unsaved changes.
  */
-function AIPage() {
+function AISettings( {
+	tabbedNavigation,
+	onDirtyChange,
+}: {
+	tabbedNavigation: ReactNode;
+	onDirtyChange: ( isDirty: boolean ) => void;
+} ) {
 	const config = useAdminContext();
 	const initialSettings = {
 		key_takeaways_prompt: config.aiSettings?.key_takeaways_prompt ?? '',
@@ -129,6 +147,7 @@ function AIPage() {
 		useState< AiSettingsType >( initialSettings );
 	const [ isSaving, setIsSaving ] = useState( false );
 	const [ isLoading, setIsLoading ] = useState( false );
+	const [ hasLoaded, setHasLoaded ] = useState( false );
 	const [ error, setError ] = useState< string | null >( null );
 	const { requestConfirm, dialog: confirmDialog } = useConfirmDialog();
 
@@ -141,6 +160,7 @@ function AIPage() {
 		if ( result.success && result.data ) {
 			setSettings( result.data );
 			setSavedSettings( result.data );
+			setHasLoaded( true );
 		} else {
 			setError(
 				result.error ||
@@ -173,7 +193,7 @@ function AIPage() {
 			setSettings( result.data );
 			setSavedSettings( result.data );
 			notifySuccess(
-				__( 'AI settings saved.', 'newspack-rolling-coverage' )
+				__( 'Settings saved.', 'newspack-rolling-coverage' )
 			);
 		} else {
 			setError(
@@ -187,6 +207,9 @@ function AIPage() {
 
 		setIsSaving( false );
 	}, [ config.restBaseUrls.aiSettings, settings ] );
+
+	const saveRef = useRef( handleSave );
+	saveRef.current = handleSave;
 
 	const handleReset = useCallback( () => {
 		requestConfirm( {
@@ -248,11 +271,12 @@ function AIPage() {
 			<>
 				<Button
 					variant="primary"
-					onClick={ handleSave }
+					onClick={ () => saveRef.current() }
 					isBusy={ isSaving }
 					disabled={
 						isSaving || isLoading || ! isDirty || hasOverLimit
 					}
+					accessibleWhenDisabled
 				>
 					{ __( 'Save', 'newspack-rolling-coverage' ) }
 				</Button>
@@ -274,7 +298,6 @@ function AIPage() {
 		),
 		[
 			handleReset,
-			handleSave,
 			isSaving,
 			isLoading,
 			isAtDefaults,
@@ -283,21 +306,38 @@ function AIPage() {
 		]
 	);
 
-	useHeader( { actions: aiEnabled ? headerActions : undefined } );
+	useReportDirty( onDirtyChange, aiEnabled && isDirty && ! isSaving );
+
+	useHeader( {
+		tabbedNavigation,
+		actions: aiEnabled ? headerActions : undefined,
+		subTitle: __(
+			'Set how AI sums up a liveblog for readers.',
+			'newspack-rolling-coverage'
+		),
+	} );
 
 	if ( ! aiEnabled ) {
-		return <AIUnavailable config={ config } />;
+		return (
+			<div className="newspack-rolling-coverage-settings">
+				<AIUnavailable config={ config } />
+			</div>
+		);
 	}
 
 	return (
 		<>
 			<Stack
 				direction="column"
-				gap="2xl"
-				className="newspack-rolling-coverage-ai-settings"
+				gap="xl"
+				className="newspack-rolling-coverage-settings"
 			>
 				{ error && (
-					<Notice status="error" onRemove={ () => setError( null ) }>
+					<Notice
+						status="error"
+						politeness={ hasLoaded ? 'assertive' : 'polite' }
+						onRemove={ () => setError( null ) }
+					>
 						{ error }
 					</Notice>
 				) }
@@ -311,8 +351,8 @@ function AIPage() {
 				) }
 				<Grid columns={ 2 } gutter={ 32 } noMargin>
 					<SectionHeader
-						noMargin
 						heading={ 2 }
+						noMargin
 						title={ __(
 							'Key Takeaways',
 							'newspack-rolling-coverage'
@@ -322,44 +362,50 @@ function AIPage() {
 							'newspack-rolling-coverage'
 						) }
 					/>
-					<TextareaControl
-						label={
-							<>
-								<VisuallyHidden as="span">
+					<Stack direction="column" gap="xl">
+						<TextareaControl
+							__nextHasNoMarginBottom
+							label={
+								<>
+									<VisuallyHidden as="span">
+										{ __(
+											'Key Takeaways',
+											'newspack-rolling-coverage'
+										) }{ ' ' }
+									</VisuallyHidden>
 									{ __(
-										'Key Takeaways',
+										'Prompt',
 										'newspack-rolling-coverage'
-									) }{ ' ' }
-								</VisuallyHidden>
-								{ __( 'Prompt', 'newspack-rolling-coverage' ) }
-							</>
-						}
-						help={ sprintf(
-							/* translators: 1: prompt placeholder token, 2: character count, 3: max character count */
-							__(
-								'Use %1$s where the maximum number of takeaways should go. Keep it short: the AI already has the liveblog entries. (%2$d / %3$d characters)',
-								'newspack-rolling-coverage'
-							),
-							'{max_takeaways}',
-							takeawaysPromptLen,
-							maxLen
-						) }
-						value={ settings.key_takeaways_prompt }
-						onChange={ ( value ) =>
-							setSettings( ( prev ) => ( {
-								...prev,
-								key_takeaways_prompt: value,
-							} ) )
-						}
-						rows={ 6 }
-						disabled={ isLoading || isSaving }
-						aria-invalid={ takeawaysPromptOver || undefined }
-						className={
-							takeawaysPromptOver
-								? 'newspack-rolling-coverage-ai-settings__field--over-limit'
-								: undefined
-						}
-					/>
+									) }
+								</>
+							}
+							help={ sprintf(
+								/* translators: 1: prompt placeholder token, 2: character count, 3: max character count */
+								__(
+									'Use %1$s where the maximum number of takeaways should go. Keep it short: the AI already has the liveblog entries. (%2$d / %3$d characters)',
+									'newspack-rolling-coverage'
+								),
+								'{max_takeaways}',
+								takeawaysPromptLen,
+								maxLen
+							) }
+							value={ settings.key_takeaways_prompt }
+							onChange={ ( value ) =>
+								setSettings( ( prev ) => ( {
+									...prev,
+									key_takeaways_prompt: value,
+								} ) )
+							}
+							rows={ 6 }
+							disabled={ isLoading || isSaving }
+							aria-invalid={ takeawaysPromptOver || undefined }
+							className={
+								takeawaysPromptOver
+									? 'newspack-rolling-coverage-ai-settings__field--over-limit'
+									: undefined
+							}
+						/>
+					</Stack>
 				</Grid>
 			</Stack>
 			{ confirmDialog }
@@ -367,4 +413,4 @@ function AIPage() {
 	);
 }
 
-export default AIPage;
+export default AISettings;

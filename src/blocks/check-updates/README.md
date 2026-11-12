@@ -26,7 +26,7 @@ The block holds a standard Button block. Style it, change its text, and set its 
 - When nothing is new, the button reads "No new entries" for a few seconds. When the check fails, it reads "Couldn’t check", and screen readers hear "Couldn’t check for updates. Try again."
 - After a large burst of changes, the page reloads to show them all.
 - If the site sets a minimum poll interval, a second press waits until it has passed. A press in a background tab runs once the tab is back in view.
-- "Entries" follows the entry name set in Rolling Coverage > All Liveblogs > Settings, for example "No new updates".
+- "Entries" follows the entry name set in Rolling Coverage > Settings, on the General tab, for example "No new updates".
 
 Because the page doesn't check on its own, these update only when a reader presses the button:
 
