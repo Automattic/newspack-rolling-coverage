@@ -30,4 +30,4 @@ function getSettingsTabs( config: AdminConfig ): AdminTab[] {
 	);
 }
 
-export { getSettingsTabs };
+export { SETTINGS_TABS, getSettingsTabs };
