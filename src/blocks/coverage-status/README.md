@@ -37,7 +37,7 @@ All settings are in the Settings panel.
 | When ended | Show, Hide | Hide removes the block from the site once the liveblog ends. The editor shows a notice when this applies. Show is the default. |
 | Dot | Show, Hide | Turns the dot on the Live badge on or off. Paused and Ended badges have no dot. Show is the default. |
 
-Editors and administrators set the site-wide labels in Rolling Coverage > All Liveblogs: select Settings, then Coverage Status. Each label can be up to 40 characters. A label set on a block overrides the site-wide one.
+Editors and administrators set the site-wide labels in Rolling Coverage > Settings, on the General tab, under Coverage Status. Each label can be up to 40 characters. A label set on a block overrides the site-wide one.
 
 ## Styling
 

@@ -39,7 +39,7 @@ Each status's text is, in order: the block's `labels` value, the site-wide label
 
 Site-wide labels live in the `rolling_coverage_status_labels` option, managed by `Status_Labels` (`includes/blocks/class-status-labels.php`):
 
-- `GET` and `POST rolling-coverage/v1/settings/status-labels`, for users with `edit_others_posts`. The plugin's settings screen uses it (`src/admin/components/settings-modal.tsx`).
+- `GET` and `POST rolling-coverage/v1/settings/status-labels`, for users with `edit_others_posts`. The General tab of the plugin's Settings page uses it (`src/admin/components/general-settings.tsx`).
 - Labels are plain text, capped at 40 characters (`MAX_LENGTH`). Posting an empty string for a status restores the built-in label; omitting a status leaves it unchanged.
 - The editor gets the merged labels as `statusLabels` from `localize_editor_config()`.
 

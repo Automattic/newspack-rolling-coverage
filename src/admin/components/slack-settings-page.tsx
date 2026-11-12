@@ -13,6 +13,7 @@ import { __ } from '@wordpress/i18n';
 import {
 	createInterpolateElement,
 	useCallback,
+	useEffect,
 	useMemo,
 	useState,
 } from '@wordpress/element';
@@ -27,10 +28,9 @@ import { useSlackSettings } from '../hooks/useSlackSettings';
 import { ConnectionStatusDrawer } from './slack/settings/connection-status-drawer';
 import { ConfirmModal } from './confirm-modal';
 import { ChannelsTab } from './slack/settings/channels-tab';
-import { IngestionSettingsTab } from './slack/settings/ingestion-settings-tab';
 import { ConnectSlack } from './slack/settings/connect-slack';
 import { MonitorTab } from './slack/settings/monitor-tab';
-import { LoadingState } from '../shared/loading-state';
+import { useAdminContext } from '../hooks/useAdminContext';
 import type { TabHeader } from '../types';
 
 const VALID_TABS = SLACK_TABS.map( ( t ) => t.name );
@@ -38,46 +38,48 @@ const VALID_TABS = SLACK_TABS.map( ( t ) => t.name );
 /** Route for a site not yet connected to Slack, which has no tabs. */
 const SETUP_TAB = 'setup';
 
+/** Former route of the Slack settings, now the Settings page's Slack tab. */
+const LEGACY_SETTINGS_TAB = 'settings';
+
 /**
  * Renders the Slack connection page under /connection/{tab}. A site that
  * isn't connected gets the untabbed setup page at /connection/setup; a
  * connected one gets the tabs, driven by the :tab URL parameter so each is
  * bookmarkable. Connection status and Disconnect open from the header menu.
- * Slack data and handlers come from the useSlackSettings hook.
+ * Slack data and handlers come from the useSlackSettings hook. The Slack
+ * settings live on the Settings page, which the old /connection/settings
+ * route loads.
  */
 function SlackSettingsPage() {
 	const { tab } = useParams();
+	const { adminUrls } = useAdminContext();
 	const {
 		botToken,
 		setBotToken,
 		signingSecret,
 		setSigningSecret,
-		ignorePrefix,
-		setIgnorePrefix,
-		publishReaction,
-		setPublishReaction,
-		draftReaction,
-		setDraftReaction,
-		topHeadingLevel,
-		setTopHeadingLevel,
-		isSettingsDirty,
 		channels,
 		hasLoadedChannels,
-		hasLoadedSettings,
 		isVerifying,
-		isSavingSettings,
 		workspaceInfo,
 		notice,
 		clearNotice,
 		manifestJson,
-		editUserUrl,
 		isConfigured,
 		handleUnlinkChannel,
 		handlePublishModeChange,
 		handleVerify,
 		handleDisconnect,
-		handleSaveSettings,
 	} = useSlackSettings();
+	const isLegacySettingsTab = tab === LEGACY_SETTINGS_TAB;
+
+	useEffect( () => {
+		if ( isLegacySettingsTab ) {
+			window.location.replace(
+				`${ adminUrls.settings }#/settings/slack`
+			);
+		}
+	}, [ isLegacySettingsTab, adminUrls.settings ] );
 
 	const tabbedNavigation = useMemo(
 		() =>
@@ -113,40 +115,22 @@ function SlackSettingsPage() {
 			return null;
 		}
 		return (
-			<>
-				<Button
-					variant="tertiary"
-					className="newspack-rolling-coverage-status-button newspack-rolling-coverage-connection-status-button"
-					onClick={ () => setIsStatusOpen( true ) }
-				>
-					<span
-						className="newspack-rolling-coverage-status-dot"
-						aria-hidden="true"
-					/>
-					{ __( 'Connection Status', 'newspack-rolling-coverage' ) }{ ' ' }
-					<VisuallyHidden>
-						{ __( '(connected)', 'newspack-rolling-coverage' ) }
-					</VisuallyHidden>
-				</Button>
-				{ tab === 'settings' && (
-					<Button
-						variant="primary"
-						onClick={ handleSaveSettings }
-						isBusy={ isSavingSettings }
-						disabled={ isSavingSettings || ! isSettingsDirty }
-					>
-						{ __( 'Save', 'newspack-rolling-coverage' ) }
-					</Button>
-				) }
-			</>
+			<Button
+				variant="tertiary"
+				className="newspack-rolling-coverage-status-button newspack-rolling-coverage-connection-status-button"
+				onClick={ () => setIsStatusOpen( true ) }
+			>
+				<span
+					className="newspack-rolling-coverage-status-dot"
+					aria-hidden="true"
+				/>
+				{ __( 'Connection Status', 'newspack-rolling-coverage' ) }{ ' ' }
+				<VisuallyHidden>
+					{ __( '(connected)', 'newspack-rolling-coverage' ) }
+				</VisuallyHidden>
+			</Button>
 		);
-	}, [
-		isConfigured,
-		tab,
-		handleSaveSettings,
-		isSavingSettings,
-		isSettingsDirty,
-	] );
+	}, [ isConfigured ] );
 	const [ channelsHeader, setChannelsHeader ] = useState< TabHeader >( {} );
 	const [ monitorHeader, setMonitorHeader ] = useState< TabHeader >( {} );
 
@@ -156,6 +140,10 @@ function SlackSettingsPage() {
 		...( tab === 'channels' ? channelsHeader : {} ),
 		...( tab === 'monitor' ? monitorHeader : {} ),
 	} );
+
+	if ( isLegacySettingsTab ) {
+		return null;
+	}
 
 	if ( ! isConfigured ) {
 		if ( tab !== SETUP_TAB ) {
@@ -198,38 +186,6 @@ function SlackSettingsPage() {
 						onHeaderChange={ setChannelsHeader }
 					/>
 				);
-			case 'settings':
-				if ( hasLoadedSettings && ! workspaceInfo ) {
-					return (
-						<Notice status="error" isDismissible={ false }>
-							{ __(
-								'The Slack settings could not be loaded. Reload the page to try again.',
-								'newspack-rolling-coverage'
-							) }
-						</Notice>
-					);
-				}
-				return ! hasLoadedSettings ? (
-					<LoadingState
-						label={ __(
-							'Fetching settings…',
-							'newspack-rolling-coverage'
-						) }
-					/>
-				) : (
-					<IngestionSettingsTab
-						ignorePrefix={ ignorePrefix }
-						setIgnorePrefix={ setIgnorePrefix }
-						publishReaction={ publishReaction }
-						setPublishReaction={ setPublishReaction }
-						draftReaction={ draftReaction }
-						setDraftReaction={ setDraftReaction }
-						topHeadingLevel={ topHeadingLevel }
-						setTopHeadingLevel={ setTopHeadingLevel }
-						workspaceInfo={ workspaceInfo }
-						editUserUrl={ editUserUrl }
-					/>
-				);
 			case 'monitor':
 				return (
 					<MonitorTab
@@ -243,13 +199,7 @@ function SlackSettingsPage() {
 	};
 
 	return (
-		<div
-			className={
-				tab === 'channels' || tab === 'monitor'
-					? undefined
-					: 'newspack-rolling-coverage-slack-settings'
-			}
-		>
+		<div>
 			{ notice && (
 				<Notice status={ notice.type } onRemove={ clearNotice }>
 					{ notice.message }

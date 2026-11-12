@@ -18,7 +18,6 @@ import {
 	disconnectSlack,
 	getSlackSettings,
 	listSlackChannels,
-	saveSlackSettings,
 	unlinkSlackChannel,
 	updateSlackChannelSettings,
 	verifySlackCredentials,
@@ -40,24 +39,13 @@ function useSlackSettings() {
 	const { restBase, restBaseUrls, slack } = config;
 	const namespace = restBase.slack;
 	const restUrl = restBaseUrls.slack;
-	const editUserUrl = config.adminUrls.editUser;
 
 	const [ botToken, setBotToken ] = useState( '' );
 	const [ signingSecret, setSigningSecret ] = useState( '' );
-	const [ ignorePrefix, setIgnorePrefix ] = useState( '~~' );
-	const [ savedIgnorePrefix, setSavedIgnorePrefix ] = useState( '~~' );
-	const [ publishReaction, setPublishReaction ] = useState( 'mega' );
-	const [ savedPublishReaction, setSavedPublishReaction ] =
-		useState( 'mega' );
-	const [ draftReaction, setDraftReaction ] = useState( 'memo' );
-	const [ savedDraftReaction, setSavedDraftReaction ] = useState( 'memo' );
-	const [ topHeadingLevel, setTopHeadingLevel ] = useState( 0 );
-	const [ savedTopHeadingLevel, setSavedTopHeadingLevel ] = useState( 0 );
 	const [ hasLoadedSettings, setHasLoadedSettings ] = useState( false );
 	const [ channels, setChannels ] = useState< ChannelMapping[] >( [] );
 	const [ hasLoadedChannels, setHasLoadedChannels ] = useState( false );
 	const [ isVerifying, setIsVerifying ] = useState( false );
-	const [ isSavingSettings, setIsSavingSettings ] = useState( false );
 	const [ notice, setNotice ] = useState< SettingsNotice | null >( null );
 	const [ workspaceInfo, setWorkspaceInfo ] =
 		useState< SlackSettingsInfo | null >( null );
@@ -125,8 +113,8 @@ function useSlackSettings() {
 		};
 	}, [ slack.isConfigured, namespace ] );
 
-	// Fetch the workspace identity, bot user, and saved ingestion settings once
-	// connected, for the Connection Status drawer and the Settings tab.
+	// Fetch the workspace identity and the app's permissions once connected,
+	// for the Connection Status drawer and the permission warnings.
 	useEffect( () => {
 		if ( ! slack.isConfigured ) {
 			return;
@@ -152,14 +140,6 @@ function useSlackSettings() {
 				return;
 			}
 			setWorkspaceInfo( result.settings );
-			setIgnorePrefix( result.settings.ignore_prefix );
-			setSavedIgnorePrefix( result.settings.ignore_prefix );
-			setPublishReaction( result.settings.publish_reaction );
-			setSavedPublishReaction( result.settings.publish_reaction );
-			setDraftReaction( result.settings.draft_reaction );
-			setSavedDraftReaction( result.settings.draft_reaction );
-			setTopHeadingLevel( result.settings.top_heading_level );
-			setSavedTopHeadingLevel( result.settings.top_heading_level );
 		} );
 
 		return () => {
@@ -241,55 +221,6 @@ function useSlackSettings() {
 		}
 	}, [ namespace ] );
 
-	const handleSaveSettings = useCallback( async () => {
-		setIsSavingSettings( true );
-
-		const result = await saveSlackSettings( namespace, {
-			ignorePrefix,
-			publishReaction,
-			draftReaction,
-			topHeadingLevel,
-		} );
-
-		if ( result.success ) {
-			const stored = result.ignorePrefix ?? ignorePrefix;
-			const storedPublish = result.publishReaction ?? publishReaction;
-			const storedDraft = result.draftReaction ?? draftReaction;
-			const storedHeadingLevel =
-				result.topHeadingLevel ?? topHeadingLevel;
-			setIgnorePrefix( stored );
-			setSavedIgnorePrefix( stored );
-			setPublishReaction( storedPublish );
-			setSavedPublishReaction( storedPublish );
-			setDraftReaction( storedDraft );
-			setSavedDraftReaction( storedDraft );
-			setTopHeadingLevel( storedHeadingLevel );
-			setSavedTopHeadingLevel( storedHeadingLevel );
-			setNotice( {
-				type: 'success',
-				message: __( 'Settings saved.', 'newspack-rolling-coverage' ),
-			} );
-		} else {
-			setNotice( {
-				type: 'error',
-				message:
-					result.error ||
-					__(
-						'Failed to save settings.',
-						'newspack-rolling-coverage'
-					),
-			} );
-		}
-
-		setIsSavingSettings( false );
-	}, [
-		namespace,
-		ignorePrefix,
-		publishReaction,
-		draftReaction,
-		topHeadingLevel,
-	] );
-
 	const handlePublishModeChange = useCallback(
 		async ( channelId: string, publishMode: PublishMode ) => {
 			setNotice( null );
@@ -328,30 +259,15 @@ function useSlackSettings() {
 		setBotToken,
 		signingSecret,
 		setSigningSecret,
-		ignorePrefix,
-		setIgnorePrefix,
-		publishReaction,
-		setPublishReaction,
-		draftReaction,
-		setDraftReaction,
-		topHeadingLevel,
-		setTopHeadingLevel,
-		isSettingsDirty:
-			ignorePrefix !== savedIgnorePrefix ||
-			publishReaction !== savedPublishReaction ||
-			draftReaction !== savedDraftReaction ||
-			topHeadingLevel !== savedTopHeadingLevel,
 		channels,
 		hasLoadedChannels,
 		hasLoadedSettings,
 		isVerifying,
-		isSavingSettings,
 		workspaceInfo,
 		notice,
 		clearNotice,
 		// Computed
 		manifestJson,
-		editUserUrl,
 		// Derived
 		isConfigured: slack.isConfigured,
 		// Handlers
@@ -359,7 +275,6 @@ function useSlackSettings() {
 		handlePublishModeChange,
 		handleVerify,
 		handleDisconnect,
-		handleSaveSettings,
 	};
 }
 

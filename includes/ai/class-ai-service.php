@@ -178,7 +178,7 @@ class AI_Service {
 	 * URL of the AI plugin's Connector Approvals screen, or the Tools menu
 	 * when the Connector Approval experiment isn't active.
 	 *
-	 * Points the AI page's empty state at the screen where an administrator
+	 * Points the Settings page's AI tab, in its empty state, at the screen where an administrator
 	 * approves this plugin for a connector.
 	 *
 	 * @return string Admin URL.
@@ -505,7 +505,7 @@ class AI_Service {
 		if ( empty( $key_takeaways_prompt ) ) {
 			return new WP_Error(
 				'rolling_coverage_ai_prompts_not_configured',
-				__( 'AI prompts are not configured. Configure them in the AI settings page.', 'newspack-rolling-coverage' ),
+				__( 'AI prompts are not configured. Configure them on the AI tab of Rolling Coverage > Settings.', 'newspack-rolling-coverage' ),
 				[ 'status' => 500 ]
 			);
 		}

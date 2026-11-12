@@ -59,6 +59,7 @@ import { getEntryFields, defaultEntryView } from '../fields/entries';
  * snackbar. Matches the spec §4.3 "group >5 changes into one notice" rule.
  */
 const GROUP_NOTICE_THRESHOLD = 5;
+const FIT_COLUMNS = [ 'modified', 'date' ];
 
 /**
  * Renders the entry list DataViews for a single coverage, backed by the
@@ -309,13 +310,6 @@ function EntryView() {
 	}, [] );
 
 	const entryFields = useMemo( () => getEntryFields( config ), [ config ] );
-	const fitColumns = useMemo(
-		() =>
-			entryFields
-				.map( ( field ) => field.id )
-				.filter( ( id ) => id !== 'title' ),
-		[ entryFields ]
-	);
 
 	const { data: mappedData, paginationInfo } = useMemo( () => {
 		const mapped = ( rows ?? [] ).map( toEntry );
@@ -679,7 +673,7 @@ function EntryView() {
 					actions={ actions }
 					paginationInfo={ paginationInfo }
 					isLoading={ isResolving || isTrashCheckPending }
-					fitColumns={ fitColumns }
+					fitColumns={ FIT_COLUMNS }
 				/>
 			) }
 			{ quickEditEntry && (

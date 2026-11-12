@@ -1,43 +1,38 @@
 ---
 title: Settings
-description: Rename statuses and labels for the whole site, such as calling entries updates.
+description: Rename statuses and labels for the whole site, such as calling entries updates, and set up Slack and AI.
 ---
 
-Settings holds the wording readers see across every liveblog: what entries are called, the status labels, and two button labels. Use it to match the newsroom's own words.
+All Rolling Coverage settings are on one page: **Rolling Coverage > Settings**, with **General**, **Slack**, and **AI** tabs. The **General** tab holds the wording readers see across every liveblog: what entries are called, the status labels, and two button labels. Use it to match the newsroom's own words.
 
-Changing settings needs an Editor or Administrator account.
+Editors and administrators see the **General** tab. The **Slack** and **AI** tabs need an Administrator account.
 
 ## Open Settings
 
 <Steps>
 <Step>
 
-### Open All Liveblogs
+### Open Settings
 
-Go to **Rolling Coverage > All Liveblogs**.
+Go to **Rolling Coverage > Settings**. The page opens on the first tab you can use.
 
-</Step>
-<Step>
-
-### Select Settings
-
-Select **Settings** in the header. A window opens with two tabs: **Labels** and **Coverage Status**.
-
-<Screenshot label="The Settings window on the Labels tab, with the Entry Name, Jump to Latest, and Full Story fields" src="/screenshots/guides/settings-1.webp" width={3024} height={1964} />
+<Screenshot label="The Rolling Coverage Settings page on the General tab, with the Entry Name, Jump to Latest, Full Story, and Coverage Status sections" src="/screenshots/guides/settings-1.webp" width={3024} height={1964} />
 
 </Step>
 <Step>
 
 ### Save
 
-Change the fields below, then select **Save**. The message "Saved." appears. Select **Cancel** to close without saving. If there are unsaved changes, the window asks before discarding them.
+Change the fields, then select **Save** at the top of the page. The message "Settings saved." appears. **Save** works only after something on the tab has changed.
+
+If you switch tabs, go back or forward in the browser, or leave the page before saving, a message asks first. Select **Discard Changes** to leave without saving, or **Cancel** to stay.
 
 </Step>
 </Steps>
 
 An empty field goes back to its default.
 
-## Labels tab
+## General tab
 
 ### Entry Name
 
@@ -62,7 +57,7 @@ Sets the label shown on an entry once its breakout post is published.
 
 Each breakout post can set its own label in the post editor. See [Full stories](/docs/guides/full-stories/).
 
-## Coverage Status tab
+### Coverage Status
 
 Sets the text of the status badge for each status:
 
@@ -73,6 +68,16 @@ Sets the text of the status badge for each status:
 For example, "Developing", "On hold", and "Closed". Each label can be up to 40 characters.
 
 A Coverage Status block can set its own labels, which override these. See the [Coverage Status block](/docs/blocks/coverage-status/).
+
+## Slack tab
+
+Sets which Slack messages become entries and how they look: **Ignore prefix**, **Publish emoji**, **Draft emoji**, and **Highest heading**. It also shows the **Bot User** that entries from Slack are credited to. See [Slack](/docs/guides/slack/).
+
+Until Slack is connected, the tab shows **Go to Slack Connection** instead.
+
+## AI tab
+
+Sets the prompt the AI follows for key takeaways. See [AI key takeaways](/docs/guides/ai-key-takeaways/).
 
 ## Where settings take effect
 

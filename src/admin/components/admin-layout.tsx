@@ -11,6 +11,7 @@ import Page from 'newspack-components/dist/esm/page';
 /**
  * Internal dependencies
  */
+import { SETTINGS_TABS } from '../utils/settings-tabs';
 import { SLACK_TABS } from '../utils/slack-tabs';
 import { useAdminContext } from '../hooks/useAdminContext';
 import type { BreadcrumbItem, Context, Coverage, HeaderState } from '../types';
@@ -71,8 +72,16 @@ function getBreadcrumbItems(
 		];
 	}
 
-	if ( pathname === '/ai' ) {
-		return [ root, { label: __( 'AI', 'newspack-rolling-coverage' ) } ];
+	if ( pathname.startsWith( '/settings' ) ) {
+		const settings = {
+			label: __( 'Settings', 'newspack-rolling-coverage' ),
+		};
+		const settingsTab = SETTINGS_TABS.find(
+			( { name } ) => pathname === `/settings/${ name }`
+		);
+		return settingsTab
+			? [ root, settings, { label: settingsTab.title } ]
+			: [ root, settings ];
 	}
 
 	if ( isEmpty ) {
@@ -130,6 +139,7 @@ function AdminLayout() {
 			className="newspack-rolling-coverage-admin"
 			breadcrumbItems={ breadcrumbItems }
 			actions={ header.actions }
+			subTitle={ header.subTitle }
 			tabbedNavigation={ header.tabbedNavigation }
 		>
 			<div className="newspack-rolling-coverage-admin__content">

@@ -1,19 +1,21 @@
 # Admin screens: development notes
 
-The plugin's admin screens live in `src/admin/`: the coverages list, each coverage's entries list, Quick Edit, the Settings modal, and the Slack and AI pages. The entries list is a DataViews table; its fields are defined in `src/admin/fields/entries.tsx`. What the plugin adds to the entry editor lives in `src/entry-editor/`, and what it adds to a breakout post's editor in `src/breakout-editor/`.
+The plugin's admin screens live in `src/admin/`: the coverages list, each coverage's entries list, Quick Edit, the Slack Connection page and the Settings page. The entries list is a DataViews table; its fields are defined in `src/admin/fields/entries.tsx`. What the plugin adds to the entry editor lives in `src/entry-editor/`, and what it adds to a breakout post's editor in `src/breakout-editor/`.
 
 ## Screens and routes
 
-`Admin` (`includes/class-admin.php`) adds the Rolling Coverage menu with three pages: All Liveblogs (`edit_posts`), Slack Connection (`manage_options`) and AI (`manage_options`), so only administrators see and change the AI prompts; the settings route checks the same. Each page renders the same root element and loads the `admin` bundle, a React app with a hash router (`src/admin/app.tsx`). The page sets the route the app starts on.
+`Admin` (`includes/class-admin.php`) adds the Rolling Coverage menu with three pages: All Liveblogs (`edit_posts`), Slack Connection (`manage_options`) and Settings (`rolling-coverage-settings`). Settings needs `Admin::get_settings_capability()`: `edit_others_posts` when the user has it, else `manage_options`, so anyone who can open one of its tabs sees it. Each page renders the same root element and loads the `admin` bundle, a React app with a hash router (`src/admin/app.tsx`). The page sets the route the app starts on.
 
 | Route | Screen |
 | --- | --- |
 | `#/coverages` | All Liveblogs (`coverage-view.tsx`) |
 | `#/coverages/<id>` | A coverage's entries (`entry-view.tsx`) |
-| `#/connection/<tab>` | Slack Connection (`slack-settings-page.tsx`), with its tabs in `src/admin/utils/slack-tabs.ts` |
-| `#/ai` | AI prompt settings (`ai-page.tsx`) |
+| `#/connection/<tab>` | Slack Connection (`slack-settings-page.tsx`): the connect flow, then the Channel Mappings and Monitor tabs in `src/admin/utils/slack-tabs.ts` |
+| `#/settings/<tab>` | Settings (`settings-page.tsx`), with the General, Slack and AI tabs in `src/admin/utils/settings-tabs.ts`. See [Settings](#settings). |
 
-When key takeaways can't run (`AI_Service::is_available()` is false), the AI page shows an empty state in place of the prompt, with what to set up next and a button to the screen for it. In order: Connector Approvals when approval is pending (`needs_connector_approval()`, which doesn't check credentials, so approving can lead on to the next state); Settings > AI when that screen is registered (`get_settings_url()`); no button when the AI plugin is active but hasn't booted; and otherwise the plugin installer, or Plugins for users who can only activate plugins (`adminUrls.aiPlugin`). Settings > AI links on to Settings > Connectors, where a provider is connected.
+Old addresses still work. `admin.php?page=rolling-coverage-ai`, no longer registered, reaches `admin_page_access_denied`, where `Admin::redirect_legacy_ai_page()` sends it to `#/settings/ai` on the Settings page. The `#/ai` route goes to the same tab in the app, and `#/connection/settings` loads the Settings page's Slack tab (`slack-settings-page.tsx`), since a hash never reaches the server. The block's Edit the prompt link uses `Admin::get_settings_url( 'ai' )`.
+
+When key takeaways can't run (`AI_Service::is_available()` is false), the AI tab shows an empty state in place of the prompt, with what to set up next and a button to the screen for it. In order: Connector Approvals when approval is pending (`needs_connector_approval()`, which doesn't check credentials, so approving can lead on to the next state); Settings > AI when that screen is registered (`get_settings_url()`); no button when the AI plugin is active but hasn't booted; and otherwise the plugin installer, or Plugins for users who can only activate plugins (`adminUrls.aiPlugin`). Settings > AI links on to Settings > Connectors, where a provider is connected.
 
 On these screens, wp-admin notices printed above the app sit flush with no margin, so they line up with the page header. Inline notices, such as core's update nag, keep theirs.
 
@@ -27,10 +29,12 @@ The app reads its config from `window.newspackRollingCoverageAdmin` (`Admin::get
 | `canAssignCategories`, `canAssignTags` | `Post_Type::can_assign_terms()` | Reassign's Categories and Tags fields |
 | `canCreateCategories`, `canCreateTags` | `Post_Type::can_create_terms()` | Typing a new category or tag in Reassign |
 | `canManageTerms` | `manage_categories` | Add Liveblog, and editing and trashing coverages |
-| `canManageOptions` | `manage_options` | Slack connections |
-| `canManageSettings` | `edit_others_posts` | The Settings modal |
+| `canManageOptions` | `manage_options` | Slack Connection, Slack connections, and the Settings page's Slack and AI tabs |
+| `canManageSettings` | `edit_others_posts` | The Settings page's General tab |
 
 The admin pages load the block editor's assets so Quick Edit can run a block editor. `Newspack\Blocks::enqueue_block_editor_assets` is unhooked while they load, since newspack-plugin's editor UI crashes inside Quick Edit's `EditorProvider`.
+
+Those assets also bring other plugins' copies of the newspack-components stylesheet, Page header included, and some are older than the plugin's. An older one sets the header logo's box to 24px and gives the breadcrumbs a `min-height` that the current header doesn't have, which pushes the logo above the breadcrumb text. `_screen.scss` sets both back to the current header's values under `.newspack-rolling-coverage-admin`, the page region, whose extra class outweighs the older rules whatever order the stylesheets load in.
 
 ## DataViews styles
 
@@ -44,7 +48,7 @@ The plugin's own adjustments to DataViews sit one class deeper, under `body.news
 
 Every list goes through `DataViewsWrapper` (`src/admin/components/data-views-wrapper.tsx`), which lays out the toolbar the Newspack admin lists share: filter chips beside the search, the view options and any `header` content on the right, and no funnel toggle. A field with a `filterBy` object shows as a chip, unless it sets `isPrimary: false`. Keep the chips to the filters people reach for first; the entries list shows Status alone. Every other filter is offered under **Add filter**: a `filterBy` with `isPrimary: false`, and any field DataViews makes filterable by default, such as a `datetime` or `text` field with no `filterBy`. A filter added from there becomes a chip with a Remove button, and narrows nothing until a value is picked (`hasFilterValue()` in `src/admin/utils/fields.ts`, for the server query and the list alike). **Add filter** only shows beside a chip, so a list needs at least one chip or its other filters can't be reached.
 
-Tables get even column widths (`evenColumns()` in `src/admin/utils/even-columns.ts`): the title column keeps 30%, and the other visible columns share the rest equally, or all of it when the title, media and description are all hidden. The widths follow whichever columns are shown, so they're worked out on every render and stripped from the view the wrapper hands back. A `width` in a list's `layout.styles` is replaced, while other keys such as `align` are kept. Columns passed in the wrapper's `fitColumns` shrink to their content instead, as Channel Mappings does for Disconnect. The entries list fits every column but the title, so dates show whole and the title takes the rest of the table. DataViews gives every cell a 15ch minimum width, which would keep a column of dashes as wide as a date; `_dataviews.scss` drops it for fitted columns, found by the `width: 1%` DataViews writes on their cells. The older DataViews stylesheet that other plugins load also gives every table column `width: 1%`, the title column included, so `_dataviews.scss` sets the title column (`col.dataviews-view-table__col-first-data`) back to `auto`.
+Tables get even column widths (`evenColumns()` and `titleColumnWidth()` in `src/admin/utils/even-columns.ts`): the title column takes an equal share but never less than 30%, and the other visible columns split the rest equally, or all of it when the title, media and description are all hidden. DataViews never sizes the title column, so the wrapper passes its share down as `--newspack-rolling-coverage-title-width` and `_dataviews.scss` applies it to `col.dataviews-view-table__col-first-data`; the older DataViews stylesheet other plugins load gives that column `width: 1%`, which the `!important` there overrides. The shares are percentages of a table that also holds the select and actions columns, so they are scaled down to the space left, and a column never goes below its content (the Author column's avatar and name don't wrap), so the columns come out close to even, not exact. The widths follow whichever columns are shown, so they're worked out on every render and stripped from the view the wrapper hands back. A `width` in a list's `layout.styles` is replaced, while other keys such as `align` are kept. Columns passed in the wrapper's `fitColumns` shrink to their content and take no share, as Channel Mappings does for Disconnect and the entries list does for its date columns (Created and Modified), so a date never wraps. Tags is off by default in the entries list so the default columns fit. DataViews gives every cell a 15ch minimum width, which would stop a table with this many columns from sharing its width, so `_dataviews.scss` drops it for every cell that carries a width. The title's own minimum is 240px, and 160px when the list is 1200px wide or less, so the entries list doesn't scroll sideways at 1280. The list's view is kept in component state only, so a new default applies to everyone on their next visit.
 
 ## Bulk actions
 
@@ -74,18 +78,32 @@ The routes live in `Taxonomy` (`includes/class-taxonomy.php`).
 
 ## Settings
 
-`SettingsModal` (`settings-modal.tsx`) opens from the All Liveblogs header for users with `edit_others_posts`. It has two tabs. Labels groups the three things readers see named, each under a heading of its own; Coverage Status holds the status labels. Each group saves one option through its own route:
+All Rolling Coverage settings are on one page, Rolling Coverage > Settings (`settings-page.tsx`), with General, Slack and AI tabs. `getSettingsTabs()` (`src/admin/utils/settings-tabs.ts`) shows each tab only to users with its capability, matching its REST routes: General needs `edit_others_posts` (`canManageSettings`), Slack and AI need `manage_options` (`canManageOptions`). A tab the user can't open, or `#/settings` on its own, goes to their first tab. The breadcrumbs read Rolling Coverage / Settings / the active tab's title, as in newspack-plugin's Settings wizard; Settings is plain text and the trail updates on tab change.
 
-| Tab | Group | Fields | Route |
-| --- | --- | --- | --- |
-| Labels | Entry Name | Singular, Plural | `rolling-coverage/v1/settings/entry-name` |
-| Labels | Jump to Latest | Button label | `rolling-coverage/v1/settings/latest-label` |
-| Labels | Full Story | Full story label | `rolling-coverage/v1/settings/breakout-label` |
-| Coverage Status | | Live label, Paused label, Ended label | `rolling-coverage/v1/settings/status-labels` |
+Each tab is made of two-column sections (`Grid`, `SectionHeader`, a `Stack` of fields, `Divider` between sections), sets the page header's subtitle, and puts its own Save in the header, which stays disabled until something on that tab changes and reads the latest save handler from a ref. A tab reports whether it has unsaved changes (`useReportDirty()`), and the page mounts one guard for all of them, `useUnsavedChangesGuard()`. It wraps newspack-components' `useUnsavedChangesDialog`, which asks before links out of the page, reloads and closing the tab. That hook leaves `#/` links to a react-router v5 `history.block`, and this app's router is react-router 7's `HashRouter`, so the guard also sends clicks on `#/` links (the tabs, breadcrumbs) through the hook's `requestConfirm`. It catches the browser's back and forward between hash routes too: a `popstate` listener that the hook's module adds when it loads, before the router adds its own, runs first and stops it, puts the screen's route back with `replaceState`, and asks. Discard Changes swaps in the route the user went to with `replaceState` and a fresh `popstate` for the router, so history ends where Back or Forward would have left it; Cancel stays. A navigation the user approved is let through once, so a click and the `popstate` it causes ask only once. The guard is off while a tab is clean or saving, since tabs report themselves clean while a save is in flight.
 
-The modal loads all four when it opens and saves only the ones that changed. The two single-label groups share `fetchLabelSetting()` and `saveLabelSetting()` (`src/admin/utils/label-setting-api.ts`). It refuses an entry name with one word and not the other before sending anything. A failed save switches to the tab holding it and shows the error. Closing with unsaved changes asks to discard them.
+### General
+
+`general-settings.tsx`. Each section saves one option through its own route:
+
+| Section | Fields | Route |
+| --- | --- | --- |
+| Entry Name | Singular, Plural | `rolling-coverage/v1/settings/entry-name` |
+| Jump to Latest | Button label | `rolling-coverage/v1/settings/latest-label` |
+| Full Story | Full story label | `rolling-coverage/v1/settings/breakout-label` |
+| Coverage Status | Live label, Paused label, Ended label | `rolling-coverage/v1/settings/status-labels` |
+
+The tab loads all four, then shows the form, and Save sends only the ones that changed. The two single-label sections share `fetchLabelSetting()` and `saveLabelSetting()` (`src/admin/utils/label-setting-api.ts`). It refuses an entry name with one word and not the other before sending anything. A failed save shows the first error above the sections and keeps the edits; the sections that saved are no longer marked as changed. A save that succeeds shows a "Settings saved." snackbar.
 
 The options, their limits and what reads them are documented with the blocks: the entry name, the Jump to Latest label and the Full story label in `src/blocks/rolling-coverage/DEVELOPMENT.md`, the status labels in `src/blocks/coverage-status/DEVELOPMENT.md`.
+
+### Slack
+
+`slack-settings.tsx`, with its state in `useSlackIngestionSettings()`. Until Slack is connected, the tab shows an empty state with a Go to Slack Connection button instead of the form. Once connected, it loads `GET <slack namespace>/slack/settings` and renders `IngestionSettingsTab` (`src/admin/components/slack/settings/ingestion-settings-tab.tsx`): Ingestion (Ignore prefix, Publish emoji, Draft emoji), Formatting (Highest heading) and Bot User, the WordPress user ingested entries are credited to, with an Edit User link that hands off to the user's profile with a banner back here when newspack-plugin is active. Save sends all four settings to `POST <slack namespace>/slack/settings`. See [Emoji trigger](#emoji-trigger) and [Slack message titles and headings](#slack-message-titles-and-headings).
+
+### AI
+
+`ai-settings.tsx`: the Key Takeaways prompt, saved to `rolling-coverage/v1/ai/settings`, with Reset to Defaults in the header's More actions menu. The over-limit warning and the empty state for a site where key takeaways can't run are described under [Screens and routes](#screens-and-routes).
 
 ## A coverage's entries
 
@@ -278,7 +296,7 @@ Channels linked before publish modes stored only an `autopublish` flag. `Slack_C
 
 ### Emoji trigger
 
-- The two emoji are site-wide: **Publish Emoji** and **Draft Emoji** in the Slack page's Settings tab, `mega` and `memo` by default. They are stored lowercase without colons and must differ. A skin-tone variant of either counts.
+- The two emoji are site-wide: **Publish emoji** and **Draft emoji** on the Settings page's Slack tab, `mega` and `memo` by default. They are stored lowercase without colons and must differ. A skin-tone variant of either counts.
 - Slack sends every reaction in the bot's channels to the events route as `reaction_added`. `Slack_Webhook_Controller::handle_reaction()` drops the bot's own reactions, channels in other modes and other emoji before calling Slack. It then reads the message with `conversations.replies` (`Slack_API_Client::get_message_or_reply()`), since a reaction doesn't say which thread its message is in and `conversations.history` lists top-level messages only.
 - The entry is the message as it reads when the reaction arrives. The ignore prefix doesn't apply, since the reaction is the opt-in. A message event in an Emoji trigger channel returns before any Slack call.
 - When the message already has an entry, the publish emoji publishes it only if it is a draft that never went out. A draft an editor took down (`Post_Type::META_UNPUBLISHED_GMT`), an archived one or one in a coverage that has ended (`Archive_Mode::is_entry_locked()`), one in a coverage that is in the trash, and one dated a minute or more ahead stay as they are.
@@ -298,7 +316,7 @@ Tests: `tests/test-slack-webhook.php`, `tests/test-slack-config.php`.
 
 ## Slack message titles and headings
 
-Reporters can mark a title and headings in a Slack message the way Markdown does, with `#`, and `Slack_Content_Processor` turns them into an entry title and heading blocks. It does so once a site picks a level in **Highest Heading** on the Slack page's Settings tab, stored as `top_heading_level` in `Slack_Config::OPTION_SETTINGS`. The default, **Off** (`Slack_Config::HEADINGS_OFF`), leaves `#` lines as typed, so reporters who already write "# of precincts" don't see live entries change until a site opts in. Heading 1 isn't offered, since it would compete with the page title.
+Reporters can mark a title and headings in a Slack message the way Markdown does, with `#`, and `Slack_Content_Processor` turns them into an entry title and heading blocks. It does so once a site picks a level in **Highest heading** on the Settings page's Slack tab, stored as `top_heading_level` in `Slack_Config::OPTION_SETTINGS`. The default, **Off** (`Slack_Config::HEADINGS_OFF`), leaves `#` lines as typed, so reporters who already write "# of precincts" don't see live entries change until a site opts in. Heading 1 isn't offered, since it would compete with the page title.
 
 - A first line that starts with `#`, `##` or `###` and a space becomes the entry's title when no other heading in the message is at its level or higher, and is removed from the content, so the feed layout shows it as the entry's title. With a competing heading it stays a heading, since the message has sections rather than one headline. That depends on headings further down, so `place_headings()` decides it once the whole message is rendered. Ingestion marks it with `Post_Type::META_TITLE_FROM_SOURCE`, so Stream and Minute, which show no titles, show it above the content, and Flash shows it when the entry has no words of its own (see "Excerpts, untitled and media-only entries" in `src/blocks/rolling-coverage/DEVELOPMENT.md`). The processor returns it from `get_title()`, and ingestion stores it from `Source_Event_Payload::$title`. A message that is only that line becomes a titled entry with no content. The title is plain text with `<`, `>` and `&` encoded, so the title filter WordPress runs on the webhook's save keeps text that looks like a tag, such as "Results <live>", instead of dropping it. Square brackets are encoded too, as in the content, so a shortcode typed in the title shows as text. A title-only message keeps the rich-text title rather than Slack's mrkdwn copy, which spells emoji as names.
 - Any other line that starts with `#`, `##` or `###` and a space becomes a heading block. The message's shallowest heading, the one with the fewest `#`, gets the chosen level, and the others follow it, one level lower per extra `#`, down to Heading 6. So no level is skipped whichever marker its headings start with, or after a title: a paragraph, then `## Results` and `### Ward 1`, gives the chosen level and the next, and so does `# Title`, then `## Ward 1` and `### Precinct A`. A heading's level depends on the headings after it, so `place_headings()` sets the levels once the whole message is rendered. Most feed layouts show entry titles as Heading 4, and Bulletin and Lite Site as Heading 3, so a level below that keeps a message's headings under its title.

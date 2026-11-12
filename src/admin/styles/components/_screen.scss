@@ -3,6 +3,17 @@
 @use "~@wordpress/base-styles/z-index" as wp-z;
 @use "~newspack-components/colors/colors.module" as np-colors;
 
+.newspack-rolling-coverage-admin {
+
+	.newspack-page__header-visual {
+		height: wp-vars.$button-size;
+	}
+
+	.newspack-page__breadcrumbs {
+		min-height: auto;
+	}
+}
+
 body.newspack-rolling-coverage-admin-screen {
 	--wp-ui-dialog-z-index: #{wp-z.z-index(".components-modal__screen-overlay")};
 	background: wp-colors.$white;
