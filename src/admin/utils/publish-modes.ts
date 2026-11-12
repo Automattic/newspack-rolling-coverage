@@ -43,7 +43,7 @@ function getPublishModeHelp( mode: PublishMode ): string {
 			);
 		case 'reaction':
 			return __(
-				"Adds a message only when someone reacts to it. The publish emoji publishes it, and the draft emoji saves a draft. Change both emoji on the Slack Connection page's Settings tab.",
+				'Adds a message only when someone reacts to it. The publish emoji publishes it, and the draft emoji saves a draft. Change both emoji on the Slack tab of Rolling Coverage > Settings.',
 				'newspack-rolling-coverage'
 			);
 		default:
