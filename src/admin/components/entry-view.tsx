@@ -583,6 +583,15 @@ function EntryView() {
 		actions: headerActions,
 		count: isFirstLoad ? undefined : totalItems,
 		isEmpty,
+		subTitle: config.capabilities.canEditEntries
+			? __(
+					'Add, edit, and pin the updates readers see in this liveblog.',
+					'newspack-rolling-coverage'
+				)
+			: __(
+					'Add and edit the updates readers see in this liveblog.',
+					'newspack-rolling-coverage'
+				),
 	} );
 
 	// Render sync notices as snackbars. A sync cycle with more than

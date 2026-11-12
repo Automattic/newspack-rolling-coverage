@@ -134,9 +134,22 @@ function SlackSettingsPage() {
 	const [ channelsHeader, setChannelsHeader ] = useState< TabHeader >( {} );
 	const [ monitorHeader, setMonitorHeader ] = useState< TabHeader >( {} );
 
+	const subTitles: Record< string, string > = {
+		channels: __(
+			'See which Slack channel posts to which liveblog, and set how each one publishes.',
+			'newspack-rolling-coverage'
+		),
+		monitor: __(
+			'Watch Slack messages and commands as they arrive, and whether they became entries.',
+			'newspack-rolling-coverage'
+		),
+	};
+	const subTitle = isConfigured && tab ? subTitles[ tab ] : undefined;
+
 	useHeader( {
 		tabbedNavigation,
 		actions: headerActions,
+		subTitle,
 		...( tab === 'channels' ? channelsHeader : {} ),
 		...( tab === 'monitor' ? monitorHeader : {} ),
 	} );
