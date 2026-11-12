@@ -222,7 +222,7 @@ These exist so the dashboard and the block editor can work. They aren't meant fo
 | `GET` | `/coverages/{term_id}/entries-preview` | Entry IDs for the block editor's previews. |
 | `POST` | `/entries/{entry_id}/restore`, `/entries/restore` | Restoring one or many trashed entries. |
 | `POST` | `/entries/details` | Reassigning up to 100 entries' author, categories, tags, slug, or date. |
-| `GET`, `POST` | `/settings/status-labels`, `/settings/entry-name`, `/settings/latest-label`, `/settings/breakout-label` | The reader-facing labels in the Settings modal. |
+| `GET`, `POST` | `/settings/status-labels`, `/settings/entry-name`, `/settings/latest-label`, `/settings/breakout-label` | The reader-facing labels on the Settings page's General tab. |
 | `GET`, `POST` | `/ai/settings` | The key-takeaways prompt. |
 | `POST` | `/layouts/{slug}` | Creating the shared pattern behind a built-in layout. |
 | Various | `/slack/*` | The Slack connection: credentials, channels, and the webhooks Slack calls. The webhooks check Slack's request signature rather than a signed-in user. |
