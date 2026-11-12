@@ -1,0 +1,1614 @@
+{
+	"site": {
+		"title": "The News Paper",
+		"icon": "site-icon.png",
+		"default_author": "alice",
+		"categories": [
+			"Local News",
+			"Politics",
+			"Business",
+			"Climate",
+			"Sports",
+			"Culture",
+			"Opinion"
+		]
+	},
+	"admin": {
+		"login": "james",
+		"first_name": "James",
+		"last_name": "Smith",
+		"email": "james.smith@example.com"
+	},
+	"users": [
+		{
+			"login": "alissoncarter",
+			"first_name": "Alisson",
+			"last_name": "Carter",
+			"email": "alisson.carter@example.com",
+			"role": "editor",
+			"avatar": "alisson.svg"
+		},
+		{
+			"login": "claudebennett",
+			"first_name": "Claude",
+			"last_name": "Bennett",
+			"email": "claude.bennett@example.com",
+			"role": "editor",
+			"avatar": "claude.svg"
+		},
+		{
+			"login": "marcus.aldridge",
+			"first_name": "Marcus",
+			"last_name": "Aldridge",
+			"email": "marcus.aldridge@example.com",
+			"role": "author",
+			"avatar": "marcus.svg"
+		},
+		{
+			"login": "aoife.murphy",
+			"first_name": "Aoife",
+			"last_name": "Murphy",
+			"email": "aoife.murphy@example.com",
+			"role": "author",
+			"avatar": "aoife.svg"
+		},
+		{
+			"login": "hassan.khoury",
+			"first_name": "Hassan",
+			"last_name": "Khoury",
+			"email": "hassan.khoury@example.com",
+			"role": "author",
+			"avatar": "hassan.svg"
+		},
+		{
+			"login": "layla.shah",
+			"first_name": "Layla",
+			"last_name": "Shah",
+			"email": "layla.shah@example.com",
+			"role": "author",
+			"avatar": "layla.svg"
+		},
+		{
+			"login": "alice",
+			"first_name": "Alice",
+			"last_name": "Dotier",
+			"email": "alice.dotier@example.com",
+			"role": "editor",
+			"avatar": "alice.svg"
+		},
+		{
+			"login": "charlotte.pearce",
+			"first_name": "Charlotte",
+			"last_name": "Pearce",
+			"email": "charlotte.pearce@example.com",
+			"role": "author",
+			"avatar": "charlotte.svg"
+		},
+		{
+			"login": "bob",
+			"first_name": "Bob",
+			"last_name": "Hart",
+			"email": "bob.hart@example.com",
+			"role": "author",
+			"avatar": "bob.svg"
+		},
+		{
+			"login": "carol",
+			"first_name": "Carol",
+			"last_name": "Smith",
+			"email": "carol.smith@example.com",
+			"role": "author",
+			"avatar": "carol.svg"
+		},
+		{
+			"login": "felix.brennan",
+			"first_name": "Felix",
+			"last_name": "Brennan",
+			"email": "felix.brennan@example.com",
+			"role": "author",
+			"avatar": "felix.svg"
+		}
+	],
+	"media": [
+		{
+			"file": "flood-street.jpg",
+			"title": "Flooded street",
+			"alt": "Lewisham trials 'sponge street' to soak up the storms the Thames can't take",
+			"caption": ""
+		},
+		{
+			"file": "tidal-turbines.jpg",
+			"title": "Under a bridge",
+			"alt": "Tidal turbines under Blackwall Reach could power 9,000 homes, backers say",
+			"caption": ""
+		},
+		{
+			"file": "polling.jpg",
+			"title": "Town hall clock tower",
+			"alt": "Polling Shift Hands Devolution Campaigners Fresh Momentum in the North",
+			"caption": ""
+		},
+		{
+			"file": "late-winner.jpg",
+			"title": "Football fans in a stadium",
+			"alt": "Kingsway Albion Stun the Capital with Late Winner at Riverside Park",
+			"caption": ""
+		},
+		{
+			"file": "marathon.jpg",
+			"title": "Marathon runners",
+			"alt": "From the Back of the Pack, a Marathon Runner Rewrites Her Own Story",
+			"caption": ""
+		},
+		{
+			"file": "stadium.jpg",
+			"title": "Stadium construction",
+			"alt": "The Stadium That Divides a Neighborhood Before a Ball Is Kicked",
+			"caption": ""
+		}
+	],
+	"coverages": [
+		{
+			"slug": "city-council-election-night",
+			"name": "City Council Election Night",
+			"status": "active",
+			"age": 2437742,
+			"canonical": "live-city-council-election-night"
+		},
+		{
+			"slug": "winter-storm-warning",
+			"name": "Winter Storm Warning",
+			"status": "paused",
+			"age": 2437741,
+			"canonical": "live-winter-storm-warning"
+		},
+		{
+			"slug": "riverside-marathon-2026",
+			"name": "Riverside Marathon 2026",
+			"status": "archived",
+			"age": 3215941,
+			"ended_age": 3209341,
+			"canonical": "live-riverside-marathon-2026"
+		},
+		{
+			"slug": "school-board-budget-vote",
+			"name": "School Board Budget Vote",
+			"status": "paused",
+			"age": 2195360
+		},
+		{
+			"slug": "downtown-water-main-break",
+			"name": "Downtown Water Main Break",
+			"status": "active",
+			"age": 2100890,
+			"canonical": "live-downtown-water-main-break"
+		},
+		{
+			"slug": "live-riverbend-fc-v-fresno-verde",
+			"name": "Live: Riverbend FC v Fresno Verde",
+			"status": "archived",
+			"age": 2083074,
+			"ended_age": 2075100,
+			"canonical": "live-riverbend-fc-v-fresno-verde"
+		},
+		{
+			"slug": "live-storm-ingrid",
+			"name": "Live: Storm Ingrid reaches the coast",
+			"status": "active",
+			"age": 2020663,
+			"canonical": "live-storm-ingrid"
+		},
+		{
+			"slug": "coast-fc-vs-raleigh-united",
+			"name": "Coast FC vs. Raleigh United",
+			"status": "archived",
+			"age": 1828664,
+			"ended_age": 1821900,
+			"canonical": "coast-fc-vs-raleigh-united-live-updates"
+		}
+	],
+	"entries": [
+		{
+			"coverage": "riverside-marathon-2026",
+			"title": "Runners are off",
+			"content": "<!-- wp:paragraph -->\n<p>More than 11,000 runners set off from the Riverside Bridge at 7 a.m. in cool, dry conditions.</p>\n<!-- /wp:paragraph -->",
+			"author": "alissoncarter",
+			"age": 3215341
+		},
+		{
+			"coverage": "riverside-marathon-2026",
+			"title": "Lead pack through 10K",
+			"content": "<!-- wp:paragraph -->\n<p>A group of six men and four women went through 10 kilometers together in just under 31 minutes.</p>\n<!-- /wp:paragraph -->",
+			"author": "claudebennett",
+			"age": 3214141
+		},
+		{
+			"coverage": "riverside-marathon-2026",
+			"title": "Road closures lift on the east loop",
+			"content": "<!-- wp:paragraph -->\n<p>Police have reopened Harbor Street and the east loop now that the back of the field has passed.</p>\n<!-- /wp:paragraph -->",
+			"author": "marcus.aldridge",
+			"age": 3212941
+		},
+		{
+			"coverage": "riverside-marathon-2026",
+			"title": "Kiptoo wins in course record",
+			"content": "<!-- wp:paragraph -->\n<p>Daniel Kiptoo broke the tape in 2:07:41, taking 38 seconds off the course record.</p>\n<!-- /wp:paragraph -->",
+			"author": "aoife.murphy",
+			"age": 3211741,
+			"image": "marathon.jpg"
+		},
+		{
+			"coverage": "riverside-marathon-2026",
+			"title": "Local runner takes women's title",
+			"content": "<!-- wp:paragraph -->\n<p>Hometown favorite Grace Lindqvist won the women's race in 2:24:10, her first marathon victory.</p>\n<!-- /wp:paragraph -->",
+			"author": "hassan.khoury",
+			"age": 3210541,
+			"breakout": {
+				"title": "Grace Lindqvist wins the Riverside Marathon in her hometown",
+				"content": "<!-- wp:paragraph -->\n<p>Hometown favorite Grace Lindqvist won the women's race in 2:24:10, her first marathon victory.</p>\n<!-- /wp:paragraph -->",
+				"excerpt": "The 27-year-old pulled clear at mile 22 and finished in 2:24:10, the fastest women’s time in the race’s history.",
+				"author": "hassan.khoury",
+				"age": 877433
+			}
+		},
+		{
+			"coverage": "riverside-marathon-2026",
+			"title": "Final results posted",
+			"content": "<!-- wp:paragraph -->\n<p>Full results, including age-group rankings, are now available on the race website.</p>\n<!-- /wp:paragraph -->",
+			"author": "layla.shah",
+			"age": 3209341,
+			"breakout": {
+				"title": "Riverside Marathon 2026: full results and age-group rankings",
+				"content": "<!-- wp:paragraph -->\n<p>Full results, including age-group rankings, are now available on the race website.</p>\n<!-- /wp:paragraph -->",
+				"excerpt": "Every finisher’s time, plus the top ten in each age group, from Sunday’s race.",
+				"author": "layla.shah",
+				"age": 877563
+			}
+		},
+		{
+			"coverage": "city-council-election-night",
+			"title": "Photo desk: crowd is building at the Delgado watch…",
+			"content": "<!-- wp:paragraph -->\n<p>Photo desk: crowd is building at the Delgado watch party on Main St. Band just started playing.</p>\n<!-- /wp:paragraph -->",
+			"author": "alice",
+			"age": 2381774,
+			"status": "draft",
+			"slack": {
+				"author_name": "Alice Dotier",
+				"user_id": "U0FAKE0104",
+				"channel_id": "C0FAKE0001",
+				"ts": "1790403826.000105"
+			}
+		},
+		{
+			"coverage": "city-council-election-night",
+			"title": "Hearing Hollis will speak to supporters around 10:…",
+			"content": "<!-- wp:paragraph -->\n<p>Hearing Hollis will speak to supporters around 10:30. Checking with the campaign.</p>\n<!-- /wp:paragraph -->",
+			"author": "alissoncarter",
+			"age": 2379134,
+			"status": "draft",
+			"slack": {
+				"author_name": "Alisson Carter",
+				"user_id": "U0FAKE0101",
+				"channel_id": "C0FAKE0001",
+				"ts": "1790406466.000107"
+			}
+		},
+		{
+			"coverage": "school-board-budget-vote",
+			"title": "Hearing the vote may slip past 10pm; two members w…",
+			"content": "<p>Hearing the vote may slip past 10pm; two members want an amendment on the transportation line.</p>",
+			"author": "layla.shah",
+			"age": 2194793,
+			"status": "draft",
+			"slack": {
+				"author_name": "Layla Shah",
+				"user_id": "U0FAKE0102",
+				"channel_id": "C0FAKE0003",
+				"ts": "1790589007.000105"
+			}
+		},
+		{
+			"coverage": "school-board-budget-vote",
+			"title": "Photo desk: crowd outside the district office is g…",
+			"content": "<p>Photo desk: crowd outside the district office is growing, several parents holding signs about class sizes.</p>",
+			"author": "alice",
+			"age": 2194793,
+			"status": "draft",
+			"slack": {
+				"author_name": "Alice Dotier",
+				"user_id": "U0FAKE0104",
+				"channel_id": "C0FAKE0003",
+				"ts": "1790587207.000104"
+			}
+		},
+		{
+			"coverage": "live-riverbend-fc-v-fresno-verde",
+			"title": "Team news",
+			"content": "<!-- wp:paragraph --><p>Bethany Osei rotates less than usual for the rematch. Vandermeer captains, Kowalski leads the line and Nia Fletcher plays behind her.</p><!-- /wp:paragraph -->",
+			"author": "charlotte.pearce",
+			"age": 2082474
+		},
+		{
+			"coverage": "live-riverbend-fc-v-fresno-verde",
+			"title": "14,213 at DS Stadium",
+			"content": "<!-- wp:paragraph --><p>The women's largest crowd of the season so far. Foundry Row was full two hours before kickoff.</p><!-- /wp:paragraph -->",
+			"author": "alice",
+			"age": 2078574
+		},
+		{
+			"coverage": "live-riverbend-fc-v-fresno-verde",
+			"title": "Kowalski again, straight off the training ground",
+			"content": "<!-- wp:paragraph --><p>Sonia Aguilar drives a corner to the near post, Josie Vandermeer flicks it on, and Kowalski turns it in from inside the six-yard box. 2-0 in the 61st minute.</p><!-- /wp:paragraph -->",
+			"author": "bob",
+			"age": 2077675,
+			"image": "stadium.jpg"
+		},
+		{
+			"coverage": "live-riverbend-fc-v-fresno-verde",
+			"title": "",
+			"content": "<!-- wp:paragraph --><p>Halvorsen at full stretch to push Renee Vargas's header over the bar, four minutes into stoppage time. The North Bank greets it like a third goal.</p><!-- /wp:paragraph -->",
+			"author": "alissoncarter",
+			"age": 2075816,
+			"breakout": {
+				"title": "Halvorsen’s stoppage-time save seals Riverbend’s win",
+				"content": "<!-- wp:paragraph --><p>Halvorsen at full stretch to push Renee Vargas's header over the bar, four minutes into stoppage time. The North Bank greets it like a third goal.</p><!-- /wp:paragraph -->",
+				"excerpt": "The keeper’s fingertip stop on Renee Vargas’s header kept Fresno Verde out in the 94th minute.",
+				"author": "alissoncarter",
+				"age": 877433
+			}
+		},
+		{
+			"coverage": "live-riverbend-fc-v-fresno-verde",
+			"title": "Full time: Riverbend 2, Fresno Verde 1",
+			"content": "<!-- wp:paragraph --><p>Two goals from Bree Kowalski and a stoppage-time save from Petra Halvorsen. The champions' first meeting with Fresno Verde since the final ended the way the final did.</p><!-- /wp:paragraph -->",
+			"author": "claudebennett",
+			"age": 2075396,
+			"pinned": true,
+			"breakout": {
+				"title": "Full time: Riverbend 2, Fresno Verde 1",
+				"content": "<!-- wp:paragraph --><p>Two goals from Bree Kowalski and a stoppage-time save from Petra Halvorsen. The champions' first meeting with Fresno Verde since the final ended the way the final did.</p><!-- /wp:paragraph -->",
+				"excerpt": "",
+				"author": "claudebennett",
+				"age": 2075268
+			}
+		},
+		{
+			"coverage": "live-storm-ingrid",
+			"title": "Clean-up starts at Lower Quay",
+			"content": "<!-- wp:paragraph -->\n<p>Council teams have started clearing silt and debris from Lower Quay. Skips for damaged furniture will be delivered in the morning.</p>\n<!-- /wp:paragraph -->",
+			"author": "alice",
+			"age": 2020063,
+			"status": "draft"
+		},
+		{
+			"coverage": "coast-fc-vs-raleigh-united",
+			"title": "Line-ups",
+			"content": "<!-- wp:paragraph -->\n<p>Line-ups. Coast FC: Moreno; Hale, Okafor, Brandt, Liu; Ramos, Kowalski, Feld; Ito, Adeyemi, Clarke. Raleigh United: Novak; Duarte, Pereira, Hughes, Mbeki; Sato, Lind, Garza; Owusu, Petrov, Reyes.</p>\n<!-- /wp:paragraph -->",
+			"author": "layla.shah",
+			"age": 1828064
+		},
+		{
+			"coverage": "coast-fc-vs-raleigh-united",
+			"title": "",
+			"content": "<!-- wp:paragraph -->\n<p>Kick-off. Coast FC in blue, attacking the north end.</p>\n<!-- /wp:paragraph -->",
+			"author": "hassan.khoury",
+			"age": 1823436
+		},
+		{
+			"coverage": "coast-fc-vs-raleigh-united",
+			"title": "",
+			"content": "<!-- wp:paragraph -->\n<p>12' Early chance for Adeyemi, straight at Novak.</p>\n<!-- /wp:paragraph -->",
+			"author": "carol",
+			"age": 1823256
+		},
+		{
+			"coverage": "coast-fc-vs-raleigh-united",
+			"title": "",
+			"content": "<!-- wp:paragraph -->\n<p>38' GOAL. Ito heads in Ramos's cross. 1-0.</p>\n<!-- /wp:paragraph -->",
+			"author": "charlotte.pearce",
+			"age": 1823076
+		},
+		{
+			"coverage": "coast-fc-vs-raleigh-united",
+			"title": "Half time",
+			"content": "<!-- wp:paragraph -->\n<p>Half time. Coast FC 1, Raleigh United 0.</p>\n<!-- /wp:paragraph -->",
+			"author": "bob",
+			"age": 1822896
+		},
+		{
+			"coverage": "coast-fc-vs-raleigh-united",
+			"title": "",
+			"content": "<!-- wp:paragraph -->\n<p>64' Raleigh equalize. Pereira heads in a corner at the near post. 1-1.</p>\n<!-- /wp:paragraph -->",
+			"author": "alissoncarter",
+			"age": 1822716
+		},
+		{
+			"coverage": "coast-fc-vs-raleigh-united",
+			"title": "Kowalski puts Coast FC back in front",
+			"content": "<!-- wp:paragraph -->\n<p>70' GOAL. Kowalski scores! A low drive into the far corner after Liu's cut-back. 2-1.</p>\n<!-- /wp:paragraph -->",
+			"author": "claudebennett",
+			"age": 1822536
+		},
+		{
+			"coverage": "coast-fc-vs-raleigh-united",
+			"title": "",
+			"content": "<!-- wp:paragraph -->\n<p>81' Duarte hits the post from 20 yards. Raleigh are pushing.</p>\n<!-- /wp:paragraph -->",
+			"author": "aoife.murphy",
+			"age": 1822356
+		},
+		{
+			"coverage": "coast-fc-vs-raleigh-united",
+			"title": "",
+			"content": "<!-- wp:paragraph -->\n<p>88' Yellow card for Brandt, who pulls back Duarte on the break.</p>\n<!-- /wp:paragraph -->",
+			"author": "carol",
+			"age": 1822176,
+			"breakout": {
+				"title": "How Coast FC held off Raleigh United’s late surge",
+				"content": "<!-- wp:paragraph -->\n<p>88' Yellow card for Brandt, who pulls back Duarte on the break.</p>\n<!-- /wp:paragraph -->",
+				"excerpt": "Brandt’s 88th-minute foul on Duarte summed up a frantic final ten minutes at the Shoreline.",
+				"author": "carol",
+				"age": 877434
+			}
+		},
+		{
+			"coverage": "coast-fc-vs-raleigh-united",
+			"title": "Full time",
+			"content": "<!-- wp:paragraph -->\n<p>90+3' Full time. Coast FC 2, Raleigh United 1. A first home win since March.</p>\n<!-- /wp:paragraph -->",
+			"author": "bob",
+			"age": 1821996,
+			"image": "late-winner.jpg",
+			"breakout": {
+				"title": "Coast FC beat Raleigh United 2-1 for first home win since March",
+				"content": "<!-- wp:paragraph -->\n<p>90+3' Full time. Coast FC 2, Raleigh United 1. A first home win since March.</p>\n<!-- /wp:paragraph -->",
+				"excerpt": "A late winner lifts Coast FC out of the bottom three and ends a seven-month wait at home.",
+				"author": "bob",
+				"age": 877563
+			}
+		},
+		{
+			"coverage": "live-storm-ingrid",
+			"title": "Power out for 212,000 customers",
+			"content": "<!-- wp:paragraph -->\n<p>Utilities say crews cannot start repairs until winds drop below 40 mph.</p>\n<!-- /wp:paragraph -->",
+			"author": "alice",
+			"age": 1821936,
+			"status": "draft",
+			"breakout": {
+				"title": "Outage map: every neighborhood still without power",
+				"content": "<!-- wp:paragraph -->\n<p>Utilities say crews cannot start repairs until winds drop below 40 mph.</p>\n<!-- /wp:paragraph -->",
+				"excerpt": "Where the 212,000 outages are, which crews are working where, and when power should be back street by street.",
+				"author": "alice",
+				"age": 894747,
+				"image": "flood-street.jpg"
+			}
+		},
+		{
+			"coverage": "winter-storm-warning",
+			"title": "Warning issued for the region",
+			"content": "<!-- wp:paragraph -->\n<p>The National Weather Service has issued a winter storm warning from 6 p.m. tonight through Saturday morning, with 8 to 14 inches of snow expected.</p>\n<!-- /wp:paragraph -->",
+			"author": "alissoncarter",
+			"age": 219300
+		},
+		{
+			"coverage": "winter-storm-warning",
+			"title": "Schools announce closures",
+			"content": "<!-- wp:paragraph -->\n<p>The school district has canceled classes for Friday. After-school activities tonight are also called off.</p>\n<!-- /wp:paragraph -->",
+			"author": "claudebennett",
+			"age": 216600
+		},
+		{
+			"coverage": "winter-storm-warning",
+			"title": "Snow emergency declared",
+			"content": "<!-- wp:paragraph -->\n<p>A snow emergency takes effect at 10 p.m. Vehicles parked on marked emergency routes will be towed.</p>\n<!-- /wp:paragraph -->",
+			"author": "marcus.aldridge",
+			"age": 213900
+		},
+		{
+			"coverage": "winter-storm-warning",
+			"title": "Power outages climbing",
+			"content": "<!-- wp:paragraph -->\n<p>The utility reports roughly 6,400 customers without power, mostly in the western suburbs where heavy wet snow is bringing down lines.</p>\n<!-- /wp:paragraph -->",
+			"author": "aoife.murphy",
+			"age": 211200
+		},
+		{
+			"coverage": "winter-storm-warning",
+			"title": "Warming centers open",
+			"content": "<!-- wp:paragraph -->\n<p>Three warming centers are open overnight: the Central Library, Eastside Rec Center and St. Mark's Church hall.</p>\n<!-- /wp:paragraph -->",
+			"author": "hassan.khoury",
+			"age": 208500
+		},
+		{
+			"coverage": "winter-storm-warning",
+			"title": "Snowfall totals so far",
+			"content": "<!-- wp:paragraph -->\n<p>Readers are reporting 9 inches in Maple Heights and 11 inches near the airport as of 7 a.m.</p>\n<!-- /wp:paragraph -->",
+			"author": "layla.shah",
+			"age": 205800,
+			"breakout": {
+				"title": "Up to 11 inches of snow across the metro: totals by neighborhood",
+				"content": "<!-- wp:paragraph -->\n<p>Readers are reporting 9 inches in Maple Heights and 11 inches near the airport as of 7 a.m.</p>\n<!-- /wp:paragraph -->",
+				"excerpt": "Reader reports and National Weather Service measurements, updated through the morning.",
+				"author": "layla.shah",
+				"age": 877433
+			}
+		},
+		{
+			"coverage": "winter-storm-warning",
+			"title": "Coverage paused",
+			"content": "<!-- wp:paragraph -->\n<p>The storm has moved east. We will resume updates if conditions change this evening.</p>\n<!-- /wp:paragraph -->",
+			"author": "charlotte.pearce",
+			"age": 203100,
+			"breakout": {
+				"title": "Winter storm moves east after dumping a foot of snow",
+				"content": "<!-- wp:paragraph -->\n<p>The storm has moved east. We will resume updates if conditions change this evening.</p>\n<!-- /wp:paragraph -->",
+				"excerpt": "What to know about roads, schools and power this evening, and when the next band could arrive.",
+				"author": "charlotte.pearce",
+				"age": 877562
+			}
+		},
+		{
+			"coverage": "live-storm-ingrid",
+			"title": "",
+			"content": "<!-- wp:paragraph -->\n<p>The weather service has issued a storm warning for the whole coastline from 6am. Gusts of up to 110 km/h are forecast, with the heaviest rain expected mid-morning.</p>\n<!-- /wp:paragraph -->",
+			"author": "aoife.murphy",
+			"age": 198737
+		},
+		{
+			"coverage": "live-storm-ingrid",
+			"title": "Ferry services suspended",
+			"content": "<!-- wp:paragraph -->\n<p>All ferry crossings from Riverbend harbor are suspended until further notice. Passengers with bookings today can travel on any sailing later this week.</p>\n<!-- /wp:paragraph -->",
+			"author": "carol",
+			"age": 198180
+		},
+		{
+			"coverage": "live-storm-ingrid",
+			"title": "Schools to close early",
+			"content": "<!-- wp:paragraph -->\n<p>The school district says all schools will close at noon. After-school clubs are canceled and buses will run on the early timetable.</p>\n<!-- /wp:paragraph -->",
+			"author": "bob",
+			"age": 197674
+		},
+		{
+			"coverage": "live-storm-ingrid",
+			"title": "Sandbags available at three depots",
+			"content": "<!-- wp:paragraph -->\n<p>The city has opened sandbag depots at Mill Road, the old fire station and the Eastside recreation center. Residents can collect up to ten per household.</p>\n<!-- /wp:paragraph -->",
+			"author": "alice",
+			"age": 197117
+		},
+		{
+			"coverage": "live-storm-ingrid",
+			"title": "",
+			"content": "<!-- wp:paragraph -->\n<p>Wind speeds at the harbor mast have passed 70 km/h. The harbormaster has asked boat owners to stay away from the pontoons.</p>\n<!-- /wp:paragraph -->",
+			"author": "layla.shah",
+			"age": 196560
+		},
+		{
+			"coverage": "city-council-election-night",
+			"title": "Polls are now closed",
+			"content": "<!-- wp:paragraph -->\n<p>Polls closed at 8 p.m. across all 14 wards. Election officials say turnout looked strong through the evening, with lines reported at several downtown precincts.</p>\n<!-- /wp:paragraph -->",
+			"author": "alissoncarter",
+			"age": 196397
+		},
+		{
+			"coverage": "live-storm-ingrid",
+			"title": "Coast road closed at Gull Point",
+			"content": "<!-- wp:paragraph -->\n<p>Police have closed the coast road between Gull Point and the lighthouse parking lot after waves began breaking over the sea wall.</p>\n<!-- /wp:paragraph -->",
+			"author": "hassan.khoury",
+			"age": 196054
+		},
+		{
+			"coverage": "city-council-election-night",
+			"title": "Turnout tops 2021 numbers",
+			"content": "<!-- wp:paragraph -->\n<p>The county clerk says early turnout estimates already exceed the last municipal election, driven largely by mail-in ballots returned over the weekend.</p>\n<!-- /wp:paragraph -->",
+			"author": "claudebennett",
+			"age": 195600
+		},
+		{
+			"coverage": "live-storm-ingrid",
+			"title": "Power cut in Northfield",
+			"content": "<!-- wp:paragraph -->\n<p>Around 1,200 homes in Northfield are without power. The network operator says a fallen tree brought down a line on Orchard Lane and crews are on their way.</p>\n<!-- /wp:paragraph -->",
+			"author": "carol",
+			"age": 195497
+		},
+		{
+			"coverage": "live-storm-ingrid",
+			"title": "Trains running at reduced speed",
+			"content": "<!-- wp:paragraph -->\n<p>Rail services along the coast are running with a 50 km/h speed limit. Expect delays of up to 40 minutes on the Riverbend line.</p>\n<!-- /wp:paragraph -->",
+			"author": "charlotte.pearce",
+			"age": 194940
+		},
+		{
+			"coverage": "city-council-election-night",
+			"title": "",
+			"content": "<!-- wp:paragraph -->\n<p>With 18% of precincts reporting in Ward 3, incumbent Maria Delgado leads challenger Tom Reyes 54% to 46%.</p>\n<!-- /wp:paragraph -->",
+			"author": "marcus.aldridge",
+			"age": 194854,
+			"image": "polling.jpg"
+		},
+		{
+			"coverage": "live-storm-ingrid",
+			"title": "",
+			"content": "<!-- wp:paragraph -->\n<p>The Riverbend sports hall is open as an emergency shelter. Volunteers are serving hot drinks and there is space for pets.</p>\n<!-- /wp:paragraph -->",
+			"author": "alice",
+			"age": 194434
+		},
+		{
+			"coverage": "downtown-water-main-break",
+			"title": "A water main has burst under Main Street between 3…",
+			"content": "<!-- wp:paragraph -->\n<p>A water main has burst under Main Street between 3rd and 5th. Water is flowing across the road and into the storefronts on the east side. Police have closed both lanes.</p>\n<!-- /wp:paragraph -->",
+			"author": "carol",
+			"age": 194340,
+			"slack": {
+				"author_name": "Carol Smith",
+				"user_id": "U0REPORTER",
+				"channel_id": "C0FAKE0003",
+				"ts": "1790674510.000300"
+			}
+		},
+		{
+			"coverage": "city-council-election-night",
+			"title": "Reyes campaign: \"Too early to call\"",
+			"content": "<!-- wp:paragraph -->\n<p>Speaking to supporters at the Union Hall, Tom Reyes said the campaign expects the numbers to tighten once east-side precincts report.</p>\n<!-- /wp:paragraph -->",
+			"author": "aoife.murphy",
+			"age": 194057
+		},
+		{
+			"coverage": "live-storm-ingrid",
+			"title": "River level rising at the old bridge",
+			"content": "<!-- wp:paragraph -->\n<p>The river gauge at the old bridge reads 2.1 meters, up 40 centimeters in an hour. The flood warning threshold is 2.6 meters.</p>\n<!-- /wp:paragraph -->",
+			"author": "bob",
+			"age": 193877
+		},
+		{
+			"coverage": "downtown-water-main-break",
+			"title": "",
+			"content": "<!-- wp:paragraph -->\n<p>Photo desk here: water is ankle-deep outside the Grand Theater. Crews from the city utility just arrived with two trucks.</p>\n<!-- /wp:paragraph -->",
+			"author": "charlotte.pearce",
+			"age": 193414,
+			"image": "tidal-turbines.jpg",
+			"slack": {
+				"author_name": "Charlotte Pearce",
+				"user_id": "U0PHOTO",
+				"channel_id": "C0FAKE0003",
+				"ts": "1790675230.000301"
+			}
+		},
+		{
+			"coverage": "live-storm-ingrid",
+			"title": "Market square stalls packed away",
+			"content": "<!-- wp:paragraph -->\n<p>Traders have cleared the market square after two canopies were torn loose. Nobody was hurt.</p>\n<!-- /wp:paragraph -->",
+			"author": "alissoncarter",
+			"age": 193320
+		},
+		{
+			"coverage": "city-council-election-night",
+			"title": "Transit measure trailing",
+			"content": "<!-- wp:paragraph -->\n<p>Measure B, the half-cent sales tax for bus rapid transit, is trailing 47% to 53% with roughly a third of ballots counted.</p>\n<!-- /wp:paragraph -->",
+			"author": "hassan.khoury",
+			"age": 193260
+		},
+		{
+			"coverage": "live-storm-ingrid",
+			"title": "Gust of 104 km/h recorded at the lighthouse",
+			"content": "<!-- wp:paragraph -->\n<p>The lighthouse station has recorded the strongest gust of the storm so far, at 104 km/h, shortly after the front passed.</p>\n<!-- /wp:paragraph -->",
+			"author": "claudebennett",
+			"age": 192814
+		},
+		{
+			"coverage": "city-council-election-night",
+			"title": "Ward 7 too close to call",
+			"content": "<!-- wp:paragraph -->\n<p>Just 212 votes separate the two candidates in Ward 7. Both campaigns say they are watching the provisional ballot count closely.</p>\n<!-- /wp:paragraph -->",
+			"author": "layla.shah",
+			"age": 192514
+		},
+		{
+			"coverage": "downtown-water-main-break",
+			"title": "The utility says the break is on a 24-inch cast ir…",
+			"content": "<!-- wp:paragraph -->\n<p>The utility says the break is on a 24-inch cast iron main laid in 1931. They&#039;re working to shut the valves on either side, which could take up to an hour.</p>\n<!-- /wp:paragraph -->",
+			"author": "alice",
+			"age": 192437,
+			"slack": {
+				"author_name": "Alice Dotier",
+				"user_id": "U0REPORTER",
+				"channel_id": "C0FAKE0003",
+				"ts": "1790676010.000302"
+			}
+		},
+		{
+			"coverage": "live-storm-ingrid",
+			"title": "",
+			"content": "<!-- wp:paragraph -->\n<p>Riverbend General is asking people not to visit unless it is essential. Outpatient appointments this afternoon are being rebooked.</p>\n<!-- /wp:paragraph -->",
+			"author": "aoife.murphy",
+			"age": 192257
+		},
+		{
+			"coverage": "city-council-election-night",
+			"title": "Mayor casts vote, stays quiet on races",
+			"content": "<!-- wp:paragraph -->\n<p>The mayor, who endorsed in four of the seven contested seats, told reporters she would wait for final numbers before commenting.</p>\n<!-- /wp:paragraph -->",
+			"author": "charlotte.pearce",
+			"age": 191717
+		},
+		{
+			"coverage": "live-storm-ingrid",
+			"title": "Tree blocks Station Road",
+			"content": "<!-- wp:paragraph -->\n<p>A large plane tree has come down across Station Road near the library. The road is shut in both directions and buses are diverted via Canal Street.</p>\n<!-- /wp:paragraph -->",
+			"author": "carol",
+			"age": 191700
+		},
+		{
+			"coverage": "school-board-budget-vote",
+			"title": "Board member Reyes asks why arts funding drops 12%…",
+			"content": "<p>Board member Reyes asks why arts funding drops 12% while athletics stays flat. The finance director says both were reviewed line by line.</p>",
+			"author": "aoife.murphy",
+			"age": 191700,
+			"slack": {
+				"author_name": "Aoife Murphy",
+				"user_id": "U0FAKE0101",
+				"channel_id": "C0FAKE0003",
+				"ts": "1790585407.000103"
+			}
+		},
+		{
+			"coverage": "school-board-budget-vote",
+			"title": "The district finance director says the proposed bu…",
+			"content": "<p>The district finance director says the proposed budget closes a $4.2 million gap mostly through unfilled positions, not layoffs.</p>",
+			"author": "claudebennett",
+			"age": 191700,
+			"slack": {
+				"author_name": "Claude Bennett",
+				"user_id": "U0FAKE0103",
+				"channel_id": "C0FAKE0003",
+				"ts": "1790583607.000102"
+			}
+		},
+		{
+			"coverage": "school-board-budget-vote",
+			"title": "Public comment has opened. More than 40 people sig…",
+			"content": "<p>Public comment has opened. More than 40 people signed up to speak, most of them teachers from the east side schools.</p>",
+			"author": "carol",
+			"age": 191700,
+			"slack": {
+				"author_name": "Carol Smith",
+				"user_id": "U0FAKE0102",
+				"channel_id": "C0FAKE0003",
+				"ts": "1790581807.000101"
+			},
+			"breakout": {
+				"title": "Teachers pack school board meeting ahead of budget vote",
+				"content": "<p>Public comment has opened. More than 40 people signed up to speak, most of them teachers from the east side schools.</p>",
+				"excerpt": "More than 40 people signed up to speak, most of them from the east side schools facing the deepest cuts.",
+				"author": "carol",
+				"age": 877433
+			}
+		},
+		{
+			"coverage": "school-board-budget-vote",
+			"title": "The school board meeting is called to order. All s…",
+			"content": "<p>The school board meeting is called to order. All seven members are present, and the budget vote is third on the agenda.</p>",
+			"author": "bob",
+			"age": 191700,
+			"slack": {
+				"author_name": "Bob Hart",
+				"user_id": "U0FAKE0101",
+				"channel_id": "C0FAKE0003",
+				"ts": "1790580007.000100"
+			},
+			"breakout": {
+				"title": "School board meets to vote on $186 million budget",
+				"content": "<p>The school board meeting is called to order. All seven members are present, and the budget vote is third on the agenda.</p>",
+				"excerpt": "All seven members are present for a vote that could close two east side schools next year.",
+				"author": "bob",
+				"age": 877563
+			}
+		},
+		{
+			"coverage": "downtown-water-main-break",
+			"title": "Low pressure reported across downtown and parts of…",
+			"content": "<!-- wp:paragraph -->\n<p>Low pressure reported across downtown and parts of the Riverside neighborhood. The utility is asking residents in those areas to avoid non-essential water use.</p>\n<!-- /wp:paragraph -->",
+			"author": "bob",
+			"age": 191460,
+			"slack": {
+				"author_name": "Bob Hart",
+				"user_id": "U0REPORTER",
+				"channel_id": "C0FAKE0003",
+				"ts": "1790676850.000303"
+			}
+		},
+		{
+			"coverage": "live-storm-ingrid",
+			"title": "Power restored to half of Northfield",
+			"content": "<!-- wp:paragraph -->\n<p>Engineers have reconnected about 600 homes in Northfield. The rest should be back on by early evening.</p>\n<!-- /wp:paragraph -->",
+			"author": "bob",
+			"age": 191194
+		},
+		{
+			"coverage": "city-council-election-night",
+			"title": "",
+			"content": "<!-- wp:paragraph -->\n<p>With 91% of precincts in, Maria Delgado has declared victory. Reyes has not yet conceded.</p>\n<!-- /wp:paragraph -->",
+			"author": "felix.brennan",
+			"age": 190920,
+			"archived": true
+		},
+		{
+			"coverage": "live-storm-ingrid",
+			"title": "Flood warning for Lower Quay",
+			"content": "<!-- wp:paragraph -->\n<p>A flood warning is now in force for Lower Quay and Tannery Row. Residents are advised to move cars and valuables to higher ground.</p>\n<!-- /wp:paragraph -->",
+			"author": "alice",
+			"age": 190637
+		},
+		{
+			"coverage": "downtown-water-main-break",
+			"title": "Transit update: the 12 and 14 buses are detouring …",
+			"content": "<!-- wp:paragraph -->\n<p>Transit update: the 12 and 14 buses are detouring via Oak Avenue. The Main Street light rail stop is closed until further notice.</p>\n<!-- /wp:paragraph -->",
+			"author": "alissoncarter",
+			"age": 190534,
+			"slack": {
+				"author_name": "Alisson Carter",
+				"user_id": "U0EDITOR",
+				"channel_id": "C0FAKE0003",
+				"ts": "1790677630.000304"
+			}
+		},
+		{
+			"coverage": "city-council-election-night",
+			"title": "Transit measure narrows",
+			"content": "<!-- wp:paragraph -->\n<p>Measure B has closed the gap to under two points as late mail ballots from the north side are counted.</p>\n<!-- /wp:paragraph -->",
+			"author": "alissoncarter",
+			"age": 190174
+		},
+		{
+			"coverage": "live-storm-ingrid",
+			"title": "Mayor: \"Stay indoors if you can\"",
+			"content": "<!-- wp:paragraph -->\n<p>Mayor Elena Marsh has urged people to stay indoors through the afternoon. &quot;Crews are out across the city. The best way to help them is to keep the roads clear,&quot; she said.</p>\n<!-- /wp:paragraph -->",
+			"author": "layla.shah",
+			"age": 190080,
+			"pinned": true
+		},
+		{
+			"coverage": "live-storm-ingrid",
+			"title": "Water over the quayside",
+			"content": "<!-- wp:paragraph -->\n<p>The river has come over the quayside at Lower Quay. Firefighters are pumping water away from the row of cottages behind the chandlery.</p>\n<!-- /wp:paragraph -->",
+			"author": "hassan.khoury",
+			"age": 189574,
+			"image": "flood-street.jpg"
+		},
+		{
+			"coverage": "downtown-water-main-break",
+			"title": "",
+			"content": "<!-- wp:paragraph -->\n<p>Valves are shut. The flow on Main Street has stopped, but a section of the road surface has buckled near 4th Street. Crews are fencing it off.</p>\n<!-- /wp:paragraph -->",
+			"author": "claudebennett",
+			"age": 189557,
+			"slack": {
+				"author_name": "Claude Bennett",
+				"user_id": "U0PHOTO",
+				"channel_id": "C0FAKE0003",
+				"ts": "1790678470.000305"
+			}
+		},
+		{
+			"coverage": "city-council-election-night",
+			"title": "What happens next",
+			"content": "<!-- wp:paragraph -->\n<p>The county will begin counting provisional ballots Thursday. Results are certified on the 28th; any race within 0.5% triggers an automatic recount.</p>\n<!-- /wp:paragraph -->",
+			"author": "claudebennett",
+			"age": 189377,
+			"pinned": true,
+			"breakout": {
+				"title": "What happens next: provisional ballots, certification and recounts",
+				"content": "<!-- wp:paragraph -->\n<p>The county will begin counting provisional ballots Thursday. Results are certified on the 28th; any race within 0.5% triggers an automatic recount.</p>\n<!-- /wp:paragraph -->",
+				"excerpt": "The county starts counting provisional ballots Thursday. Any race within 0.5% goes to an automatic recount.",
+				"author": "claudebennett",
+				"age": 877563
+			}
+		},
+		{
+			"coverage": "live-storm-ingrid",
+			"title": "Bus routes 4 and 11 suspended",
+			"content": "<!-- wp:paragraph -->\n<p>Routes 4 and 11 are suspended because of flooding on Tannery Row. All other routes are running with delays.</p>\n<!-- /wp:paragraph -->",
+			"author": "carol",
+			"age": 189017
+		},
+		{
+			"coverage": "city-council-election-night",
+			"title": "Polls just closed at Lincoln Elementary. Line was …",
+			"content": "<!-- wp:paragraph -->\n<p>Polls just closed at Lincoln Elementary. Line was still around the block at 7:55, workers let everyone in line vote.</p>\n<!-- /wp:paragraph -->",
+			"author": "alice",
+			"age": 188580,
+			"slack": {
+				"author_name": "Alice Dotier",
+				"user_id": "U0FAKE0101",
+				"channel_id": "C0FAKE0001",
+				"ts": "1790397345.000100"
+			}
+		},
+		{
+			"coverage": "downtown-water-main-break",
+			"title": "*Boil-water notice issued* for downtown and Rivers…",
+			"content": "<!-- wp:paragraph -->\n<p>*Boil-water notice issued* for downtown and Riverside. Residents should boil tap water for at least one minute before drinking or cooking with it. The utility has a map at example.com/boil-notice.</p>\n<!-- /wp:paragraph -->",
+			"author": "aoife.murphy",
+			"age": 188580,
+			"slack": {
+				"author_name": "Aoife Murphy",
+				"user_id": "U0REPORTER",
+				"channel_id": "C0FAKE0003",
+				"ts": "1790679190.000306"
+			}
+		},
+		{
+			"coverage": "live-storm-ingrid",
+			"title": "Roof damage at the leisure center",
+			"content": "<!-- wp:paragraph -->\n<p>Part of the leisure center roof has lifted in the wind. The building was already closed and the area has been cordoned off.</p>\n<!-- /wp:paragraph -->",
+			"author": "charlotte.pearce",
+			"age": 188460,
+			"image": "flood-street.jpg"
+		},
+		{
+			"coverage": "live-storm-ingrid",
+			"title": "",
+			"content": "<!-- wp:paragraph -->\n<p>Gusts at the harbor have dropped below 80 km/h for the first time since this morning. The rain band is moving inland.</p>\n<!-- /wp:paragraph -->",
+			"author": "alice",
+			"age": 187954
+		},
+		{
+			"coverage": "city-council-election-night",
+			"title": "First batch of absentee ballots posted: Delgado 52…",
+			"content": "<!-- wp:paragraph -->\n<p>First batch of absentee ballots posted: Delgado 52%, Reyes 46% in Ward 3. Roughly 8,000 ballots counted.</p>\n<!-- /wp:paragraph -->",
+			"author": "layla.shah",
+			"age": 187834,
+			"slack": {
+				"author_name": "Layla Shah",
+				"user_id": "U0FAKE0102",
+				"channel_id": "C0FAKE0001",
+				"ts": "1790398545.000101"
+			}
+		},
+		{
+			"coverage": "downtown-water-main-break",
+			"title": "At least six businesses have water damage, includi…",
+			"content": "<!-- wp:paragraph -->\n<p>At least six businesses have water damage, including the Main Street Diner and the bookshop on the corner of 4th. Owners are pumping out basements now.</p>\n<!-- /wp:paragraph -->",
+			"author": "carol",
+			"age": 187654,
+			"slack": {
+				"author_name": "Carol Smith",
+				"user_id": "U0REPORTER",
+				"channel_id": "C0FAKE0003",
+				"ts": "1790680090.000307"
+			}
+		},
+		{
+			"coverage": "live-storm-ingrid",
+			"title": "River peaks at 2.7 meters",
+			"content": "<!-- wp:paragraph -->\n<p>The river gauge peaked at 2.7 meters and has started to fall. The flood warning for Lower Quay stays in place until the evening high tide has passed.</p>\n<!-- /wp:paragraph -->",
+			"author": "bob",
+			"age": 187397
+		},
+		{
+			"coverage": "city-council-election-night",
+			"title": "",
+			"content": "<!-- wp:paragraph -->\n<p>Reyes campaign spokesperson says they expect same-day votes to break their way. Not conceding anything tonight.</p>\n<!-- /wp:paragraph -->",
+			"author": "hassan.khoury",
+			"age": 187037,
+			"slack": {
+				"author_name": "Hassan Khoury",
+				"user_id": "U0FAKE0101",
+				"channel_id": "C0FAKE0001",
+				"ts": "1790399865.000102"
+			}
+		},
+		{
+			"coverage": "live-storm-ingrid",
+			"title": "Coast road to stay shut overnight",
+			"content": "<!-- wp:paragraph -->\n<p>The coast road will stay closed overnight while engineers inspect the sea wall at Gull Point.</p>\n<!-- /wp:paragraph -->",
+			"author": "alissoncarter",
+			"age": 186840
+		},
+		{
+			"coverage": "downtown-water-main-break",
+			"title": "The city's emergency management office has opened …",
+			"content": "<!-- wp:paragraph -->\n<p>The city&#039;s emergency management office has opened a bottled water pickup point at the Central Library parking lot, until 8pm tonight.</p>\n<!-- /wp:paragraph -->",
+			"author": "bob",
+			"age": 186677,
+			"slack": {
+				"author_name": "Bob Hart",
+				"user_id": "U0EDITOR",
+				"channel_id": "C0FAKE0003",
+				"ts": "1790680930.000308"
+			}
+		},
+		{
+			"coverage": "live-storm-ingrid",
+			"title": "Ferries to resume tomorrow morning",
+			"content": "<!-- wp:paragraph -->\n<p>The ferry operator plans to run the first sailing at 7.30am tomorrow, subject to a harbor inspection at first light.</p>\n<!-- /wp:paragraph -->",
+			"author": "claudebennett",
+			"age": 186334
+		},
+		{
+			"coverage": "city-council-election-night",
+			"title": "County clerk confirms a scanner jam at the Eastsid…",
+			"content": "<!-- wp:paragraph -->\n<p>County clerk confirms a scanner jam at the Eastside precinct delayed results by about 20 minutes. Fixed now, no ballots affected.</p>\n<!-- /wp:paragraph -->",
+			"author": "carol",
+			"age": 186240,
+			"slack": {
+				"author_name": "Carol Smith",
+				"user_id": "U0FAKE0103",
+				"channel_id": "C0FAKE0001",
+				"ts": "1790401246.000103"
+			}
+		},
+		{
+			"coverage": "live-storm-ingrid",
+			"title": "",
+			"content": "<!-- wp:paragraph -->\n<p>The school district has confirmed that all schools will open as normal tomorrow, except Lower Quay Primary, which will open at 10am.</p>\n<!-- /wp:paragraph -->",
+			"author": "aoife.murphy",
+			"age": 185777
+		},
+		{
+			"coverage": "downtown-water-main-break",
+			"title": "",
+			"content": "<!-- wp:paragraph -->\n<p>Excavators are in. Crews expect to reach the broken pipe within the hour. No injuries reported so far.</p>\n<!-- /wp:paragraph -->",
+			"author": "alice",
+			"age": 185700,
+			"slack": {
+				"author_name": "Alice Dotier",
+				"user_id": "U0PHOTO",
+				"channel_id": "C0FAKE0003",
+				"ts": "1790681830.000309"
+			}
+		},
+		{
+			"coverage": "city-council-election-night",
+			"title": "Ward 7 update: incumbent Hollis leads by 112 votes…",
+			"content": "<!-- wp:paragraph -->\n<p>Ward 7 update: incumbent Hollis leads by 112 votes with 60% of precincts reporting.</p>\n<!-- /wp:paragraph -->",
+			"author": "charlotte.pearce",
+			"age": 185494,
+			"slack": {
+				"author_name": "Charlotte Pearce",
+				"user_id": "U0FAKE0102",
+				"channel_id": "C0FAKE0001",
+				"ts": "1790402506.000104"
+			}
+		},
+		{
+			"coverage": "live-storm-ingrid",
+			"title": "Power back on across Northfield",
+			"content": "<!-- wp:paragraph -->\n<p>All homes in Northfield have power again, the network operator says. Anyone still without supply should call the emergency line.</p>\n<!-- /wp:paragraph -->",
+			"author": "carol",
+			"age": 185220
+		},
+		{
+			"coverage": "downtown-water-main-break",
+			"title": "Utility spokesperson says repairs will run overnig…",
+			"content": "<!-- wp:paragraph -->\n<p>Utility spokesperson says repairs will run overnight. Main Street will stay closed through at least tomorrow morning&#039;s commute.</p>\n<!-- /wp:paragraph -->",
+			"author": "layla.shah",
+			"age": 184774,
+			"slack": {
+				"author_name": "Layla Shah",
+				"user_id": "U0REPORTER",
+				"channel_id": "C0FAKE0003",
+				"ts": "1790682670.000310"
+			}
+		},
+		{
+			"coverage": "live-storm-ingrid",
+			"title": "Shelter to stay open tonight",
+			"content": "<!-- wp:paragraph -->\n<p>The sports hall shelter will stay open tonight for anyone who cannot return home. Around 40 people are there now.</p>\n<!-- /wp:paragraph -->",
+			"author": "claudebennett",
+			"age": 184714
+		},
+		{
+			"coverage": "city-council-election-night",
+			"title": "Turnout citywide now at 41%, the highest for a mun…",
+			"content": "<!-- wp:paragraph -->\n<p>Turnout citywide now at 41%, the highest for a municipal election since 2009 according to the clerk.</p>\n<!-- /wp:paragraph -->",
+			"author": "bob",
+			"age": 184697,
+			"slack": {
+				"author_name": "Bob Hart",
+				"user_id": "U0FAKE0103",
+				"channel_id": "C0FAKE0001",
+				"ts": "1790405146.000106"
+			}
+		},
+		{
+			"coverage": "live-storm-ingrid",
+			"title": "Station Road reopens",
+			"content": "<!-- wp:paragraph -->\n<p>Station Road has reopened after crews cleared the fallen tree. Buses are back on their usual route.</p>\n<!-- /wp:paragraph -->",
+			"author": "bob",
+			"age": 184157
+		},
+		{
+			"coverage": "city-council-election-night",
+			"title": "",
+			"content": "<!-- wp:paragraph -->\n<p><strong>Polls have closed</strong> across the county. Turnout looks like a <em>record</em>, up from <s>58%</s> 62% in 2022 🗳️</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Counting starts at 9pm at the <a href=\"https://example.com/town-hall\">town hall</a>. Thanks @Sam Rivera for the photos.<br>More soon.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:list -->\n<ul class=\"wp-block-list\"><!-- wp:list-item -->\n<li>Ward 1: counting</li>\n<!-- /wp:list-item -->\n\n<!-- wp:list-item -->\n<li>Ward 2: <strong>declared</strong><!-- wp:list -->\n<ul class=\"wp-block-list\"><!-- wp:list-item -->\n<li>Precinct A recount requested</li>\n<!-- /wp:list-item --></ul>\n<!-- /wp:list --></li>\n<!-- /wp:list-item -->\n\n<!-- wp:list-item -->\n<li>Ward 3: counting</li>\n<!-- /wp:list-item --></ul>\n<!-- /wp:list -->\n\n<!-- wp:paragraph -->\n<p>What happens next:</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:list {\"ordered\":true} -->\n<ol class=\"wp-block-list\"><!-- wp:list-item -->\n<li>Ballots are verified</li>\n<!-- /wp:list-item -->\n\n<!-- wp:list-item -->\n<li>Results are certified</li>\n<!-- /wp:list-item --></ol>\n<!-- /wp:list -->\n\n<!-- wp:quote -->\n<blockquote class=\"wp-block-quote\"><!-- wp:paragraph -->\n<p>We expect a result before midnight.</p>\n<!-- /wp:paragraph --></blockquote>\n<!-- /wp:quote -->\n\n<!-- wp:code -->\n<pre class=\"wp-block-code\"><code>Ward 1  1,204\nWard 2    980</code></pre>\n<!-- /wp:code -->",
+			"author": "hassan.khoury",
+			"age": 183900,
+			"slack": {
+				"author_name": "Hassan Khoury",
+				"user_id": "U0REPORTER",
+				"channel_id": "C0FAKE0001",
+				"ts": "1790700100.000100"
+			},
+			"breakout": {
+				"title": "Record turnout expected as the county counts election night ballots",
+				"content": "<!-- wp:paragraph -->\n<p><strong>Polls have closed</strong> across the county. Turnout looks like a <em>record</em>, up from <s>58%</s> 62% in 2022 🗳️</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Counting starts at 9pm at the <a href=\"https://example.com/town-hall\">town hall</a>. Thanks @Sam Rivera for the photos.<br>More soon.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:list -->\n<ul class=\"wp-block-list\"><!-- wp:list-item -->\n<li>Ward 1: counting</li>\n<!-- /wp:list-item -->\n\n<!-- wp:list-item -->\n<li>Ward 2: <strong>declared</strong><!-- wp:list -->\n<ul class=\"wp-block-list\"><!-- wp:list-item -->\n<li>Precinct A recount requested</li>\n<!-- /wp:list-item --></ul>\n<!-- /wp:list --></li>\n<!-- /wp:list-item -->\n\n<!-- wp:list-item -->\n<li>Ward 3: counting</li>\n<!-- /wp:list-item --></ul>\n<!-- /wp:list -->\n\n<!-- wp:paragraph -->\n<p>What happens next:</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:list {\"ordered\":true} -->\n<ol class=\"wp-block-list\"><!-- wp:list-item -->\n<li>Ballots are verified</li>\n<!-- /wp:list-item -->\n\n<!-- wp:list-item -->\n<li>Results are certified</li>\n<!-- /wp:list-item --></ol>\n<!-- /wp:list -->\n\n<!-- wp:quote -->\n<blockquote class=\"wp-block-quote\"><!-- wp:paragraph -->\n<p>We expect a result before midnight.</p>\n<!-- /wp:paragraph --></blockquote>\n<!-- /wp:quote -->\n\n<!-- wp:code -->\n<pre class=\"wp-block-code\"><code>Ward 1  1,204\nWard 2    980</code></pre>\n<!-- /wp:code -->",
+				"excerpt": "Early figures point to 62% turnout, up from 58% in 2022. Counting starts at 9pm at the town hall.",
+				"author": "hassan.khoury",
+				"age": 877434
+			}
+		},
+		{
+			"coverage": "downtown-water-main-break",
+			"title": "Mayor's office says she'll speak at the site short…",
+			"content": "<!-- wp:paragraph -->\n<p>Mayor&#039;s office says she&#039;ll speak at the site shortly, alongside the utility director.</p>\n<!-- /wp:paragraph -->",
+			"author": "hassan.khoury",
+			"age": 183797,
+			"slack": {
+				"author_name": "Hassan Khoury",
+				"user_id": "U0REPORTER",
+				"channel_id": "C0FAKE0003",
+				"ts": "1790683510.000311"
+			},
+			"breakout": {
+				"title": "Mayor to visit the Main Street break with the utility director",
+				"content": "<!-- wp:paragraph -->\n<p>Mayor&#039;s office says she&#039;ll speak at the site shortly, alongside the utility director.</p>\n<!-- /wp:paragraph -->",
+				"excerpt": "Crews are still pumping water from the intersection as officials prepare to explain what failed.",
+				"author": "hassan.khoury",
+				"age": 877433
+			}
+		},
+		{
+			"coverage": "live-storm-ingrid",
+			"title": "",
+			"content": "<!-- wp:paragraph -->\n<p>The weather service has lifted the storm warning for the coast. A yellow rain warning remains inland until midnight.</p>\n<!-- /wp:paragraph -->",
+			"author": "alice",
+			"age": 183600
+		},
+		{
+			"coverage": "live-storm-ingrid",
+			"title": "Flood warning lifted for Lower Quay",
+			"content": "<!-- wp:paragraph --><p>The flood warning for Lower Quay and Tannery Row has been lifted after the evening high tide passed without further flooding.</p><!-- /wp:paragraph -->",
+			"author": "alissoncarter",
+			"age": 183094
+		},
+		{
+			"coverage": "downtown-water-main-break",
+			"title": "Mayor announces $4.2 million emergency repair plan",
+			"content": "<!-- wp:paragraph -->\n<p>Speaking at the site on Main Street, the mayor announced a $4.2 million emergency plan to replace the broken main and the half mile of 1931 cast iron pipe around it.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>The utility director said the section that failed was on the city's replacement list for 2028. The plan brings that work forward, with crews starting tomorrow and Main Street expected to reopen in stages over the next three weeks.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>The boil-water notice for downtown and Riverside stays in place until test results come back clean, which the utility expects by Thursday. Businesses with water damage can apply for help through the city's small business relief fund from Monday.</p>\n<!-- /wp:paragraph -->",
+			"author": "carol",
+			"age": 182820,
+			"breakout": {
+				"title": "Mayor announces $4.2 million emergency repair plan",
+				"content": "<!-- wp:paragraph -->\n<p>The city will spend $4.2 million to replace the water main that burst under Main Street on Tuesday morning, along with half a mile of aging pipe around it, Mayor Elena Park announced Tuesday evening.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Standing in front of the fenced-off crater near 4th Street, Park said the money would come from the city's emergency reserve and that work would begin Wednesday morning. The repairs were not due to start until 2028.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:quote -->\n<blockquote class=\"wp-block-quote\"><!-- wp:paragraph -->\n<p>We can't keep patching pipes that were laid before anyone on this street was born. This one gave us no warning, and the next one won't either.</p>\n<!-- /wp:paragraph --><cite>Mayor Elena Park</cite></blockquote>\n<!-- /wp:quote -->\n\n<!-- wp:heading -->\n<h2 class=\"wp-block-heading\">A pipe nearly a century old</h2>\n<!-- /wp:heading -->\n\n<!-- wp:paragraph -->\n<p>The main that failed is a 24-inch cast iron line installed in 1931. Utility director Marcus Webb said inspectors flagged the downtown section as high risk in a 2023 survey, but it sat behind two other projects on the capital plan.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Webb said the break most likely started as a small crack that widened as pressure rose during the morning peak. By the time crews shut the valves on either side, around 9:40 a.m., the escaping water had undermined roughly 60 feet of road surface.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>The new plan replaces the failed section and the neighboring pipe between 2nd and 6th streets with ductile iron, which the utility has used for all new mains since the early 2000s.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:heading -->\n<h2 class=\"wp-block-heading\">What it means for downtown</h2>\n<!-- /wp:heading -->\n\n<!-- wp:paragraph -->\n<p>Main Street will reopen in stages over the next three weeks. The block between 3rd and 5th will stay closed to traffic until the road is rebuilt, while the outer blocks should reopen to one lane of traffic by the weekend. The 12 and 14 buses will continue detouring via Oak Avenue, and the Main Street light rail stop remains closed.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>At least six businesses reported water damage, including the Main Street Diner and Corner Books. The city's small business relief fund will take applications from Monday, with grants of up to $15,000 for cleanup and lost stock.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Dana Ortiz, who has run the diner for 17 years, spent the afternoon pumping water out of her basement. \"We'll be closed the rest of the week at least,\" she said. \"I'm glad they're fixing it properly this time, but I'd have liked it done before it came through my floor.\"</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:heading -->\n<h2 class=\"wp-block-heading\">Boil-water notice stays in place</h2>\n<!-- /wp:heading -->\n\n<!-- wp:paragraph -->\n<p>The boil-water notice for downtown and the Riverside neighborhood remains in effect. Residents should bring tap water to a rolling boil for at least one minute before drinking it, cooking with it or using it to brush their teeth. The utility expects test results to come back clean by Thursday.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Bottled water is available at the Central Library parking lot until 8 p.m. each day while the notice is in effect. Residents who can't get there can call the city's helpline to arrange a delivery.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>The city council is expected to vote next month on whether to bring forward the rest of the downtown pipe replacement program, estimated at $31 million over five years.</p>\n<!-- /wp:paragraph -->",
+				"excerpt": "",
+				"author": "carol",
+				"age": 2100697
+			}
+		},
+		{
+			"coverage": "live-storm-ingrid",
+			"title": "Shelters open at three schools",
+			"content": "<!-- wp:paragraph -->\n<p>Pets are welcome at Eastside High. Bring medication and bedding if you can.</p>\n<!-- /wp:paragraph -->",
+			"author": "carol",
+			"age": 182537
+		},
+		{
+			"coverage": "live-storm-ingrid",
+			"title": "",
+			"content": "<!-- wp:paragraph -->\n<p>The Harbor Bridge is closed to all traffic. Drivers are asked to use Route 9 inland.</p>\n<!-- /wp:paragraph -->",
+			"author": "alice",
+			"age": 181980,
+			"breakout": {
+				"title": "Harbor Bridge closed as Ingrid’s gusts top 70 mph",
+				"content": "<!-- wp:paragraph -->\n<p>The Harbor Bridge is closed to all traffic. Drivers are asked to use Route 9 inland.</p>\n<!-- /wp:paragraph -->",
+				"excerpt": "The bridge stays shut until winds drop below 45 mph. Here’s how to get across the bay in the meantime.",
+				"author": "alice",
+				"age": 877433
+			}
+		},
+		{
+			"coverage": "live-storm-ingrid",
+			"title": "Gusts ease along the seafront",
+			"content": "<!-- wp:paragraph --><p>The weather service says gusts at the harbor have dropped below 50 mph for the first time today.</p><!-- /wp:paragraph -->",
+			"author": "alice",
+			"age": 25860
+		},
+		{
+			"coverage": "city-council-election-night",
+			"title": "Ward 5 results in",
+			"content": "<!-- wp:paragraph --><p>The incumbent holds Ward 5 with 54% of the vote. Turnout there was 47%.</p><!-- /wp:paragraph -->",
+			"author": "alice",
+			"age": 25737
+		},
+		{
+			"coverage": "live-storm-ingrid",
+			"title": "Library reopens as a warm space",
+			"content": "<!-- wp:paragraph --><p>The central library is open until 9pm for anyone without heating. Tea and phone charging are free.</p><!-- /wp:paragraph -->",
+			"author": "alice",
+			"age": 25614
+		},
+		{
+			"coverage": "city-council-election-night",
+			"title": "Mayor concedes in Ward 2",
+			"content": "<!-- wp:paragraph --><p>The mayor has conceded the Ward 2 race and congratulated her opponent on a close campaign.</p><!-- /wp:paragraph -->",
+			"author": "alice",
+			"age": 25491
+		}
+	],
+	"posts": [
+		{
+			"type": "post",
+			"slug": "live-city-council-election-night",
+			"title": "Live: City Council Election Night",
+			"content": "<!-- wp:newspack-rolling-coverage/rolling-coverage {\"coverageId\":\"{{coverage:city-council-election-night}}\",\"layoutId\":\"{{layout:default}}\"} /-->",
+			"author": null,
+			"age": 2448542
+		},
+		{
+			"type": "post",
+			"slug": "live-winter-storm-warning",
+			"title": "Live: Winter Storm Warning",
+			"content": "<!-- wp:paragraph -->\n<p>Follow our live coverage below.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:newspack-rolling-coverage/rolling-coverage {\"coverageId\":\"{{coverage:winter-storm-warning}}\"} /-->",
+			"author": "layla.shah",
+			"age": 2610541
+		},
+		{
+			"type": "post",
+			"slug": "live-riverside-marathon-2026",
+			"title": "Live: Riverside Marathon 2026",
+			"content": "<!-- wp:paragraph -->\n<p>Follow our live coverage below.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:newspack-rolling-coverage/rolling-coverage {\"coverageId\":\"{{coverage:riverside-marathon-2026}}\"} /-->",
+			"author": "alissoncarter",
+			"age": 3215341
+		},
+		{
+			"type": "post",
+			"slug": "live-downtown-water-main-break",
+			"title": "Live: Downtown Water Main Break",
+			"content": "<!-- wp:newspack-rolling-coverage/rolling-coverage {\"coverageId\":\"{{coverage:downtown-water-main-break}}\",\"layoutId\":\"{{layout:default}}\"} /-->",
+			"author": null,
+			"age": 2100890
+		},
+		{
+			"type": "post",
+			"slug": "friday-night-games-moved-as-ingrid-soaks-the-coast",
+			"title": "Friday night games moved as Ingrid soaks the coast",
+			"content": "<!-- wp:paragraph -->\n<p>Coaches across the coast scrambled on Thursday to find new dates for Friday's fixtures as Storm Ingrid left pitches under water.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:newspack-rolling-coverage/rolling-coverage {\"coverageId\":\"{{coverage:live-storm-ingrid}}\",\"layoutId\":\"{{layout:digest}}\",\"latestOnly\":true,\"latestCount\":3} /-->\n\n<!-- wp:paragraph -->\n<p>Emergency managers said the worst of the surge should pass by mid-afternoon, but low-lying roads near the harbor will stay flooded through the evening high tide.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Residents in evacuation zones were urged to remain at shelters until officials confirm it is safe to return. Schools will be closed again tomorrow.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>The county will review its drainage budget at a special session next week, with several members already calling for faster spending on the Lower Quay outfall.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Business owners along the waterfront spent the morning moving stock upstairs and stacking sandbags against doors.</p>\n<!-- /wp:paragraph -->\n\n\n",
+			"author": "charlotte.pearce",
+			"age": 1825317
+		},
+		{
+			"type": "post",
+			"slug": "schools-close-across-the-county-as-the-storm-arrives",
+			"title": "Schools close across the county as the storm arrives",
+			"content": "<!-- wp:paragraph -->\n<p>Every public school in the county will stay closed on Thursday as the winter storm brings heavy snow and freezing rain across the region, the district said on Wednesday evening.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>After-school activities and evening events are canceled, and the district will decide on Friday's schedule by 6 a.m.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:newspack-rolling-coverage/rolling-coverage {\"coverageId\":\"{{coverage:winter-storm-warning}}\",\"layoutId\":\"{{layout:digest}}\",\"latestOnly\":true,\"latestCount\":3} /-->\n",
+			"author": "aoife.murphy",
+			"age": 1479066
+		},
+		{
+			"type": "page",
+			"slug": "live-storm-ingrid",
+			"title": "Live: Storm Ingrid reaches the coast",
+			"content": "<!-- wp:newspack-rolling-coverage/rolling-coverage {\"coverageId\":\"{{coverage:live-storm-ingrid}}\",\"layoutId\":\"{{layout:clock}}\"} /-->",
+			"author": "alissoncarter",
+			"age": 2018983
+		},
+		{
+			"type": "page",
+			"slug": "live-riverbend-fc-v-fresno-verde",
+			"title": "Live: Riverbend FC v Fresno Verde",
+			"content": "<!-- wp:newspack-rolling-coverage/rolling-coverage {\"coverageId\":\"{{coverage:live-riverbend-fc-v-fresno-verde}}\"} /-->\n\n<!-- wp:newspack-rolling-coverage/rolling-coverage {\"coverageId\":\"{{coverage:riverside-marathon-2026}}\"} /-->",
+			"author": "aoife.murphy",
+			"age": 2075253
+		},
+		{
+			"type": "page",
+			"slug": "coast-fc-vs-raleigh-united-live-updates",
+			"title": "Coast FC vs. Raleigh United: live updates",
+			"content": "<!-- wp:newspack-rolling-coverage/rolling-coverage {\"coverageId\":\"{{coverage:coast-fc-vs-raleigh-united}}\",\"layoutId\":\"{{layout:minute}}\"} /-->",
+			"author": "layla.shah",
+			"age": 1825317
+		},
+		{
+			"type": "page",
+			"slug": "follow-the-storm",
+			"title": "Follow the Storm",
+			"content": "<!-- wp:paragraph -->\n<p>Get a notification whenever we post a new update on the storm.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:heading {\"level\":3} -->\n<h3 class=\"wp-block-heading\">Live: Storm Ingrid reaches the coast</h3>\n<!-- /wp:heading -->\n\n<!-- wp:newspack-rolling-coverage/coverage-follow {\"coverageId\":\"{{coverage:live-storm-ingrid}}\"} -->\n<!-- wp:buttons {\"metadata\":{\"name\":\"Follow\"}} -->\n<div class=\"wp-block-buttons\"><!-- wp:button {\"tagName\":\"button\",\"metadata\":{\"name\":\"Follow\",\"bindings\":{\"url\":{\"source\":\"newspack-rolling-coverage/entry\",\"args\":{\"key\":\"followTag\"}}}}} -->\n<div class=\"wp-block-button\"><button type=\"button\" class=\"wp-block-button__link wp-element-button\">Follow</button></div>\n<!-- /wp:button --></div>\n<!-- /wp:buttons -->\n<!-- /wp:newspack-rolling-coverage/coverage-follow -->\n",
+			"author": "bob",
+			"age": 1769843
+		},
+		{
+			"type": "page",
+			"slug": "byline",
+			"title": "Byline",
+			"content": "<!-- wp:newspack-rolling-coverage/rolling-coverage {\"coverageId\":\"{{coverage:live-storm-ingrid}}\",\"layoutId\":\"{{layout:byline}}\"} /-->",
+			"author": "alice",
+			"age": 1754327
+		},
+		{
+			"type": "page",
+			"slug": "weather-desk",
+			"title": "Weather Desk",
+			"content": "<!-- wp:newspack-rolling-coverage/coverage-status {\"coverageId\":\"{{coverage:winter-storm-warning}}\",\"showLastUpdated\":true} /-->\n\n<!-- wp:paragraph -->\n<p>Forecasts, warnings and road conditions from our weather team, updated through the day.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:newspack-rolling-coverage/rolling-coverage {\"coverageId\":\"{{coverage:winter-storm-warning}}\",\"layoutId\":\"{{layout:ticker}}\",\"latestOnly\":true,\"latestCount\":3,\"hideWhenEnded\":true,\"align\":\"wide\"} /-->\n\n<!-- wp:paragraph -->\n<p>Check back for the five-day outlook each morning.</p>\n<!-- /wp:paragraph -->\n",
+			"author": "bob",
+			"age": 1479067
+		},
+		{
+			"type": "page",
+			"slug": "front-page",
+			"title": "Front Page",
+			"content": "<!-- wp:newspack-rolling-coverage/rolling-coverage {\"coverageId\":\"{{coverage:live-storm-ingrid}}\",\"layoutId\":\"{{layout:ticker}}\",\"latestOnly\":true,\"latestCount\":3,\"hideWhenEnded\":true,\"align\":\"wide\"} /-->\n\n<!-- wp:columns {\"metadata\":{\"categories\":[\"newspack-homepage-posts\"],\"patternName\":\"newspack/homepage-posts-2\",\"name\":\"Content Loop Pattern 2\"},\"align\":\"wide\",\"className\":\"is-style-first-col-to-second\"} -->\n<div class=\"wp-block-columns alignwide is-style-first-col-to-second\"><!-- wp:column {\"width\":\"50%\"} -->\n<div class=\"wp-block-column\" style=\"flex-basis:50%\"><!-- wp:newspack-blocks/homepage-articles {\"showReadMore\":true,\"postsToShow\":1,\"typeScale\":6} /--></div>\n<!-- /wp:column -->\n\n<!-- wp:column {\"width\":\"25%\"} -->\n<div class=\"wp-block-column\" style=\"flex-basis:25%\"><!-- wp:newspack-blocks/homepage-articles {\"className\":\"is-style-borders\",\"showExcerpt\":false,\"showImage\":false,\"showAvatar\":false,\"postsToShow\":6,\"typeScale\":2,\"imageScale\":1} /-->\n\n<!-- wp:newspack-ads/ad-unit {\"provider\":\"gam\"} /--></div>\n<!-- /wp:column -->\n\n<!-- wp:column {\"width\":\"25%\"} -->\n<div class=\"wp-block-column\" style=\"flex-basis:25%\"><!-- wp:newspack-blocks/homepage-articles {\"className\":\"is-style-borders\",\"showExcerpt\":false,\"showImage\":false,\"showAvatar\":false,\"postsToShow\":6,\"mediaPosition\":\"left\",\"typeScale\":2,\"imageScale\":1} /-->\n\n<!-- wp:newspack-ads/ad-unit {\"provider\":\"gam\"} /--></div>\n<!-- /wp:column --></div>\n<!-- /wp:columns -->\n\n<!-- wp:separator {\"align\":\"full\",\"className\":\"is-style-wide\",\"style\":{\"spacing\":{\"margin\":{\"top\":\"var:preset|spacing|80\",\"bottom\":\"var:preset|spacing|80\"}}}} -->\n<hr class=\"wp-block-separator alignfull has-alpha-channel-opacity is-style-wide\" style=\"margin-top:var(--wp--preset--spacing--80);margin-bottom:var(--wp--preset--spacing--80)\"/>\n<!-- /wp:separator -->\n\n<!-- wp:columns {\"metadata\":{\"categories\":[\"newspack-donations\"],\"patternName\":\"newspack/donations-1\",\"name\":\"Donations Pattern 1\"},\"align\":\"wide\"} -->\n<div class=\"wp-block-columns alignwide\"><!-- wp:column {\"verticalAlignment\":\"center\",\"width\":\"25%\"} -->\n<div class=\"wp-block-column is-vertically-aligned-center\" style=\"flex-basis:25%\"><!-- wp:heading -->\n<h2 class=\"wp-block-heading\">Support our publication</h2>\n<!-- /wp:heading --></div>\n<!-- /wp:column -->\n\n<!-- wp:column {\"width\":\"75%\"} -->\n<div class=\"wp-block-column\" style=\"flex-basis:75%\"><!-- wp:newspack-blocks/donate {\"className\":\"is-style-modern\",\"amounts\":{\"once\":[9,20,90,20],\"month\":[7,15,30,15],\"year\":[84,180,360,180]},\"disabledFrequencies\":{\"once\":false,\"month\":false,\"year\":false},\"buttonColor\":\"#6c6c6c\",\"minimumDonation\":5} /--></div>\n<!-- /wp:column --></div>\n<!-- /wp:columns -->\n\n<!-- wp:separator {\"align\":\"full\",\"className\":\"is-style-wide\",\"style\":{\"spacing\":{\"margin\":{\"top\":\"var:preset|spacing|80\",\"bottom\":\"var:preset|spacing|80\"}}}} -->\n<hr class=\"wp-block-separator alignfull has-alpha-channel-opacity is-style-wide\" style=\"margin-top:var(--wp--preset--spacing--80);margin-bottom:var(--wp--preset--spacing--80)\"/>\n<!-- /wp:separator -->\n\n<!-- wp:columns {\"metadata\":{\"categories\":[\"newspack-homepage-posts\"],\"patternName\":\"newspack/homepage-posts-6\",\"name\":\"Content Loop Pattern 6\"},\"align\":\"wide\",\"className\":\"is-style-default\"} -->\n<div class=\"wp-block-columns alignwide is-style-default\"><!-- wp:column {\"width\":\"25%\"} -->\n<div class=\"wp-block-column\" style=\"flex-basis:25%\"><!-- wp:newspack-blocks/homepage-articles {\"className\":\"is-style-borders\",\"showExcerpt\":false,\"showAvatar\":false,\"postsToShow\":1,\"typeScale\":3,\"imageScale\":1} /-->\n\n<!-- wp:newspack-blocks/homepage-articles {\"className\":\"is-style-borders\",\"showExcerpt\":false,\"showImage\":false,\"showAuthor\":false,\"showAvatar\":false,\"mediaPosition\":\"left\",\"typeScale\":2,\"imageScale\":1} /--></div>\n<!-- /wp:column -->\n\n<!-- wp:column {\"width\":\"25%\"} -->\n<div class=\"wp-block-column\" style=\"flex-basis:25%\"><!-- wp:newspack-blocks/homepage-articles {\"className\":\"is-style-borders\",\"showExcerpt\":false,\"showAvatar\":false,\"postsToShow\":1,\"typeScale\":3,\"imageScale\":1} /-->\n\n<!-- wp:newspack-blocks/homepage-articles {\"className\":\"is-style-borders\",\"showExcerpt\":false,\"showImage\":false,\"showAuthor\":false,\"showAvatar\":false,\"mediaPosition\":\"left\",\"typeScale\":2,\"imageScale\":1} /--></div>\n<!-- /wp:column -->\n\n<!-- wp:column {\"width\":\"25%\"} -->\n<div class=\"wp-block-column\" style=\"flex-basis:25%\"><!-- wp:newspack-blocks/homepage-articles {\"className\":\"is-style-borders\",\"showExcerpt\":false,\"showAvatar\":false,\"postsToShow\":1,\"typeScale\":3,\"imageScale\":1,\"mobileStack\":true} /-->\n\n<!-- wp:newspack-blocks/homepage-articles {\"className\":\"is-style-borders\",\"showExcerpt\":false,\"showImage\":false,\"showAuthor\":false,\"showAvatar\":false,\"mediaPosition\":\"left\",\"typeScale\":2,\"imageScale\":1} /--></div>\n<!-- /wp:column -->\n\n<!-- wp:column {\"width\":\"25%\"} -->\n<div class=\"wp-block-column\" style=\"flex-basis:25%\"><!-- wp:newspack-blocks/homepage-articles {\"className\":\"is-style-borders\",\"showExcerpt\":false,\"showAvatar\":false,\"postsToShow\":1,\"typeScale\":3,\"imageScale\":1,\"mobileStack\":true} /-->\n\n<!-- wp:newspack-blocks/homepage-articles {\"className\":\"is-style-borders\",\"showExcerpt\":false,\"showImage\":false,\"showAuthor\":false,\"showAvatar\":false,\"mediaPosition\":\"left\",\"typeScale\":2,\"imageScale\":1} /--></div>\n<!-- /wp:column --></div>\n<!-- /wp:columns -->\n\n<!-- wp:group {\"metadata\":{\"name\":\"Subscribe\",\"categories\":[\"newspack-subscribe\"],\"patternName\":\"newspack/subscribe-2\"},\"align\":\"full\",\"style\":{\"spacing\":{\"padding\":{\"top\":\"var:preset|spacing|80\",\"bottom\":\"var:preset|spacing|80\",\"left\":\"var:preset|spacing|30\",\"right\":\"var:preset|spacing|30\"},\"margin\":{\"top\":\"var:preset|spacing|80\",\"bottom\":\"0\"}},\"elements\":{\"link\":{\"color\":{\"text\":\"var:preset|color|base\"}}}},\"backgroundColor\":\"contrast-2\",\"textColor\":\"base\",\"layout\":{\"type\":\"constrained\"}} -->\n<div class=\"wp-block-group alignfull has-base-color has-contrast-2-background-color has-text-color has-background has-link-color\" style=\"margin-top:var(--wp--preset--spacing--80);margin-bottom:0;padding-top:var(--wp--preset--spacing--80);padding-right:var(--wp--preset--spacing--30);padding-bottom:var(--wp--preset--spacing--80);padding-left:var(--wp--preset--spacing--30)\"><!-- wp:columns {\"verticalAlignment\":\"center\",\"align\":\"wide\",\"className\":\"newspack-grid\"} -->\n<div class=\"wp-block-columns alignwide are-vertically-aligned-center newspack-grid\"><!-- wp:column {\"verticalAlignment\":\"center\",\"width\":\"66.66%\",\"metadata\":{\"name\":\"Intro\"},\"style\":{\"spacing\":{\"blockGap\":\"var:preset|spacing|20\"}}} -->\n<div class=\"wp-block-column is-vertically-aligned-center\" style=\"flex-basis:66.66%\"><!-- wp:heading {\"level\":3,\"metadata\":{\"name\":\"Title\"}} -->\n<h3 class=\"wp-block-heading\">Subscribe to our newsletter</h3>\n<!-- /wp:heading -->\n\n<!-- wp:paragraph {\"metadata\":{\"name\":\"Description\"}} -->\n<p>Be the first to know about breaking news, articles, and updates.</p>\n<!-- /wp:paragraph --></div>\n<!-- /wp:column -->\n\n<!-- wp:column {\"verticalAlignment\":\"center\",\"width\":\"33.33%\",\"metadata\":{\"name\":\"Form\"}} -->\n<div class=\"wp-block-column is-vertically-aligned-center\" style=\"flex-basis:33.33%\"><!-- wp:newspack-newsletters/subscribe {\"lists\":[\"screenshots-newsletter-list\"],\"className\":\"is-style-modern\",\"textColor\":\"#1E1E1E\",\"textColorName\":\"contrast\",\"backgroundColor\":\"#26A69A\",\"backgroundColorName\":\"accent-3\"} /--></div>\n<!-- /wp:column --></div>\n<!-- /wp:columns --></div>\n<!-- /wp:group -->",
+			"author": null,
+			"age": 179536,
+			"front_page": true
+		},
+		{
+			"type": "page",
+			"slug": "storm-ingrid-blocks",
+			"title": "Storm Ingrid",
+			"content": "<!-- wp:heading -->\n<h2 class=\"wp-block-heading\">Storm Ingrid reaches the coast</h2>\n<!-- /wp:heading -->\n\n<!-- wp:newspack-rolling-coverage/coverage-status {\"coverageId\":\"{{coverage:live-storm-ingrid}}\"} /-->\n\n<!-- wp:newspack-rolling-coverage/update-timer {\"coverageId\":\"{{coverage:live-storm-ingrid}}\"} /-->\n\n<!-- wp:newspack-rolling-coverage/coverage-follow {\"coverageId\":\"{{coverage:live-storm-ingrid}}\"} -->\n<!-- wp:buttons {\"metadata\":{\"name\":\"Follow\"}} -->\n<div class=\"wp-block-buttons\"><!-- wp:button {\"tagName\":\"button\",\"metadata\":{\"name\":\"Follow\",\"bindings\":{\"url\":{\"source\":\"newspack-rolling-coverage/entry\",\"args\":{\"key\":\"followTag\"}}}}} -->\n<div class=\"wp-block-button\"><button type=\"button\" class=\"wp-block-button__link wp-element-button\">Follow</button></div>\n<!-- /wp:button --></div>\n<!-- /wp:buttons -->\n<!-- /wp:newspack-rolling-coverage/coverage-follow -->\n\n<!-- wp:newspack-rolling-coverage/rolling-coverage {\"coverageId\":\"{{coverage:live-storm-ingrid}}\",\"layoutId\":\"{{layout:clock}}\"} /-->",
+			"author": null,
+			"age": 600,
+			"status": "draft"
+		},
+		{
+			"type": "page",
+			"slug": "storm-ingrid-live-updates",
+			"title": "Storm Ingrid: live updates",
+			"content": "<!-- wp:newspack-rolling-coverage/rolling-coverage {\"coverageId\":\"{{coverage:live-storm-ingrid}}\",\"layoutId\":\"{{layout:default}}\"} /-->",
+			"author": null,
+			"age": 600,
+			"status": "draft"
+		}
+	],
+	"parts": [
+		{
+			"slug": "header-desktop",
+			"title": "Header (Desktop)",
+			"area": "header",
+			"content": "<!-- wp:group {\"lock\":{\"move\":true,\"remove\":true},\"metadata\":{\"name\":\"Header (Desktop)\"},\"style\":{\"spacing\":{\"padding\":{\"top\":\"var:preset|spacing|30\",\"bottom\":\"0\",\"right\":\"var:preset|spacing|30\",\"left\":\"var:preset|spacing|30\"},\"blockGap\":\"var:preset|spacing|30\",\"margin\":{\"bottom\":\"var:preset|spacing|80\"}}},\"backgroundColor\":\"base\",\"layout\":{\"type\":\"default\"}} -->\n<div class=\"wp-block-group has-base-background-color has-background\" style=\"margin-bottom:var(--wp--preset--spacing--80);padding-top:var(--wp--preset--spacing--30);padding-right:var(--wp--preset--spacing--30);padding-bottom:0;padding-left:var(--wp--preset--spacing--30)\"><!-- wp:group {\"lock\":{\"move\":false,\"remove\":true},\"layout\":{\"type\":\"flex\",\"flexWrap\":\"nowrap\",\"justifyContent\":\"space-between\"}} -->\n<div class=\"wp-block-group\"><!-- wp:group {\"layout\":{\"type\":\"flex\",\"flexWrap\":\"nowrap\"}} -->\n<div class=\"wp-block-group\"><!-- wp:newspack/overlay-menu {\"instanceId\":\"d71b3c2892be\"} -->\n<div class=\"wp-block-newspack-overlay-menu\"><!-- wp:newspack/overlay-menu-trigger {\"className\":\"has-background-transparent\",\"style\":{\"typography\":{\"textTransform\":\"uppercase\"},\"elements\":{\"link\":{\"color\":{\"text\":\"var:preset|color|contrast\"}}},\"spacing\":{\"padding\":{\"top\":\"var:preset|spacing|20\",\"bottom\":\"var:preset|spacing|20\",\"left\":\"var:preset|spacing|20\",\"right\":\"var:preset|spacing|20\"}}},\"textColor\":\"contrast\"} /-->\n\n<!-- wp:newspack/overlay-menu-panel -->\n<div class=\"wp-block-newspack-overlay-menu-panel\"><!-- wp:navigation {\"ref\":\"{{navigation}}\",\"className\":\"is-style-flatten\",\"layout\":{\"type\":\"flex\",\"setCascadingProperties\":true,\"orientation\":\"vertical\"}} /--></div>\n<!-- /wp:newspack/overlay-menu-panel --></div>\n<!-- /wp:newspack/overlay-menu -->\n\n<!-- wp:site-title {\"level\":0,\"style\":{\"typography\":{\"fontStyle\":\"normal\",\"fontWeight\":\"700\",\"letterSpacing\":\"-0.01em\"},\"elements\":{\"link\":{\"color\":{\"text\":\"var:preset|color|contrast\"}}}},\"fontSize\":\"large\"} /-->\n\n<!-- wp:navigation {\"ref\":\"{{navigation}}\",\"className\":\"primary-navigation\",\"style\":{\"typography\":{\"textTransform\":\"uppercase\"}},\"layout\":{\"type\":\"flex\",\"setCascadingProperties\":true,\"justifyContent\":\"left\",\"orientation\":\"horizontal\",\"flexWrap\":\"wrap\"}} /--></div>\n<!-- /wp:group -->\n\n<!-- wp:group {\"style\":{\"spacing\":{\"blockGap\":\"var:preset|spacing|20\"}},\"layout\":{\"type\":\"flex\",\"flexWrap\":\"nowrap\"}} -->\n<div class=\"wp-block-group\"><!-- wp:buttons {\"lock\":{\"move\":true,\"remove\":false},\"className\":\"has-small-size\",\"style\":{\"spacing\":{\"blockGap\":\"var:preset|spacing|20\"}},\"fontSize\":\"x-small\"} -->\n<div class=\"wp-block-buttons has-custom-font-size has-small-size has-x-small-font-size\"><!-- wp:button -->\n<div class=\"wp-block-button\"><a class=\"wp-block-button__link wp-element-button\">Donate</a></div>\n<!-- /wp:button --></div>\n<!-- /wp:buttons -->\n\n<!-- wp:newspack/my-account-button {\"className\":\"has-small-size\",\"lock\":{\"move\":true,\"remove\":false},\"style\":{\"elements\":{\"link\":{\"color\":{\"text\":\"var:preset|color|contrast\"}}}},\"backgroundColor\":\"base-2\",\"textColor\":\"contrast\",\"fontSize\":\"x-small\"} /-->\n\n<!-- wp:newspack/overlay-search {\"className\":\"is-style-icon-only has-background-transparent\",\"style\":{\"elements\":{\"link\":{\"color\":{\"text\":\"var:preset|color|contrast\"}}},\"spacing\":{\"padding\":{\"right\":\"var:preset|spacing|20\",\"left\":\"var:preset|spacing|20\",\"top\":\"var:preset|spacing|20\",\"bottom\":\"var:preset|spacing|20\"}}},\"textColor\":\"contrast\"} /--></div>\n<!-- /wp:group --></div>\n<!-- /wp:group --></div>\n<!-- /wp:group -->\n"
+		},
+		{
+			"slug": "header-mobile",
+			"title": "Header (Mobile)",
+			"area": "header",
+			"content": "<!-- wp:group {\"lock\":{\"move\":true,\"remove\":true},\"metadata\":{\"name\":\"Header (Mobile)\"},\"style\":{\"spacing\":{\"padding\":{\"top\":\"var:preset|spacing|30\",\"bottom\":\"0\",\"left\":\"var:preset|spacing|30\",\"right\":\"var:preset|spacing|30\"},\"margin\":{\"bottom\":\"var:preset|spacing|50\"}}},\"backgroundColor\":\"base\",\"layout\":{\"type\":\"constrained\"}} -->\n<div class=\"wp-block-group has-base-background-color has-background\" style=\"margin-bottom:var(--wp--preset--spacing--50);padding-top:var(--wp--preset--spacing--30);padding-right:var(--wp--preset--spacing--30);padding-bottom:0;padding-left:var(--wp--preset--spacing--30)\">\n\n\t<!-- wp:group {\"lock\":{\"move\":true,\"remove\":true},\"align\":\"wide\",\"style\":{\"spacing\":{\"blockGap\":\"var:preset|spacing|30\"}},\"layout\":{\"type\":\"flex\",\"justifyContent\":\"space-between\",\"flexWrap\":\"nowrap\"}} -->\n\t<div class=\"wp-block-group alignwide\">\n\n\t\t<!-- wp:group {\"style\":{\"spacing\":{\"blockGap\":\"var:preset|spacing|30\"}},\"layout\":{\"type\":\"flex\",\"flexWrap\":\"nowrap\"}} -->\n\t\t<div class=\"wp-block-group\">\n\t\t\t<!-- wp:newspack/overlay-menu {\"instanceId\":\"1a382fccbd5d\"} -->\n\t\t\t\t<div class=\"wp-block-newspack-overlay-menu\"><!-- wp:newspack/overlay-menu-trigger {\"className\":\"is-style-icon-only has-background-transparent\",\"style\":{\"elements\":{\"link\":{\"color\":{\"text\":\"var:preset|color|contrast\"}}},\"spacing\":{\"padding\":{\"right\":\"0\",\"left\":\"0\"}}},\"textColor\":\"contrast\"} /-->\n\t\t\t\t<!-- wp:newspack/overlay-menu-panel -->\n\t\t\t\t<div class=\"wp-block-newspack-overlay-menu-panel\"><!-- wp:navigation {\"ref\":\"{{navigation}}\",\"className\":\"is-style-flatten\",\"layout\":{\"type\":\"flex\",\"setCascadingProperties\":true,\"orientation\":\"vertical\"}} /--></div>\n\t\t\t\t<!-- /wp:newspack/overlay-menu-panel --></div>\n\t\t\t<!-- /wp:newspack/overlay-menu -->\n\n\t\t\t<!-- wp:site-title {\"level\":0,\"style\":{\"typography\":{\"fontStyle\":\"normal\",\"fontWeight\":\"700\",\"letterSpacing\":\"-0.01em\"},\"elements\":{\"link\":{\"color\":{\"text\":\"var:preset|color|contrast\"}}}},\"fontSize\":\"medium\"} /-->\n\t\t</div>\n\t\t<!-- /wp:group -->\n\n\t\t<!-- wp:group {\"style\":{\"spacing\":{\"blockGap\":\"var:preset|spacing|20\"}},\"layout\":{\"type\":\"flex\",\"flexWrap\":\"nowrap\"}} -->\n\t\t<div class=\"wp-block-group\">\n\t\t\t\t\t\t\t<!-- wp:newspack/my-account-button {\"lock\":{\"move\":false,\"remove\":true},\"className\":\"is-style-icon-only has-x-small-size\",\"style\":{\"spacing\":{\"padding\":{\"top\":\"0.375rem\",\"bottom\":\"0.375rem\",\"left\":\"0.375rem\",\"right\":\"0.375rem\"}},\"elements\":{\"link\":{\"color\":{\"text\":\"var:preset|color|contrast\"}}}},\"backgroundColor\":\"base\",\"textColor\":\"contrast\",\"fontSize\":\"x-small\"} /-->\n\t\t\t\n\t\t\t<!-- wp:buttons {\"layout\":{\"type\":\"flex\",\"flexWrap\":\"nowrap\"},\"style\":{\"spacing\":{\"blockGap\":\"var:preset|spacing|20\"}}} -->\n\t\t\t<div class=\"wp-block-buttons\">\n\t\t\t\t<!-- wp:button {\"className\":\"has-x-small-size\",\"fontSize\":\"x-small\"} -->\n\t\t\t\t<div class=\"wp-block-button has-custom-font-size has-x-small-size has-x-small-font-size\"><a class=\"wp-block-button__link wp-element-button\"></a></div>\n\t\t\t\t<!-- /wp:button -->\n\t\t\t</div>\n\t\t\t<!-- /wp:buttons -->\n\t\t</div>\n\t\t<!-- /wp:group -->\n\n\t</div>\n\t<!-- /wp:group -->\n\n</div>\n<!-- /wp:group -->\n"
+		}
+	],
+	"slack": {
+		"workspace_name": "The News Paper",
+		"workspace_id": "T0FAKE0001",
+		"slack_bot_user_id": "U0FAKEBOT1",
+		"channels": {
+			"C0FAKE0001": {
+				"name": "election-night-live",
+				"coverage": "city-council-election-night",
+				"autopublish": true
+			},
+			"C0FAKE0002": {
+				"name": "winter-storm-desk",
+				"coverage": "winter-storm-warning",
+				"autopublish": false
+			},
+			"C0FAKE0003": {
+				"name": "water-main-live",
+				"coverage": "downtown-water-main-break",
+				"autopublish": true
+			},
+			"C0FAKE0004": {
+				"name": "storm-desk",
+				"coverage": "live-storm-ingrid",
+				"autopublish": true
+			}
+		}
+	},
+	"styles": {
+		"styles": {
+			"blocks": {
+				"core/button": {
+					"typography": {
+						"fontFamily": "var( --wp--preset--font-family--inter )"
+					}
+				},
+				"core/navigation": {
+					"typography": {
+						"fontFamily": "var( --wp--preset--font-family--dmsans )"
+					}
+				}
+			},
+			"typography": {
+				"fontFamily": "var(--wp--preset--font-family--helvetica)"
+			},
+			"elements": {
+				"button": {
+					"typography": {
+						"fontFamily": "var( --wp--preset--font-family--inter )"
+					}
+				},
+				"caption": {
+					"typography": {
+						"fontFamily": "var( --wp--preset--font-family--dmsans )"
+					}
+				},
+				"heading": {
+					"typography": {
+						"fontFamily": "var(--wp--preset--font-family--times)",
+						"fontStyle": "normal",
+						"fontWeight": "800"
+					}
+				},
+				"h5": {
+					"typography": {
+						"fontFamily": "var:preset|font-family|inter",
+						"fontStyle": "normal",
+						"fontWeight": "900"
+					}
+				},
+				"h6": {
+					"typography": {
+						"fontFamily": "var:preset|font-family|inter",
+						"fontStyle": "normal",
+						"fontWeight": "900"
+					}
+				}
+			}
+		},
+		"settings": {
+			"color": {
+				"palette": {
+					"theme": [
+						{
+							"color": "#D63638",
+							"name": "Accent",
+							"slug": "accent"
+						},
+						{
+							"color": "#691C1C",
+							"name": "Accent / Two",
+							"slug": "accent-2"
+						},
+						{
+							"color": "#26A69A",
+							"name": "Accent / Three",
+							"slug": "accent-3"
+						},
+						{
+							"color": "#ffffff",
+							"name": "Base",
+							"slug": "base"
+						},
+						{
+							"color": "#F0F0F0",
+							"name": "Base / Two",
+							"slug": "base-2"
+						},
+						{
+							"color": "#DDDDDD",
+							"name": "Base / Three",
+							"slug": "base-3"
+						},
+						{
+							"color": "#CCCCCC",
+							"name": "Base / Four",
+							"slug": "base-4"
+						},
+						{
+							"color": "#949494",
+							"name": "Base / Five",
+							"slug": "base-5"
+						},
+						{
+							"color": "#1E1E1E",
+							"name": "Contrast",
+							"slug": "contrast"
+						},
+						{
+							"color": "#3E3E3E",
+							"name": "Contrast / Two",
+							"slug": "contrast-2"
+						},
+						{
+							"color": "#6C6C6C",
+							"name": "Contrast / Three",
+							"slug": "contrast-3"
+						}
+					]
+				}
+			},
+			"layout": {
+				"contentSize": "800px",
+				"wideSize": "1216px"
+			},
+			"typography": {
+				"fluid": true,
+				"fontFamilies": {
+					"theme": [
+						{
+							"fontFace": [
+								{
+									"fontFamily": "Inter",
+									"fontStretch": "normal",
+									"fontStyle": "normal",
+									"fontWeight": "100 900",
+									"src": [
+										"file:./assets/fonts/inter/InterVariable.woff2"
+									]
+								},
+								{
+									"fontFamily": "Inter",
+									"fontStretch": "normal",
+									"fontStyle": "italic",
+									"fontWeight": "100 900",
+									"src": [
+										"file:./assets/fonts/inter/InterVariable-Italic.woff2"
+									]
+								}
+							],
+							"fontFamily": "\"Inter\", system-ui, sans-serif",
+							"name": "Inter",
+							"slug": "inter"
+						},
+						{
+							"fontFace": [
+								{
+									"fontFamily": "Fraunces",
+									"fontStretch": "normal",
+									"fontStyle": "normal",
+									"fontWeight": "100 900",
+									"src": [
+										"file:./assets/fonts/fraunces/Fraunces-VariableFont_SOFT,WONK,opsz,wght.ttf"
+									]
+								},
+								{
+									"fontFamily": "Fraunces",
+									"fontStretch": "normal",
+									"fontStyle": "italic",
+									"fontWeight": "100 900",
+									"src": [
+										"file:./assets/fonts/fraunces/Fraunces-Italic-VariableFont_SOFT,WONK,opsz,wght.ttf"
+									]
+								}
+							],
+							"fontFamily": "\"Fraunces\", ui-serif, serif",
+							"name": "Fraunces",
+							"slug": "fraunces"
+						},
+						{
+							"fontFace": [
+								{
+									"fontFamily": "DM Sans",
+									"fontStretch": "normal",
+									"fontStyle": "normal",
+									"fontWeight": "100 900",
+									"src": [
+										"file:./assets/fonts/dm-sans/DMSans-VariableFont_opsz,wght.ttf"
+									]
+								},
+								{
+									"fontFamily": "DM Sans",
+									"fontStretch": "normal",
+									"fontStyle": "italic",
+									"fontWeight": "100 900",
+									"src": [
+										"file:./assets/fonts/dm-sans/DMSans-Italic-VariableFont_opsz,wght.ttf"
+									]
+								}
+							],
+							"fontFamily": "\"DM Sans\", system-ui, sans-serif",
+							"name": "DM Sans",
+							"slug": "dmsans"
+						}
+					],
+					"custom": [
+						{
+							"name": "Times",
+							"slug": "times",
+							"fontFamily": "Times, \"Times New Roman\", serif"
+						},
+						{
+							"name": "Helvetica",
+							"slug": "helvetica",
+							"fontFamily": "Helvetica, Arial, sans-serif"
+						}
+					]
+				}
+			},
+			"custom": {
+				"className": "bulletin-alt"
+			}
+		}
+	}
+}

@@ -38,20 +38,47 @@ function getPublishModeHelp( mode: PublishMode ): string {
 	switch ( mode ) {
 		case 'publish':
 			return __(
-				"Publishes messages as soon as they're posted in Slack.",
+				"Publishes each message as soon as it's posted in Slack.",
 				'newspack-rolling-coverage'
 			);
 		case 'reaction':
 			return __(
-				'Adds a message only when someone reacts to it: the publish emoji publishes it, the draft emoji saves it as a draft. Set both emoji under Settings on the Slack Connection page.',
+				'Adds a message only when someone reacts to it. The publish emoji publishes it, and the draft emoji saves a draft. Change both emoji on the Slack tab of Rolling Coverage > Settings.',
 				'newspack-rolling-coverage'
 			);
 		default:
 			return __(
-				'Saves messages as drafts for an editor or administrator to publish.',
+				'Saves each message as a draft for an editor or administrator to publish.',
 				'newspack-rolling-coverage'
 			);
 	}
 }
 
-export { getPublishModeOptions, getPublishModeHelp };
+/**
+ * A one-line summary of a publish mode, for the options in the channels table.
+ * The full help, with the emoji settings, stays in the connection drawer.
+ *
+ * @param {PublishMode} mode Publish mode.
+ * @return {string} Summary.
+ */
+function getPublishModeDescription( mode: PublishMode ): string {
+	switch ( mode ) {
+		case 'publish':
+			return __(
+				"Each message publishes as soon as it's posted.",
+				'newspack-rolling-coverage'
+			);
+		case 'reaction':
+			return __(
+				"Nothing's added until someone reacts with an emoji.",
+				'newspack-rolling-coverage'
+			);
+		default:
+			return __(
+				'Messages arrive as drafts for an editor to review.',
+				'newspack-rolling-coverage'
+			);
+	}
+}
+
+export { getPublishModeOptions, getPublishModeHelp, getPublishModeDescription };

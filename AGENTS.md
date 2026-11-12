@@ -60,7 +60,7 @@ Tests:
 
 ## Docs site
 
-`site/` is the publisher documentation site: an [Astro](https://astro.build/) and [Fumadocs](https://fumadocs.dev/) static site with its own npm project, lockfile and `.nvmrc` (Node 24). The plugin's `npm ci`, lint, typecheck, build and CI never touch it, and it never ships in the plugin zip (`/site` in `.distignore`).
+`site/` is the publisher documentation site: an [Astro](https://astro.build/) and [Fumadocs](https://fumadocs.dev/) static site with its own npm project, lockfile and `.nvmrc` (Node 24). The plugin's `npm ci`, JS and SCSS lint, typecheck and build never touch it, and it never ships in the plugin zip (`/site` in `.distignore`). The plugin's PHPCS does check the PHP in `site/screenshots/`.
 
 ```bash
 cd site
@@ -69,14 +69,21 @@ npm run dev           # Local site at http://localhost:4321
 npm run build         # Static build in site/dist/
 npm test              # Content and color contrast checks
 npm run check:build   # Checks site/dist/ after a build
+npm run shot -- <section>/<name>-<n> --site <url>   # Retakes a screenshot
 ```
 
 - Pages are MDX files in `site/content/docs/`; each folder's `meta.json` sets the sidebar order. The homepage is `site/src/components/home.tsx`, and the About page is `site/src/components/about.tsx`.
+- **Site chrome** (header, mobile menu, search, docs drawer, page chrome and footer) comes from the [newspack-ui site kit](https://newspack-ui-theme.space.fast/docs/build-a-site/), installed with `npx shadcn@latest add` into `site/src/components/site/`, `site/src/components/docs/`, `site/src/components/ui/`, `site/src/lib/` (`theme.ts`, `theme-script.ts`, `newspack-ui.ts` and `newspack-ui-icons.tsx`) and `site/src/styles/` (`newspack-ui-site.css` and `newspack-ui-fumadocs.css`, imported by `global.css`). Don't edit those files, since a later install overwrites them; report what the kit lacks upstream instead. The install also rewrites `global.css` (indentation and quote style) and replaces `site/src/lib/site.ts` with the kit's template, so put both back before committing. `site.ts` holds the site's settings: the name, nav and footer links, and `SEARCH_INDEX` (`/api/search`, which `check-build` doesn't catch if it's wrong). Its own pieces (wordmark, footer credit line, and the islands that hand the wordmark to the kit's `AstroDocs` and `AstroDocsSiteHeader`) live in `site/src/components/brand.tsx`, `docs.tsx` and `site-layout.tsx`.
 - **Writing rules**, enforced by `npm test` where they can be:
   - Publishers first: plain words, short steps, one action per step. US English, sentence-case headings, no em dashes.
   - Technical words (hooks, REST API, attributes, meta) belong only in `site/content/docs/developers/`, which explains what each thing is for before how to use it.
   - Quote UI labels exactly as they appear on screen, checked against the plugin source.
   - Every step that changes what's on screen gets a `<Screenshot label="..." />` naming the screen and what's highlighted.
+- **Reading text:** newspack-ui's scale is for reader UI and short headings; the site sets long text itself. Leads (`type-lead`, `.docs-lead`) use the larger lead size at the body line height; docs and About body text (`type-prose`) uses the body size at the looser `--rc-line-height-prose`. Don't change newspack-ui's own tokens for this.
+- **Screenshots** live in `site/public/screenshots/<section>/<page>-<n>.webp` and all show the same demo site.
+  - A change to a screen publishers see retakes the screenshots that show it, with the seed and capture command in `site/screenshots/`. [`site/screenshots/README.md`](site/screenshots/README.md) has the steps.
+  - House settings, for checking a pull request's images: 3024×1964 WebP (a 1512×982 viewport at 2x), light mode, viewport only, the Newspack Block Theme with the seeded demo content, signed in as the seeded "James Smith" administrator, and at most one spotlight. `npm test` checks that every screenshot the docs pages use is a WebP of that size.
+  - The seed runs only against a local or development single site set aside for screenshots, unless run with `force`, and puts back what it changed when run with `remove`. The capture command keeps its sign-in outside the checkout, in `~/.cache/newspack-rc-shot/`.
 - **Hosting:** Spacefast, in the Automattic team, at `https://rolling-coverage.space.fast/`. Spacefast builds the site from this repository (root directory `site`) whenever the deploy branch changes. The deploy branch is `trunk`.
 - **Updating the live site:** push to (or merge into) the deploy branch. Each build shows on the Space's Builds page in Spacefast and as the `Spacefast Builds` check on GitHub.
 - **When a build doesn't start** (it can sit queued), sign in to Spacefast as a member of the Automattic team and sync the repository, then retry the latest build:

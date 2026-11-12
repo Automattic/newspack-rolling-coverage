@@ -11,7 +11,6 @@ _.config.js
 .DS_Store
 Thumbs.db
 .phpunit.result.cache
-composer.json
 composer.lock
 package.json
 package-lock.json

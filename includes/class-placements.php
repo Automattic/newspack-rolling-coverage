@@ -1320,7 +1320,7 @@ class Placements {
 		global $wpdb;
 
 		$patterns = [];
-		$rows     = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$rows     = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Only placeholders are concatenated; values go through prepare().
 			$wpdb->prepare(
 				// phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare, WordPress.DB.PreparedSQL.NotPrepared
 				"SELECT ID, post_content FROM {$wpdb->posts} WHERE post_type = %s AND post_status = 'publish' AND post_password = '' AND (" . self::blocks_like_clause() . ')',
@@ -1365,7 +1365,7 @@ class Placements {
 		$type_holders = implode( ',', array_fill( 0, count( $post_types ), '%s' ) );
 		$id_clause    = $referrers['posts'] ? ' OR ID IN (' . implode( ',', array_map( 'intval', $referrers['posts'] ) ) . ')' : '';
 
-		$ids = $wpdb->get_col( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$ids = $wpdb->get_col( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Only placeholders are concatenated; values go through prepare().
 			$wpdb->prepare(
 				// phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
 				"SELECT ID FROM {$wpdb->posts} WHERE post_status = 'publish' AND post_password = '' AND post_type IN ({$type_holders}) AND ((" . self::blocks_like_clause() . "){$id_clause}) ORDER BY post_date DESC, ID DESC",
@@ -1450,7 +1450,7 @@ class Placements {
 				$values[] = '%' . $wpdb->esc_like( '"ref":' . $pattern_id . ',' ) . '%';
 			}
 
-			$rows = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+			$rows = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Only placeholders are concatenated; values go through prepare().
 				$wpdb->prepare(
 					// phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare, WordPress.DB.PreparedSQL.NotPrepared
 					"SELECT ID, post_type FROM {$wpdb->posts} WHERE post_status = 'publish' AND post_password = '' AND post_type IN (" . implode( ',', array_fill( 0, count( $types ), '%s' ) ) . ') AND (' . implode( ' OR ', $likes ) . ')',

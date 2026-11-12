@@ -5,7 +5,6 @@ import { useNavigate, useOutletContext } from 'react-router';
 import { useState, useCallback, useMemo } from '@wordpress/element';
 import { Button } from '@wordpress/components';
 import { __, sprintf } from '@wordpress/i18n';
-import { Stack } from '@wordpress/ui';
 import type { View } from '@wordpress/dataviews';
 import { filterSortAndPaginate } from '@wordpress/dataviews/wp';
 
@@ -18,10 +17,13 @@ import { DataViewsWrapper } from './data-views-wrapper';
 import { CoverageDrawer } from './coverage-drawer';
 import { SlackConnectionDrawer } from './slack-connection-drawer';
 import { PlacementsDrawer } from './placements-drawer';
-import SettingsModal from './settings-modal';
 import { useConfirmDialog } from './confirm-dialog';
 import { getCoverageActions } from '../actions/coverage-actions';
-import { getCoverageFields, defaultCoverageView } from '../fields/coverages';
+import {
+	getCoverageFields,
+	defaultCoverageView,
+	withEntryCount,
+} from '../fields/coverages';
 import { useAdminContext } from '../hooks/useAdminContext';
 import { useStatusLabels } from '../utils/status-labels';
 import { EmptyState } from 'newspack-components/dist/esm/empty-state';
@@ -42,8 +44,6 @@ function CoverageView() {
 		useOutletContext< ContextExports >();
 	const { refreshKey } = context;
 	const [ isSlackDrawerOpen, setIsSlackDrawerOpen ] = useState( false );
-	const [ isSettingsOpen, setIsSettingsOpen ] = useState( false );
-	const [ isSettingsLoading, setIsSettingsLoading ] = useState( false );
 	const [ slackCoverage, setSlackCoverage ] = useState< Coverage | null >(
 		null
 	);
@@ -82,6 +82,7 @@ function CoverageView() {
 		]
 	);
 	const [ view, setView ] = useState< View >( defaultCoverageView );
+	const shownView = useMemo( () => withEntryCount( view ), [ view ] );
 
 	// Reset to page 1 when filters or search change.
 	const handleChangeView = useCallback(
@@ -177,11 +178,6 @@ function CoverageView() {
 		);
 	}
 
-	const handleSettingsReady = useCallback(
-		() => setIsSettingsLoading( false ),
-		[]
-	);
-
 	const handleOpenCreate = useCallback( () => {
 		// A new coverage isn't in the trash, so leave the Trash view to show
 		// it; from the empty state, nothing else on screen can.
@@ -222,35 +218,14 @@ function CoverageView() {
 
 	const canAddCoverage =
 		config.capabilities.canManageTerms && ! isFirstLoad && ! isEmpty;
-	const canOpenSettings =
-		config.capabilities.canManageSettings && ! isFirstLoad;
 	const headerActions = useMemo(
 		() =>
-			canAddCoverage || canOpenSettings ? (
-				<Stack direction="row" gap="sm">
-					{ canOpenSettings && (
-						<Button
-							variant="secondary"
-							isBusy={ isSettingsLoading }
-							onClick={ () => {
-								setIsSettingsOpen( true );
-								setIsSettingsLoading( true );
-							} }
-						>
-							{ __( 'Settings', 'newspack-rolling-coverage' ) }
-						</Button>
-					) }
-					{ canAddCoverage && (
-						<Button variant="primary" onClick={ handleOpenCreate }>
-							{ __(
-								'Add Liveblog',
-								'newspack-rolling-coverage'
-							) }
-						</Button>
-					) }
-				</Stack>
+			canAddCoverage ? (
+				<Button variant="primary" onClick={ handleOpenCreate }>
+					{ __( 'Add Liveblog', 'newspack-rolling-coverage' ) }
+				</Button>
 			) : null,
-		[ canAddCoverage, canOpenSettings, handleOpenCreate, isSettingsLoading ]
+		[ canAddCoverage, handleOpenCreate ]
 	);
 	useHeader( {
 		actions: headerActions,
@@ -327,7 +302,7 @@ function CoverageView() {
 				<DataViewsWrapper
 					data={ filteredData }
 					fields={ fields }
-					view={ view }
+					view={ shownView }
 					onChangeView={ handleChangeView }
 					actions={ actions }
 					paginationInfo={ paginationInfo }
@@ -356,15 +331,6 @@ function CoverageView() {
 				coverage={ placementsCoverage }
 				onClose={ () => setIsPlacementsOpen( false ) }
 			/>
-			{ isSettingsOpen && (
-				<SettingsModal
-					onClose={ () => {
-						setIsSettingsOpen( false );
-						setIsSettingsLoading( false );
-					} }
-					onReady={ handleSettingsReady }
-				/>
-			) }
 			{ confirmDialog }
 		</>
 	);

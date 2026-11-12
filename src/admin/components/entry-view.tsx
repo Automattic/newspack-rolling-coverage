@@ -40,6 +40,7 @@ import { getEntryActions } from '../actions/entry-actions';
 import { getEntryNoticeMessage } from '../utils/notices';
 import {
 	applyEntryFilters,
+	hasFilterValue,
 	ARCHIVED_VALUE,
 	getSlackChannelLabel,
 	NOT_ARCHIVED_VALUE,
@@ -58,6 +59,7 @@ import { getEntryFields, defaultEntryView } from '../fields/entries';
  * snackbar. Matches the spec §4.3 "group >5 changes into one notice" rule.
  */
 const GROUP_NOTICE_THRESHOLD = 5;
+const FIT_COLUMNS = [ 'modified', 'date' ];
 
 /**
  * Renders the entry list DataViews for a single coverage, backed by the
@@ -173,14 +175,7 @@ function EntryView() {
 		const params: Record< string, string > = {};
 
 		for ( const f of filters ) {
-			// Skip filters with no value yet — don't narrow the query until the
-			// user actually picks something.
-			if (
-				f.value === undefined ||
-				f.value === null ||
-				f.value === '' ||
-				( Array.isArray( f.value ) && f.value.length === 0 )
-			) {
+			if ( ! hasFilterValue( f.value ) ) {
 				continue;
 			}
 
@@ -678,6 +673,7 @@ function EntryView() {
 					actions={ actions }
 					paginationInfo={ paginationInfo }
 					isLoading={ isResolving || isTrashCheckPending }
+					fitColumns={ FIT_COLUMNS }
 				/>
 			) }
 			{ quickEditEntry && (

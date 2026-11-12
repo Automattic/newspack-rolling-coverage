@@ -51,6 +51,8 @@ interface AdminConfig {
 	supportsHandoff: boolean;
 	adminUrls: {
 		coverages: string;
+		settings: string;
+		slackConnection: string;
 		editEntry: string;
 		editUser: string;
 		editTerm: string;
@@ -107,6 +109,7 @@ interface HeaderState {
 	actions?: ReactNode;
 	count?: number;
 	isEmpty?: boolean;
+	subTitle?: ReactNode;
 	tabbedNavigation?: ReactNode;
 }
 
@@ -233,7 +236,11 @@ interface ChannelMapping {
 	last_sync_ts: string;
 }
 
-type ChannelRow = ChannelMapping & { id: string };
+type ChannelRow = ChannelMapping & {
+	id: string;
+	/** Whether a publish mode change for this channel is still saving. */
+	is_updating?: boolean;
+};
 
 interface ApiResult {
 	success: boolean;
@@ -290,6 +297,8 @@ interface DataViewsWrapperProps< T > {
 	header?: JSX.Element;
 	defaultLayouts?: Record< string, unknown >;
 	config?: { perPageSizes: number[] };
+	/** Columns sized to their content rather than an even share. */
+	fitColumns?: string[];
 }
 
 interface CoverageDrawerProps {

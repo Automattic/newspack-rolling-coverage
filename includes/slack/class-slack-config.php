@@ -40,7 +40,7 @@ class Slack_Config {
 	const DEFAULT_DRAFT_REACTION   = 'memo';
 
 	/**
-	 * Highest Heading value that leaves # lines in messages as typed.
+	 * Highest heading value that leaves # lines in messages as typed.
 	 */
 	const HEADINGS_OFF = 0;
 

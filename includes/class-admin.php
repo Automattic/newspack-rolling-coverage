@@ -15,9 +15,15 @@ defined( 'ABSPATH' ) || exit;
 class Admin {
 
 	const MENU_SLUG            = 'rolling-coverage';
-	const AI_MENU_SLUG         = 'rolling-coverage-ai';
+	const SETTINGS_MENU_SLUG   = 'rolling-coverage-settings';
 	const CONNECTION_MENU_SLUG = 'rolling-coverage-connection';
 	const SCREEN_BODY_CLASS    = 'newspack-rolling-coverage-admin-screen';
+
+	/**
+	 * Slug of the AI page that the Settings page's AI tab replaced. Requests
+	 * for it are redirected to that tab.
+	 */
+	const LEGACY_AI_MENU_SLUG = 'rolling-coverage-ai';
 
 	/**
 	 * Menu icon: the `liveStreaming` glyph from newspack-icons.
@@ -58,6 +64,8 @@ class Admin {
 		add_filter( 'admin_body_class', array( __CLASS__, 'add_body_class' ) );
 		add_filter( 'admin_title', array( __CLASS__, 'capture_admin_title_suffix' ), PHP_INT_MAX, 2 );
 		add_action( 'load-edit.php', array( __CLASS__, 'redirect_entry_list' ) );
+		// The old page is no longer registered, so WordPress denies access to it before admin_init.
+		add_action( 'admin_page_access_denied', array( __CLASS__, 'redirect_legacy_ai_page' ) );
 		add_action( 'enqueue_block_editor_assets', array( __CLASS__, 'enqueue_entry_editor' ) );
 		add_action( 'enqueue_block_editor_assets', array( __CLASS__, 'enqueue_breakout_editor' ) );
 		add_filter( 'custom_menu_order', '__return_true' );
@@ -101,14 +109,65 @@ class Admin {
 			[ __CLASS__, 'render_page' ]
 		);
 
-		self::$page_hooks['ai'] = add_submenu_page(
+		self::$page_hooks['settings'] = add_submenu_page(
 			self::MENU_SLUG,
-			__( 'AI', 'newspack-rolling-coverage' ),
-			__( 'AI', 'newspack-rolling-coverage' ),
-			'manage_options',
-			self::AI_MENU_SLUG,
+			__( 'Settings', 'newspack-rolling-coverage' ),
+			__( 'Settings', 'newspack-rolling-coverage' ),
+			self::get_settings_capability(),
+			self::SETTINGS_MENU_SLUG,
 			[ __CLASS__, 'render_page' ]
 		);
+	}
+
+	/**
+	 * Capability for the Settings page: the one for the General tab
+	 * (`edit_others_posts`) when the user has it, else the one for the Slack
+	 * and AI tabs (`manage_options`), so anyone who can open a tab sees the
+	 * page.
+	 *
+	 * @return string Capability name.
+	 */
+	public static function get_settings_capability(): string {
+		return Status_Labels::can_manage() ? 'edit_others_posts' : 'manage_options';
+	}
+
+	/**
+	 * URL of the Settings page, on the given tab.
+	 *
+	 * @param string $tab Tab name: `general`, `slack` or `ai`.
+	 * @return string
+	 */
+	public static function get_settings_url( string $tab = 'general' ): string {
+		return admin_url( 'admin.php?page=' . self::SETTINGS_MENU_SLUG ) . '#/settings/' . $tab;
+	}
+
+	/**
+	 * Where to send a request for the old AI page, or null to leave the
+	 * request alone.
+	 *
+	 * @param array $query Request query args.
+	 * @return string|null
+	 */
+	public static function get_legacy_ai_redirect( array $query ): ?string {
+		if ( ! isset( $query['page'] ) || self::LEGACY_AI_MENU_SLUG !== $query['page'] ) {
+			return null;
+		}
+
+		return self::get_settings_url( 'ai' );
+	}
+
+	/**
+	 * Send the old AI page to the Settings page's AI tab, so existing links
+	 * and bookmarks keep working.
+	 */
+	public static function redirect_legacy_ai_page(): void {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Read-only navigation check; the value is only compared.
+		$target = self::get_legacy_ai_redirect( wp_unslash( $_GET ) );
+
+		if ( $target ) {
+			wp_safe_redirect( $target );
+			exit;
+		}
 	}
 
 	/**
@@ -400,6 +459,7 @@ class Admin {
 			[ 'wp-components' ],
 			$asset['version']
 		);
+		wp_style_add_data( 'newspack-rolling-coverage-admin', 'rtl', 'replace' );
 
 		wp_enqueue_script( 'wp-edit-post' );
 		wp_enqueue_style( 'wp-edit-post' );
@@ -422,7 +482,7 @@ class Admin {
 			[ 'Newspack\Blocks', 'enqueue_block_editor_assets' ]
 		);
 
-		do_action( 'enqueue_block_editor_assets' );
+		do_action( 'enqueue_block_editor_assets' ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Core hook.
 
 		// Re-add newspack-plugin's editor UI scripts.
 		add_action(
@@ -510,6 +570,8 @@ class Admin {
 			),
 			'adminUrls'              => array(
 				'coverages'          => admin_url( 'admin.php?page=' . self::MENU_SLUG ),
+				'settings'           => admin_url( 'admin.php?page=' . self::SETTINGS_MENU_SLUG ),
+				'slackConnection'    => admin_url( 'admin.php?page=' . self::CONNECTION_MENU_SLUG ),
 				'editEntry'          => admin_url( 'post.php?action=edit' ),
 				'editTerm'           => admin_url( 'term.php?taxonomy=' . Taxonomy::TAXONOMY_SLUG ),
 				'editUser'           => admin_url( 'user-edit.php' ),

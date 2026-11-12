@@ -12,6 +12,7 @@ import { __, sprintf } from '@wordpress/i18n';
  * Internal dependencies
  */
 import type { Entry, Coverage, StatusName } from '../types';
+import { formatSiteDateTime } from './site-date';
 
 /** Machine value for entries sourced from Slack. */
 const SOURCE_SLACK = 'slack';
@@ -187,16 +188,6 @@ function getArchivedStatus( item: Entry ): string {
 }
 
 /**
- * Formats a Date as a UTC string, returning "—" when the date is null.
- *
- * @param {Date | null} date The date to format, or null.
- * @return {string} UTC date string or "—".
- */
-function formatUTC( date: Date | null ): string {
-	return date ? date.toUTCString() : '—';
-}
-
-/**
  * Normalizes a date string to ISO 8601 UTC for a DataViews `datetime` field.
  *
  * @param {string | null | undefined} dateStr - The raw date string.
@@ -237,14 +228,14 @@ function parseSlackTimestamp( ts: string | null | undefined ): Date | null {
 }
 
 /**
- * Formats a Slack timestamp as a UTC string (matching the DataViews datetime
- * column style used elsewhere), or "—" if invalid/empty.
+ * Formats a Slack timestamp in the site's date and time settings, or "—" if
+ * invalid/empty.
  *
  * @param {string | null | undefined} ts - The Slack timestamp string.
- * @return {string} UTC date string or "—".
+ * @return {string} Formatted date and time, or "—".
  */
 function safeFormatSlackTimestamp( ts: string | null | undefined ): string {
-	return formatUTC( parseSlackTimestamp( ts ) );
+	return formatSiteDateTime( parseSlackTimestamp( ts ) ) || '—';
 }
 
 /**
@@ -309,6 +300,20 @@ function getSlackChannelLabel( item: Coverage ): string {
 }
 
 /**
+ * Whether a DataViews filter has a value to match against. A filter added from
+ * "Add filter" has none until one is picked, and narrows nothing until then.
+ *
+ * @param {unknown} value The filter's value.
+ * @return {boolean} True when the filter should apply.
+ */
+function hasFilterValue( value: unknown ): boolean {
+	if ( Array.isArray( value ) ) {
+		return value.length > 0;
+	}
+	return value !== undefined && value !== null && value !== '';
+}
+
+/**
  * Applies all DataViews filters (source, status, date) client-side.
  *
  * Mirrors the built-in operator filter handlers so date, text, and
@@ -331,6 +336,9 @@ function applyEntryFilters(
 			// Date/Modified are enforced server-side via date_query; skip
 			// here so sync deltas that fall outside the window aren't dropped.
 			if ( filter.field === 'date' || filter.field === 'modified' ) {
+				return true;
+			}
+			if ( ! hasFilterValue( filter.value ) ) {
 				return true;
 			}
 			const itemValue = getEntryFieldValue( item, filter.field );
@@ -486,4 +494,5 @@ export {
 	SOURCE_SLACK,
 	SOURCE_WORDPRESS,
 	applyEntryFilters,
+	hasFilterValue,
 };
