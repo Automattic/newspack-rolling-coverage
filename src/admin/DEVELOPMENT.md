@@ -10,7 +10,7 @@ The plugin's admin screens live in `src/admin/`: the coverages list, each covera
 | --- | --- |
 | `#/coverages` | All Liveblogs (`coverage-view.tsx`) |
 | `#/coverages/<id>` | A coverage's entries (`entry-view.tsx`) |
-| `#/connection/<tab>` | Slack Connection (`slack-settings-page.tsx`): the connect flow, then the Channel Mappings and Monitor tabs in `src/admin/utils/slack-tabs.ts`. Each tab sets a header subtitle; the setup screen has none |
+| `#/connection/<tab>` | Slack Connection (`slack-settings-page.tsx`): the connect flow, then the Channel Mappings and Monitor tabs in `src/admin/utils/slack-tabs.ts`. Each tab sets a header subtitle; the setup screen has none. |
 | `#/settings/<tab>` | Settings (`settings-page.tsx`), with the General, Slack and AI tabs in `src/admin/utils/settings-tabs.ts`. See [Settings](#settings). |
 
 Old addresses still work. `admin.php?page=rolling-coverage-ai`, no longer registered, reaches `admin_page_access_denied`, where `Admin::redirect_legacy_ai_page()` sends it to `#/settings/ai` on the Settings page. The `#/ai` route goes to the same tab in the app, and `#/connection/settings` loads the Settings page's Slack tab (`slack-settings-page.tsx`), since a hash never reaches the server. The block's Edit the prompt link uses `Admin::get_settings_url( 'ai' )`.
