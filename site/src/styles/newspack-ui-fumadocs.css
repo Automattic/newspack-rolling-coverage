@@ -157,12 +157,3 @@ figure.shiki .fd-scroll-container:focus-visible {
 .dark [data-search-overlay] {
 	--search-overlay-ink: var(--newspack-ui-color-neutral-100);
 }
-
-[data-search-overlay] [data-search-results] {
-	--newspack-ui-color-text: var(--search-overlay-ink);
-	--newspack-ui-color-text-muted: color-mix(in oklab, var(--search-overlay-ink) 78%, transparent);
-	--newspack-ui-color-border: color-mix(in oklab, var(--search-overlay-ink) 30%, transparent);
-	--newspack-ui-color-neutral-fill: color-mix(in oklab, var(--search-overlay-ink) 14%, transparent);
-	--newspack-ui-color-accent: var(--search-overlay-ink);
-	color: var(--newspack-ui-color-text);
-}
