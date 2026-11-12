@@ -30,7 +30,7 @@ const TOP_HEADING_LEVELS = [ 0, 2, 3, 4, 5, 6 ];
 
 /**
  * Renders the Slack tab of Settings: the message ignore prefix, the emoji that publish
- * or draft a message in channels set to Emoji trigger, the Highest Heading
+ * or draft a message in channels set to Emoji trigger, the Highest heading
  * for titles and headings typed with # (or Off), and the WordPress bot user
  * that authors ingested entries. Saving happens from the page header.
  *
@@ -132,7 +132,7 @@ function IngestionSettingsTab( {
 						__nextHasNoMarginBottom
 						__next40pxDefaultSize
 						label={ __(
-							'Ignore Prefix',
+							'Ignore prefix',
 							'newspack-rolling-coverage'
 						) }
 						value={ ignorePrefix }
@@ -146,7 +146,7 @@ function IngestionSettingsTab( {
 						__nextHasNoMarginBottom
 						__next40pxDefaultSize
 						label={ __(
-							'Publish Emoji',
+							'Publish emoji',
 							'newspack-rolling-coverage'
 						) }
 						value={ publishReaction }
@@ -160,7 +160,7 @@ function IngestionSettingsTab( {
 						__nextHasNoMarginBottom
 						__next40pxDefaultSize
 						label={ __(
-							'Draft Emoji',
+							'Draft emoji',
 							'newspack-rolling-coverage'
 						) }
 						value={ draftReaction }
@@ -188,7 +188,7 @@ function IngestionSettingsTab( {
 						__nextHasNoMarginBottom
 						__next40pxDefaultSize
 						label={ __(
-							'Highest Heading',
+							'Highest heading',
 							'newspack-rolling-coverage'
 						) }
 						value={ String( topHeadingLevel ) }
@@ -198,7 +198,7 @@ function IngestionSettingsTab( {
 								0 === level
 									? _x(
 											'Off',
-											'Highest Heading option: no titles or headings',
+											'Highest heading option: no titles or headings',
 											'newspack-rolling-coverage'
 										)
 									: sprintf(
