@@ -231,6 +231,10 @@ function CoverageView() {
 		actions: headerActions,
 		count: isFirstLoad ? undefined : paginationInfo.totalItems,
 		isEmpty,
+		subTitle: __(
+			'Create liveblogs and set whether each one is live, paused, or ended.',
+			'newspack-rolling-coverage'
+		),
 	} );
 
 	const { requestConfirm, dialog: confirmDialog } = useConfirmDialog();
