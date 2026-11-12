@@ -102,7 +102,7 @@ class Breakout_Card {
 		return [
 			'post_id'  => $post->ID,
 			'url'      => $url,
-			'title'    => self::plain_text( apply_filters( 'the_title', $post->post_title, $post->ID ) ),
+			'title'    => self::plain_text( apply_filters( 'the_title', $post->post_title, $post->ID ) ), // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Core hook.
 			'summary'  => $with_summary ? self::summary_or_entry_words( $post, $entry_id ) : '',
 			'image_id' => (int) get_post_thumbnail_id( $post ),
 		];

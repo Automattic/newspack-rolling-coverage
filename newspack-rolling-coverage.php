@@ -38,6 +38,6 @@ Newspack_Rolling_Coverage\Initializer::init();
 add_action(
 	'init',
 	function () {
-		load_plugin_textdomain( 'newspack-rolling-coverage', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
+		load_plugin_textdomain( 'newspack-rolling-coverage', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' ); // phpcs:ignore PluginCheck.CodeAnalysis.DiscouragedFunctions.load_plugin_textdomainFound -- Loads translations bundled in languages/, since the plugin ships outside WordPress.org.
 	}
 );

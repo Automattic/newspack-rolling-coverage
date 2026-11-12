@@ -482,7 +482,7 @@ class Admin {
 			[ 'Newspack\Blocks', 'enqueue_block_editor_assets' ]
 		);
 
-		do_action( 'enqueue_block_editor_assets' );
+		do_action( 'enqueue_block_editor_assets' ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Core hook.
 
 		// Re-add newspack-plugin's editor UI scripts.
 		add_action(

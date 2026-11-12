@@ -421,8 +421,8 @@ class Entry_Bindings {
 		$words  = self::words_html( $blocks );
 
 		if ( self::has_visible_text( $words ) ) {
-			$length = (int) apply_filters( 'excerpt_length', (int) _x( '55', 'excerpt_length' ) ); // phpcs:ignore WordPress.WP.I18n.MissingArgDomain -- Core's own default, translated with core.
-			$more   = (string) apply_filters( 'excerpt_more', ' [&hellip;]' );
+			$length = (int) apply_filters( 'excerpt_length', (int) _x( '55', 'excerpt_length' ) ); // phpcs:ignore WordPress.WP.I18n.MissingArgDomain, WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Core's own hook and default, translated with core.
+			$more   = (string) apply_filters( 'excerpt_more', ' [&hellip;]' ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Core hook.
 
 			return Post_Type::get_html_excerpt( $words, max( 1, $length ), $more );
 		}
