@@ -9,7 +9,7 @@
 use Newspack_Rolling_Coverage\Admin;
 
 /**
- * The Settings page holds the General and AI tabs, which need different
+ * The Settings page holds the General, Slack and AI tabs, which need different
  * capabilities, and replaces the AI page.
  */
 class Test_Settings_Page extends Rolling_Coverage_TestCase {
@@ -35,7 +35,7 @@ class Test_Settings_Page extends Rolling_Coverage_TestCase {
 
 	/**
 	 * A user who can manage options but not edit others' posts can still
-	 * open the AI tab, so the page uses its capability.
+	 * open the Slack and AI tabs, so the page uses their capability.
 	 */
 	public function test_options_only_user_gets_the_ai_tab_capability() {
 		$user = self::factory()->user->create_and_get( [ 'role' => 'subscriber' ] );
@@ -46,8 +46,9 @@ class Test_Settings_Page extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * A user with neither capability gets the General tab's, which they
-	 * don't have, so the page stays hidden.
+	 * A user who can't edit others' posts gets the Slack and AI tabs'
+	 * capability, which an author doesn't have either, so the page stays
+	 * hidden.
 	 */
 	public function test_user_without_either_capability_cannot_open_the_page() {
 		wp_set_current_user( self::factory()->user->create( [ 'role' => 'author' ] ) );

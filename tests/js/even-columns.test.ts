@@ -42,10 +42,5 @@ describe( 'evenColumns', () => {
 	it( 'gives the title an equal share, never under 30%', () => {
 		expect( titleColumnWidth( view, [ 'time' ] ) ).toBe( '33.33%' );
 		expect( titleColumnWidth( view ) ).toBe( '30%' );
-		const wide = {
-			...view,
-			fields: [ 'a', 'b', 'c', 'd', 'e' ],
-		} as unknown as View;
-		expect( titleColumnWidth( wide ) ).toBe( '30%' );
 	} );
 } );

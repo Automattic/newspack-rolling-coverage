@@ -128,11 +128,7 @@ class Admin {
 	 * @return string Capability name.
 	 */
 	public static function get_settings_capability(): string {
-		if ( ! Status_Labels::can_manage() && AI_Settings::can_manage_settings() ) {
-			return 'manage_options';
-		}
-
-		return 'edit_others_posts';
+		return Status_Labels::can_manage() ? 'edit_others_posts' : 'manage_options';
 	}
 
 	/**

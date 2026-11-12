@@ -30,7 +30,7 @@ import { announceTrashedEntry } from './utils/notices';
  * the SPA tracks its own route in the hash. Routes:
  *   /coverages                   — coverage list (auto-redirected from root)
  *   /coverages/{id}              — rolling coverage entries
- *   /settings/{tab}              — Settings: general labels, AI prompts
+ *   /settings/{tab}              — Settings: general labels, Slack, AI prompts
  *   /ai                          — old AI page, sent to the Settings AI tab
  *   /connection                  — connection page (adapter dispatch)
  *   /connection/{tab}            — adapter-specific settings tab

@@ -28,8 +28,10 @@ function getShares( view: View, fitColumns: string[] ) {
 
 /**
  * Gives a table consistent column widths, as the Newspack admin lists do:
- * every visible column except the title takes an equal share of what the title leaves. Without it the browser hands all spare width to the
- * title column, so a short title still fills half the table. A column's other
+ * the title takes an equal share, never less than 30%, and every other visible
+ * column an equal share of what the title leaves. Without it the browser hands
+ * all spare width to the title column, so a short title still fills half the
+ * table. A column's other
  * settings, such as its alignment, are kept. The widths follow whichever
  * columns the viewer has switched on, so they are worked out on every render
  * and never stored with the view.
