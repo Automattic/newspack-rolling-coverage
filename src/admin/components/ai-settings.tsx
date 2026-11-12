@@ -147,6 +147,7 @@ function AISettings( {
 		useState< AiSettingsType >( initialSettings );
 	const [ isSaving, setIsSaving ] = useState( false );
 	const [ isLoading, setIsLoading ] = useState( false );
+	const [ hasLoaded, setHasLoaded ] = useState( false );
 	const [ error, setError ] = useState< string | null >( null );
 	const { requestConfirm, dialog: confirmDialog } = useConfirmDialog();
 
@@ -159,6 +160,7 @@ function AISettings( {
 		if ( result.success && result.data ) {
 			setSettings( result.data );
 			setSavedSettings( result.data );
+			setHasLoaded( true );
 		} else {
 			setError(
 				result.error ||
@@ -191,7 +193,7 @@ function AISettings( {
 			setSettings( result.data );
 			setSavedSettings( result.data );
 			notifySuccess(
-				__( 'AI settings saved.', 'newspack-rolling-coverage' )
+				__( 'Settings saved.', 'newspack-rolling-coverage' )
 			);
 		} else {
 			setError(
@@ -331,7 +333,11 @@ function AISettings( {
 				className="newspack-rolling-coverage-settings"
 			>
 				{ error && (
-					<Notice status="error" onRemove={ () => setError( null ) }>
+					<Notice
+						status="error"
+						politeness={ hasLoaded ? 'assertive' : 'polite' }
+						onRemove={ () => setError( null ) }
+					>
 						{ error }
 					</Notice>
 				) }

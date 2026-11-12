@@ -14,7 +14,7 @@ import { notifySuccess } from '../utils/notices';
 
 /**
  * Holds the Slack settings a publisher can edit (ignore prefix, trigger
- * emoji, Highest Heading) and the workspace info that shows the bot user.
+ * emoji, Highest heading) and the workspace info that shows the bot user.
  * Loads them once Slack is connected and saves all four through
  * `POST /slack/settings`.
  *
@@ -55,7 +55,7 @@ function useSlackIngestionSettings() {
 				setError(
 					result.error ||
 						__(
-							'Failed to load Slack settings.',
+							'The Slack settings could not be loaded. Reload the page to try again.',
 							'newspack-rolling-coverage'
 						)
 				);
