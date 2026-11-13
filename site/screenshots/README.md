@@ -62,7 +62,7 @@ Run `remove` before activating the WordPress AI plugin or OneSignal on the scree
 
 The site's own administrator account stays, and still appears in user lists and author menus, so give it a neutral name such as "Admin".
 
-Run the same command again at any time to reset the demo content. A rerun keeps James Smith and the authors, and recreates everything else. On a site seeded before the demo authors changed, run `remove` once first: a rerun keeps the old authors too. To remove everything the seed created and put the settings back:
+Run the same command again at any time to reset the demo content. A rerun keeps James Smith and the authors, and recreates everything else. On a site seeded before the demo authors changed, run `remove` once first: a rerun keeps the old authors too. The next seed creates James Smith again and prints a new password. To remove everything the seed created and put the settings back:
 
 ```bash
 wp eval-file wp-content/plugins/newspack-rolling-coverage/site/screenshots/seed.php remove
