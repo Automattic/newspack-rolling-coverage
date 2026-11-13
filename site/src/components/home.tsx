@@ -223,13 +223,13 @@ export function Home( props: SitePageProps ) {
 					sizes="(min-width: 1328px) 1264px, (min-width: 782px) calc(100vw - 4rem), calc(100vw - 2rem)"
 					width={ 3024 }
 					height={ 1964 }
-					alt="A liveblog of a river flood on a news site: a pinned entry from the county’s emergency management director at the top, then timestamped entries with the newest first, including a Full story card, each with its reporter and a Share link."
+					alt="A liveblog of a river flood on a news site, below the site’s masthead: a pinned entry from the county’s emergency management director at the top, then timestamped entries with the newest first, each with its reporter and a Share link."
 					loading="lazy"
 					decoding="async"
 					className="h-auto w-full rounded-(--newspack-ui-radius-surface) border border-border"
 				/>
 				<figcaption className="mt-(--newspack-ui-spacer-2) max-w-[70ch] type-small text-muted-foreground">
-					A liveblog on a demo site: the pinned entry first, then the feed in the Clock layout, with a full story card.
+					A liveblog on a demo site: the pinned entry first, then the feed in the Clock layout.
 				</figcaption>
 			</figure>
 

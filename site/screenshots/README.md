@@ -141,11 +141,11 @@ npm run shot -- guides/placements-1 --site https://screenshots.local \
   --spotlight 'button:has-text("Add Liveblog")' --spotlight 'text=Bridge Street water main break'
 ```
 
-Scrolling a signed-out page to an element, then down a little further, after waiting for an animation:
+Scrolling a signed-out page to an element, then down a little further, after waiting for an animation. This is a try-out, so `--out` writes it to a scratch file instead of a docs image:
 
 ```bash
-npm run shot -- guides/layouts-1 --site https://screenshots.local \
-  --url live-kettle-river-flood/ --logged-out \
+npm run shot -- guides/scratch-1 --site https://screenshots.local \
+  --url live-kettle-river-flood/ --logged-out --out /tmp/scroll-test.webp \
   --scroll 'text=River falls below 20 feet' --scroll 200 --wait 500
 ```
 
@@ -167,7 +167,7 @@ npm run shot -- getting-started/put-the-feed-on-a-page-4 --site https://screensh
 | `--click <selector>` | Clicks an element before the capture, and waits for the page to settle. Repeat it for several clicks, in order. |
 | `--fill <selector>` and `--value <text>` | Types the text into the first field that matches, such as a name in a panel or a paragraph in the entry editor. When the field is a select menu, picks the choice with that label instead. Put each `--value` right after its `--fill`. |
 | `--hover <selector>` | Rests the pointer on the first element that matches, to show a tooltip or a hover state. The pointer stays there for the capture. Repeat it for several hovers. |
-| `--scroll <selector or px>` | With a selector, scrolls the first element that matches into the middle of the window. With a number of pixels, scrolls down by that much, or up when it's negative. It scrolls an open modal first, then the block editor's canvas, then the page. |
+| `--scroll <selector or px>` | With a selector, scrolls the first element that matches into the middle of the window. With a number of pixels, scrolls down by that much, or up when it's negative. Write a negative number with an equals sign, as `--scroll=-2000`: a bare `--scroll -2000` fails to parse. It scrolls an open modal first, then the block editor's canvas, then the page. |
 | `--press <key>` | Presses a key, such as `Escape`, `Enter` or `Control+a`, using Playwright's key names. Repeat it for several keys. |
 | `--wait <ms>` | Waits that many milliseconds, for an animation or a slow panel. Repeat it where you need it. |
 | `--eval <js>` | Runs JavaScript in the page and in each frame inside it, such as the editor canvas, for a step no other option covers. Errors in the main page are printed. Repeat it for several scripts. |
@@ -180,6 +180,20 @@ Clicks, fills, hovers, scrolls, key presses, waits and scripts all run in the or
 Selectors can be CSS, or Playwright's text selectors such as `button:has-text("Add Entry")` and `text=Bridge Street water main break`. To find a field by its label, use `internal:label="<label>"s`, where the `s` makes the match exact. They also find elements inside the block editor's canvas.
 
 The script also captures without waiting when it isn't run from a terminal.
+
+### Selector tips
+
+- Playwright's `:text-is()` doesn't match row-action menu items whose text sits in a child element. Use `:has-text()`, or `:has(:text-is("..."))`.
+- A bare `[role="menuitem"]` or `[role="menu"]` also matches hidden elements in the admin bar. Scope it, for example `div[role="menuitem"]:has-text("Edit")`.
+- "Choose a layout" opens scrolled to the block's current layout. Add `--scroll=-5000` to show the top of the list.
+
+### Clean up after a session
+
+Signing in through wp-admin makes WordPress's Quick Draft create an auto-draft post. Delete the strays after a session:
+
+```bash
+wp post delete $(wp post list --post_type=post --post_status=auto-draft --format=ids) --force
+```
 
 ## House settings
 
