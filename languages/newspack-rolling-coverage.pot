@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-12T21:07:18+00:00\n"
+"POT-Creation-Date: 2026-11-13T10:07:50+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: newspack-rolling-coverage\n"
@@ -249,7 +249,7 @@ msgid "entries"
 msgstr ""
 
 #: includes/blocks/class-entry-name.php:227
-#: dist/admin.js:208
+#: dist/admin.js:209
 msgid "Set both the singular and the plural, or leave both empty."
 msgstr ""
 
@@ -617,7 +617,7 @@ msgid "(no title)"
 msgstr ""
 
 #: includes/class-placements.php:449
-#: dist/admin.js:209
+#: dist/admin.js:210
 msgid "Coverage Status"
 msgstr ""
 
@@ -1068,7 +1068,7 @@ msgid "Channel unlinked successfully."
 msgstr ""
 
 #: includes/slack/class-slack-webhook-controller.php:1503
-#: dist/admin.js:210
+#: dist/admin.js:211
 msgid "(unknown)"
 msgstr ""
 
@@ -1163,7 +1163,7 @@ msgid "Monitor"
 msgstr ""
 
 #: dist/admin.js:4
-#: dist/admin.js:210
+#: dist/admin.js:211
 #: dist/blocks/coverage-follow/index.js:1
 #: dist/blocks/coverage-follow/index.js:3
 #: dist/blocks/coverage-status/index.js:1
@@ -1215,7 +1215,7 @@ msgstr ""
 #: dist/admin.js:179
 #: dist/admin.js:184
 #: dist/admin.js:198
-#: dist/admin.js:210
+#: dist/admin.js:211
 #: dist/admin.js:212
 msgid "Status"
 msgstr ""
@@ -1281,8 +1281,8 @@ msgstr ""
 #: dist/admin.js:177
 #: dist/admin.js:188
 #: dist/admin.js:197
-#: dist/admin.js:208
 #: dist/admin.js:209
+#: dist/admin.js:210
 msgid "Save"
 msgstr ""
 
@@ -1362,12 +1362,12 @@ msgid "Messages arrive as drafts for an editor to review."
 msgstr ""
 
 #: dist/admin.js:179
-#: dist/admin.js:210
+#: dist/admin.js:211
 msgid "Connected"
 msgstr ""
 
 #: dist/admin.js:179
-#: dist/admin.js:210
+#: dist/admin.js:211
 #: dist/admin.js:212
 msgid "Channel"
 msgstr ""
@@ -1381,22 +1381,22 @@ msgid "Messages posted in this channel become entries in this liveblog, as the p
 msgstr ""
 
 #: dist/admin.js:179
-#: dist/admin.js:210
+#: dist/admin.js:211
 msgid "Channel ID"
 msgstr ""
 
 #: dist/admin.js:179
-#: dist/admin.js:210
+#: dist/admin.js:211
 msgid "Last Sync"
 msgstr ""
 
 #: dist/admin.js:179
-#: dist/admin.js:210
+#: dist/admin.js:211
 msgid "Never"
 msgstr ""
 
 #: dist/admin.js:179
-#: dist/admin.js:210
+#: dist/admin.js:211
 msgid "Publish Mode"
 msgstr ""
 
@@ -1413,7 +1413,7 @@ msgid "Failed to load the publish mode."
 msgstr ""
 
 #: dist/admin.js:179
-#: dist/admin.js:212
+#: dist/admin.js:208
 msgid "Failed to update the publish mode."
 msgstr ""
 
@@ -1422,7 +1422,7 @@ msgid "Could not connect to Slack."
 msgstr ""
 
 #: dist/admin.js:179
-#: dist/admin.js:212
+#: dist/admin.js:208
 msgid "Failed to disconnect."
 msgstr ""
 
@@ -1431,8 +1431,8 @@ msgid "Close"
 msgstr ""
 
 #: dist/admin.js:179
-#: dist/admin.js:210
 #: dist/admin.js:211
+#: dist/admin.js:212
 #: dist/admin.js:214
 msgid "Disconnect"
 msgstr ""
@@ -2208,7 +2208,7 @@ msgid "Approve Rolling Coverage for AI"
 msgstr ""
 
 #: dist/admin.js:207
-msgid "Rolling Coverage is waiting for approval to use the AI provider. Once it’s approved, editors can sum up the latest entries in a liveblog from the Rolling Coverage block."
+msgid "Key takeaways can’t use your AI provider until Rolling Coverage is approved."
 msgstr ""
 
 #: dist/admin.js:207
@@ -2216,7 +2216,7 @@ msgid "Go to Connector Approvals"
 msgstr ""
 
 #: dist/admin.js:207
-msgid "Connect an AI provider and turn on Rolling Coverage Key Takeaways in the AI settings. Editors can then sum up the latest entries in a liveblog from the Rolling Coverage block."
+msgid "Connect an AI provider, then turn on Key Takeaways in AI Settings."
 msgstr ""
 
 #: dist/admin.js:207
@@ -2224,11 +2224,11 @@ msgid "Go to AI Settings"
 msgstr ""
 
 #: dist/admin.js:207
-msgid "The WordPress AI plugin is active, but AI can’t run on this site yet. Ask a developer or the site’s host to check that the site meets the plugin’s requirements."
+msgid "The WordPress AI plugin is active but can’t run here yet. Ask your host or a developer to check its requirements."
 msgstr ""
 
 #: dist/admin.js:207
-msgid "Install and activate the WordPress AI plugin, connect an AI provider, and turn on Rolling Coverage Key Takeaways in its settings. Editors can then sum up the latest entries in a liveblog from the Rolling Coverage block."
+msgid "Install and activate the WordPress AI plugin."
 msgstr ""
 
 #: dist/admin.js:207
@@ -2236,7 +2236,7 @@ msgid "Go to Plugins"
 msgstr ""
 
 #: dist/admin.js:207
-msgid "Ask an administrator who manages plugins to install and activate the WordPress AI plugin. Then connect an AI provider and turn on Rolling Coverage Key Takeaways in its settings."
+msgid "Ask an administrator to install and activate the WordPress AI plugin."
 msgstr ""
 
 #: dist/admin.js:207
@@ -2272,7 +2272,7 @@ msgid "Choose which Slack messages become entries."
 msgstr ""
 
 #: dist/admin.js:207
-#: dist/admin.js:210
+#: dist/admin.js:208
 #: dist/admin.js:212
 msgid "Ignore prefix"
 msgstr ""
@@ -2345,327 +2345,335 @@ msgid "Edit User"
 msgstr ""
 
 #: dist/admin.js:208
-msgid "The settings couldn’t be loaded."
-msgstr ""
-
-#: dist/admin.js:208
-msgid "The settings couldn’t be saved."
-msgstr ""
-
-#: dist/admin.js:208
 #: dist/admin.js:209
-msgid "Settings saved."
-msgstr ""
-
-#: dist/admin.js:208
-msgid "Set the labels readers see in every liveblog."
-msgstr ""
-
-#: dist/admin.js:208
-#: dist/blocks/coverage-status/index.js:3
-msgid "Live label"
-msgstr ""
-
-#: dist/admin.js:208
-#: dist/blocks/coverage-status/index.js:3
-msgid "Paused label"
-msgstr ""
-
-#: dist/admin.js:208
-#: dist/blocks/coverage-status/index.js:3
-msgid "Ended label"
-msgstr ""
-
-#: dist/admin.js:208
-msgid "Entry Name"
-msgstr ""
-
-#: dist/admin.js:208
-msgid "Set what readers see entries called, written as they read mid-sentence, for example “update” and “updates”. Leave both empty to use “entry” and “entries”."
-msgstr ""
-
-#: dist/admin.js:208
-msgid "Singular"
-msgstr ""
-
-#: dist/admin.js:208
-msgid "Plural"
-msgstr ""
-
-#: dist/admin.js:208
-msgid "Jump to Latest"
-msgstr ""
-
-#: dist/admin.js:208
-msgid "Set the text of the button that takes readers back to the live feed. When it can, the button counts the new entries instead."
-msgstr ""
-
-#: dist/admin.js:208
-msgid "Button label"
-msgstr ""
-
-#: dist/admin.js:208
-msgid "Full Story"
-msgstr ""
-
-#. translators: %s: the default Full story label.
-#: dist/admin.js:209
-#, js-format
-msgid "Set the label shown on an entry once its breakout post is published. Each breakout post can set its own in the post editor. Leave empty to use “%s”."
-msgstr ""
-
-#: dist/admin.js:209
-#: dist/breakout-editor.js:1
-msgid "Full story label"
-msgstr ""
-
-#: dist/admin.js:209
-msgid "Set the text the status indicator shows for each liveblog status. A block can still set its own."
-msgstr ""
-
-#: dist/admin.js:209
-msgid "Fetching settings…"
-msgstr ""
-
-#: dist/admin.js:209
-msgid "The Slack settings could not be loaded. Reload the page to try again."
-msgstr ""
-
-#: dist/admin.js:209
-msgid "Failed to save settings."
-msgstr ""
-
-#: dist/admin.js:209
-msgid "Set how Slack messages become liveblog entries."
-msgstr ""
-
-#: dist/admin.js:209
-msgid "Connect Slack first"
-msgstr ""
-
-#: dist/admin.js:209
-msgid "These settings apply once Slack is connected. Connect a Slack workspace to post liveblog entries from Slack."
-msgstr ""
-
-#: dist/admin.js:209
-msgid "Go to Slack Connection"
-msgstr ""
-
-#: dist/admin.js:209
-msgid "Failed to load AI settings."
-msgstr ""
-
-#: dist/admin.js:209
-msgid "Failed to save AI settings."
-msgstr ""
-
-#: dist/admin.js:209
-msgid "Reset to defaults?"
-msgstr ""
-
-#: dist/admin.js:209
-msgid "The Key Takeaways prompt goes back to the default text and is saved straight away. The current prompt can’t be recovered."
-msgstr ""
-
-#: dist/admin.js:209
-msgid "Reset"
-msgstr ""
-
-#: dist/admin.js:209
-msgid "Failed to reset AI settings."
-msgstr ""
-
-#: dist/admin.js:209
-msgid "Prompts reset to defaults."
-msgstr ""
-
-#: dist/admin.js:209
-msgid "More actions"
-msgstr ""
-
-#: dist/admin.js:209
-msgid "Reset to Defaults"
-msgstr ""
-
-#: dist/admin.js:209
-msgid "Set how AI sums up a liveblog for readers."
-msgstr ""
-
-#: dist/admin.js:209
-msgid "The prompt exceeds the maximum length. Shorten the text to stay within the limit."
-msgstr ""
-
-#: dist/admin.js:209
-msgid "Key Takeaways"
-msgstr ""
-
-#: dist/admin.js:209
-msgid "The instruction the AI follows when it sums up a liveblog in a short list of key takeaways for readers."
-msgstr ""
-
-#: dist/admin.js:209
-msgid "Prompt"
-msgstr ""
-
-#. translators: 1: prompt placeholder token, 2: character count, 3: max character count
-#: dist/admin.js:210
-#, js-format
-msgid "Use %1$s where the maximum number of takeaways should go. Keep it short: the AI already has the liveblog entries. (%2$d / %3$d characters)"
-msgstr ""
-
-#: dist/admin.js:210
-msgid "No chat-source adapters are configured yet."
-msgstr ""
-
-#: dist/admin.js:210
-#: dist/admin.js:212
 msgid "Bot User OAuth Token"
 msgstr ""
 
-#: dist/admin.js:210
-#: dist/admin.js:212
+#: dist/admin.js:208
+#: dist/admin.js:209
 msgid "Starts with xoxb-"
 msgstr ""
 
-#: dist/admin.js:210
-#: dist/admin.js:212
+#: dist/admin.js:208
+#: dist/admin.js:209
 msgid "Signing Secret"
 msgstr ""
 
-#: dist/admin.js:210
-#: dist/admin.js:212
+#: dist/admin.js:208
+#: dist/admin.js:209
 msgid "32-character hex string"
 msgstr ""
 
-#: dist/admin.js:210
+#: dist/admin.js:208
 msgid "Messages starting with this prefix are ignored during ingestion, and so are the replies in their threads."
 msgstr ""
 
-#: dist/admin.js:210
+#: dist/admin.js:208
+msgid "Failed to load channels."
+msgstr ""
+
+#: dist/admin.js:208
+msgid "Failed to load Slack settings."
+msgstr ""
+
+#: dist/admin.js:208
+msgid "Channel disconnected."
+msgstr ""
+
+#: dist/admin.js:208
+msgid "Failed to disconnect the channel."
+msgstr ""
+
+#: dist/admin.js:208
+msgid "Connection failed."
+msgstr ""
+
+#: dist/admin.js:208
 msgid "Manifest copied to clipboard."
 msgstr ""
 
-#: dist/admin.js:210
+#: dist/admin.js:208
 msgid "Could not copy the manifest."
 msgstr ""
 
-#: dist/admin.js:210
+#: dist/admin.js:208
 #: dist/blocks/rolling-coverage/index.js:28
 #: dist/blocks/share/view.js:1
 msgid "Copied!"
 msgstr ""
 
-#: dist/admin.js:210
+#: dist/admin.js:208
 msgid "Copy Manifest"
 msgstr ""
 
-#: dist/admin.js:210
-#: dist/admin.js:212
-msgid "Connection Status"
-msgstr ""
-
-#: dist/admin.js:210
-#: dist/admin.js:212
-msgid "Workspace"
-msgstr ""
-
-#: dist/admin.js:210
-msgid "Workspace ID"
-msgstr ""
-
-#: dist/admin.js:210
-msgid "Bot token"
-msgstr ""
-
-#: dist/admin.js:210
-msgid "Slack bot user ID"
-msgstr ""
-
-#: dist/admin.js:210
-msgid "(deleted)"
-msgstr ""
-
-#. translators: %s: Slack channel name, or its ID when the name is unknown.
-#: dist/admin.js:211
-#, js-format
-msgid "Publish mode for %s"
-msgstr ""
-
-#: dist/admin.js:211
-msgid "No channels linked yet"
-msgstr ""
-
-#: dist/admin.js:211
-msgid "Link a Slack channel to a liveblog from the All Liveblogs list."
-msgstr ""
-
-#: dist/admin.js:211
-msgid "Disconnect channel"
-msgstr ""
-
-#: dist/admin.js:211
-msgid "Disconnect this channel from its liveblog? Its messages will stop becoming entries."
-msgstr ""
-
-#: dist/admin.js:211
-msgid "Fetching channels…"
-msgstr ""
-
-#: dist/admin.js:211
+#: dist/admin.js:208
 msgid "Connect to Slack"
 msgstr ""
 
-#: dist/admin.js:211
+#: dist/admin.js:208
 msgid "Turn messages in a Slack channel into liveblog entries."
 msgstr ""
 
-#: dist/admin.js:211
+#: dist/admin.js:208
 msgid "Create a Slack app"
 msgstr ""
 
 #. translators: <a> wraps the link to Slack's app creation page.
-#: dist/admin.js:212
+#: dist/admin.js:209
 msgid "Create a new app from a manifest at <a>api.slack.com/apps</a>"
 msgstr ""
 
-#: dist/admin.js:212
+#: dist/admin.js:209
 msgid "Paste the app manifest"
 msgstr ""
 
-#: dist/admin.js:212
+#: dist/admin.js:209
 msgid "Copy the manifest and paste it into Slack when it asks for one."
 msgstr ""
 
-#: dist/admin.js:212
+#: dist/admin.js:209
 msgid "Hide Manifest"
 msgstr ""
 
-#: dist/admin.js:212
+#: dist/admin.js:209
 msgid "Show Manifest"
 msgstr ""
 
-#: dist/admin.js:212
+#: dist/admin.js:209
 msgid "App Manifest"
 msgstr ""
 
-#: dist/admin.js:212
+#: dist/admin.js:209
 msgid "Install the app"
 msgstr ""
 
-#: dist/admin.js:212
+#: dist/admin.js:209
 msgid "Install the new app to your Slack workspace."
 msgstr ""
 
-#: dist/admin.js:212
+#: dist/admin.js:209
 msgid "Add the app credentials"
 msgstr ""
 
-#: dist/admin.js:212
+#: dist/admin.js:209
 msgid "Copy the Bot User OAuth Token from OAuth & Permissions and the Signing Secret from Basic Information, then paste them here."
 msgstr ""
 
-#: dist/admin.js:212
+#: dist/admin.js:209
 msgid "Verify & Connect"
+msgstr ""
+
+#: dist/admin.js:209
+msgid "The settings couldn’t be loaded."
+msgstr ""
+
+#: dist/admin.js:209
+msgid "The settings couldn’t be saved."
+msgstr ""
+
+#: dist/admin.js:209
+#: dist/admin.js:210
+msgid "Settings saved."
+msgstr ""
+
+#: dist/admin.js:209
+msgid "Set the labels readers see in every liveblog."
+msgstr ""
+
+#: dist/admin.js:209
+#: dist/blocks/coverage-status/index.js:3
+msgid "Live label"
+msgstr ""
+
+#: dist/admin.js:209
+#: dist/blocks/coverage-status/index.js:3
+msgid "Paused label"
+msgstr ""
+
+#: dist/admin.js:209
+#: dist/blocks/coverage-status/index.js:3
+msgid "Ended label"
+msgstr ""
+
+#: dist/admin.js:209
+msgid "Entry Name"
+msgstr ""
+
+#: dist/admin.js:209
+msgid "Set what readers see entries called, written as they read mid-sentence, for example “update” and “updates”. Leave both empty to use “entry” and “entries”."
+msgstr ""
+
+#: dist/admin.js:209
+msgid "Singular"
+msgstr ""
+
+#: dist/admin.js:209
+msgid "Plural"
+msgstr ""
+
+#: dist/admin.js:209
+msgid "Jump to Latest"
+msgstr ""
+
+#: dist/admin.js:209
+msgid "Set the text of the button that takes readers back to the live feed. When it can, the button counts the new entries instead."
+msgstr ""
+
+#: dist/admin.js:209
+msgid "Button label"
+msgstr ""
+
+#: dist/admin.js:209
+msgid "Full Story"
+msgstr ""
+
+#. translators: %s: the default Full story label.
+#: dist/admin.js:210
+#, js-format
+msgid "Set the label shown on an entry once its breakout post is published. Each breakout post can set its own in the post editor. Leave empty to use “%s”."
+msgstr ""
+
+#: dist/admin.js:210
+#: dist/breakout-editor.js:1
+msgid "Full story label"
+msgstr ""
+
+#: dist/admin.js:210
+msgid "Set the text the status indicator shows for each liveblog status. A block can still set its own."
+msgstr ""
+
+#: dist/admin.js:210
+msgid "Fetching settings…"
+msgstr ""
+
+#: dist/admin.js:210
+msgid "The Slack settings could not be loaded. Reload the page to try again."
+msgstr ""
+
+#: dist/admin.js:210
+msgid "Failed to save settings."
+msgstr ""
+
+#: dist/admin.js:210
+msgid "Set how Slack messages become liveblog entries."
+msgstr ""
+
+#: dist/admin.js:210
+msgid "Failed to load AI settings."
+msgstr ""
+
+#: dist/admin.js:210
+msgid "Failed to save AI settings."
+msgstr ""
+
+#: dist/admin.js:210
+msgid "Reset to defaults?"
+msgstr ""
+
+#: dist/admin.js:210
+msgid "The Key Takeaways prompt goes back to the default text and is saved straight away. The current prompt can’t be recovered."
+msgstr ""
+
+#: dist/admin.js:210
+msgid "Reset"
+msgstr ""
+
+#: dist/admin.js:210
+msgid "Failed to reset AI settings."
+msgstr ""
+
+#: dist/admin.js:210
+msgid "Prompts reset to defaults."
+msgstr ""
+
+#: dist/admin.js:210
+msgid "More actions"
+msgstr ""
+
+#: dist/admin.js:210
+msgid "Reset to Defaults"
+msgstr ""
+
+#: dist/admin.js:210
+msgid "Set how AI sums up a liveblog for readers."
+msgstr ""
+
+#: dist/admin.js:210
+msgid "The prompt exceeds the maximum length. Shorten the text to stay within the limit."
+msgstr ""
+
+#: dist/admin.js:210
+msgid "Key Takeaways"
+msgstr ""
+
+#: dist/admin.js:210
+msgid "The instruction the AI follows when it sums up a liveblog in a short list of key takeaways for readers."
+msgstr ""
+
+#: dist/admin.js:210
+msgid "Prompt"
+msgstr ""
+
+#. translators: 1: prompt placeholder token, 2: character count, 3: max character count
+#: dist/admin.js:211
+#, js-format
+msgid "Use %1$s where the maximum number of takeaways should go. Keep it short: the AI already has the liveblog entries. (%2$d / %3$d characters)"
+msgstr ""
+
+#: dist/admin.js:211
+msgid "No chat-source adapters are configured yet."
+msgstr ""
+
+#: dist/admin.js:211
+#: dist/admin.js:212
+msgid "Connection Status"
+msgstr ""
+
+#: dist/admin.js:211
+#: dist/admin.js:212
+msgid "Workspace"
+msgstr ""
+
+#: dist/admin.js:211
+msgid "Workspace ID"
+msgstr ""
+
+#: dist/admin.js:211
+msgid "Bot token"
+msgstr ""
+
+#: dist/admin.js:211
+msgid "Slack bot user ID"
+msgstr ""
+
+#: dist/admin.js:211
+msgid "(deleted)"
+msgstr ""
+
+#. translators: %s: Slack channel name, or its ID when the name is unknown.
+#: dist/admin.js:212
+#, js-format
+msgid "Publish mode for %s"
+msgstr ""
+
+#: dist/admin.js:212
+msgid "No channels linked yet"
+msgstr ""
+
+#: dist/admin.js:212
+msgid "Link a Slack channel to a liveblog from the All Liveblogs list."
+msgstr ""
+
+#: dist/admin.js:212
+msgid "Disconnect channel"
+msgstr ""
+
+#: dist/admin.js:212
+msgid "Disconnect this channel from its liveblog? Its messages will stop becoming entries."
+msgstr ""
+
+#: dist/admin.js:212
+msgid "Fetching channels…"
 msgstr ""
 
 #: dist/admin.js:212
@@ -2763,26 +2771,6 @@ msgstr ""
 
 #: dist/admin.js:212
 msgid "Events appear here while this page is open. Post in a linked Slack channel or run a slash command to see activity."
-msgstr ""
-
-#: dist/admin.js:212
-msgid "Failed to load channels."
-msgstr ""
-
-#: dist/admin.js:212
-msgid "Failed to load Slack settings."
-msgstr ""
-
-#: dist/admin.js:212
-msgid "Channel disconnected."
-msgstr ""
-
-#: dist/admin.js:212
-msgid "Failed to disconnect the channel."
-msgstr ""
-
-#: dist/admin.js:212
-msgid "Connection failed."
 msgstr ""
 
 #: dist/admin.js:212
