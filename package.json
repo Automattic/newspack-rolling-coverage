@@ -46,6 +46,9 @@
 		"*.php": "npm run lint:php:staged"
 	},
 	"overrides": {
+		"@wordpress/stylelint-config": {
+			"@wordpress/theme": "^2.3.0"
+		},
 		"newspack-components": {
 			"@wordpress/api-fetch": "^7.55.0",
 			"@wordpress/base-styles": "^6.20.0",
