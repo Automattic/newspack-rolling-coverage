@@ -1,6 +1,6 @@
 # Docs screenshots
 
-The screenshots in `site/public/screenshots/` all show the same demo site, "The News Paper", taken at the same size and settings. This folder lets anyone retake one so it matches the rest:
+The screenshots in `site/public/screenshots/` all show the same demo site, "The Riverbend Gazette", taken at the same size and settings. This folder lets anyone retake one so it matches the rest:
 
 - `seed.php` turns a local WordPress site into that demo site, and resets it when you run it again.
 - `shot.mjs` (run as `npm run shot`) takes one screenshot at the house settings, with an optional spotlight, and writes the WebP into `site/public/screenshots/`.
@@ -49,11 +49,11 @@ wp user update james --user_pass=<new password>
 
 The seed creates, and marks as its own:
 
-- The coverages and their statuses. Live: "Live: Storm Ingrid reaches the coast", "City Council Election Night" and "Downtown Water Main Break". Paused: "Winter Storm Warning" and "School Board Budget Vote". Ended: "Riverside Marathon 2026", "Live: Riverbend FC v Fresno Verde" and "Coast FC vs. Raleigh United".
-- Their entries, authors (with fixed avatars), photos, full story posts and pinned entries. Entry times are set relative to when you run the seed, so "2 days ago" reads the same whenever you seed.
-- The pages and posts that show them, such as `/live-storm-ingrid/`, `/coast-fc-vs-raleigh-united-live-updates/`, `/weather-desk/` and `/follow-the-storm/`, the front page, and two draft pages for editor screenshots: "Storm Ingrid" and "Storm Ingrid: live updates".
+- The coverages and their statuses. Live: "Live: Kettle River rises above flood stage", "Open Studios" and "Bridge Street water main break". Paused: "Winter storm warning" and "School board budget vote". Ended: "Kettle Greenway Half Marathon", "Live: Riverbend FC v Fresno Verde" and "Riverbend FC v Toledo Beacon".
+- Their entries, authors (with fixed avatars), all from the Gazette's newsroom, photos, full story posts and pinned entries. Entry times are set relative to when you run the seed, so "2 days ago" reads the same whenever you seed.
+- The pages and posts that show them, such as `/live-kettle-river-flood/`, `/riverbend-fc-v-toledo-beacon-live-updates/`, `/weather-desk/` and `/follow-the-river/`, the front page, and two draft pages for editor screenshots: "Kettle River flood" and "Kettle River flood: live updates".
 - The built-in layouts, the categories in the header menu that the site doesn't have yet, the header menu, the header template parts, and the site icon. Built-in layouts the site already has are reused, so if someone has edited one, images that show it can differ.
-- A connected Slack workspace, "The News Paper", with four channel mappings and the Slack Bot user. These are settings only: nothing talks to Slack. If the site already has Slack settings, the seed leaves Slack alone.
+- A connected Slack workspace, "The Riverbend Gazette", with four channel mappings and the Slack Bot user. These are settings only: nothing talks to Slack. If the site already has Slack settings, the seed leaves Slack alone.
 - A must-use plugin, `wp-content/mu-plugins/newspack-rc-screenshots.php`, copied from `fakes.php`. It makes the AI and Push Notifications screens appear without keys when those plugins aren't active, answers Key Takeaways with sample text, blocks every request WordPress's HTTP API makes to a host other than the site itself, blocks all email, turns away requests to the Slack webhooks, and gives every account a fixed avatar. It does nothing on a site the seed hasn't seeded.
 
 It also changes these settings, and keeps their old values to put back on removal: the site title, the active theme (with the widgets and menu locations of the theme it replaces), the front page, the site icon, the theme's styles (the Bulletin alt variation, with Times for headings and Helvetica for text), and the list of pinned entries. Changing the styles adds no revisions. Other plugins can react to a theme switch in ways removal can't undo, and cron events or webhooks they queued while the seed ran may still fire after removal.
@@ -110,12 +110,12 @@ npm run shot -- getting-started/create-your-first-coverage-1 --site https://scre
   --url "wp-admin/admin.php?page=rolling-coverage" --spotlight 'button:has-text("Add Liveblog")'
 ```
 
-An editor screen, starting from the list of draft pages: the script opens the "Storm Ingrid" draft, selects the Coverage Status block and spotlights the Automatic and Custom choice in its Liveblog panel. Leave out the last three options to do those steps yourself in the browser.
+An editor screen, starting from the list of draft pages: the script opens the "Kettle River flood" draft, selects the Coverage Status block and spotlights the Automatic and Custom choice in its Liveblog panel. Leave out the last three options to do those steps yourself in the browser.
 
 ```bash
 npm run shot -- blocks/coverage-status-2 --site https://screenshots.local \
   --url "wp-admin/edit.php?post_type=page&post_status=draft" \
-  --click 'a.row-title >> text="Storm Ingrid"' \
+  --click 'a.row-title >> text="Kettle River flood"' \
   --click '[data-type="newspack-rolling-coverage/coverage-status"]' \
   --spotlight '.block-editor-block-inspector .components-toggle-group-control'
 ```
@@ -126,7 +126,7 @@ A panel with its fields filled in: the script opens Add Liveblog, types a name a
 npm run shot -- getting-started/create-your-first-coverage-2 --site https://screenshots.local \
   --url "wp-admin/admin.php?page=rolling-coverage" \
   --click 'button:has-text("Add Liveblog")' \
-  --fill 'internal:label="Name"s' --value 'Hartwell Bridge closure: live updates' \
+  --fill 'internal:label="Name"s' --value 'Depot Street Bridge closure: live updates' \
   --fill 'internal:label="Description"s' --value 'Closures and diversions' \
   --click 'text=An internal note about this liveblog'
 ```
@@ -135,7 +135,7 @@ A page as a signed-out reader sees it:
 
 ```bash
 npm run shot -- getting-started/put-the-feed-on-a-page-4 --site https://screenshots.local \
-  --url live-storm-ingrid/ --logged-out
+  --url live-kettle-river-flood/ --logged-out
 ```
 
 ### Options
@@ -151,7 +151,7 @@ npm run shot -- getting-started/put-the-feed-on-a-page-4 --site https://screensh
 | `--now` | Captures as soon as the page settles, without opening a window or waiting for Enter. Use it with `--click` and `--spotlight` for screens you can reach without help. Without a saved sign-in it needs `WP_USER` and `WP_PASSWORD`, since it can't ask. |
 | `--out <file>` | Writes the image somewhere else, for trying things out. A relative path starts from the folder you ran `npm run` in. |
 
-Selectors can be CSS, or Playwright's text selectors such as `button:has-text("Add Entry")` and `text=Downtown Water Main Break`. To find a field by its label, use `internal:label="<label>"s`, where the `s` makes the match exact. They also find elements inside the block editor's canvas.
+Selectors can be CSS, or Playwright's text selectors such as `button:has-text("Add Entry")` and `text=Bridge Street water main break`. To find a field by its label, use `internal:label="<label>"s`, where the `s` makes the match exact. They also find elements inside the block editor's canvas.
 
 The script also captures without waiting when it isn't run from a terminal.
 
@@ -177,6 +177,6 @@ Before you commit an image, look at it.
 
 ## Credits
 
-- **Photos** in `assets/media/` (all but the site icon) are from [Pexels](https://www.pexels.com/), free to use under the [Pexels license](https://www.pexels.com/license/): `flood-street.jpg` by Sveta K, `tidal-turbines.jpg` by Lucy Meadows, `polling.jpg` by Osviel Rodriguez Valdés, `late-winner.jpg` by George Zografidis, `marathon.jpg` by Stephen Leonardi, and `stadium.jpg` by Leticia Golubov.
-- **The site icon**, `assets/media/site-icon.png`, was drawn for this folder with EB Garamond, which the Newspack Block Theme ships under the SIL Open Font License.
-- **Avatars** in `assets/avatars/` are flat colors made for this folder.
+- **Photos** in `assets/media/` (all but the site icon) are from [Pexels](https://www.pexels.com/), free to use under the [Pexels license](https://www.pexels.com/license/): `flood-street.jpg` by Sveta K, `polling.jpg` by Osviel Rodriguez Valdés, `late-winner.jpg` by George Zografidis, `marathon.jpg` by Stephen Leonardi, and `stadium.jpg` by Leticia Golubov.
+- **The site icon**, `assets/media/site-icon.png`, is The Riverbend Gazette's icon, made for Newspack's demo sites.
+- **Avatars** in `assets/avatars/` are flat colors made for this folder, one per newsroom member.
