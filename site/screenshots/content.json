@@ -27,7 +27,7 @@
 			"last_name": "Okafor",
 			"email": "dokafor@example.com",
 			"role": "editor",
-			"avatar": "dana.svg"
+			"avatar": "dana-okafor.png"
 		},
 		{
 			"login": "mreilly",
@@ -35,7 +35,7 @@
 			"last_name": "Reilly",
 			"email": "mreilly@example.com",
 			"role": "editor",
-			"avatar": "marcus.svg"
+			"avatar": "marcus-reilly.png"
 		},
 		{
 			"login": "ethorne",
@@ -43,7 +43,7 @@
 			"last_name": "Thorne",
 			"email": "ethorne@example.com",
 			"role": "editor",
-			"avatar": "ellis.svg"
+			"avatar": "ellis-thorne.png"
 		},
 		{
 			"login": "pverma",
@@ -51,7 +51,7 @@
 			"last_name": "Verma",
 			"email": "pverma@example.com",
 			"role": "author",
-			"avatar": "priya.svg"
+			"avatar": "priya-verma.png"
 		},
 		{
 			"login": "mquinn",
@@ -59,7 +59,7 @@
 			"last_name": "Quinn",
 			"email": "mquinn@example.com",
 			"role": "author",
-			"avatar": "marisol.svg"
+			"avatar": "marisol-quinn.png"
 		},
 		{
 			"login": "wcastellano",
@@ -67,7 +67,7 @@
 			"last_name": "Castellano",
 			"email": "wcastellano@example.com",
 			"role": "author",
-			"avatar": "wren.svg"
+			"avatar": "wren-castellano.png"
 		},
 		{
 			"login": "rdelgado",
@@ -75,7 +75,7 @@
 			"last_name": "Delgado",
 			"email": "rdelgado@example.com",
 			"role": "author",
-			"avatar": "rosa.svg"
+			"avatar": "rosa-delgado.png"
 		},
 		{
 			"login": "ndoyle",
@@ -83,7 +83,7 @@
 			"last_name": "Doyle",
 			"email": "ndoyle@example.com",
 			"role": "author",
-			"avatar": "nora.svg"
+			"avatar": "nora-doyle.png"
 		},
 		{
 			"login": "cfalk",
@@ -91,7 +91,7 @@
 			"last_name": "Falk",
 			"email": "cfalk@example.com",
 			"role": "author",
-			"avatar": "curtis.svg"
+			"avatar": "curtis-falk.png"
 		},
 		{
 			"login": "sadeyemi",
@@ -99,7 +99,7 @@
 			"last_name": "Adeyemi",
 			"email": "sadeyemi@example.com",
 			"role": "author",
-			"avatar": "simone.svg"
+			"avatar": "simone-adeyemi.png"
 		},
 		{
 			"login": "hbrennan",
@@ -107,105 +107,169 @@
 			"last_name": "Brennan",
 			"email": "hbrennan@example.com",
 			"role": "author",
-			"avatar": "hal.svg"
+			"avatar": "hal-brennan.png"
 		}
 	],
 	"media": [
 		{
 			"file": "flood-street.jpg",
-			"title": "Flooded street",
+			"title": "Floodwater on Water Street",
 			"alt": "Two cars drive through brown floodwater running across a city street.",
-			"caption": ""
+			"caption": "Cars push through floodwater on Water Street, where the river came over the curb at the low point near Depot Street.",
+			"credit": "Sveta K",
+			"credit_org": "Pexels"
 		},
 		{
 			"file": "polling.jpg",
 			"title": "Courthouse clock tower",
 			"alt": "A stone clock tower rises above a carved pediment against a cloudy sky.",
-			"caption": ""
+			"caption": "The clock tower of the Halloway County Courthouse, on the north side of Courthouse Square.",
+			"credit": "Osviel Rodriguez Valdés",
+			"credit_org": "Pexels"
 		},
 		{
 			"file": "late-winner.jpg",
-			"title": "Crowd under the floodlights",
-			"alt": "Fans fill the stands under the floodlights at a soccer stadium.",
-			"caption": ""
+			"title": "Scarves up under the floodlights",
+			"alt": "Supporters hold scarves above their heads in a packed stand under the floodlights, with the field below.",
+			"caption": "Scarves up in the North Bank under the floodlights at DS Stadium.",
+			"credit": "Altan Kendirci",
+			"credit_org": "Pexels"
 		},
 		{
 			"file": "marathon.jpg",
 			"title": "Half marathon runners",
 			"alt": "Runners in race bibs head down a road through the early morning haze.",
-			"caption": ""
+			"caption": "Runners head out from the Pilcher Park trailhead at the start of the Kettle Greenway Half Marathon.",
+			"credit": "Stephen Leonardi",
+			"credit_org": "Pexels"
 		},
 		{
 			"file": "stadium.jpg",
 			"title": "Stadium roof",
 			"alt": "Steel roof trusses curve over the glass side of a stadium.",
-			"caption": ""
+			"caption": "The roof over the West Stand at DS Stadium.",
+			"credit": "Leticia Golubov",
+			"credit_org": "Pexels"
 		},
 		{
 			"file": "kettle-river-sunset.jpg",
 			"title": "River at sunset",
 			"alt": "The sun sets behind bare trees on the far bank of a wide, calm river, with gravel bars at the water's edge.",
-			"caption": ""
-		},
-		{
-			"file": "bridge-girders.jpg",
-			"title": "Steel bridge girders",
-			"alt": "Riveted steel girders of a truss bridge cross against a pale blue sky.",
-			"caption": ""
+			"caption": "The Kettle River below Pilcher Park as the water starts to fall.",
+			"credit": "azxa661",
+			"credit_org": "Flickr"
 		},
 		{
 			"file": "water-main-trench.jpg",
 			"title": "Roadworks trench",
 			"alt": "A deep trench cuts through the soil beside a road, with a length of pipe in the dirt and a safety railing along the edge.",
-			"caption": ""
-		},
-		{
-			"file": "pump-house-pipes.jpg",
-			"title": "Water pipes at a pump house",
-			"alt": "Blue water pipes run out of a metal building beside a white storage tank on a gravel lot.",
-			"caption": ""
+			"caption": "Crews dig down to the broken water main under Bridge Street, three blocks up from the river.",
+			"credit": "Lav Ulv",
+			"credit_org": "Flickr"
 		},
 		{
 			"file": "ball-on-grass.jpg",
 			"title": "Ball on a grass field",
 			"alt": "A soccer ball sits alone on a wide, freshly cut grass field.",
-			"caption": ""
+			"caption": "A match ball on the field at DS Stadium before kickoff.",
+			"credit": "rawpixel",
+			"credit_org": ""
 		},
 		{
 			"file": "stacked-chairs.jpg",
 			"title": "Stacked chairs",
 			"alt": "Chairs stand stacked along the wall of an empty room, with striped shadows across the floor.",
-			"caption": ""
+			"caption": "Chairs stacked in an empty classroom. Every public school in the county is closed for the storm.",
+			"credit": "rawpixel",
+			"credit_org": ""
 		},
 		{
 			"file": "reporters-notebook.jpg",
 			"title": "Notebook and pen",
 			"alt": "An open notebook of handwritten notes lies on a desk with a pen across the page.",
-			"caption": ""
+			"caption": "Notes from the school board's budget meeting at the district office.",
+			"credit": "neil conway",
+			"credit_org": "Flickr"
 		},
 		{
 			"file": "library-shelves.jpg",
 			"title": "Library shelves",
 			"alt": "Two rows of bookshelves line a quiet library aisle.",
-			"caption": ""
+			"caption": "Shelves at the main branch of the Riverbend Public Library on Courthouse Square.",
+			"credit": "rawpixel",
+			"credit_org": ""
 		},
 		{
 			"file": "studio-rafters.jpg",
 			"title": "Studio rafters",
 			"alt": "Copper pendant lamps hang from exposed wooden rafters above a stone chimney.",
-			"caption": ""
+			"caption": "The rafters of a studio in the Stock House, one of about 60 in the Rivermill District.",
+			"credit": "rawpixel",
+			"credit_org": ""
 		},
 		{
 			"file": "string-lights.jpg",
 			"title": "String lights",
 			"alt": "Colored string lights glow against a dark wall.",
-			"caption": ""
+			"caption": "Lights strung up in the Drying Loft for the late opening of Open Studios.",
+			"credit": "rawpixel",
+			"credit_org": ""
 		},
 		{
 			"file": "paper-lanterns.jpg",
 			"title": "Painted paper lanterns",
 			"alt": "Dozens of white paper lanterns painted with flowers, stripes and birds hang from a ceiling.",
-			"caption": ""
+			"caption": "Painted paper lanterns hang in a Stock House studio during Open Studios.",
+			"credit": "GeorgeTan#3",
+			"credit_org": "Flickr"
+		},
+		{
+			"file": "flooded-riverside-walkway.jpg",
+			"title": "Flooded riverside walkway",
+			"alt": "Brown water covers a riverside walkway up to the seat of a bench, beside an iron railing under heavy gray clouds.",
+			"caption": "The river covers the walkway at the Rivermill end of the Mill Race Footbridge.",
+			"credit": "Andrey Karpov",
+			"credit_org": "Pexels"
+		},
+		{
+			"file": "flooded-field.jpg",
+			"title": "Flooded field",
+			"alt": "Floodwater covers a grassy field up to its fence posts, with bare willows standing in the water under a blue sky.",
+			"caption": "Floodwater covers fields beside the Kettle Greenway north of the city.",
+			"credit": "Toon de Vos",
+			"credit_org": "Pexels"
+		},
+		{
+			"file": "road-works.jpg",
+			"title": "Road crew with a jackhammer",
+			"alt": "A road worker in orange high-visibility trousers breaks up asphalt with a jackhammer beside a traffic cone and a truck.",
+			"caption": "A public works crew breaks up the road surface around the broken main on Bridge Street.",
+			"credit": "Thomas Fuhrmann",
+			"credit_org": "Pexels"
+		},
+		{
+			"file": "power-line-crew.jpg",
+			"title": "Line crew on a residential street",
+			"alt": "Utility workers in high-visibility jackets repair power lines from two bucket trucks on a tree-lined street lined with traffic cones.",
+			"caption": "A utility crew works on lines above a residential street. Crews can reach the two flooded substations only once the river drops.",
+			"credit": "Robert So",
+			"credit_org": "Pexels"
+		},
+		{
+			"file": "snowy-street.jpg",
+			"title": "Snow on a residential street",
+			"alt": "Snow covers the lawns, roofs and parked cars along a street of two-story houses under a white sky.",
+			"caption": "Snow covers cars and lawns on a residential street in Ashgrove.",
+			"credit": "Lalada",
+			"credit_org": "Pexels"
+		},
+		{
+			"file": "snowy-evening-street.jpg",
+			"title": "Snowy street at dusk",
+			"alt": "A plowed road curves past snow-covered lawns, a stop sign and a house under bare trees at dusk.",
+			"caption": "A plowed street in Quarry Hill at dusk, as the storm moved east.",
+			"credit": "Sandy Torchon",
+			"credit_org": "Pexels"
 		}
 	],
 	"coverages": [
@@ -306,12 +370,13 @@
 			"age": 3210541,
 			"breakout": {
 				"title": "Ashgrove runner wins the women’s race in her hometown",
-				"content": "<!-- wp:paragraph -->\n<p>An Ashgrove runner won the women’s race in 1:13:40, her first win in her hometown race.</p>\n<!-- /wp:paragraph -->",
+				"content": "<!-- wp:paragraph -->\n<p>Megan Calder has run the Kettle Greenway Half Marathon five times. This time, on the path she grew up running a block from her front door, she won it.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Calder, 29, of Ashgrove, finished in 1:13:40, the fastest women’s time in the race’s history and more than a minute ahead of the runner-up. She ran in a pack of three through 10 kilometers and pulled clear at mile 10, where the greenway leaves the river below Pilcher Park.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>“I know every root on that stretch,” Calder said at the finish on Riverfront Commons. “When it got quiet behind me, I didn’t look back. I just kept going until the crowd got loud.”</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:heading -->\n<h2 class=\"wp-block-heading\">A fast morning</h2>\n<!-- /wp:heading -->\n\n<!-- wp:paragraph -->\n<p>Conditions were cool and dry for the 7 a.m. start, and times were quick at the front of both races. Mark Hadley, 31, of Quarry Hill, won the men’s race in 1:04:52, 41 seconds inside the course record.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>About 3,400 runners started at the Pilcher Park trailhead. Water Street and the Bridge Street approach reopened by midmorning, once the back of the field had passed.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Silas Whitcomb, director of Riverbend Parks and Recreation, which looks after the greenway, said the trail counters logged more people on the path than on any other morning this year.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>“Half of them were running and the other half were cheering,” Whitcomb said. “That’s the greenway doing exactly what it’s for.”</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Calder said she would take a week off before deciding on her next race. Full results, including age-group rankings, are on the race website.</p>\n<!-- /wp:paragraph -->",
 				"excerpt": "She pulled clear at mile 10 on the greenway and finished in 1:13:40, the fastest women’s time in the race’s history.",
 				"author": "hbrennan",
 				"age": 877433,
 				"image": "marathon.jpg",
-				"category": "Sport"
+				"category": "Sport",
+				"subtitle": "Megan Calder grew up a block from the greenway. She pulled clear at mile 10 and set the fastest women’s time in the race’s history."
 			}
 		},
 		{
@@ -322,12 +387,13 @@
 			"age": 3209341,
 			"breakout": {
 				"title": "Kettle Greenway Half Marathon: full results and age groups",
-				"content": "<!-- wp:paragraph -->\n<p>Full results, including age-group rankings, are now on the race website.</p>\n<!-- /wp:paragraph -->",
+				"content": "<!-- wp:paragraph -->\n<p>Megan Calder of Ashgrove and Mark Hadley of Quarry Hill won this year’s Kettle Greenway Half Marathon, on a cool, dry morning that suited fast running.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Hadley finished in 1:04:52, 41 seconds inside the men’s course record. Calder’s 1:13:40 was the fastest women’s time in the race’s history.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:heading -->\n<h2 class=\"wp-block-heading\">The numbers</h2>\n<!-- /wp:heading -->\n\n<!-- wp:list -->\n<ul class=\"wp-block-list\"><!-- wp:list-item -->\n<li>Starters: about 3,400, from the Pilcher Park trailhead at 7 a.m.</li>\n<!-- /wp:list-item --><!-- wp:list-item -->\n<li>Finishers: 3,212, at Riverfront Commons</li>\n<!-- /wp:list-item --><!-- wp:list-item -->\n<li>Median finishing time: 2:01:46</li>\n<!-- /wp:list-item --><!-- wp:list-item -->\n<li>Oldest finisher: 81, in 2:58:10</li>\n<!-- /wp:list-item --><!-- wp:list-item -->\n<li>Last finisher across the line: 11:02 a.m., to the loudest cheer of the morning</li>\n<!-- /wp:list-item --></ul>\n<!-- /wp:list -->\n\n<!-- wp:paragraph -->\n<p>The course follows the greenway along the east bank from Pilcher Park and finishes on the Riverfront Commons lawn downtown. Volunteers from the Greenway Trail Crew staffed the water stations.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Silas Whitcomb, director of Riverbend Parks and Recreation, said the path would be swept and reopened to bicycles by early afternoon.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Full results, including age-group rankings and every finisher’s time, are on the race website. Runners who spot a mistake in their time can ask the organizers to check it until the end of the week.</p>\n<!-- /wp:paragraph -->",
 				"excerpt": "Every finisher’s time, plus the top 10 in each age group, from this year’s race along the greenway.",
 				"author": "dokafor",
 				"age": 877563,
 				"image": "marathon.jpg",
-				"category": "Sport"
+				"category": "Sport",
+				"subtitle": "The men's course record fell and the women's winner ran the fastest time in the race's history. Here is how the field finished."
 			}
 		},
 		{
@@ -416,12 +482,13 @@
 			"age": 2075816,
 			"breakout": {
 				"title": "Halvorsen’s stoppage-time save seals Riverbend’s win",
-				"content": "<!-- wp:paragraph --><p>Halvorsen at full stretch to push a Fresno Verde header over the bar, four minutes into stoppage time. The North Bank greets it like a third goal.</p><!-- /wp:paragraph -->",
+				"content": "<!-- wp:paragraph -->\n<p>For 93 minutes, the story of Riverbend FC’s rematch with Fresno Verde was Bree Kowalski. In the 94th, it was Petra Halvorsen.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Riverbend led 2-1 when a Fresno Verde cross from the right found a forward unmarked at the far post. Her header was going in until Halvorsen, at full stretch, pushed it over the bar. The North Bank greeted the save like a third goal.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>“I saw it late,” Halvorsen said. “You don’t think in that moment. You just make yourself as big as you can and hope the ball hits something.”</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:heading -->\n<h2 class=\"wp-block-heading\">A rematch of the final</h2>\n<!-- /wp:heading -->\n\n<!-- wp:paragraph -->\n<p>It was the first meeting between the clubs since Riverbend beat Fresno Verde in last season’s championship final, and 14,213 came to DS Stadium to see it, the women’s largest crowd of the season so far.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Kowalski scored both of Riverbend’s goals, the second turned in from inside the six-yard box after Sonia Aguilar’s corner was flicked on by the captain, Josie Vandermeer. Fresno Verde pulled one back and spent the last 15 minutes in Riverbend’s half.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Bethany Osei, the women’s head coach, said the save was the product of a keeper who had barely been tested all evening.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>“That’s the hardest save there is, the one after an hour of nothing,” Osei said. “Petra was ready for it. That’s why she’s our keeper.”</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>The win keeps the defending champions second in the conference.</p>\n<!-- /wp:paragraph -->",
 				"excerpt": "The keeper’s fingertip stop on a late Fresno Verde header kept the visitors out in the 94th minute and sent the North Bank home happy.",
 				"author": "mquinn",
 				"age": 877433,
 				"image": "stadium.jpg",
-				"category": "Sport"
+				"category": "Sport",
+				"subtitle": "With the champions clinging to a one-goal lead, Petra Halvorsen got a fingertip to a Fresno Verde header four minutes into stoppage time."
 			}
 		},
 		{
@@ -433,12 +500,13 @@
 			"pinned": true,
 			"breakout": {
 				"title": "Full time: Riverbend 2, Fresno Verde 1",
-				"content": "<!-- wp:paragraph --><p>Two goals from Bree Kowalski and a stoppage-time save from Petra Halvorsen. The champions' first meeting with Fresno Verde since the final ended the way the final did.</p><!-- /wp:paragraph -->",
+				"content": "<!-- wp:paragraph -->\n<p>Riverbend FC’s first meeting with Fresno Verde since last season’s championship final ended the way the final did: 2-1 to Riverbend, in front of a North Bank that sang through the last 10 minutes.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Bree Kowalski scored both goals. The first came from a through ball by Nia Fletcher, playing just behind her. The second was straight off the training ground, in the 61st minute: Sonia Aguilar drove a corner to the near post, Josie Vandermeer flicked it on and Kowalski turned it in from inside the six-yard box.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Fresno Verde pulled a goal back and pushed hard for an equalizer. Four minutes into stoppage time, Petra Halvorsen got a fingertip to a header that was heading for the top corner.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:heading -->\n<h2 class=\"wp-block-heading\">Osei keeps her side together</h2>\n<!-- /wp:heading -->\n\n<!-- wp:paragraph -->\n<p>Bethany Osei, the women’s head coach, made fewer changes than usual for the rematch, and said afterward that the decision was about the occasion more than the opponent.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>“This group has played big nights together before. I didn’t want to break that up for this one,” Osei said. “They knew what the game meant to the people in the stands.”</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>The crowd of 14,213 was the women’s largest of the season. Foundry Row was full two hours before kickoff.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>The defending champions stay second in the conference.</p>\n<!-- /wp:paragraph -->",
 				"excerpt": "",
 				"author": "mquinn",
 				"age": 2075268,
 				"image": "late-winner.jpg",
-				"category": "Sport"
+				"category": "Sport",
+				"subtitle": "Bree Kowalski scored both goals and Petra Halvorsen saved a late header as the champions beat the team they beat in the final."
 			}
 		},
 		{
@@ -452,7 +520,7 @@
 		{
 			"coverage": "riverbend-fc-v-toledo-beacon",
 			"title": "Line-ups",
-			"content": "<!-- wp:paragraph -->\n<p>Line-ups. Riverbend FC: Malik; Baro, Feist, Asante, Lindqvist; Ferro; Ojo, Cross; Skala, Villalba, Halstead. Toledo Beacon start with three at the back.</p>\n<!-- /wp:paragraph -->",
+			"content": "<!-- wp:paragraph -->\n<p>Line-ups. Riverbend FC: Malik; Baro, Feist, Asante, Lindqvist; Ferro; Ojo, Cross; Skala, Villalba, Halstead. Dubé, Tremblay, Ruvalcaba and Nwosu on the bench. Toledo Beacon start with three at the back.</p>\n<!-- /wp:paragraph -->",
 			"author": "mquinn",
 			"age": 1828064
 		},
@@ -494,14 +562,14 @@
 		{
 			"coverage": "riverbend-fc-v-toledo-beacon",
 			"title": "Villalba puts Riverbend back in front",
-			"content": "<!-- wp:paragraph -->\n<p>81&#039; GOAL. Villalba bends a free kick from 22 yards over the wall and inside the near post. Skala won it. 2-1.</p>\n<!-- /wp:paragraph -->",
+			"content": "<!-- wp:paragraph -->\n<p>81&#039; GOAL. Villalba bends a free kick from 22 yards over the wall and inside the near post. Dubé won it. 2-1.</p>\n<!-- /wp:paragraph -->",
 			"author": "mquinn",
 			"age": 1822536
 		},
 		{
 			"coverage": "riverbend-fc-v-toledo-beacon",
 			"title": "",
-			"content": "<!-- wp:paragraph -->\n<p>84&#039; Tremblay replaces Skala. Ruvalcaba and Nwosu are already on.</p>\n<!-- /wp:paragraph -->",
+			"content": "<!-- wp:paragraph -->\n<p>84&#039; Tremblay replaces Dubé, on for Skala in the 61st minute. Ruvalcaba and Nwosu are already on.</p>\n<!-- /wp:paragraph -->",
 			"author": "hbrennan",
 			"age": 1822356
 		},
@@ -513,12 +581,13 @@
 			"age": 1822176,
 			"breakout": {
 				"title": "How Malik’s 88th-minute save kept Riverbend in front",
-				"content": "<!-- wp:paragraph -->\n<p>88&#039; Malik pushes a header onto the crossbar and claims the rebound in a crowd.</p>\n<!-- /wp:paragraph -->",
+				"content": "<!-- wp:paragraph -->\n<p>Rafa Villalba’s free kick won Riverbend FC the game against Toledo Beacon. Ondrej Malik made sure it stayed won.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Seven minutes after Villalba put Riverbend back in front, Beacon swung a cross into the box from the left. Their center back met it six yards out and headed down toward the far corner. Malik got across his line, pushed the ball onto the crossbar and dropped on the rebound with three players closing in.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>“You get one moment like that in a game against Beacon, and you have to be there for it,” Malik said. “I knew if I got a hand to it, Danny would sort out the rest.”</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:heading -->\n<h2 class=\"wp-block-heading\">The captain takes over</h2>\n<!-- /wp:heading -->\n\n<!-- wp:paragraph -->\n<p>Danny Feist, the captain, spent stoppage time organizing the box like a man who has played Beacon more often than anyone in either squad, which he has. Beacon’s last chance died at the edge of the area, under three red shirts.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>“There is no trophy for this fixture and there never should be,” Feist said. “The game is the trophy. Ask anyone who was with us in the second tier.”</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Tomás Brito, the men’s head coach, said the save covered for a familiar weakness. Beacon’s equalizer had come within 10 seconds of a turnover in Riverbend’s half, a pattern that has followed the team since last season.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>“For 50 minutes we played the game Beacon wanted,” Brito said. “Then we played the last 40 like a team that remembered it was at home.”</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>The win, before 16,842 at DS Stadium, moves the men up to seventh in the conference.</p>\n<!-- /wp:paragraph -->",
 				"excerpt": "Malik’s stop on a Beacon header, then the rebound claimed in a crowd, summed up a tense final 10 minutes at DS Stadium.",
 				"author": "mquinn",
 				"age": 877434,
 				"image": "ball-on-grass.jpg",
-				"category": "Sport"
+				"category": "Sport",
+				"subtitle": "Ondrej Malik pushed a Toledo Beacon header onto the crossbar, then claimed the rebound in a crowded box to protect a 2-1 lead."
 			}
 		},
 		{
@@ -530,12 +599,13 @@
 			"image": "late-winner.jpg",
 			"breakout": {
 				"title": "Villalba free kick gives Riverbend a 2-1 win over Toledo Beacon",
-				"content": "<!-- wp:paragraph -->\n<p>90+4&#039; Full time. Riverbend 2, Toledo Beacon 1, before 16,842 at DS Stadium.</p>\n<!-- /wp:paragraph -->",
+				"content": "<!-- wp:paragraph -->\n<p>Nobody at DS Stadium expected this one to be settled early, because this fixture never is. Riverbend FC and Toledo Beacon spent five seasons irritating each other in the second tier, arrived in the top flight in the same expansion round, and have not produced a comfortable game between them yet.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>This one was decided in the 81st minute by Rafa Villalba, from a free kick 22 yards out. He stood over the ball long enough to be booed by the away corner, then bent it over the wall and inside the near post. The goalkeeper never left the ground.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:heading -->\n<h2 class=\"wp-block-heading\">A lead given back</h2>\n<!-- /wp:heading -->\n\n<!-- wp:paragraph -->\n<p>Riverbend had led early through Bo Halstead, who turned in Viktor Skala’s low cross at the near post in the 12th minute. Beacon leveled 10 minutes into the second half: a loose touch, a turnover 30 yards out, and their center forward finished low past Ondrej Malik.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>“We know this about ourselves, and now our opponents know it too,” said Tomás Brito, the men’s head coach. “For 50 minutes we played the game Beacon wanted, which is a coin flip.”</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Malik kept the lead safe in the 88th minute, pushing a header onto the crossbar and claiming the rebound in a crowd.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>“There is no trophy for this fixture and there never should be,” said Danny Feist, the captain. “You could tell people nothing about our season except the Beacon results and they would know how the year went.”</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>The win, before 16,842, moves the men up to seventh in the conference. They travel to Birmingham Furnace FC next Saturday.</p>\n<!-- /wp:paragraph -->",
 				"excerpt": "The 81st-minute winner lifts the Millers to seventh in the conference before next Saturday’s trip to Birmingham Furnace FC.",
 				"author": "mquinn",
 				"age": 877563,
 				"image": "late-winner.jpg",
-				"category": "Sport"
+				"category": "Sport",
+				"subtitle": "Rafa Villalba bent a free kick over the wall in the 81st minute to settle the latest chapter of the club’s oldest rivalry."
 			}
 		},
 		{
@@ -547,12 +617,13 @@
 			"status": "draft",
 			"breakout": {
 				"title": "Outage map: every neighborhood still without power",
-				"content": "<!-- wp:paragraph -->\n<p>The utility says crews cannot reach two flooded substations until the river drops.</p>\n<!-- /wp:paragraph -->",
+				"content": "<!-- wp:paragraph -->\n<p>About 18,000 homes and businesses in Riverbend are without power after the Kettle River reached two substations on the low ground near the river, the utility said this evening.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Crews cannot get to either substation until the water drops, and the utility has not given a time for power to come back. The river crested at 21.3 feet just after 6 p.m. and is falling slowly.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:heading -->\n<h2 class=\"wp-block-heading\">Where the outages are</h2>\n<!-- /wp:heading -->\n\n<!-- wp:list -->\n<ul class=\"wp-block-list\"><!-- wp:list-item -->\n<li>The Grid, from Water Street to the rail line: most blocks south of Courthouse Square.</li>\n<!-- /wp:list-item --><!-- wp:list-item -->\n<li>Dial Square: the apartments and businesses closest to the river.</li>\n<!-- /wp:list-item --><!-- wp:list-item -->\n<li>The South End: the streets east of the wastewater plant and the warehouses along the river.</li>\n<!-- /wp:list-item --><!-- wp:list-item -->\n<li>Northgate: about 1,200 homes lost power when a tree brought down a line on Fell Street. That outage is separate, and crews have it back for about half the neighborhood.</li>\n<!-- /wp:list-item --></ul>\n<!-- /wp:list -->\n\n<!-- wp:paragraph -->\n<p>Ruth Ambrose, director of Halloway County Emergency Management, said the county had called every riverside address on its medical-needs registry, the list of residents who rely on oxygen concentrators, home dialysis or other powered equipment.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>“If you’re on the list, we’ve called you. If you’re not and you need power for your health, call us tonight, not tomorrow,” Ambrose said.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:heading -->\n<h2 class=\"wp-block-heading\">What to do</h2>\n<!-- /wp:heading -->\n\n<!-- wp:paragraph -->\n<p>The fairgrounds shelter on Route 9 has power, charging and a nurse team from Riverbend Memorial. Report outages to the utility’s outage line, and keep generators outside and well away from doors and windows.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>We will update this list as neighborhoods come back on.</p>\n<!-- /wp:paragraph -->",
 				"excerpt": "Where the 18,000 outages are, which crews are working where, and when power should be back street by street.",
 				"author": "dokafor",
 				"age": 894747,
-				"image": "flood-street.jpg",
-				"category": "News"
+				"image": "power-line-crew.jpg",
+				"category": "News",
+				"subtitle": "About 18,000 customers are without power after floodwater reached two substations. Here is where the outages are and what to do if you rely on electricity at home."
 			}
 		},
 		{
@@ -598,11 +669,13 @@
 			"age": 205800,
 			"breakout": {
 				"title": "Up to 11 inches of snow across the county: totals by neighborhood",
-				"content": "<!-- wp:paragraph -->\n<p>Readers are reporting 9 inches in Ashgrove and 11 inches near the airport as of 7 a.m.</p>\n<!-- /wp:paragraph -->",
+				"content": "<!-- wp:paragraph -->\n<p>The winter storm had left up to 11 inches of snow across Halloway County by 7 a.m., with the deepest totals north of the city and the heaviest, wettest snow on Quarry Hill.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>The figures below combine readings from weather service observers with measurements sent in by readers. They are snow on the ground, measured on flat surfaces away from drifts.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:heading -->\n<h2 class=\"wp-block-heading\">Totals as of 7 a.m.</h2>\n<!-- /wp:heading -->\n\n<!-- wp:list -->\n<ul class=\"wp-block-list\"><!-- wp:list-item -->\n<li>Halloway County Regional Airport: 11 inches</li>\n<!-- /wp:list-item --><!-- wp:list-item -->\n<li>Northgate: 10 inches</li>\n<!-- /wp:list-item --><!-- wp:list-item -->\n<li>Quarry Hill: 10 inches, heavy and wet</li>\n<!-- /wp:list-item --><!-- wp:list-item -->\n<li>Ashgrove: 9 inches</li>\n<!-- /wp:list-item --><!-- wp:list-item -->\n<li>Downtown and the Grid: 8 inches</li>\n<!-- /wp:list-item --><!-- wp:list-item -->\n<li>Kettleford: 9 inches</li>\n<!-- /wp:list-item --></ul>\n<!-- /wp:list -->\n\n<!-- wp:paragraph -->\n<p>The weather service had forecast 8 to 14 inches. Riverbend averages about 34 inches of snow in a whole winter, so this storm brought nearly a third of that in a night.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Marla Deen, director of Riverbend Public Works, said plows had cleared every snow emergency route at least once and would move onto residential streets through the morning.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>“Main roads first, then buses, then side streets. That order doesn’t change, however loud the phones get,” Deen said.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Send your own measurement, with your neighborhood, to the newsroom. We will update these totals as the snow tapers off.</p>\n<!-- /wp:paragraph -->",
 				"excerpt": "Reader reports and weather service measurements from every neighborhood, updated through the morning as the snow tapers off.",
 				"author": "ethorne",
 				"age": 877433,
-				"category": "Environment"
+				"category": "Environment",
+				"subtitle": "Reader reports and weather service measurements put the deepest snow north of the city, near the airport, with the storm still tapering off.",
+				"image": "snowy-street.jpg"
 			}
 		},
 		{
@@ -613,11 +686,13 @@
 			"age": 203100,
 			"breakout": {
 				"title": "Winter storm moves east after dropping a foot of snow",
-				"content": "<!-- wp:paragraph -->\n<p>The storm has moved east. We will resume updates if conditions change this evening.</p>\n<!-- /wp:paragraph -->",
+				"content": "<!-- wp:paragraph -->\n<p>The winter storm moved east of Halloway County this morning after leaving up to a foot of snow, with the final total near the airport just over 12 inches.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>The weather service has ended the warning. Light snow showers are possible this evening, but forecasters do not expect more than an inch.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:heading -->\n<h2 class=\"wp-block-heading\">What to know this evening</h2>\n<!-- /wp:heading -->\n\n<!-- wp:list -->\n<ul class=\"wp-block-list\"><!-- wp:list-item -->\n<li>Roads: Public works has cleared every snow emergency route and is working through residential streets. The snow emergency stays in effect until 6 a.m.</li>\n<!-- /wp:list-item --><!-- wp:list-item -->\n<li>Schools: Riverbend Public Schools is closed today. The district will text families about tomorrow by 6 a.m.</li>\n<!-- /wp:list-item --><!-- wp:list-item -->\n<li>Power: About 6,400 customers are still without power, mostly on Quarry Hill, where heavy wet snow brought down lines.</li>\n<!-- /wp:list-item --><!-- wp:list-item -->\n<li>Warming centers: The main library, the Northgate Community Center and the Union Depot concourse stay open overnight.</li>\n<!-- /wp:list-item --></ul>\n<!-- /wp:list -->\n\n<!-- wp:paragraph -->\n<p>Ruth Ambrose, director of Halloway County Emergency Management, asked people to check on older neighbors who live alone, and to clear snow from furnace and dryer vents.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>“The storm is over. The cold isn’t,” Ambrose said. “Most of our calls after a storm like this are about heat, not snow.”</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Marla Deen, director of Riverbend Public Works, said crews would keep plowing through the night and asked drivers to give them room.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>We have paused our live coverage and will resume it if conditions change this evening.</p>\n<!-- /wp:paragraph -->",
 				"excerpt": "What to know about roads, schools and power this evening, and when the next band of snow could arrive.",
 				"author": "dokafor",
 				"age": 877562,
-				"category": "Environment"
+				"category": "Environment",
+				"subtitle": "Roads are clearing, schools stay closed today and about 6,400 customers are still without power, mostly on Quarry Hill.",
+				"image": "snowy-evening-street.jpg"
 			}
 		},
 		{
@@ -848,12 +923,13 @@
 			},
 			"breakout": {
 				"title": "Teachers pack school board meeting ahead of budget vote",
-				"content": "<p>Public comment has opened. More than 40 people signed up to speak, most of them teachers from the Northgate schools.</p>",
+				"content": "<!-- wp:paragraph -->\n<p>More than 40 people signed up to speak before the school board’s vote on next year’s budget tonight, most of them teachers from the Northgate schools.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>The proposed $186 million budget closes a $3.6 million gap mostly by leaving about 30 teaching posts unfilled rather than laying anyone off. Teachers who spoke said the empty posts would fall hardest on Northgate, where more languages are spoken in the classrooms than anywhere else in the city.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Several held signs about class sizes outside the district office before the meeting, and the room was full when it was called to order.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:heading -->\n<h2 class=\"wp-block-heading\">Arts and athletics</h2>\n<!-- /wp:heading -->\n\n<!-- wp:paragraph -->\n<p>One board member asked why arts funding drops 12% under the plan while athletics stays flat. The district’s finance director said both had been reviewed line by line and that the arts cut came mostly from supplies, not staff.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Sandra Pike, director of the Halloway Career Center, spoke for the posts she has not been able to fill in welding and health sciences, both programs with waiting lists.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>“I have students waiting for seats I can’t teach,” Pike said. “An unfilled post isn’t a saving to them. It’s a year they don’t get back.”</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Dr. Yvonne Ferris, superintendent of Riverbend Public Schools, said the district would fill posts first in the schools with the largest classes if money came in above forecast.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>“Nobody in this building wants these posts empty,” Ferris said. “This budget keeps every teacher we have, and that was the line we drew.”</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>The vote may slip past 10 p.m. Two board members want to amend the transportation line before it is taken.</p>\n<!-- /wp:paragraph -->",
 				"excerpt": "More than 40 people signed up to speak, most of them from the Northgate schools facing the deepest cuts.",
 				"author": "pverma",
 				"age": 877433,
 				"image": "reporters-notebook.jpg",
-				"category": "Education"
+				"category": "Education",
+				"subtitle": "Most of the 40 people signed up to speak work in the Northgate schools, where unfilled posts would leave the largest classes."
 			}
 		},
 		{
@@ -870,12 +946,13 @@
 			},
 			"breakout": {
 				"title": "School board meets to vote on $186 million budget",
-				"content": "<p>The school board meeting is called to order. All seven members and Superintendent Yvonne Ferris are present, and the budget vote is third on the agenda.</p>",
+				"content": "<!-- wp:paragraph -->\n<p>The Riverbend school board meets tonight to vote on a $186 million budget for next year. All seven members and the superintendent are present, and the budget is third on the agenda.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>The plan closes a $3.6 million gap mostly by leaving about 30 teaching posts unfilled rather than laying anyone off. District officials say class sizes would hold at most schools.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:heading -->\n<h2 class=\"wp-block-heading\">What is in the plan</h2>\n<!-- /wp:heading -->\n\n<!-- wp:list -->\n<ul class=\"wp-block-list\"><!-- wp:list-item -->\n<li>Teaching: about 30 open posts left unfilled; no layoffs.</li>\n<!-- /wp:list-item --><!-- wp:list-item -->\n<li>Arts: funding drops 12%, mostly from supplies.</li>\n<!-- /wp:list-item --><!-- wp:list-item -->\n<li>Athletics: flat.</li>\n<!-- /wp:list-item --><!-- wp:list-item -->\n<li>Transportation: the 58 bus routes stay as they are, including the texts that warn families when a bus is more than 10 minutes late.</li>\n<!-- /wp:list-item --><!-- wp:list-item -->\n<li>Cooling: the next phase of the air-conditioning plan comes from the capital fund, not this budget.</li>\n<!-- /wp:list-item --></ul>\n<!-- /wp:list -->\n\n<!-- wp:paragraph -->\n<p>Dr. Yvonne Ferris, superintendent of Riverbend Public Schools, said before the meeting that the plan was built to protect classroom staff first.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>“We looked at every line in this budget before we looked at a single person in a classroom,” Ferris said.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Sandra Pike, director of the Halloway Career Center, said she would ask the board to fill her two open teaching posts in welding and health sciences, where students are on waiting lists.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Public comment opens after the first two agenda items. We are following the meeting live.</p>\n<!-- /wp:paragraph -->",
 				"excerpt": "All seven members are present for a vote on a budget that holds class sizes and leaves about 30 teaching posts unfilled.",
 				"author": "pverma",
 				"age": 877563,
-				"image": "library-shelves.jpg",
-				"category": "Education"
+				"image": "reporters-notebook.jpg",
+				"category": "Education",
+				"subtitle": "The plan holds class sizes for most schools and closes a $3.6 million gap by leaving about 30 teaching posts unfilled."
 			}
 		},
 		{
@@ -971,12 +1048,13 @@
 			"pinned": true,
 			"breakout": {
 				"title": "What’s open on the last day of Open Studios",
-				"content": "<!-- wp:paragraph -->\n<p>Studios reopen at 11 a.m. tomorrow and close at 5 p.m. The free shuttle from Courthouse Square runs all day.</p>\n<!-- /wp:paragraph -->",
+				"content": "<!-- wp:paragraph -->\n<p>Open Studios ends today with shorter hours than Saturday: studios across the Rivermill District open at 11 a.m. and close at 5 p.m.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>The free shuttle from Courthouse Square runs all day, every 15 minutes. The district’s parking lots were full by 1 p.m. yesterday, and the Kettle Arts Center expects the same again.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:heading -->\n<h2 class=\"wp-block-heading\">Where to go</h2>\n<!-- /wp:heading -->\n\n<!-- wp:list -->\n<ul class=\"wp-block-list\"><!-- wp:list-item -->\n<li>The Stock House: studios on every floor, and the Kettle Arts Center gallery on the ground floor.</li>\n<!-- /wp:list-item --><!-- wp:list-item -->\n<li>The Drying Loft: opens at 11 a.m., with prints and small works upstairs.</li>\n<!-- /wp:list-item --><!-- wp:list-item -->\n<li>“Hand and Letter,” the show of Ed Sipes’s hand-painted signs, had the longest wait yesterday. Go early.</li>\n<!-- /wp:list-item --><!-- wp:list-item -->\n<li>Beth Cardoso’s studio, where she builds herons from salvaged valve-works steel.</li>\n<!-- /wp:list-item --><!-- wp:list-item -->\n<li>The Beater Room food hall, if you get there before the dumplings sell out.</li>\n<!-- /wp:list-item --></ul>\n<!-- /wp:list -->\n\n<!-- wp:paragraph -->\n<p>The walkway along the mill race stays closed while the river is high. Use Mill Race Road to walk between buildings.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Teresa Wilkes, director of the Kettle Arts Center, said Sunday is the better day for anyone who wants to talk to the artists.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>“Saturday is the crowd. Sunday is the conversation,” Wilkes said. “People have time to stand in a studio and ask how something was made.”</p>\n<!-- /wp:paragraph -->",
 				"excerpt": "Studios reopen at 11 a.m. and close at 5 p.m., and the free shuttle from Courthouse Square runs all day.",
 				"author": "rdelgado",
 				"age": 877563,
 				"image": "paper-lanterns.jpg",
-				"category": "Arts & Culture"
+				"category": "Arts & Culture",
+				"subtitle": "Studios reopen at 11 a.m. and close at 5 p.m. Here is what to see, how to get there and where the lines will be."
 			}
 		},
 		{
@@ -1207,12 +1285,13 @@
 			},
 			"breakout": {
 				"title": "Open Studios heads for a record Saturday in the last hour",
-				"content": "<!-- wp:paragraph -->\n<p><strong>The last hour has started</strong> across the district. Foot traffic looks like a <em>record</em>, up from <s>5,100</s> 5,200 last year 🎨</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Studios close at 9pm in the <a href=\"https://example.com/stock-house\">Stock House</a>. Thanks @Wren Castellano for the photos.<br>More soon.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:list -->\n<ul class=\"wp-block-list\"><!-- wp:list-item -->\n<li>Stock House: open</li>\n<!-- /wp:list-item -->\n\n<!-- wp:list-item -->\n<li>Beater Room: <strong>full</strong><!-- wp:list -->\n<ul class=\"wp-block-list\"><!-- wp:list-item -->\n<li>Queue back to Mill Race Road</li>\n<!-- /wp:list-item --></ul>\n<!-- /wp:list --></li>\n<!-- /wp:list-item -->\n\n<!-- wp:list-item -->\n<li>Drying Loft: open</li>\n<!-- /wp:list-item --></ul>\n<!-- /wp:list -->\n\n<!-- wp:paragraph -->\n<p>What happens next:</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:list {\"ordered\":true} -->\n<ol class=\"wp-block-list\"><!-- wp:list-item -->\n<li>Studios close at 9pm</li>\n<!-- /wp:list-item -->\n\n<!-- wp:list-item -->\n<li>Studios reopen at 11am tomorrow</li>\n<!-- /wp:list-item --></ol>\n<!-- /wp:list -->\n\n<!-- wp:quote -->\n<blockquote class=\"wp-block-quote\"><!-- wp:paragraph -->\n<p>We expect to pass 6,000 before we close.</p>\n<!-- /wp:paragraph --></blockquote>\n<!-- /wp:quote -->\n\n<!-- wp:code -->\n<pre class=\"wp-block-code\"><code>Stock House  4,712\nDrying Loft  1,088</code></pre>\n<!-- /wp:code -->",
+				"content": "<!-- wp:paragraph -->\n<p>Open Studios was on course for its busiest Saturday yet as the last hour began, with 5,600 people through the doors by early evening, already past last year’s Saturday total of 5,200.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>The Kettle Arts Center’s latest counts put 4,712 visitors through the Stock House and 1,088 through the Drying Loft. The Beater Room was full, with a line back to Mill Race Road.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>“We expect to pass 6,000 before we close,” said Teresa Wilkes, director of the Kettle Arts Center.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:heading -->\n<h2 class=\"wp-block-heading\">Sold out by evening</h2>\n<!-- /wp:heading -->\n\n<!-- wp:paragraph -->\n<p>Several artists had little left to sell by dinner time. Printmaker Lena Ruiz sold the last of her small prints in the Drying Loft with an hour to go, and Amy Tran’s dumpling counter in the Beater Room sold out by 4 p.m.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>The line outside the Stock House was still around the corner at 6:55 p.m., with volunteers letting people in by the dozen. Riverbend Transit sent a replacement bus after a shuttle broke down on Depot Street and held up the 7 p.m. run by about 20 minutes.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Studios close at 9 p.m. tonight and reopen at 11 a.m. tomorrow, the last day.</p>\n<!-- /wp:paragraph -->",
 				"excerpt": "Door counts passed last year’s Saturday total of 5,200 with an hour to go, and studios reopen at 11 a.m. tomorrow.",
 				"author": "rdelgado",
 				"age": 877434,
 				"image": "string-lights.jpg",
-				"category": "Arts & Culture"
+				"category": "Arts & Culture",
+				"subtitle": "The door count has already passed last year’s Saturday total, with lines still out of the Stock House and the Beater Room full."
 			}
 		},
 		{
@@ -1229,12 +1308,13 @@
 			},
 			"breakout": {
 				"title": "Marla Deen to explain the Bridge Street break at the site",
-				"content": "<!-- wp:paragraph -->\n<p>Public works says Marla Deen will speak at the site shortly, alongside Lucia Amaro from Riverbend Transit.</p>\n<!-- /wp:paragraph -->",
+				"content": "<!-- wp:paragraph -->\n<p>Marla Deen, director of Riverbend Public Works, is due to speak at the site of this morning’s water main break on Bridge Street shortly, alongside Lucia Amaro, general manager of Riverbend Transit.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Crews have shut the valves on either side of the break and excavators are digging down to the pipe. No injuries have been reported.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:heading -->\n<h2 class=\"wp-block-heading\">What we know so far</h2>\n<!-- /wp:heading -->\n\n<!-- wp:list -->\n<ul class=\"wp-block-list\"><!-- wp:list-item -->\n<li>The break is on a 24-inch cast iron main laid in 1931, three blocks up from the river.</li>\n<!-- /wp:list-item --><!-- wp:list-item -->\n<li>A section of the road surface buckled once the flow stopped. Crews have fenced it off.</li>\n<!-- /wp:list-item --><!-- wp:list-item -->\n<li>At least six businesses on Bridge Street have water damage, including a cafe and a print shop.</li>\n<!-- /wp:list-item --><!-- wp:list-item -->\n<li>A boil-water notice covers the Grid. Boil tap water for at least one minute before drinking or cooking with it.</li>\n<!-- /wp:list-item --><!-- wp:list-item -->\n<li>Bottled water is available at the main library on Courthouse Square until 8 p.m.</li>\n<!-- /wp:list-item --><!-- wp:list-item -->\n<li>Routes 2, 5 and 9 are detouring over the Depot Street Bridge, which adds about 10 minutes.</li>\n<!-- /wp:list-item --></ul>\n<!-- /wp:list -->\n\n<!-- wp:paragraph -->\n<p>Public works says repairs will run overnight and Bridge Street will stay closed through at least tomorrow morning’s commute.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Deen is expected to say what failed and how long the repairs will take. We will publish what she says as soon as she has spoken.</p>\n<!-- /wp:paragraph -->",
 				"excerpt": "Crews are still pumping water from the street as the public works director prepares to explain what failed.",
 				"author": "mreilly",
 				"age": 877433,
-				"image": "flood-street.jpg",
-				"category": "News"
+				"image": "water-main-trench.jpg",
+				"category": "News",
+				"subtitle": "The public works director and the head of Riverbend Transit are due to speak beside the break, as crews dig down to the failed pipe."
 			}
 		},
 		{
@@ -1259,12 +1339,13 @@
 			"age": 182820,
 			"breakout": {
 				"title": "Public works sets out $4.2 million emergency repair plan",
-				"content": "<!-- wp:paragraph -->\n<p>The city will spend $4.2 million to replace the water main that burst under Bridge Street this morning, along with half a mile of aging pipe around it, Marla Deen, director of Riverbend Public Works, said this evening.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Standing beside the fenced-off hole three blocks up from the river, Deen said the money would come from the city&#039;s emergency reserve and that work would begin tomorrow morning. The replacement had not been due for about two years.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:quote -->\n<blockquote class=\"wp-block-quote\"><!-- wp:paragraph -->\n<p>We can&#039;t keep patching pipes that were laid before anyone on this street was born. This one gave us no warning, and the next one won&#039;t either.</p>\n<!-- /wp:paragraph --><cite>Marla Deen</cite></blockquote>\n<!-- /wp:quote -->\n\n<!-- wp:heading -->\n<h2 class=\"wp-block-heading\">A pipe nearly a century old</h2>\n<!-- /wp:heading -->\n\n<!-- wp:paragraph -->\n<p>The main that failed is a 24-inch cast iron line installed in 1931. Deen said inspectors flagged the downtown section as high risk three years ago, but it sat behind other work on the capital plan, including the Grove Avenue main in Ashgrove.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>She said the break most likely started as a small crack that widened as pressure rose during the morning peak. By the time crews shut the valves on either side, around 9:40 a.m., the escaping water had undermined roughly 60 feet of road surface.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>The plan replaces the failed section and the neighboring pipe for four blocks in each direction with ductile iron, which the department has used for all new mains since the early 2000s.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:heading -->\n<h2 class=\"wp-block-heading\">What it means for downtown</h2>\n<!-- /wp:heading -->\n\n<!-- wp:paragraph -->\n<p>Bridge Street will reopen in stages over the next three weeks. The block around the break will stay closed to traffic until the road is rebuilt, while the outer blocks should reopen to one lane by the weekend. Routes 2, 5 and 9 will keep crossing the river on the Depot Street Bridge, which adds about 10 minutes to each trip, said Lucia Amaro, general manager of Riverbend Transit.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>At least six businesses on Bridge Street reported water damage. Delia Marchetti, president of the Halloway County Chamber of Commerce, said the chamber would help owners with insurance claims and cleanup costs.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>&quot;Most of these owners can&#039;t afford to lose a week, and this took one,&quot; Marchetti said. &quot;The least we can do is take the paperwork off their hands.&quot;</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:heading -->\n<h2 class=\"wp-block-heading\">Boil-water notice stays in place</h2>\n<!-- /wp:heading -->\n\n<!-- wp:paragraph -->\n<p>The boil-water notice for the Grid remains in effect. Residents should bring tap water to a rolling boil for at least one minute before drinking it, cooking with it or using it to brush their teeth. The department expects test results to come back clean within three days.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Bottled water is available at the main library on Courthouse Square until 8 p.m. each day while the notice is in effect. Residents who can&#039;t get there can call the city&#039;s helpline to arrange a delivery.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Deen said the department will bring a plan to replace the rest of the Grid&#039;s cast iron mains, estimated at $28 million over five years, to city officials next month.</p>\n<!-- /wp:paragraph -->",
+				"content": "<!-- wp:paragraph -->\n<p>The city will spend $4.2 million to replace the water main that burst under Bridge Street this morning, along with half a mile of aging pipe around it, Marla Deen, director of Riverbend Public Works, said this evening.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Standing beside the fenced-off hole three blocks up from the river, Deen said the money would come from the city’s emergency reserve and that work would begin tomorrow morning. The replacement had not been due for about two years.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:quote -->\n<blockquote class=\"wp-block-quote\"><!-- wp:paragraph -->\n<p>We can’t keep patching pipes that were laid before anyone on this street was born. This one gave us no warning, and the next one won’t either.</p>\n<!-- /wp:paragraph --><cite>Marla Deen</cite></blockquote>\n<!-- /wp:quote -->\n\n<!-- wp:heading -->\n<h2 class=\"wp-block-heading\">A pipe nearly a century old</h2>\n<!-- /wp:heading -->\n\n<!-- wp:paragraph -->\n<p>The main that failed is a 24-inch cast iron line installed in 1931. Deen said inspectors flagged the downtown section as high risk three years ago, but it sat behind other work on the capital plan, including the Grove Avenue main in Ashgrove.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>She said the break most likely started as a small crack that widened as pressure rose during the morning peak. By the time crews shut the valves on either side, around 9:40 a.m., the escaping water had undermined roughly 60 feet of road surface.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>The plan replaces the failed section and the neighboring pipe for four blocks in each direction with ductile iron, which the department has used for all new mains since the early 2000s.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:heading -->\n<h2 class=\"wp-block-heading\">What it means for downtown</h2>\n<!-- /wp:heading -->\n\n<!-- wp:paragraph -->\n<p>Bridge Street will reopen in stages over the next three weeks. The block around the break will stay closed to traffic until the road is rebuilt, while the outer blocks should reopen to one lane by the weekend. Routes 2, 5 and 9 will keep crossing the river on the Depot Street Bridge, which adds about 10 minutes to each trip, said Lucia Amaro, general manager of Riverbend Transit.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>At least six businesses on Bridge Street reported water damage. Delia Marchetti, president of the Halloway County Chamber of Commerce, said the chamber would help owners with insurance claims and cleanup costs.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>“Most of these owners can’t afford to lose a week, and this took one,” Marchetti said. “The least we can do is take the paperwork off their hands.”</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:heading -->\n<h2 class=\"wp-block-heading\">Boil-water notice stays in place</h2>\n<!-- /wp:heading -->\n\n<!-- wp:paragraph -->\n<p>The boil-water notice for the Grid remains in effect. Residents should bring tap water to a rolling boil for at least one minute before drinking it, cooking with it or using it to brush their teeth. The department expects test results to come back clean within three days.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Bottled water is available at the main library on Courthouse Square until 8 p.m. each day while the notice is in effect. Residents who can’t get there can call the city’s helpline to arrange a delivery.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Deen said the department will bring a plan to replace the rest of the Grid’s cast iron mains, estimated at $28 million over five years, to city officials next month.</p>\n<!-- /wp:paragraph -->",
 				"excerpt": "",
 				"author": "mreilly",
 				"age": 2100697,
-				"image": "pump-house-pipes.jpg",
-				"category": "News"
+				"image": "road-works.jpg",
+				"category": "News",
+				"subtitle": "The broken main and half a mile of 1931 cast iron around it will be replaced, with Bridge Street reopening in stages over three weeks."
 			}
 		},
 		{
@@ -1282,12 +1363,13 @@
 			"age": 181980,
 			"breakout": {
 				"title": "Mill Race Footbridge closes as the Kettle rises",
-				"content": "<!-- wp:paragraph -->\n<p>The Mill Race Footbridge is closed. People walking or cycling should cross on the Depot Street Bridge.</p>\n<!-- /wp:paragraph -->",
+				"content": "<!-- wp:paragraph -->\n<p>The Mill Race Footbridge closed to people walking and cycling this evening after the Kettle River covered the walkway at its western landing in the Rivermill District, Riverbend Public Works said.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>The bridge itself is not damaged, according to the department. Crews closed the gates at both ends because the path off the Rivermill side runs beside the mill race, where the walkway is already under water.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>“The span is fine. It’s the ground at either end we can’t vouch for until the water goes down,” said Marla Deen, director of Riverbend Public Works.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:heading -->\n<h2 class=\"wp-block-heading\">How to get across</h2>\n<!-- /wp:heading -->\n\n<!-- wp:paragraph -->\n<p>People on foot or on bikes should cross on the Depot Street Bridge, about half a mile downstream. The Kettle River Bridge would normally be the shorter way, but Bridge Street is closed while crews repair this morning’s water main break.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Riverbend Transit routes 2, 5 and 9 are also crossing on the Depot Street Bridge, which adds about 10 minutes to each trip.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Visitors heading to the last day of Open Studios tomorrow should take the free shuttle from Courthouse Square, said Teresa Wilkes, director of the Kettle Arts Center. Most people walk over from downtown on the footbridge.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>“We’ve moved volunteers to the shuttle stop so nobody stands in the cold wondering which way to go,” Wilkes said.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:heading -->\n<h2 class=\"wp-block-heading\">When it reopens</h2>\n<!-- /wp:heading -->\n\n<!-- wp:paragraph -->\n<p>The footbridge will stay closed until the river is back below flood stage, 18 feet at the Bridge Street gauge, and engineers have checked both landings and the cable anchorages. The river crested at 21.3 feet just after 6 p.m. and is falling slowly.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>We will update this story when the bridge reopens.</p>\n<!-- /wp:paragraph -->",
 				"excerpt": "The footbridge stays shut until the river drops below flood stage. Here is how to get across the river on foot in the meantime.",
 				"author": "mreilly",
 				"age": 877433,
-				"image": "bridge-girders.jpg",
-				"category": "News"
+				"image": "flooded-riverside-walkway.jpg",
+				"category": "News",
+				"subtitle": "Public works closed the footbridge after the river covered the walkway at its Rivermill landing. The Depot Street Bridge is the way across on foot until it reopens."
 			}
 		},
 		{
@@ -1327,60 +1409,67 @@
 			"type": "post",
 			"slug": "live-open-studios",
 			"title": "Open Studios",
-			"content": "<!-- wp:newspack-rolling-coverage/rolling-coverage {\"coverageId\":\"{{coverage:open-studios}}\",\"layoutId\":\"{{layout:default}}\"} /-->",
+			"content": "<!-- wp:paragraph -->\n<p>Open Studios runs Saturday and Sunday in the Stock House, the Drying Loft and studios across the Rivermill District. The district’s parking fills early, so the Kettle Arts Center is sending visitors to the free shuttle from Courthouse Square.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:newspack-rolling-coverage/rolling-coverage {\"coverageId\":\"{{coverage:open-studios}}\",\"layoutId\":\"{{layout:default}}\"} /-->",
 			"author": null,
 			"age": 2448542,
 			"image": "studio-rafters.jpg",
-			"category": "Arts & Culture"
+			"category": "Arts & Culture",
+			"subtitle": "More than 70 artists open their doors across the Rivermill District this weekend. Follow along for door counts, lines and what is worth the wait."
 		},
 		{
 			"type": "post",
 			"slug": "live-winter-storm-warning",
 			"title": "Winter storm warning",
-			"content": "<!-- wp:paragraph -->\n<p>Follow our live coverage below.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:newspack-rolling-coverage/rolling-coverage {\"coverageId\":\"{{coverage:winter-storm-warning}}\"} /-->",
+			"content": "<!-- wp:paragraph -->\n<p>A winter storm warning covers Halloway County from 6 p.m. tonight through tomorrow morning, with 8 to 14 inches of snow expected. Our environment desk is following closures, outages and road conditions here through the night.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:newspack-rolling-coverage/rolling-coverage {\"coverageId\":\"{{coverage:winter-storm-warning}}\"} /-->",
 			"author": "ethorne",
 			"age": 2610541,
-			"category": "Environment"
+			"category": "Environment",
+			"subtitle": "Closures, power outages and snow totals from across the county as the storm moves through.",
+			"image": "snowy-street.jpg"
 		},
 		{
 			"type": "post",
 			"slug": "live-kettle-greenway-half-marathon",
 			"title": "Kettle Greenway Half Marathon",
-			"content": "<!-- wp:paragraph -->\n<p>Follow our live coverage below.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:newspack-rolling-coverage/rolling-coverage {\"coverageId\":\"{{coverage:kettle-greenway-half-marathon}}\"} /-->",
+			"content": "<!-- wp:paragraph -->\n<p>About 3,400 runners are on the Kettle Greenway this morning, from the Pilcher Park trailhead to the finish at Riverfront Commons. Water Street and the Bridge Street approach are closed until the back of the field has passed.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:newspack-rolling-coverage/rolling-coverage {\"coverageId\":\"{{coverage:kettle-greenway-half-marathon}}\"} /-->",
 			"author": "hbrennan",
 			"age": 3215341,
 			"image": "marathon.jpg",
-			"category": "Sport"
+			"category": "Sport",
+			"subtitle": "Updates from the start, the course and the finish line at Riverfront Commons."
 		},
 		{
 			"type": "post",
 			"slug": "live-bridge-street-water-main-break",
 			"title": "Bridge Street water main break",
-			"content": "<!-- wp:newspack-rolling-coverage/rolling-coverage {\"coverageId\":\"{{coverage:bridge-street-water-main-break}}\",\"layoutId\":\"{{layout:default}}\"} /-->",
+			"content": "<!-- wp:paragraph -->\n<p>A water main has burst under Bridge Street, three blocks up from the river. Bridge Street is closed in both directions while public works crews shut off the water and dig down to the pipe.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:newspack-rolling-coverage/rolling-coverage {\"coverageId\":\"{{coverage:bridge-street-water-main-break}}\",\"layoutId\":\"{{layout:default}}\"} /-->",
 			"author": null,
 			"age": 2100890,
 			"image": "water-main-trench.jpg",
-			"category": "News"
+			"category": "News",
+			"subtitle": "Closures, the boil-water notice and repair updates from public works."
 		},
 		{
 			"type": "post",
 			"slug": "friday-night-games-moved-as-the-kettle-river-rises",
 			"title": "Friday night games moved as the Kettle River rises",
-			"content": "<!-- wp:paragraph -->\n<p>Coaches across the county scrambled to find new dates for Friday&#039;s high school games as the Kettle River left fields in Northgate and along the greenway under water.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:newspack-rolling-coverage/rolling-coverage {\"coverageId\":\"{{coverage:live-kettle-river-flood}}\",\"layoutId\":\"{{layout:digest}}\",\"latestOnly\":true,\"latestCount\":3} /-->\n\n<!-- wp:paragraph -->\n<p>Ruth Ambrose, director of Halloway County Emergency Management, said the river should crest by early evening, but Water Street and the greenway will stay closed through the night.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Residents in the floodplain were urged to stay at the fairgrounds shelter until officials confirm it is safe to return. Schools in Northgate will open late tomorrow.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Marla Deen, director of Riverbend Public Works, said her department will review the storm drains on Water Street once the water drops, starting with the low point at Depot Street.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Business owners along Water Street spent the morning moving stock upstairs and setting door barriers in place.</p>\n<!-- /wp:paragraph -->\n\n\n",
+			"content": "<!-- wp:paragraph -->\n<p>Coaches across the county scrambled to find new dates for Friday’s high school games as the Kettle River left fields in Northgate and along the greenway under water.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:newspack-rolling-coverage/rolling-coverage {\"coverageId\":\"{{coverage:live-kettle-river-flood}}\",\"layoutId\":\"{{layout:digest}}\",\"latestOnly\":true,\"latestCount\":3} /-->\n\n<!-- wp:paragraph -->\n<p>The Northgate Hawks’ home game against Kettleford will be played Saturday at 1 p.m. at Ashgrove High School, whose field sits well above the river. The Central Ravens’ game moves to next Thursday. The Ashgrove Bulldogs’ road game goes ahead as scheduled.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>The Northgate field sits a block from Fell Creek, which went over Fell Street this afternoon for the fifth time since 2019. By the time the creek sensors sent their text alerts, water was standing across one end zone.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Tickets bought for Friday will be honored at the rescheduled games, and the visiting teams’ buses have been rebooked, the schools’ athletic offices said.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:heading -->\n<h2 class=\"wp-block-heading\">Riverside fields closed for a week</h2>\n<!-- /wp:heading -->\n\n<!-- wp:paragraph -->\n<p>The parks department has closed every field along the greenway, including the youth soccer fields below Pilcher Park. Silas Whitcomb, director of Riverbend Parks and Recreation, said they would stay closed for at least a week after the water drops, while crews clear silt and check for washouts.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>“A field that has been under the river is not a field yet. It’s a mud flat with goals on it,” Whitcomb said.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Ruth Ambrose, director of Halloway County Emergency Management, said the river should crest by early evening, but Water Street and the greenway will stay closed through the night. Northgate High will open at 10 a.m. tomorrow, and its after-school practices are canceled.</p>\n<!-- /wp:paragraph -->",
 			"author": "hbrennan",
 			"age": 1825317,
-			"image": "kettle-river-sunset.jpg",
-			"category": "Sport"
+			"image": "flooded-field.jpg",
+			"category": "Sport",
+			"subtitle": "Northgate's home game moves to Ashgrove on Saturday, and the riverside practice fields will stay closed for at least a week after the water drops."
 		},
 		{
 			"type": "post",
 			"slug": "schools-close-across-the-county-as-the-snow-arrives",
 			"title": "Schools close across the county as the snow arrives",
-			"content": "<!-- wp:paragraph -->\n<p>Every public school in the county will stay closed tomorrow as the winter storm brings heavy snow and freezing rain across the region, Riverbend Public Schools and the Kettleford district said this evening.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>After-school activities and evening events are canceled, and Riverbend Public Schools will text families with the following day&#039;s schedule by 6 a.m.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:newspack-rolling-coverage/rolling-coverage {\"coverageId\":\"{{coverage:winter-storm-warning}}\",\"layoutId\":\"{{layout:digest}}\",\"latestOnly\":true,\"latestCount\":3} /-->\n",
+			"content": "<!-- wp:paragraph -->\n<p>Every public school in the county will stay closed tomorrow as the winter storm brings heavy snow and freezing rain across the region, Riverbend Public Schools and the Kettleford district said this evening.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>After-school activities and evening events are canceled, and Riverbend Public Schools will text families with the following day’s schedule by 6 a.m.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:newspack-rolling-coverage/rolling-coverage {\"coverageId\":\"{{coverage:winter-storm-warning}}\",\"layoutId\":\"{{layout:digest}}\",\"latestOnly\":true,\"latestCount\":3} /-->\n\n<!-- wp:paragraph -->\n<p>Dr. Yvonne Ferris, superintendent of Riverbend Public Schools, said the district decided tonight rather than at dawn because the forecast left little room for doubt.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>“The snow on the ground at 6 a.m. isn’t what decides this. Buses and icy sidewalks are,” Ferris said. “If we can’t get students there and home safely, we don’t open.”</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>The Halloway Career Center, which takes juniors and seniors from all three high schools for half of each day, is closed too. The district sends its texts in English, Spanish, Somali, Vietnamese and Hungarian.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:heading -->\n<h2 class=\"wp-block-heading\">Plows out overnight</h2>\n<!-- /wp:heading -->\n\n<!-- wp:paragraph -->\n<p>Public works will have every plow out overnight, starting with snow emergency routes and bus routes, said Marla Deen, director of Riverbend Public Works. Cars parked on marked snow routes after 10 p.m. will be towed.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Three warming centers are open overnight for anyone who needs one: the main library on Courthouse Square, the Northgate Community Center and the Union Depot concourse. Ferris said the district would decide later in the week whether to make up the lost day.</p>\n<!-- /wp:paragraph -->",
 			"author": "pverma",
 			"age": 1479066,
 			"image": "stacked-chairs.jpg",
-			"category": "Education"
+			"category": "Education",
+			"subtitle": "Riverbend Public Schools and the Kettleford district made the call early so families could plan for a day at home."
 		},
 		{
 			"type": "page",
@@ -1410,7 +1499,7 @@
 			"type": "page",
 			"slug": "follow-the-river",
 			"title": "Follow the River",
-			"content": "<!-- wp:paragraph -->\n<p>Get a notification whenever we post a new update on the flood.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:heading {\"level\":3} -->\n<h3 class=\"wp-block-heading\">Kettle River rises above flood stage</h3>\n<!-- /wp:heading -->\n\n<!-- wp:newspack-rolling-coverage/coverage-follow {\"coverageId\":\"{{coverage:live-kettle-river-flood}}\"} -->\n<!-- wp:buttons {\"metadata\":{\"name\":\"Follow\"}} -->\n<div class=\"wp-block-buttons\"><!-- wp:button {\"tagName\":\"button\",\"metadata\":{\"name\":\"Follow\",\"bindings\":{\"url\":{\"source\":\"newspack-rolling-coverage/entry\",\"args\":{\"key\":\"followTag\"}}}}} -->\n<div class=\"wp-block-button\"><button type=\"button\" class=\"wp-block-button__link wp-element-button\">Follow</button></div>\n<!-- /wp:button --></div>\n<!-- /wp:buttons -->\n<!-- /wp:newspack-rolling-coverage/coverage-follow -->\n",
+			"content": "<!-- wp:paragraph -->\n<p>The Kettle River is above flood stage in Riverbend. Follow our live coverage and we will send an alert to your phone or computer whenever we post an important update: road and bridge closures, shelter openings, power outages and new river readings.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:heading {\"level\":3} -->\n<h3 class=\"wp-block-heading\">Kettle River rises above flood stage</h3>\n<!-- /wp:heading -->\n\n<!-- wp:newspack-rolling-coverage/coverage-status {\"coverageId\":\"{{coverage:live-kettle-river-flood}}\"} /-->\n\n<!-- wp:newspack-rolling-coverage/coverage-follow {\"coverageId\":\"{{coverage:live-kettle-river-flood}}\"} -->\n<!-- wp:buttons {\"metadata\":{\"name\":\"Follow\"}} -->\n<div class=\"wp-block-buttons\"><!-- wp:button {\"tagName\":\"button\",\"metadata\":{\"name\":\"Follow\",\"bindings\":{\"url\":{\"source\":\"newspack-rolling-coverage/entry\",\"args\":{\"key\":\"followTag\"}}}}} -->\n<div class=\"wp-block-button\"><button type=\"button\" class=\"wp-block-button__link wp-element-button\">Follow</button></div>\n<!-- /wp:button --></div>\n<!-- /wp:buttons -->\n<!-- /wp:newspack-rolling-coverage/coverage-follow -->\n\n<!-- wp:paragraph {\"fontSize\":\"small\"} -->\n<p class=\"has-small-font-size\">Your browser asks for permission the first time. We send a few alerts a day while the river is high, and they stop when our coverage ends. To stop them sooner, select Following.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:heading {\"level\":3} -->\n<h3 class=\"wp-block-heading\">Latest updates</h3>\n<!-- /wp:heading -->\n\n<!-- wp:newspack-rolling-coverage/rolling-coverage {\"coverageId\":\"{{coverage:live-kettle-river-flood}}\",\"layoutId\":\"{{layout:digest}}\",\"latestOnly\":true,\"latestCount\":3} /-->\n\n<!-- wp:paragraph -->\n<p><a href=\"{{home}}/live-kettle-river-flood/\">Read every update on our live page</a></p>\n<!-- /wp:paragraph -->\n\n<!-- wp:heading {\"level\":3} -->\n<h3 class=\"wp-block-heading\">Full stories</h3>\n<!-- /wp:heading -->\n\n<!-- wp:list -->\n<ul class=\"wp-block-list\"><!-- wp:list-item -->\n<li><a href=\"{{home}}/mill-race-footbridge-closes-as-the-kettle-rises/\">Mill Race Footbridge closes as the Kettle rises</a></li>\n<!-- /wp:list-item --><!-- wp:list-item -->\n<li><a href=\"{{home}}/outage-map-every-neighborhood-still-without-power/\">Outage map: every neighborhood still without power</a></li>\n<!-- /wp:list-item --><!-- wp:list-item -->\n<li><a href=\"{{home}}/friday-night-games-moved-as-the-kettle-river-rises/\">Friday night games moved as the Kettle River rises</a></li>\n<!-- /wp:list-item --></ul>\n<!-- /wp:list -->\n\n<!-- wp:heading {\"level\":3} -->\n<h3 class=\"wp-block-heading\">Where to get help</h3>\n<!-- /wp:heading -->\n\n<!-- wp:list -->\n<ul class=\"wp-block-list\"><!-- wp:list-item -->\n<li><strong>Shelter:</strong> The fairgrounds shelter on Route 9 is open, with a nurse team from Riverbend Memorial. Pets go in a separate barn. Bring medication, documents and phone chargers.</li>\n<!-- /wp:list-item --><!-- wp:list-item -->\n<li><strong>Sandbags:</strong> Filled sandbags are free at the public works yard on Depot Street, up to 25 per household. Bring a vehicle that can carry them.</li>\n<!-- /wp:list-item --><!-- wp:list-item -->\n<li><strong>Text alerts:</strong> The county’s free flood alert texts you when the river forecast crosses 15 feet. Sign up on the Halloway County Emergency Management website.</li>\n<!-- /wp:list-item --><!-- wp:list-item -->\n<li><strong>Roads:</strong> Never drive through water on a road. Two feet of moving water floats a car.</li>\n<!-- /wp:list-item --><!-- wp:list-item -->\n<li><strong>Power:</strong> Report outages to the utility’s outage line. If you rely on powered medical equipment, call county emergency management.</li>\n<!-- /wp:list-item --><!-- wp:list-item -->\n<li><strong>Tell us:</strong> Seen something we should know about? Call the newsroom at (555) 555-0140.</li>\n<!-- /wp:list-item --></ul>\n<!-- /wp:list -->\n",
 			"author": "ethorne",
 			"age": 1769843
 		},
@@ -1426,7 +1515,7 @@
 			"type": "page",
 			"slug": "weather-desk",
 			"title": "Weather Desk",
-			"content": "<!-- wp:newspack-rolling-coverage/coverage-status {\"coverageId\":\"{{coverage:winter-storm-warning}}\",\"showLastUpdated\":true} /-->\n\n<!-- wp:paragraph -->\n<p>Forecasts, warnings and road conditions from our environment desk, updated through the day.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:newspack-rolling-coverage/rolling-coverage {\"coverageId\":\"{{coverage:winter-storm-warning}}\",\"layoutId\":\"{{layout:ticker}}\",\"latestOnly\":true,\"latestCount\":3,\"hideWhenEnded\":true,\"align\":\"wide\"} /-->\n\n<!-- wp:paragraph -->\n<p>Check back for the five-day outlook each morning.</p>\n<!-- /wp:paragraph -->\n",
+			"content": "<!-- wp:newspack-rolling-coverage/coverage-status {\"coverageId\":\"{{coverage:winter-storm-warning}}\",\"showLastUpdated\":true} /-->\n\n<!-- wp:paragraph -->\n<p>Forecasts, warnings and road conditions from our environment desk, updated through the day.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:newspack-rolling-coverage/rolling-coverage {\"coverageId\":\"{{coverage:winter-storm-warning}}\",\"layoutId\":\"{{layout:ticker}}\",\"latestOnly\":true,\"latestCount\":3,\"hideWhenEnded\":true,\"align\":\"wide\"} /-->\n\n<!-- wp:paragraph -->\n<p>Check back for the five-day outlook each morning.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:heading {\"level\":3} -->\n<h3 class=\"wp-block-heading\">When snow is forecast</h3>\n<!-- /wp:heading -->\n\n<!-- wp:list -->\n<ul class=\"wp-block-list\"><!-- wp:list-item -->\n<li>A snow emergency means cars parked on marked snow routes are towed. Move yours before it takes effect.</li>\n<!-- /wp:list-item --><!-- wp:list-item -->\n<li>Riverbend Public Schools texts families by 6 a.m. when schools close or open late.</li>\n<!-- /wp:list-item --><!-- wp:list-item -->\n<li>Warming centers open overnight at the main library on Courthouse Square, the Northgate Community Center and the Union Depot concourse.</li>\n<!-- /wp:list-item --><!-- wp:list-item -->\n<li>Report power outages to the utility’s outage line, not to 911.</li>\n<!-- /wp:list-item --></ul>\n<!-- /wp:list -->\n",
 			"author": "ethorne",
 			"age": 1479067
 		},

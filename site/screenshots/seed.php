@@ -23,11 +23,12 @@ use Newspack_Rolling_Coverage\Taxonomy;
 
 defined( 'ABSPATH' ) || exit;
 
-const NEWSPACK_RC_SCREENSHOTS_MARK  = '_newspack_rc_screenshots';
-const NEWSPACK_RC_SCREENSHOTS_STATE = 'newspack_rc_screenshots_state';
-const NEWSPACK_RC_SCREENSHOTS_FAKES = 'newspack-rc-screenshots.php';
-const NEWSPACK_RC_SCREENSHOTS_THEME = 'newspack-block-theme';
-const NEWSPACK_RC_SCREENSHOTS_TOKEN = 'xoxb-0000000000-screenshots';
+const NEWSPACK_RC_SCREENSHOTS_MARK     = '_newspack_rc_screenshots';
+const NEWSPACK_RC_SCREENSHOTS_STATE    = 'newspack_rc_screenshots_state';
+const NEWSPACK_RC_SCREENSHOTS_FAKES    = 'newspack-rc-screenshots.php';
+const NEWSPACK_RC_SCREENSHOTS_THEME    = 'newspack-block-theme';
+const NEWSPACK_RC_SCREENSHOTS_TOKEN    = 'xoxb-0000000000-screenshots';
+const NEWSPACK_RC_SCREENSHOTS_SUBTITLE = 'newspack_post_subtitle';
 
 /**
  * Entry point.
@@ -583,6 +584,16 @@ function newspack_rc_screenshots_seed_media( $media ) {
 		if ( ! empty( $file['error'] ) ) {
 			newspack_rc_screenshots_fail( sprintf( 'Could not upload %s', $item['file'] ), $file['error'] );
 		}
+		$meta = [
+			NEWSPACK_RC_SCREENSHOTS_MARK => 1,
+			'_wp_attachment_image_alt'   => $item['alt'],
+		];
+		if ( ! empty( $item['credit'] ) ) {
+			$meta['_media_credit'] = $item['credit'];
+		}
+		if ( ! empty( $item['credit_org'] ) ) {
+			$meta['_navis_media_credit_org'] = $item['credit_org'];
+		}
 		$attachment_id = wp_insert_attachment(
 			wp_slash(
 				[
@@ -590,10 +601,7 @@ function newspack_rc_screenshots_seed_media( $media ) {
 					'post_excerpt'   => $item['caption'],
 					'post_mime_type' => wp_check_filetype( $item['file'] )['type'],
 					'post_status'    => 'inherit',
-					'meta_input'     => [
-						NEWSPACK_RC_SCREENSHOTS_MARK => 1,
-						'_wp_attachment_image_alt'   => $item['alt'],
-					],
+					'meta_input'     => $meta,
 				]
 			),
 			$file['file'],
@@ -728,6 +736,9 @@ function newspack_rc_screenshots_seed_posts( $posts, $users, $media, $tokens, $c
 		if ( ! empty( $post['image'] ) ) {
 			set_post_thumbnail( $ids[ $post['slug'] ], $media[ $post['image'] ] );
 		}
+		if ( ! empty( $post['subtitle'] ) ) {
+			update_post_meta( $ids[ $post['slug'] ], NEWSPACK_RC_SCREENSHOTS_SUBTITLE, $post['subtitle'] );
+		}
 	}
 	return $ids;
 }
@@ -789,6 +800,9 @@ function newspack_rc_screenshots_seed_entries( $entries, $coverages, $users, $me
 			);
 			if ( ! empty( $breakout['image'] ) ) {
 				set_post_thumbnail( $breakout_id, $media[ $breakout['image'] ] );
+			}
+			if ( ! empty( $breakout['subtitle'] ) ) {
+				update_post_meta( $breakout_id, NEWSPACK_RC_SCREENSHOTS_SUBTITLE, $breakout['subtitle'] );
 			}
 			update_post_meta( $breakout_id, Breakout::BREAKOUT_SOURCE_ENTRY_META, $entry_id );
 			update_post_meta( $entry_id, Breakout::ENTRY_BREAKOUT_POST_ID_META, $breakout_id );

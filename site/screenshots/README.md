@@ -51,7 +51,7 @@ wp user update james --user_pass=<new password>
 The seed creates, and marks as its own:
 
 - The coverages and their statuses. Live: "Kettle River rises above flood stage", "Open Studios" and "Bridge Street water main break". Paused: "Winter storm warning" and "School board budget vote". Ended: "Kettle Greenway Half Marathon", "Riverbend FC v Fresno Verde" and "Riverbend FC v Toledo Beacon".
-- Their entries, authors (with fixed avatars), all from the Gazette's newsroom, photos, full story posts and pinned entries. Entry times are set relative to when you run the seed, so "2 days ago" reads the same whenever you seed.
+- Their entries, authors (with the Gazette's monogram avatars), all from the Gazette's newsroom, photos with captions and credits, full story posts with standfirsts, and pinned entries. Entry times are set relative to when you run the seed, so "2 days ago" reads the same whenever you seed.
 - The pages and posts that show them, such as `/live-kettle-river-flood/`, `/riverbend-fc-v-toledo-beacon-live-updates/`, `/weather-desk/` and `/follow-the-river/`, the front page, and two draft pages for editor screenshots: "Kettle River flood" and "Kettle River flood: live updates".
 - The built-in layouts, the categories in the header menu that the site doesn't have yet, the header menu, the header and footer template parts, the site logo and the site icon. The footer shows the Gazette's icon, social links, tagline, address and section menu, and a copyright line. Built-in layouts the site already has are reused, so if someone has edited one, images that show it can differ.
 - A connected Slack workspace, "The Riverbend Gazette", with four channel mappings and the Slack Bot user. These are settings only: nothing talks to Slack. If the site already has Slack settings, the seed leaves Slack alone.
@@ -217,15 +217,20 @@ Before you commit an image, look at it.
 
 ## Credits
 
-- **Photos** in `assets/media/` (all but the site logo and site icon):
-  - From [Pexels](https://www.pexels.com/), free to use under the [Pexels license](https://www.pexels.com/license/): `flood-street.jpg` by Sveta K, `polling.jpg` by Osviel Rodriguez Valdés, `late-winner.jpg` by George Zografidis, `marathon.jpg` by Stephen Leonardi, and `stadium.jpg` by Leticia Golubov.
-  - Found through [Openverse](https://openverse.org/), dedicated to the public domain under [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) or marked with the [Public Domain Mark 1.0](https://creativecommons.org/publicdomain/mark/1.0/), so they need no credit on the image. Each is resized, and `paper-lanterns.jpg` is cropped to remove its frame.
+- **Photos** in `assets/media/` (all but the site logo and site icon). Their captions and credits are in `content.json`:
+  - From [Pexels](https://www.pexels.com/), free to use under the [Pexels license](https://www.pexels.com/license/): `flood-street.jpg` by Sveta K, `polling.jpg` by Osviel Rodriguez Valdés, `marathon.jpg` by Stephen Leonardi, and `stadium.jpg` by Leticia Golubov, and these seven, resized to 1600 pixels on the long edge:
+    - `late-winner.jpg`: "People on Stadium during Soccer Game" by Altan Kendirci, [Pexels](https://www.pexels.com/photo/people-on-stadium-during-soccer-game-19918607/). A sign, a club banner and the big screen are blurred.
+    - `flooded-field.jpg`: "Flooded Field" by Toon de Vos, [Pexels](https://www.pexels.com/photo/flooded-field-6208447/).
+    - `flooded-riverside-walkway.jpg`: "Flooded Riverbank Walkway" by Andrey Karpov, [Pexels](https://www.pexels.com/photo/flooded-riverbank-walkway-7821835/).
+    - `power-line-crew.jpg`: "Road Works near Utility Pole" by Robert So, [Pexels](https://www.pexels.com/photo/road-works-near-utility-pole-16339549/). The equipment maker's name on the trucks is blurred.
+    - `road-works.jpg`: "Road Construction Worker with Jackhammer" by Thomas Fuhrmann, [Pexels](https://www.pexels.com/photo/road-construction-worker-with-jackhammer-33484883/).
+    - `snowy-evening-street.jpg`: "Dwelling house near snowy road and leafless trees in winter" by Sandy Torchon, [Pexels](https://www.pexels.com/photo/dwelling-house-near-snowy-road-and-leafless-trees-in-winter-4166335/).
+    - `snowy-street.jpg`: "Houses with Parked Cars Covered in Snow" by Lalada, [Pexels](https://www.pexels.com/photo/houses-with-parked-cars-covered-in-snow-6220207/).
+  - Found through [Openverse](https://openverse.org/), dedicated to the public domain under [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) or marked with the [Public Domain Mark 1.0](https://creativecommons.org/publicdomain/mark/1.0/), so they need no credit, though the site credits each under its caption, to rawpixel where the photographer isn't named. Each is resized, and `paper-lanterns.jpg` is cropped to remove its frame.
     - `ball-on-grass.jpg`: "Soccer ball grass field", photographer not named, CC0, [rawpixel](https://www.rawpixel.com/image/5911893/image-public-domain-free-grass).
-    - `bridge-girders.jpg`: "Close-up view of a steel bridge structure showing intersecting beams, rivets, and metal joints against a light blue sky." by genepine, CC0, [WordPress Photo Directory](https://wordpress.org/photos/photo/53268f989d/).
     - `kettle-river-sunset.jpg`: "autumn sunset on the river" by azxa661, Public Domain Mark, [Flickr](https://www.flickr.com/photos/197207264@N02/52581985117).
     - `library-shelves.jpg`: "Book shelves library", photographer not named, CC0, [rawpixel](https://www.rawpixel.com/image/6021855/photo-image-book-public-domain-room).
     - `paper-lanterns.jpg`: "Lanterns for mid-autumn festival" by GeorgeTan#3, Public Domain Mark, [Flickr](https://www.flickr.com/photos/190270151@N02/51498605534).
-    - `pump-house-pipes.jpg`: "20130618-RD-LSC-0226" by USDAgov, Public Domain Mark, [Flickr](https://www.flickr.com/photos/41284017@N08/9404330011).
     - `reporters-notebook.jpg`: "Research" by neil conway, Public Domain Mark, [Flickr](https://www.flickr.com/photos/30934989@N06/5625707813).
     - `stacked-chairs.jpg`: "Stacked chairs along wall covered", photographer not named, CC0, [rawpixel](https://www.rawpixel.com/image/3294353/free-photo-image-architecture-banister-boardwalk).
     - `string-lights.jpg`: "String lights night", photographer not named, CC0, [rawpixel](https://www.rawpixel.com/image/3283840/free-photo-image-christmas-lights-background-festive-bokeh).
@@ -233,4 +238,4 @@ Before you commit an image, look at it.
     - `water-main-trench.jpg`: "Bøgeskov Høvej 25, vejarbejde - DSC_2223_Balancer" by Lav Ulv, CC0, [Flickr](https://www.flickr.com/photos/99460566@N06/35776145673).
 - **The site logo and site icon**, `assets/media/riverbend-gazette-wordmark.png` and `assets/media/site-icon.png`, are The Riverbend Gazette's wordmark and icon, made for Newspack's demo sites.
 - **Source Serif 4**, the variable WOFF2 files in `assets/fonts/source-serif-4/`, is by Adobe, from [adobe-fonts/source-serif](https://github.com/adobe-fonts/source-serif) release 4.005, under the [SIL Open Font License 1.1](https://openfontlicense.org/) (`assets/fonts/source-serif-4/LICENSE.md`). The site loads it from this folder. Inter comes with the Newspack Block Theme.
-- **Avatars** in `assets/avatars/` are flat colors made for this folder, one per seeded author.
+- **Avatars** in `assets/avatars/` are The Riverbend Gazette's monogram avatars, one per seeded author, made for Newspack's demo sites and resized to 192 pixels. `default.svg`, a flat blue square, is the avatar of James Smith and every other account.
