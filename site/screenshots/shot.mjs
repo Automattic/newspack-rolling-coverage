@@ -21,7 +21,7 @@ const SETTLE_TIMEOUT = 15000;
 const EDITOR_PREFERENCES = {
 	core: {
 		showBlockBreadcrumbs: false,
-		fixedToolbar: false,
+		fixedToolbar: true,
 		enableChoosePatternModal: false,
 		welcomeGuide: false,
 	},
@@ -352,7 +352,7 @@ async function savePreferences( page, site, current ) {
 		.catch( () => false );
 	if ( ! saved ) {
 		console.warn(
-			"shot: couldn't save the editor preferences. Turn off fullscreen mode and block breadcrumbs in the editor yourself."
+			"shot: couldn't save the editor preferences. Turn off fullscreen mode and block breadcrumbs, and turn on Top toolbar, in the editor yourself."
 		);
 	}
 }

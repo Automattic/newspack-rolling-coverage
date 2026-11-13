@@ -37,7 +37,7 @@ Before it changes anything, the seed checks that:
 - The Newspack plugin and Rolling Coverage are active, and the active Rolling Coverage is the checkout this `seed.php` belongs to.
 - The Newspack Block Theme is installed and can run on the site's versions of WordPress and PHP.
 - The site has an administrator of its own, who can create patterns and save unfiltered HTML.
-- Nothing on the site is in the way: a coverage, page, post or user with one of the demo names or email addresses, or a customized header.
+- Nothing on the site is in the way: a coverage, page, post or user with one of the demo names or email addresses, or a customized header or footer.
 - The uploads and mu-plugins folders are writable, and the files the seed copies are readable.
 
 If anything fails, it stops and lists what it found.
@@ -53,7 +53,7 @@ The seed creates, and marks as its own:
 - The coverages and their statuses. Live: "Kettle River rises above flood stage", "Open Studios" and "Bridge Street water main break". Paused: "Winter storm warning" and "School board budget vote". Ended: "Kettle Greenway Half Marathon", "Riverbend FC v Fresno Verde" and "Riverbend FC v Toledo Beacon".
 - Their entries, authors (with fixed avatars), all from the Gazette's newsroom, photos, full story posts and pinned entries. Entry times are set relative to when you run the seed, so "2 days ago" reads the same whenever you seed.
 - The pages and posts that show them, such as `/live-kettle-river-flood/`, `/riverbend-fc-v-toledo-beacon-live-updates/`, `/weather-desk/` and `/follow-the-river/`, the front page, and two draft pages for editor screenshots: "Kettle River flood" and "Kettle River flood: live updates".
-- The built-in layouts, the categories in the header menu that the site doesn't have yet, the header menu, the header template parts, the site logo and the site icon. Built-in layouts the site already has are reused, so if someone has edited one, images that show it can differ.
+- The built-in layouts, the categories in the header menu that the site doesn't have yet, the header menu, the header and footer template parts, the site logo and the site icon. The footer shows the Gazette's icon, social links, tagline, address and section menu, and a copyright line. Built-in layouts the site already has are reused, so if someone has edited one, images that show it can differ.
 - A connected Slack workspace, "The Riverbend Gazette", with four channel mappings and the Slack Bot user. These are settings only: nothing talks to Slack. If the site already has Slack settings, the seed leaves Slack alone.
 - A must-use plugin, `wp-content/mu-plugins/newspack-rc-screenshots.php`, copied from `fakes.php`. It makes the AI and Push Notifications screens appear without keys when those plugins aren't active, answers Key Takeaways with sample text, blocks every request WordPress's HTTP API makes to a host other than the site itself, blocks all email, turns away requests to the Slack webhooks, and gives every account a fixed avatar. It does nothing on a site the seed hasn't seeded.
 
@@ -203,7 +203,7 @@ Every screenshot uses these, and the script applies them for you:
 - Light mode, the visible viewport only (never the full page), and no scrollbars.
 - Signed in as James Smith, who has a flat blue avatar. Update notices, cookie banners, the Newspack debug notice and similar noise are hidden from the moment the page loads.
 - The reader sign-up prompt is closed on front-end pages.
-- The editor isn't in fullscreen mode and shows no block breadcrumbs, welcome guides or pattern chooser. The script saves these editor preferences for the account you sign in with each time it runs.
+- The editor isn't in fullscreen mode and shows no block breadcrumbs, welcome guides or pattern chooser. Top toolbar is on, so a selected block's toolbar sits in the editor's header instead of over the page. These apply in the post, page, pattern and Site Editor alike, and the script saves them for the account you sign in with each time it runs.
 - At most one spotlight: everything outside the element and an 8px margin is dimmed with 45% black.
 
 Before you commit an image, look at it.

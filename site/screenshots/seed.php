@@ -408,15 +408,25 @@ function newspack_rc_screenshots_seed( $content ) {
 		}
 	}
 	newspack_rc_screenshots_seed_entries( $content['entries'], $coverages, $users, $media, $tokens, $categories );
-	newspack_rc_screenshots_seed_parts( $content['parts'], newspack_rc_screenshots_seed_navigation( $categories ) );
 
-	$icon = [
+	$icon    = [
 		'file'    => $content['site']['icon'],
 		'title'   => 'Site icon',
 		'alt'     => '',
 		'caption' => '',
 	];
-	update_option( 'site_icon', newspack_rc_screenshots_seed_media( [ $icon ] )[ $icon['file'] ] );
+	$icon_id = newspack_rc_screenshots_seed_media( [ $icon ] )[ $icon['file'] ];
+	update_option( 'site_icon', $icon_id );
+	newspack_rc_screenshots_seed_parts(
+		$content['parts'],
+		[
+			'"{{navigation}}"' => (string) newspack_rc_screenshots_seed_navigation( $categories ),
+			'"{{icon}}"'       => (string) $icon_id,
+			'{{icon}}'         => (string) $icon_id,
+			'{{icon-url}}'     => (string) wp_get_attachment_url( $icon_id ),
+			'{{home}}'         => $tokens['{{home}}'],
+		]
+	);
 	$logo = [
 		'file'    => $content['site']['logo'],
 		'title'   => 'Site logo',
@@ -854,14 +864,17 @@ function newspack_rc_screenshots_seed_navigation( $categories ) {
 }
 
 /**
- * Replaces the theme's header with the demo site's: a green strip above the
- * masthead, which holds the menu button, the site logo and the account
- * buttons, with the section menu on a row of its own beneath.
+ * Replaces the theme's header and footer with the demo site's. The header is
+ * a green strip above the masthead, which holds the menu button, the site
+ * logo and the account buttons, with the section menu on a row of its own
+ * beneath. The footer holds the site icon and social links, the tagline,
+ * address and section menu, and the copyright line.
  *
- * @param array $parts      Template parts from content.json.
- * @param int   $navigation Navigation post ID.
+ * @param array $parts  Template parts from content.json.
+ * @param array $tokens Placeholders in the parts and their values: the
+ *                      section menu, the site icon and the home URL.
  */
-function newspack_rc_screenshots_seed_parts( $parts, $navigation ) {
+function newspack_rc_screenshots_seed_parts( $parts, $tokens ) {
 	foreach ( $parts as $part ) {
 		$part_id = newspack_rc_screenshots_insert_post(
 			[
@@ -869,7 +882,7 @@ function newspack_rc_screenshots_seed_parts( $parts, $navigation ) {
 				'post_status'  => 'publish',
 				'post_name'    => $part['slug'],
 				'post_title'   => $part['title'],
-				'post_content' => str_replace( '"{{navigation}}"', (string) $navigation, $part['content'] ),
+				'post_content' => strtr( $part['content'], $tokens ),
 			],
 			0
 		);
