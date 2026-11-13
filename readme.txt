@@ -60,7 +60,7 @@ The sample entries that preview each layout in the editor use these photos, both
 * `assets/sample-images/corner.webp`: soccer field corner, by Robert Katzki, https://stocksnap.io/photo/soccer-field-FS8QBX48GP
 * `assets/sample-images/stadium.webp`: soccer stadium, by Michal Jarmoluk, https://stocksnap.io/photo/soccer-ball-FN9W4V6TK5
 
-The sample author avatars in `assets/sample-avatars/` were made for this plugin and are licensed under the GPL, like the rest of the plugin.
+The sample author avatars in `assets/sample-avatars/` were made for this plugin and are licensed under GPL-3.0, like the rest of the plugin.
 
 == Changelog ==
 

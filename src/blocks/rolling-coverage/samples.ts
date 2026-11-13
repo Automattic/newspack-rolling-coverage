@@ -259,7 +259,7 @@ function loadSampleRecords(): void {
 				type: 'attachment',
 				source_url: SAMPLE_IMAGE_URLS?.breakout ?? '',
 				alt_text: __(
-					'An empty soccer stadium with a ball on the center spot',
+					'An empty soccer stadium with a ball on the field',
 					'newspack-rolling-coverage'
 				),
 				media_type: 'image',
