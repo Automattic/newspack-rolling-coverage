@@ -50,7 +50,7 @@ wp user update james --user_pass=<new password>
 
 The seed creates, and marks as its own:
 
-- The coverages and their statuses. Live: "Live: Kettle River rises above flood stage", "Open Studios" and "Bridge Street water main break". Paused: "Winter storm warning" and "School board budget vote". Ended: "Kettle Greenway Half Marathon", "Live: Riverbend FC v Fresno Verde" and "Riverbend FC v Toledo Beacon".
+- The coverages and their statuses. Live: "Kettle River rises above flood stage", "Open Studios" and "Bridge Street water main break". Paused: "Winter storm warning" and "School board budget vote". Ended: "Kettle Greenway Half Marathon", "Riverbend FC v Fresno Verde" and "Riverbend FC v Toledo Beacon".
 - Their entries, authors (with fixed avatars), all from the Gazette's newsroom, photos, full story posts and pinned entries. Entry times are set relative to when you run the seed, so "2 days ago" reads the same whenever you seed.
 - The pages and posts that show them, such as `/live-kettle-river-flood/`, `/riverbend-fc-v-toledo-beacon-live-updates/`, `/weather-desk/` and `/follow-the-river/`, the front page, and two draft pages for editor screenshots: "Kettle River flood" and "Kettle River flood: live updates".
 - The built-in layouts, the categories in the header menu that the site doesn't have yet, the header menu, the header template parts, the site logo and the site icon. Built-in layouts the site already has are reused, so if someone has edited one, images that show it can differ.

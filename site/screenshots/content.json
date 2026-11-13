@@ -246,7 +246,7 @@
 		},
 		{
 			"slug": "live-riverbend-fc-v-fresno-verde",
-			"name": "Live: Riverbend FC v Fresno Verde",
+			"name": "Riverbend FC v Fresno Verde",
 			"status": "archived",
 			"age": 2083074,
 			"ended_age": 2075100,
@@ -254,7 +254,7 @@
 		},
 		{
 			"slug": "live-kettle-river-flood",
-			"name": "Live: Kettle River rises above flood stage",
+			"name": "Kettle River rises above flood stage",
 			"status": "active",
 			"age": 2020663,
 			"canonical": "live-kettle-river-flood"
@@ -1326,7 +1326,7 @@
 		{
 			"type": "post",
 			"slug": "live-open-studios",
-			"title": "Live: Open Studios",
+			"title": "Open Studios",
 			"content": "<!-- wp:newspack-rolling-coverage/rolling-coverage {\"coverageId\":\"{{coverage:open-studios}}\",\"layoutId\":\"{{layout:default}}\"} /-->",
 			"author": null,
 			"age": 2448542,
@@ -1336,7 +1336,7 @@
 		{
 			"type": "post",
 			"slug": "live-winter-storm-warning",
-			"title": "Live: Winter storm warning",
+			"title": "Winter storm warning",
 			"content": "<!-- wp:paragraph -->\n<p>Follow our live coverage below.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:newspack-rolling-coverage/rolling-coverage {\"coverageId\":\"{{coverage:winter-storm-warning}}\"} /-->",
 			"author": "ethorne",
 			"age": 2610541,
@@ -1345,7 +1345,7 @@
 		{
 			"type": "post",
 			"slug": "live-kettle-greenway-half-marathon",
-			"title": "Live: Kettle Greenway Half Marathon",
+			"title": "Kettle Greenway Half Marathon",
 			"content": "<!-- wp:paragraph -->\n<p>Follow our live coverage below.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:newspack-rolling-coverage/rolling-coverage {\"coverageId\":\"{{coverage:kettle-greenway-half-marathon}}\"} /-->",
 			"author": "hbrennan",
 			"age": 3215341,
@@ -1355,7 +1355,7 @@
 		{
 			"type": "post",
 			"slug": "live-bridge-street-water-main-break",
-			"title": "Live: Bridge Street water main break",
+			"title": "Bridge Street water main break",
 			"content": "<!-- wp:newspack-rolling-coverage/rolling-coverage {\"coverageId\":\"{{coverage:bridge-street-water-main-break}}\",\"layoutId\":\"{{layout:default}}\"} /-->",
 			"author": null,
 			"age": 2100890,
@@ -1385,7 +1385,7 @@
 		{
 			"type": "page",
 			"slug": "live-kettle-river-flood",
-			"title": "Live: Kettle River rises above flood stage",
+			"title": "Kettle River rises above flood stage",
 			"content": "<!-- wp:newspack-rolling-coverage/rolling-coverage {\"coverageId\":\"{{coverage:live-kettle-river-flood}}\",\"layoutId\":\"{{layout:clock}}\"} /-->",
 			"author": "ethorne",
 			"age": 2018983
@@ -1393,7 +1393,7 @@
 		{
 			"type": "page",
 			"slug": "live-riverbend-fc-v-fresno-verde",
-			"title": "Live: Riverbend FC v Fresno Verde",
+			"title": "Riverbend FC v Fresno Verde",
 			"content": "<!-- wp:newspack-rolling-coverage/rolling-coverage {\"coverageId\":\"{{coverage:live-riverbend-fc-v-fresno-verde}}\"} /-->\n\n<!-- wp:newspack-rolling-coverage/rolling-coverage {\"coverageId\":\"{{coverage:kettle-greenway-half-marathon}}\"} /-->",
 			"author": "mquinn",
 			"age": 2075253
@@ -1410,7 +1410,7 @@
 			"type": "page",
 			"slug": "follow-the-river",
 			"title": "Follow the River",
-			"content": "<!-- wp:paragraph -->\n<p>Get a notification whenever we post a new update on the flood.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:heading {\"level\":3} -->\n<h3 class=\"wp-block-heading\">Live: Kettle River rises above flood stage</h3>\n<!-- /wp:heading -->\n\n<!-- wp:newspack-rolling-coverage/coverage-follow {\"coverageId\":\"{{coverage:live-kettle-river-flood}}\"} -->\n<!-- wp:buttons {\"metadata\":{\"name\":\"Follow\"}} -->\n<div class=\"wp-block-buttons\"><!-- wp:button {\"tagName\":\"button\",\"metadata\":{\"name\":\"Follow\",\"bindings\":{\"url\":{\"source\":\"newspack-rolling-coverage/entry\",\"args\":{\"key\":\"followTag\"}}}}} -->\n<div class=\"wp-block-button\"><button type=\"button\" class=\"wp-block-button__link wp-element-button\">Follow</button></div>\n<!-- /wp:button --></div>\n<!-- /wp:buttons -->\n<!-- /wp:newspack-rolling-coverage/coverage-follow -->\n",
+			"content": "<!-- wp:paragraph -->\n<p>Get a notification whenever we post a new update on the flood.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:heading {\"level\":3} -->\n<h3 class=\"wp-block-heading\">Kettle River rises above flood stage</h3>\n<!-- /wp:heading -->\n\n<!-- wp:newspack-rolling-coverage/coverage-follow {\"coverageId\":\"{{coverage:live-kettle-river-flood}}\"} -->\n<!-- wp:buttons {\"metadata\":{\"name\":\"Follow\"}} -->\n<div class=\"wp-block-buttons\"><!-- wp:button {\"tagName\":\"button\",\"metadata\":{\"name\":\"Follow\",\"bindings\":{\"url\":{\"source\":\"newspack-rolling-coverage/entry\",\"args\":{\"key\":\"followTag\"}}}}} -->\n<div class=\"wp-block-button\"><button type=\"button\" class=\"wp-block-button__link wp-element-button\">Follow</button></div>\n<!-- /wp:button --></div>\n<!-- /wp:buttons -->\n<!-- /wp:newspack-rolling-coverage/coverage-follow -->\n",
 			"author": "ethorne",
 			"age": 1769843
 		},
