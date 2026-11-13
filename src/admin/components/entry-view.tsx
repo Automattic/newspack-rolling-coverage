@@ -25,7 +25,7 @@ import { ErrorNotice } from '../shared/error-notice';
 import { useEntries } from '../hooks/useEntries';
 import { useAdminContext } from '../hooks/useAdminContext';
 import { useStatusLabels } from '../utils/status-labels';
-import { EmptyState } from 'newspack-components/dist/esm/empty-state';
+import { EmptyState, Stack } from '@wordpress/ui';
 import { LoadingState } from '../shared/loading-state';
 import { useHeader } from '../hooks/useHeader';
 import { buildPageUrl, toEntry } from '../utils/entries-api';
@@ -474,21 +474,50 @@ function EntryView() {
 		! isFirstLoad &&
 		! isEmpty;
 	const canShowSlack = canConnectSlack && routeCoverage !== null;
-	const showSlackInHeader = canShowSlack && ! isFirstLoad && ! isEmpty;
+	const showSlackInHeader =
+		canShowSlack && ! isFirstLoad && ( ! isEmpty || !! slackChannelLabel );
+	const showSlackInEmptyState = canShowSlack && ! slackChannelLabel;
+
+	const openSlackDrawer = useCallback( () => {
+		setSlackCoverage( routeCoverage );
+		setIsSlackDrawerOpen( true );
+	}, [ routeCoverage ] );
+
+	// On an empty list, connecting or disconnecting moves the Slack button
+	// between the empty state and the header, so focus would drop to the page.
+	const slackButtonRef = useRef< HTMLButtonElement | null >( null );
+	const emptyStateSlackButtonRef = useRef< HTMLButtonElement | null >( null );
+	const wasRefreshingSlack = useRef( false );
+	useEffect( () => {
+		if ( wasRefreshingSlack.current && ! isRefreshingSlack ) {
+			window.requestAnimationFrame( () => {
+				const button = [
+					slackButtonRef.current,
+					emptyStateSlackButtonRef.current,
+				].find( ( element ) => element?.isConnected );
+				const active = button?.ownerDocument.activeElement;
+				if (
+					button &&
+					( ! active || active === button.ownerDocument.body )
+				) {
+					button.focus();
+				}
+			} );
+		}
+		wasRefreshingSlack.current = isRefreshingSlack;
+	}, [ isRefreshingSlack ] );
 
 	const slackButton = useMemo(
 		() =>
 			canShowSlack ? (
 				<Button
+					ref={ slackButtonRef }
 					variant="tertiary"
 					className="newspack-rolling-coverage-status-button"
 					isBusy={ isRefreshingSlack }
 					disabled={ isRefreshingSlack }
 					accessibleWhenDisabled
-					onClick={ () => {
-						setSlackCoverage( routeCoverage );
-						setIsSlackDrawerOpen( true );
-					} }
+					onClick={ openSlackDrawer }
 				>
 					{ slackChannelLabel ? (
 						<>
@@ -512,7 +541,24 @@ function EntryView() {
 					) }
 				</Button>
 			) : null,
-		[ canShowSlack, slackChannelLabel, routeCoverage, isRefreshingSlack ]
+		[ canShowSlack, slackChannelLabel, openSlackDrawer, isRefreshingSlack ]
+	);
+
+	const emptyStateSlackButton = useMemo(
+		() =>
+			showSlackInEmptyState ? (
+				<Button
+					ref={ emptyStateSlackButtonRef }
+					variant="secondary"
+					isBusy={ isRefreshingSlack }
+					disabled={ isRefreshingSlack }
+					accessibleWhenDisabled
+					onClick={ openSlackDrawer }
+				>
+					{ __( 'Connect Slack', 'newspack-rolling-coverage' ) }
+				</Button>
+			) : null,
+		[ showSlackInEmptyState, openSlackDrawer, isRefreshingSlack ]
 	);
 
 	const showPlacements =
@@ -653,25 +699,29 @@ function EntryView() {
 				/>
 			) }
 			{ ! isFirstLoad && isEmpty && (
-				<EmptyState.Root>
-					<EmptyState.Header
-						icon={ postContent }
-						title={ __(
-							'No entries yet',
-							'newspack-rolling-coverage'
+				<Stack direction="column" align="center">
+					<EmptyState.Root>
+						<EmptyState.Icon icon={ postContent } />
+						<EmptyState.Title>
+							{ __(
+								'No entries yet',
+								'newspack-rolling-coverage'
+							) }
+						</EmptyState.Title>
+						<EmptyState.Description>
+							{ __(
+								'Entries are the short updates readers follow in this liveblog, newest first.',
+								'newspack-rolling-coverage'
+							) }
+						</EmptyState.Description>
+						{ ( ! disableNewEntry || showSlackInEmptyState ) && (
+							<EmptyState.Actions>
+								{ emptyStateSlackButton }
+								{ ! disableNewEntry && addEntryButton }
+							</EmptyState.Actions>
 						) }
-						description={ __(
-							'Entries are the short updates readers follow in this liveblog, newest first.',
-							'newspack-rolling-coverage'
-						) }
-					/>
-					{ ( ! disableNewEntry || canShowSlack ) && (
-						<EmptyState.Actions>
-							{ slackButton }
-							{ ! disableNewEntry && addEntryButton }
-						</EmptyState.Actions>
-					) }
-				</EmptyState.Root>
+					</EmptyState.Root>
+				</Stack>
 			) }
 			{ ! isFirstLoad && ! isEmpty && (
 				<DataViewsWrapper

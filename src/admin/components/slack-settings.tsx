@@ -1,11 +1,10 @@
 /**
  * WordPress dependencies
  */
-import { useMemo, useRef } from '@wordpress/element';
+import { useCallback, useMemo, useRef, useState } from '@wordpress/element';
 import { Button, Notice } from '@wordpress/components';
 import { Stack } from '@wordpress/ui';
 import { __ } from '@wordpress/i18n';
-import { EmptyState } from 'newspack-components/dist/esm/empty-state';
 
 /**
  * Internal dependencies
@@ -15,15 +14,15 @@ import { useHeader } from '../hooks/useHeader';
 import { useReportDirty } from '../hooks/useReportDirty';
 import { useSlackIngestionSettings } from '../hooks/useSlackIngestionSettings';
 import { IngestionSettingsTab } from './slack/settings/ingestion-settings-tab';
+import { SlackSetup } from './slack/settings/connect-slack';
 import { LoadingState } from '../shared/loading-state';
-import { SlackIcon } from '../shared/icons/slack-icon';
 import type { ReactNode } from 'react';
 
 /**
  * The Slack tab of Settings: which Slack messages become entries, how they
  * are formatted, and the WordPress user they are credited to. Save lives in
- * the page header. Until Slack is connected, the tab points to Slack
- * Connection instead.
+ * the page header. Until Slack is connected, the tab shows the Slack setup
+ * screen, and the form once the setup connects.
  *
  * @param {Object}    props                  Component props.
  * @param {ReactNode} props.tabbedNavigation The Settings tabs.
@@ -37,9 +36,15 @@ function SlackSettings( {
 	onDirtyChange: ( isDirty: boolean ) => void;
 } ) {
 	const config = useAdminContext();
-	const settings = useSlackIngestionSettings();
+	const [ isConnected, setIsConnected ] = useState(
+		config.slack.isConfigured
+	);
+	const handleConnected = useCallback( () => {
+		config.slack.isConfigured = true;
+		setIsConnected( true );
+	}, [ config ] );
+	const settings = useSlackIngestionSettings( isConnected );
 	const { isDirty, isSaving, hasLoaded, workspaceInfo, error } = settings;
-	const isConnected = config.slack.isConfigured;
 	const canEdit = isConnected && hasLoaded && Boolean( workspaceInfo );
 
 	useReportDirty( onDirtyChange, canEdit && isDirty && ! isSaving );
@@ -75,30 +80,7 @@ function SlackSettings( {
 	if ( ! isConnected ) {
 		return (
 			<div className="newspack-rolling-coverage-settings">
-				<EmptyState.Root>
-					<EmptyState.Header
-						icon={ <SlackIcon size={ 36 } /> }
-						title={ __(
-							'Connect Slack first',
-							'newspack-rolling-coverage'
-						) }
-						description={ __(
-							'These settings apply once Slack is connected. Connect a Slack workspace to post liveblog entries from Slack.',
-							'newspack-rolling-coverage'
-						) }
-					/>
-					<EmptyState.Actions>
-						<Button
-							variant="primary"
-							href={ config.adminUrls.slackConnection }
-						>
-							{ __(
-								'Go to Slack Connection',
-								'newspack-rolling-coverage'
-							) }
-						</Button>
-					</EmptyState.Actions>
-				</EmptyState.Root>
+				<SlackSetup onConnected={ handleConnected } />
 			</div>
 		);
 	}

@@ -18,10 +18,11 @@ import { notifySuccess } from '../utils/notices';
  * Loads them once Slack is connected and saves all four through
  * `POST /slack/settings`.
  *
+ * @param isConnected Whether Slack is connected, so the settings can load.
  * @return Settings state, setters, load and save state, and the save handler.
  */
-function useSlackIngestionSettings() {
-	const { restBase, slack } = useAdminContext();
+function useSlackIngestionSettings( isConnected: boolean ) {
+	const { restBase } = useAdminContext();
 	const namespace = restBase.slack;
 
 	const [ ignorePrefix, setIgnorePrefix ] = useState( '~~' );
@@ -40,7 +41,7 @@ function useSlackIngestionSettings() {
 	const [ error, setError ] = useState< string | null >( null );
 
 	useEffect( () => {
-		if ( ! slack.isConfigured ) {
+		if ( ! isConnected ) {
 			return;
 		}
 
@@ -75,7 +76,7 @@ function useSlackIngestionSettings() {
 		return () => {
 			cancelled = true;
 		};
-	}, [ slack.isConfigured, namespace ] );
+	}, [ isConnected, namespace ] );
 
 	const handleSave = useCallback( async () => {
 		setIsSaving( true );

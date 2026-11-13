@@ -10,9 +10,10 @@ import {
 } from '@wordpress/element';
 import { Modal } from '@wordpress/components';
 import { __ } from '@wordpress/i18n';
+import { link } from '@wordpress/icons';
 import type { View } from '@wordpress/dataviews';
 import { filterSortAndPaginate } from '@wordpress/dataviews/wp';
-import { EmptyState } from 'newspack-components/dist/esm/empty-state';
+import { EmptyState, Stack } from '@wordpress/ui';
 
 /**
  * Internal dependencies
@@ -21,7 +22,6 @@ import type { ChannelsTabProps, ChannelRow, PublishMode } from '../../../types';
 import { DataViewsWrapper } from '../../data-views-wrapper';
 import { useAdminContext } from '../../../hooks/useAdminContext';
 import { LoadingState } from '../../../shared/loading-state';
-import { SlackIcon } from '../../../shared/icons/slack-icon';
 import {
 	getChannelFields,
 	defaultChannelView,
@@ -63,6 +63,7 @@ function ChannelsTab( {
 		[ onPublishModeChange ]
 	);
 	const containerRef = useRef< HTMLDivElement | null >( null );
+	const emptyTitleRef = useRef< HTMLHeadingElement | null >( null );
 
 	// The unlinked row's Disconnect button is gone once the list refreshes, so
 	// focus has nowhere to return to; send it to the search field, or to the
@@ -76,13 +77,7 @@ function ChannelsTab( {
 				const target =
 					containerRef.current?.querySelector< HTMLElement >(
 						'input[type="search"]'
-					) ??
-					containerRef.current?.querySelector< HTMLElement >(
-						'.newspack-empty-state__title'
-					);
-				if ( target && ! target.matches( 'input' ) ) {
-					target.setAttribute( 'tabindex', '-1' );
-				}
+					) ?? emptyTitleRef.current;
 				target?.focus();
 			} );
 		},
@@ -155,19 +150,23 @@ function ChannelsTab( {
 	return (
 		<div ref={ containerRef }>
 			{ channels.length === 0 ? (
-				<EmptyState.Root>
-					<EmptyState.Header
-						icon={ <SlackIcon size={ 36 } /> }
-						title={ __(
-							'No channels linked yet',
-							'newspack-rolling-coverage'
-						) }
-						description={ __(
-							'Link a Slack channel to a liveblog from the All Liveblogs list.',
-							'newspack-rolling-coverage'
-						) }
-					/>
-				</EmptyState.Root>
+				<Stack direction="column" align="center">
+					<EmptyState.Root>
+						<EmptyState.Icon icon={ link } />
+						<EmptyState.Title ref={ emptyTitleRef } tabIndex={ -1 }>
+							{ __(
+								'No channels linked yet',
+								'newspack-rolling-coverage'
+							) }
+						</EmptyState.Title>
+						<EmptyState.Description>
+							{ __(
+								'Link a Slack channel to a liveblog from the All Liveblogs list.',
+								'newspack-rolling-coverage'
+							) }
+						</EmptyState.Description>
+					</EmptyState.Root>
+				</Stack>
 			) : (
 				<DataViewsWrapper
 					data={ data }

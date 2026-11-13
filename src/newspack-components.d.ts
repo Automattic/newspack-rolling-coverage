@@ -86,31 +86,6 @@ declare module 'newspack-components/dist/esm/tabbed-navigation' {
 	export default TabbedNavigation;
 }
 
-declare module 'newspack-components/dist/esm/empty-state' {
-	import type { ComponentType, ReactNode, JSX } from 'react';
-
-	const EmptyState: {
-		Root: ComponentType< {
-			size?: 'default' | 'small';
-			className?: string;
-			children?: ReactNode;
-		} >;
-		Header: ComponentType< {
-			icon?: JSX.Element;
-			title: string;
-			description?: ReactNode;
-			heading?: 1 | 2 | 3 | 4 | 5 | 6;
-			className?: string;
-		} >;
-		Actions: ComponentType< {
-			orientation?: 'row' | 'column';
-			className?: string;
-			children?: ReactNode;
-		} >;
-	};
-	export { EmptyState };
-}
-
 declare module 'newspack-icons' {
 	import type { JSX } from 'react';
 

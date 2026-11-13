@@ -26,7 +26,7 @@ import {
 } from '../fields/coverages';
 import { useAdminContext } from '../hooks/useAdminContext';
 import { useStatusLabels } from '../utils/status-labels';
-import { EmptyState } from 'newspack-components/dist/esm/empty-state';
+import { EmptyState, Stack } from '@wordpress/ui';
 import { LoadingState } from '../shared/loading-state';
 import { liveStreaming } from '../../shared/icons/live-streaming';
 import { useHeader } from '../hooks/useHeader';
@@ -280,32 +280,36 @@ function CoverageView() {
 				/>
 			) }
 			{ ! isFirstLoad && isEmpty && (
-				<EmptyState.Root>
-					<EmptyState.Header
-						icon={ liveStreaming }
-						title={ __(
-							'Get started with liveblogs',
-							'newspack-rolling-coverage'
+				<Stack direction="column" align="center">
+					<EmptyState.Root>
+						<EmptyState.Icon icon={ liveStreaming } />
+						<EmptyState.Title>
+							{ __(
+								'Get started with liveblogs',
+								'newspack-rolling-coverage'
+							) }
+						</EmptyState.Title>
+						<EmptyState.Description>
+							{ __(
+								'Follow a developing story with a live stream of short, timestamped updates.',
+								'newspack-rolling-coverage'
+							) }
+						</EmptyState.Description>
+						{ config.capabilities.canManageTerms && (
+							<EmptyState.Actions>
+								<Button
+									variant="primary"
+									onClick={ handleOpenCreate }
+								>
+									{ __(
+										'Add Liveblog',
+										'newspack-rolling-coverage'
+									) }
+								</Button>
+							</EmptyState.Actions>
 						) }
-						description={ __(
-							'Follow a developing story with a live stream of short, timestamped updates.',
-							'newspack-rolling-coverage'
-						) }
-					/>
-					{ config.capabilities.canManageTerms && (
-						<EmptyState.Actions>
-							<Button
-								variant="primary"
-								onClick={ handleOpenCreate }
-							>
-								{ __(
-									'Add Liveblog',
-									'newspack-rolling-coverage'
-								) }
-							</Button>
-						</EmptyState.Actions>
-					) }
-				</EmptyState.Root>
+					</EmptyState.Root>
+				</Stack>
 			) }
 			{ ! isFirstLoad && ! isEmpty && (
 				<DataViewsWrapper

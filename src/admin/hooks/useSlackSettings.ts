@@ -32,9 +32,11 @@ import { SlackAdapter } from '../utils/slack-adapter';
  * concerns itself only with rendering. All REST traffic goes through the
  * slack-api utility layer, which normalizes errors via handleApiError.
  *
+ * @param {Object}   [options]            Hook options.
+ * @param {Function} [options.onVerified] Runs once the credentials are saved, in place of reloading the page.
  * @return {Object} Slack settings state, derived flags, computed values, and handlers.
  */
-function useSlackSettings() {
+function useSlackSettings( { onVerified }: { onVerified?: () => void } = {} ) {
 	const config = useAdminContext();
 	const { restBase, restBaseUrls, slack } = config;
 	const namespace = restBase.slack;
@@ -193,7 +195,11 @@ function useSlackSettings() {
 		);
 
 		if ( result.success ) {
-			window.location.reload();
+			if ( onVerified ) {
+				onVerified();
+			} else {
+				window.location.reload();
+			}
 		} else {
 			setNotice( {
 				type: 'error',
@@ -204,7 +210,7 @@ function useSlackSettings() {
 		}
 
 		setIsVerifying( false );
-	}, [ namespace, botToken, signingSecret ] );
+	}, [ namespace, botToken, signingSecret, onVerified ] );
 
 	const handleDisconnect = useCallback( async () => {
 		const result = await disconnectSlack( namespace );
