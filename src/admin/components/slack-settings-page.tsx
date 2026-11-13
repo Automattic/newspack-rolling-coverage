@@ -28,7 +28,7 @@ import { useSlackSettings } from '../hooks/useSlackSettings';
 import { ConnectionStatusDrawer } from './slack/settings/connection-status-drawer';
 import { ConfirmModal } from './confirm-modal';
 import { ChannelsTab } from './slack/settings/channels-tab';
-import { ConnectSlack } from './slack/settings/connect-slack';
+import { SlackSetup } from './slack/settings/connect-slack';
 import { MonitorTab } from './slack/settings/monitor-tab';
 import { useAdminContext } from '../hooks/useAdminContext';
 import type { TabHeader } from '../types';
@@ -54,13 +54,8 @@ function SlackSettingsPage() {
 	const { tab } = useParams();
 	const { adminUrls } = useAdminContext();
 	const {
-		botToken,
-		setBotToken,
-		signingSecret,
-		setSigningSecret,
 		channels,
 		hasLoadedChannels,
-		isVerifying,
 		workspaceInfo,
 		notice,
 		clearNotice,
@@ -68,7 +63,6 @@ function SlackSettingsPage() {
 		isConfigured,
 		handleUnlinkChannel,
 		handlePublishModeChange,
-		handleVerify,
 		handleDisconnect,
 	} = useSlackSettings();
 	const isLegacySettingsTab = tab === LEGACY_SETTINGS_TAB;
@@ -164,20 +158,7 @@ function SlackSettingsPage() {
 		}
 		return (
 			<div className="newspack-rolling-coverage-slack-settings">
-				{ notice && (
-					<Notice status={ notice.type } onRemove={ clearNotice }>
-						{ notice.message }
-					</Notice>
-				) }
-				<ConnectSlack
-					manifestJson={ manifestJson }
-					botToken={ botToken }
-					setBotToken={ setBotToken }
-					signingSecret={ signingSecret }
-					setSigningSecret={ setSigningSecret }
-					isVerifying={ isVerifying }
-					onVerify={ handleVerify }
-				/>
+				<SlackSetup />
 			</div>
 		);
 	}

@@ -3,9 +3,10 @@
  */
 import { useState, useEffect, useCallback, useMemo } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
+import { seen } from '@wordpress/icons';
 import type { View } from '@wordpress/dataviews';
 import { filterSortAndPaginate } from '@wordpress/dataviews/wp';
-import { EmptyState } from 'newspack-components/dist/esm/empty-state';
+import { EmptyState, Stack } from '@wordpress/ui';
 
 /**
  * Internal dependencies
@@ -14,7 +15,6 @@ import { useAdminContext } from '../../../hooks/useAdminContext';
 import { getSlackMonitorLogs } from '../../../utils/slack-api';
 import { LoadingState } from '../../../shared/loading-state';
 import { ErrorNotice } from '../../../shared/error-notice';
-import { SlackIcon } from '../../../shared/icons/slack-icon';
 import { DataViewsWrapper } from '../../data-views-wrapper';
 import { MonitorEventDrawer } from './monitor-event-drawer';
 import {
@@ -214,19 +214,23 @@ function MonitorTab( {
 	return (
 		<>
 			{ events.length === 0 ? (
-				<EmptyState.Root>
-					<EmptyState.Header
-						icon={ <SlackIcon size={ 36 } /> }
-						title={ __(
-							'No events yet',
-							'newspack-rolling-coverage'
-						) }
-						description={ __(
-							'Events appear here while this page is open. Post in a linked Slack channel or run a slash command to see activity.',
-							'newspack-rolling-coverage'
-						) }
-					/>
-				</EmptyState.Root>
+				<Stack direction="column" align="center">
+					<EmptyState.Root>
+						<EmptyState.Icon icon={ seen } />
+						<EmptyState.Title>
+							{ __(
+								'No events yet',
+								'newspack-rolling-coverage'
+							) }
+						</EmptyState.Title>
+						<EmptyState.Description>
+							{ __(
+								'Events appear here while this page is open. Post in a linked Slack channel or run a slash command to see activity.',
+								'newspack-rolling-coverage'
+							) }
+						</EmptyState.Description>
+					</EmptyState.Root>
+				</Stack>
 			) : (
 				<DataViewsWrapper
 					data={ data }

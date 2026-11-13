@@ -2,6 +2,7 @@
  * WordPress dependencies
  */
 import {
+	cloneElement,
 	useState,
 	useEffect,
 	useCallback,
@@ -17,8 +18,7 @@ import {
 } from '@wordpress/components';
 import { moreVertical } from '@wordpress/icons';
 import { __, sprintf } from '@wordpress/i18n';
-import { Stack } from '@wordpress/ui';
-import { EmptyState } from 'newspack-components/dist/esm/empty-state';
+import { EmptyState, Stack } from '@wordpress/ui';
 import Grid from 'newspack-components/dist/esm/grid';
 import SectionHeader from 'newspack-components/dist/esm/section-header';
 import { ai } from 'newspack-icons';
@@ -60,7 +60,7 @@ function AIUnavailable( { config }: { config: AdminConfig } ) {
 			'newspack-rolling-coverage'
 		);
 		description = __(
-			'Rolling Coverage is waiting for approval to use the AI provider. Once it’s approved, editors can sum up the latest entries in a liveblog from the Rolling Coverage block.',
+			'Key takeaways can’t use your AI provider until Rolling Coverage is approved.',
 			'newspack-rolling-coverage'
 		);
 		action = {
@@ -72,7 +72,7 @@ function AIUnavailable( { config }: { config: AdminConfig } ) {
 		};
 	} else if ( config.adminUrls.aiSettings ) {
 		description = __(
-			'Connect an AI provider and turn on Rolling Coverage Key Takeaways in the AI settings. Editors can then sum up the latest entries in a liveblog from the Rolling Coverage block.',
+			'Connect an AI provider, then turn on Key Takeaways in AI Settings.',
 			'newspack-rolling-coverage'
 		);
 		action = {
@@ -81,12 +81,12 @@ function AIUnavailable( { config }: { config: AdminConfig } ) {
 		};
 	} else if ( config.aiPluginActive ) {
 		description = __(
-			'The WordPress AI plugin is active, but AI can’t run on this site yet. Ask a developer or the site’s host to check that the site meets the plugin’s requirements.',
+			'The WordPress AI plugin is active but can’t run here yet. Ask your host or a developer to check its requirements.',
 			'newspack-rolling-coverage'
 		);
 	} else if ( config.adminUrls.aiPlugin ) {
 		description = __(
-			'Install and activate the WordPress AI plugin, connect an AI provider, and turn on Rolling Coverage Key Takeaways in its settings. Editors can then sum up the latest entries in a liveblog from the Rolling Coverage block.',
+			'Install and activate the WordPress AI plugin.',
 			'newspack-rolling-coverage'
 		);
 		action = {
@@ -95,26 +95,28 @@ function AIUnavailable( { config }: { config: AdminConfig } ) {
 		};
 	} else {
 		description = __(
-			'Ask an administrator who manages plugins to install and activate the WordPress AI plugin. Then connect an AI provider and turn on Rolling Coverage Key Takeaways in its settings.',
+			'Ask an administrator to install and activate the WordPress AI plugin.',
 			'newspack-rolling-coverage'
 		);
 	}
 
 	return (
-		<EmptyState.Root>
-			<EmptyState.Header
-				icon={ ai }
-				title={ title }
-				description={ description }
-			/>
-			{ action && (
-				<EmptyState.Actions>
-					<Button variant="primary" href={ action.href }>
-						{ action.label }
-					</Button>
-				</EmptyState.Actions>
-			) }
-		</EmptyState.Root>
+		<Stack direction="column" align="center">
+			<EmptyState.Root>
+				<EmptyState.Icon
+					icon={ cloneElement( ai, { fill: 'currentColor' } ) }
+				/>
+				<EmptyState.Title>{ title }</EmptyState.Title>
+				<EmptyState.Description>{ description }</EmptyState.Description>
+				{ action && (
+					<EmptyState.Actions>
+						<Button variant="primary" href={ action.href }>
+							{ action.label }
+						</Button>
+					</EmptyState.Actions>
+				) }
+			</EmptyState.Root>
+		</Stack>
 	);
 }
 

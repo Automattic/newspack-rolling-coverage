@@ -14,6 +14,8 @@
 
 .newspack-rolling-coverage-slack-setup {
 	counter-reset: nrc-setup-step;
+	inline-size: 100%;
+	text-align: start;
 
 	&__step {
 		counter-increment: nrc-setup-step;

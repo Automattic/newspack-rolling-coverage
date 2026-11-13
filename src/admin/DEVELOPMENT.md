@@ -99,7 +99,7 @@ The options, their limits and what reads them are documented with the blocks: th
 
 ### Slack
 
-`slack-settings.tsx`, with its state in `useSlackIngestionSettings()`. Until Slack is connected, the tab shows an empty state with a Go to Slack Connection button instead of the form. Once connected, it loads `GET <slack namespace>/slack/settings` and renders `IngestionSettingsTab` (`src/admin/components/slack/settings/ingestion-settings-tab.tsx`): Ingestion (Ignore prefix, Publish emoji, Draft emoji), Formatting (Highest heading) and Bot User, the WordPress user ingested entries are credited to, with an Edit User link that hands off to the user's profile with a banner back here when newspack-plugin is active. Save sends all four settings to `POST <slack namespace>/slack/settings`. See [Emoji trigger](#emoji-trigger) and [Slack message titles and headings](#slack-message-titles-and-headings).
+`slack-settings.tsx`, with its state in `useSlackIngestionSettings()`. Until Slack is connected, the tab shows the setup screen from Slack Connection instead of the form: `SlackSetup` (`src/admin/components/slack/settings/connect-slack.tsx`), with its own `useSlackSettings()` state. On Slack Connection, a successful Verify & Connect reloads the page; here, `onConnected` marks the page's admin config as connected and switches the tab to the form without a reload, so it loads the settings in place and stays connected when you come back from another tab. Once connected, it loads `GET <slack namespace>/slack/settings` and renders `IngestionSettingsTab` (`src/admin/components/slack/settings/ingestion-settings-tab.tsx`): Ingestion (Ignore prefix, Publish emoji, Draft emoji), Formatting (Highest heading) and Bot User, the WordPress user ingested entries are credited to, with an Edit User link that hands off to the user's profile with a banner back here when newspack-plugin is active. Save sends all four settings to `POST <slack namespace>/slack/settings`. See [Emoji trigger](#emoji-trigger) and [Slack message titles and headings](#slack-message-titles-and-headings).
 
 ### AI
 
@@ -107,7 +107,7 @@ The options, their limits and what reads them are documented with the blocks: th
 
 ## A coverage's entries
 
-`EntryView` (`entry-view.tsx`) lists one coverage's entries. Its header holds a subtitle, the Slack channel button ("Connect Slack", or the connected channel's name), Placements, and Add Entry. Add Entry opens [Quick Edit](#quick-edit) on a new entry in the coverage, without leaving the list. On an ended coverage, Add Entry stays disabled, with a tooltip saying which status allows new entries; on a trashed coverage it is hidden.
+`EntryView` (`entry-view.tsx`) lists one coverage's entries. Its header holds a subtitle, the Slack channel button ("Connect Slack", or the connected channel's name), Placements, and Add Entry. While the coverage has no entries, the empty state holds Add Entry (except on an ended or trashed coverage), and the header keeps the Slack button only when a channel is linked; with no channel linked, Connect Slack moves into the empty state as a secondary button before Add Entry. Both Slack buttons open the same Slack Connection drawer, and when connecting or disconnecting swaps one for the other, focus moves to the new one. Add Entry opens [Quick Edit](#quick-edit) on a new entry in the coverage, without leaving the list. On an ended coverage, Add Entry stays disabled, with a tooltip saying which status allows new entries; on a trashed coverage it is hidden.
 
 ### Data and live sync
 
