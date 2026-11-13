@@ -124,7 +124,7 @@
 		},
 		{
 			"file": "late-winner.jpg",
-			"title": "Crowd at DS Stadium",
+			"title": "Crowd under the floodlights",
 			"alt": "Fans fill the stands under the floodlights at a soccer stadium.",
 			"caption": ""
 		},
@@ -136,7 +136,7 @@
 		},
 		{
 			"file": "stadium.jpg",
-			"title": "DS Stadium",
+			"title": "Stadium roof",
 			"alt": "Steel roof trusses curve over the glass side of a stadium.",
 			"caption": ""
 		}
@@ -419,14 +419,14 @@
 		{
 			"coverage": "riverbend-fc-v-toledo-beacon",
 			"title": "Villalba puts Riverbend back in front",
-			"content": "<!-- wp:paragraph -->\n<p>81&#039; GOAL. Villalba bends a free kick from 22 yards over the wall and inside the near post. Dubé won it. 2-1.</p>\n<!-- /wp:paragraph -->",
+			"content": "<!-- wp:paragraph -->\n<p>81&#039; GOAL. Villalba bends a free kick from 22 yards over the wall and inside the near post. Skala won it. 2-1.</p>\n<!-- /wp:paragraph -->",
 			"author": "mquinn",
 			"age": 1822536
 		},
 		{
 			"coverage": "riverbend-fc-v-toledo-beacon",
 			"title": "",
-			"content": "<!-- wp:paragraph -->\n<p>84&#039; Tremblay replaces Dubé. Ruvalcaba and Nwosu are already on.</p>\n<!-- /wp:paragraph -->",
+			"content": "<!-- wp:paragraph -->\n<p>84&#039; Tremblay replaces Skala. Ruvalcaba and Nwosu are already on.</p>\n<!-- /wp:paragraph -->",
 			"author": "hbrennan",
 			"age": 1822356
 		},
@@ -815,7 +815,7 @@
 		{
 			"coverage": "open-studios",
 			"title": "",
-			"content": "<!-- wp:paragraph -->\n<p>Correction: the Drying Loft closes at 8 p.m. tonight, not 9.</p>\n<!-- /wp:paragraph -->",
+			"content": "<!-- wp:paragraph -->\n<p>Correction: the Drying Loft opens at 11 a.m. tomorrow, not 10.</p>\n<!-- /wp:paragraph -->",
 			"author": "dokafor",
 			"age": 190920,
 			"archived": true

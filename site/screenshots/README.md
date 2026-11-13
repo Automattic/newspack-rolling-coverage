@@ -62,7 +62,7 @@ Run `remove` before activating the WordPress AI plugin or OneSignal on the scree
 
 The site's own administrator account stays, and still appears in user lists and author menus, so give it a neutral name such as "Admin".
 
-Run the same command again at any time to reset the demo content. A rerun keeps James Smith and the authors, and recreates everything else. To remove everything the seed created and put the settings back:
+Run the same command again at any time to reset the demo content. A rerun keeps James Smith and the authors, and recreates everything else. On a site seeded before the demo authors changed, run `remove` once first: a rerun keeps the old authors too. To remove everything the seed created and put the settings back:
 
 ```bash
 wp eval-file wp-content/plugins/newspack-rolling-coverage/site/screenshots/seed.php remove
@@ -179,4 +179,4 @@ Before you commit an image, look at it.
 
 - **Photos** in `assets/media/` (all but the site icon) are from [Pexels](https://www.pexels.com/), free to use under the [Pexels license](https://www.pexels.com/license/): `flood-street.jpg` by Sveta K, `polling.jpg` by Osviel Rodriguez Valdés, `late-winner.jpg` by George Zografidis, `marathon.jpg` by Stephen Leonardi, and `stadium.jpg` by Leticia Golubov.
 - **The site icon**, `assets/media/site-icon.png`, is The Riverbend Gazette's icon, made for Newspack's demo sites.
-- **Avatars** in `assets/avatars/` are flat colors made for this folder, one per newsroom member.
+- **Avatars** in `assets/avatars/` are flat colors made for this folder, one per seeded author.
