@@ -12,18 +12,22 @@ import { __, _x } from '@wordpress/i18n';
  * Internal dependencies
  */
 import { receiveBreakoutPreviews } from './breakout-previews';
-import { ENTRY_POST_TYPE, SAMPLE_AVATAR_URLS } from './config';
+import {
+	ENTRY_POST_TYPE,
+	SAMPLE_AVATAR_URLS,
+	SAMPLE_IMAGE_URLS,
+} from './config';
 import type { BreakoutPreview, EntryContext } from './types';
 
 const AUTHORS = [
 	{ id: -900, name: 'Marisol Quinn', slug: 'marisol-quinn', initials: 'MQ' },
+	{ id: -901, name: 'Hal Brennan', slug: 'hal-brennan', initials: 'HB' },
 	{
-		id: -901,
-		name: 'Theo Abernathy',
-		slug: 'theo-abernathy',
-		initials: 'TA',
+		id: -902,
+		name: 'Wren Castellano',
+		slug: 'wren-castellano',
+		initials: 'WC',
 	},
-	{ id: -902, name: 'Ines Okafor', slug: 'ines-okafor', initials: 'IO' },
 ];
 const IMAGE_ID = -800;
 const BREAKOUT_IMAGE_ID = -801;
@@ -33,18 +37,6 @@ const BREAKOUT_IMAGE_ID = -801;
  * Entry_Bindings::UNTITLED_FALLBACK_WORDS.
  */
 const UNTITLED_FALLBACK_WORDS = 15;
-
-const SAMPLE_IMAGE =
-	'data:image/svg+xml,' +
-	encodeURIComponent(
-		'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675"><rect width="1200" height="675" fill="#dcdcde"/><g fill="none" stroke="#f6f7f7" stroke-width="6"><rect x="60" y="60" width="1080" height="555"/><line x1="600" y1="60" x2="600" y2="615"/><circle cx="600" cy="337.5" r="90"/><rect x="60" y="197.5" width="165" height="280"/><rect x="975" y="197.5" width="165" height="280"/></g></svg>'
-	);
-
-const SAMPLE_BREAKOUT_IMAGE =
-	'data:image/svg+xml,' +
-	encodeURIComponent(
-		'<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800"><rect width="1200" height="800" fill="#c3c4c7"/><g fill="none" stroke="#f6f7f7" stroke-width="6"><rect x="300" y="260" width="600" height="300"/><path d="M300 260l-120 380h840l-120-380"/><path d="M400 260v300M500 260v300M600 260v300M700 260v300M800 260v300M300 360h600M300 460h600"/><circle cx="600" cy="690" r="40"/></g></svg>'
-	);
 
 type Sample = {
 	id: number;
@@ -112,7 +104,7 @@ function getSamples(): Sample[] {
 		},
 		{
 			id: -106,
-			authorId: -902,
+			authorId: -900,
 			minutesAgo: 70,
 			title: __( 'Match report', 'newspack-rolling-coverage' ),
 			content: __(
@@ -171,7 +163,7 @@ function getSamples(): Sample[] {
 				),
 				url: '#',
 				label: '',
-				imageId: BREAKOUT_IMAGE_ID,
+				imageId: IMAGE_ID,
 			},
 		},
 		{
@@ -253,25 +245,25 @@ function loadSampleRecords(): void {
 			{
 				id: IMAGE_ID,
 				type: 'attachment',
-				source_url: SAMPLE_IMAGE,
+				source_url: SAMPLE_IMAGE_URLS?.entry ?? '',
 				alt_text: __(
-					'Illustration of a soccer field',
+					'The corner arc of a soccer field',
 					'newspack-rolling-coverage'
 				),
 				media_type: 'image',
-				mime_type: 'image/svg+xml',
+				mime_type: 'image/webp',
 				media_details: { sizes: {} },
 			},
 			{
 				id: BREAKOUT_IMAGE_ID,
 				type: 'attachment',
-				source_url: SAMPLE_BREAKOUT_IMAGE,
+				source_url: SAMPLE_IMAGE_URLS?.breakout ?? '',
 				alt_text: __(
-					'Illustration of a soccer goal',
+					'An empty soccer stadium with a ball on the center spot',
 					'newspack-rolling-coverage'
 				),
 				media_type: 'image',
-				mime_type: 'image/svg+xml',
+				mime_type: 'image/webp',
 				media_details: { sizes: {} },
 			},
 		],

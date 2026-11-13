@@ -1143,8 +1143,12 @@ class Rolling_Coverage_Block {
 					'breakoutLabel'               => Breakout_Label::get(),
 					'sampleAvatarUrls'            => [
 						'mq' => esc_url_raw( NEWSPACK_ROLLING_COVERAGE_URL . 'assets/sample-avatars/mq.svg' ),
-						'ta' => esc_url_raw( NEWSPACK_ROLLING_COVERAGE_URL . 'assets/sample-avatars/ta.svg' ),
-						'io' => esc_url_raw( NEWSPACK_ROLLING_COVERAGE_URL . 'assets/sample-avatars/io.svg' ),
+						'hb' => esc_url_raw( NEWSPACK_ROLLING_COVERAGE_URL . 'assets/sample-avatars/hb.svg' ),
+						'wc' => esc_url_raw( NEWSPACK_ROLLING_COVERAGE_URL . 'assets/sample-avatars/wc.svg' ),
+					],
+					'sampleImageUrls'             => [
+						'entry'    => esc_url_raw( NEWSPACK_ROLLING_COVERAGE_URL . 'assets/sample-images/corner.webp' ),
+						'breakout' => esc_url_raw( NEWSPACK_ROLLING_COVERAGE_URL . 'assets/sample-images/stadium.webp' ),
 					],
 				]
 			);
