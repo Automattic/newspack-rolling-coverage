@@ -38,7 +38,7 @@ function useCanOptInToNotify(): boolean {
 
 /**
  * The opt-in to notify the coverage's followers when the entry publishes,
- * with a warning when its coverage has no canonical URL to send them to.
+ * with a warning when its coverage has no page to send them to.
  */
 function PushNotificationsControl() {
 	const { isOptedIn, hasNotifiableCoverage } = useSelect( ( select ) => {
@@ -53,7 +53,7 @@ function PushNotificationsControl() {
 	const { editPost } = useDispatch( editorStore );
 
 	const warning = __(
-		'This entry’s liveblog doesn’t have a canonical URL set yet. Set one in the liveblog’s settings, or no notification will be sent.',
+		'This entry’s liveblog has no page yet, so no notification will be sent. Publish a post with a Rolling Coverage block for this liveblog with Show set to All, or set a Canonical URL in the liveblog’s settings.',
 		'newspack-rolling-coverage'
 	);
 

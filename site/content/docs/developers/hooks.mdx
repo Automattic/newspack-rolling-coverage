@@ -113,11 +113,11 @@ add_filter( 'newspack_rolling_coverage_shared_polling', '__return_false' );
 
 ### `newspack_rolling_coverage_entry_redirect_url`
 
-When a coverage has a canonical URL, a request for an entry's own web address is sent to that page, with the entry opened. This filter changes the destination or turns the redirect off.
+When a coverage has a page, either its canonical URL or the newest published post with an uncapped feed, a request for an entry's own web address is sent to that page, with the entry opened. This filter changes the destination or turns the redirect off.
 
 | Argument | Type | Description |
 | --- | --- | --- |
-| `$redirect_url` | `string` | The canonical URL with the entry's deep link. |
+| `$redirect_url` | `string` | The page's URL with the entry's deep link. |
 | `$entry` | `WP_Post` | The entry. |
 
 Returns the URL to redirect to. Return an empty string or `false` to skip the redirect and show the entry's own page. The URL goes through `wp_safe_redirect()`, so a URL on another host also needs that host allowed through the `allowed_redirect_hosts` filter.
@@ -130,7 +130,7 @@ add_filter( 'newspack_rolling_coverage_entry_redirect_url', function ( $url, $en
 
 ### `newspack_rolling_coverage_entry_redirect_status`
 
-Filters the HTTP status of that redirect. The default is `302`, so a canonical URL that is later removed isn't cached for good by browsers.
+Filters the HTTP status of that redirect. The default is `302`, so a page that later changes isn't cached for good by browsers.
 
 | Argument | Type | Description |
 | --- | --- | --- |

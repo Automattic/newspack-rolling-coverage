@@ -209,3 +209,8 @@
 	align-items: center;
 	gap: wp-vars.$grid-unit-10;
 }
+
+// Notices have no outer margin, so this one would touch the control below it.
+.newspack-rolling-coverage-all-updates-notice {
+	margin-bottom: wp-vars.$grid-unit-20;
+}

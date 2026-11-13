@@ -262,7 +262,7 @@ class Test_Placements extends Rolling_Coverage_TestCase {
 		$this->assertSame( 'Page', $row['type'] );
 		$this->assertSame( get_permalink( $page_id ), $row['viewUrl'] );
 		$this->assertSame( get_edit_post_link( $page_id, 'raw' ), $row['editUrl'] );
-		$this->assertFalse( $row['isMain'] );
+		$this->assertTrue( $row['isMain'], 'A full feed makes the post the main page.' );
 	}
 
 	/**
@@ -305,7 +305,60 @@ class Test_Placements extends Rolling_Coverage_TestCase {
 		Placements::ensure_fresh();
 
 		$this->assertSame( $page_id, Placements::page_id( $coverage_id ) );
-		$this->assertNotSame( $capped_only, Placements::page_id( $coverage_id ) );
+	}
+
+	/**
+	 * Once a coverage has ended, a full feed set to hide when ended shows
+	 * nothing, so it can't be the page readers are sent to. A capped feed
+	 * still can't take over.
+	 */
+	public function test_an_ended_coverage_skips_a_full_feed_that_hides_when_ended() {
+		$coverage_id = self::create_coverage();
+		$stays_id    = self::publish( self::feed( $coverage_id ), [ 'post_date' => '2026-01-01 00:00:00' ] );
+		$hides_id    = self::publish( self::feed( $coverage_id, [ 'hideWhenEnded' => true ] ) );
+		self::publish( self::feed( $coverage_id, [ 'latestOnly' => true ] ) );
+		Placements::ensure_fresh();
+
+		$this->assertSame( $hides_id, Placements::page_id( $coverage_id ), 'A live coverage uses its newest full feed.' );
+
+		update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, Taxonomy::STATUS_ARCHIVED );
+
+		$this->assertSame( $stays_id, Placements::page_id( $coverage_id ) );
+	}
+
+	/**
+	 * A page trashed since the map was built isn't used, even before the
+	 * scheduled rebuild.
+	 */
+	public function test_a_trashed_page_is_not_used_before_the_rebuild() {
+		$coverage_id = self::create_coverage();
+		$page_id     = self::publish( self::feed( $coverage_id ) );
+		Placements::ensure_fresh();
+
+		wp_trash_post( $page_id );
+
+		$this->assertSame( 0, Placements::page_id( $coverage_id ) );
+		$this->assertSame( '', Taxonomy::get_coverage_page_url( $coverage_id ) );
+	}
+
+	/**
+	 * A page given a password since the map was built isn't used, even before
+	 * the scheduled rebuild: readers would only reach the password form.
+	 */
+	public function test_a_password_protected_page_is_not_used_before_the_rebuild() {
+		$coverage_id = self::create_coverage();
+		$page_id     = self::publish( self::feed( $coverage_id ) );
+		Placements::ensure_fresh();
+
+		wp_update_post(
+			[
+				'ID'            => $page_id,
+				'post_password' => 'secret',
+			]
+		);
+
+		$this->assertSame( 0, Placements::page_id( $coverage_id ) );
+		$this->assertSame( '', Taxonomy::get_coverage_page_url( $coverage_id ) );
 	}
 
 	/**
@@ -598,8 +651,6 @@ class Test_Placements extends Rolling_Coverage_TestCase {
 			[ 'post_date' => '2026-02-01 10:00:00' ]
 		);
 
-		$this->assertSame( [ 'post:' . $newer_id, 'post:' . $main_id ], array_keys( self::rows( $coverage_id ) ), 'Newest first without a canonical URL.' );
-
 		update_term_meta( $coverage_id, Taxonomy::CANONICAL_URL_META_KEY, set_url_scheme( get_permalink( $main_id ), 'https' ) );
 		$rows = Placements::for_coverage( $coverage_id );
 
@@ -671,11 +722,12 @@ class Test_Placements extends Rolling_Coverage_TestCase {
 		$coverage_id = self::create_coverage();
 		self::publish( self::feed( $coverage_id ) );
 		$stored = [
-			'pages'    => [],
-			'places'   => [],
-			'breakout' => [],
-			'patterns' => [],
-			'theme'    => self::theme(),
+			'pages'       => [],
+			'ended_pages' => [],
+			'places'      => [],
+			'breakout'    => [],
+			'patterns'    => [],
+			'theme'       => self::theme(),
 		];
 		update_option( Placements::OPTION, $stored, false );
 		$taken_over = false;
@@ -732,11 +784,12 @@ class Test_Placements extends Rolling_Coverage_TestCase {
 		update_option(
 			Placements::OPTION,
 			[
-				'pages'    => [ 1 => 1 ],
-				'places'   => [],
-				'breakout' => [],
-				'patterns' => $patterns,
-				'theme'    => self::theme(),
+				'pages'       => [ 1 => 1 ],
+				'ended_pages' => [],
+				'places'      => [],
+				'breakout'    => [],
+				'patterns'    => $patterns,
+				'theme'       => self::theme(),
 			],
 			false
 		);
@@ -986,11 +1039,12 @@ class Test_Placements extends Rolling_Coverage_TestCase {
 		update_option(
 			Placements::OPTION,
 			[
-				'pages'    => [],
-				'places'   => [],
-				'breakout' => [],
-				'patterns' => [],
-				'theme'    => 'another-theme@1.0',
+				'pages'       => [],
+				'ended_pages' => [],
+				'places'      => [],
+				'breakout'    => [],
+				'patterns'    => [],
+				'theme'       => 'another-theme@1.0',
 			],
 			false
 		);
@@ -998,6 +1052,31 @@ class Test_Placements extends Rolling_Coverage_TestCase {
 
 		$this->assertSame( 0, Placements::page_id( $coverage_id ), 'The front end keeps the stored map.' );
 		$this->assertSame( [ 'post:' . $page_id ], array_keys( self::rows( $coverage_id ) ), 'An admin read rebuilds a map built for another theme.' );
+		$this->assertSame( $page_id, Placements::page_id( $coverage_id ) );
+	}
+
+	/**
+	 * A map stored by an older version lacks a key this version reads, so it
+	 * is rebuilt rather than read.
+	 */
+	public function test_admin_reads_rebuild_a_map_stored_by_an_older_version() {
+		$coverage_id = self::create_coverage();
+		$page_id     = self::publish( self::feed( $coverage_id ) );
+
+		update_option(
+			Placements::OPTION,
+			[
+				'pages'    => [],
+				'places'   => [],
+				'breakout' => [],
+				'patterns' => [],
+				'theme'    => self::theme(),
+			],
+			false
+		);
+		delete_option( Placements::STALE_OPTION );
+
+		$this->assertSame( [ 'post:' . $page_id ], array_keys( self::rows( $coverage_id ) ) );
 		$this->assertSame( $page_id, Placements::page_id( $coverage_id ) );
 	}
 
@@ -1099,11 +1178,12 @@ class Test_Placements extends Rolling_Coverage_TestCase {
 		$coverage_id = self::create_coverage();
 		$page_id     = self::publish( self::feed( $coverage_id ) );
 		$stored      = [
-			'pages'    => [],
-			'places'   => [],
-			'breakout' => [],
-			'patterns' => [],
-			'theme'    => self::theme(),
+			'pages'       => [],
+			'ended_pages' => [],
+			'places'      => [],
+			'breakout'    => [],
+			'patterns'    => [],
+			'theme'       => self::theme(),
 		];
 		update_option( Placements::OPTION, $stored, false );
 		wp_clear_scheduled_hook( Placements::REBUILD_HOOK );
@@ -1148,5 +1228,19 @@ class Test_Placements extends Rolling_Coverage_TestCase {
 		$this->assertFalse( get_option( Placements::OPTION ) );
 		$this->assertFalse( get_option( Placements::STALE_OPTION ) );
 		$this->assertFalse( wp_next_scheduled( Placements::REBUILD_HOOK ) );
+	}
+
+	/**
+	 * Without a canonical URL, the page found to show the full feed is the
+	 * main page.
+	 */
+	public function test_the_found_page_is_the_main_page() {
+		$coverage_id = self::create_coverage();
+		$page_id     = self::publish( self::feed( $coverage_id ), [ 'post_date' => '2026-01-01 10:00:00' ] );
+		$capped_id   = self::publish( self::feed( $coverage_id, [ 'latestOnly' => true ] ), [ 'post_date' => '2026-02-01 10:00:00' ] );
+		$rows        = Placements::for_coverage( $coverage_id );
+
+		$this->assertSame( [ 'post:' . $page_id, 'post:' . $capped_id ], array_column( $rows, 'id' ) );
+		$this->assertSame( [ true, false ], array_column( $rows, 'isMain' ) );
 	}
 }

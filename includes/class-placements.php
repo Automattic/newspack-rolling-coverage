@@ -195,18 +195,25 @@ class Placements {
 	 * The newest published post whose own content holds an uncapped Rolling
 	 * Coverage block for a coverage. A capped block only shows a few entries
 	 * and links to the coverage page, so it never makes a post that page.
+	 * Nor does a block hidden once the coverage has ended, while it has ended.
+	 * The map can be out of date, so a post readers can't open, or that now
+	 * asks for a password, doesn't count.
 	 *
 	 * @param int $coverage_id Coverage term ID.
 	 * @return int Post ID, or 0 when there is none.
 	 */
 	public static function page_id( int $coverage_id ): int {
-		return (int) ( self::get_map()['pages'][ $coverage_id ] ?? 0 );
+		$has_ended = Taxonomy::STATUS_ARCHIVED === get_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, true );
+		$post_id   = (int) ( self::get_map()[ $has_ended ? 'ended_pages' : 'pages' ][ $coverage_id ] ?? 0 );
+
+		return $post_id && is_post_publicly_viewable( $post_id ) && '' === get_post_field( 'post_password', $post_id ) ? $post_id : 0;
 	}
 
 	/**
 	 * Rebuilds the stored map now when it is out of date, missing, or was
 	 * built for another theme. For admin reads, which must show what was just
-	 * saved; the front end keeps the stored map until the scheduled rebuild.
+	 * saved, and notification sends, which can't be taken back; the front end
+	 * keeps the stored map until the scheduled rebuild.
 	 * Checks once per request until the next change. When another rebuild
 	 * holds the lock, the stored map is used as it is.
 	 */
@@ -264,27 +271,27 @@ class Placements {
 			}
 		}
 
-		return self::put_main_page_first( $rows, (string) get_term_meta( $coverage_id, Taxonomy::CANONICAL_URL_META_KEY, true ) );
+		return self::put_main_page_first( $rows, Taxonomy::get_coverage_page_url( $coverage_id ) );
 	}
 
 	/**
-	 * Marks the row whose page is the coverage's canonical URL as the main
-	 * page and moves it to the top, or adds a row for the canonical URL when
-	 * no place matches it.
+	 * Marks the row whose page is the coverage's page as the main page and
+	 * moves it to the top, or adds a row for the page's URL when no place
+	 * matches it, as a canonical URL may not.
 	 *
-	 * @param array[] $rows          Placement rows.
-	 * @param string  $canonical_url Coverage's canonical URL.
+	 * @param array[] $rows     Placement rows.
+	 * @param string  $page_url Coverage's page URL.
 	 * @return array[]
 	 */
-	private static function put_main_page_first( array $rows, string $canonical_url ): array {
-		if ( '' === $canonical_url ) {
+	private static function put_main_page_first( array $rows, string $page_url ): array {
+		if ( '' === $page_url ) {
 			return $rows;
 		}
 
-		$canonical = self::comparable_url( $canonical_url );
+		$page = self::comparable_url( $page_url );
 
 		foreach ( $rows as $index => $row ) {
-			if ( ! $row['breakout'] && '' !== $row['viewUrl'] && self::comparable_url( $row['viewUrl'] ) === $canonical ) {
+			if ( ! $row['breakout'] && '' !== $row['viewUrl'] && self::comparable_url( $row['viewUrl'] ) === $page ) {
 				$row['isMain'] = true;
 				unset( $rows[ $index ] );
 				array_unshift( $rows, $row );
@@ -297,10 +304,10 @@ class Placements {
 			$rows,
 			[
 				'id'       => 'canonical',
-				'title'    => untrailingslashit( (string) preg_replace( '#^https?://#i', '', $canonical_url ) ),
+				'title'    => untrailingslashit( (string) preg_replace( '#^https?://#i', '', $page_url ) ),
 				'type'     => '',
 				'blocks'   => [],
-				'viewUrl'  => $canonical_url,
+				'viewUrl'  => $page_url,
 				'editUrl'  => '',
 				'isMain'   => true,
 				'breakout' => false,
@@ -989,7 +996,7 @@ class Placements {
 	 * @return bool
 	 */
 	private static function is_map( $stored ): bool {
-		return is_array( $stored ) && isset( $stored['pages'], $stored['places'], $stored['breakout'], $stored['patterns'], $stored['theme'] );
+		return is_array( $stored ) && isset( $stored['pages'], $stored['ended_pages'], $stored['places'], $stored['breakout'], $stored['patterns'], $stored['theme'] );
 	}
 
 	/**
@@ -1117,7 +1124,7 @@ class Placements {
 	 * storing one), and returns an empty map, so a front-end render never
 	 * waits on a scan.
 	 *
-	 * @return array{pages: array<int,int>, places: array<int,array[]>, breakout: array[], patterns: int[], theme: string}
+	 * @return array{pages: array<int,int>, ended_pages: array<int,int>, places: array<int,array[]>, breakout: array[], patterns: int[], theme: string}
 	 */
 	private static function get_map(): array {
 		$stored = get_option( self::OPTION );
@@ -1134,26 +1141,28 @@ class Placements {
 		}
 
 		return [
-			'pages'    => [],
-			'places'   => [],
-			'breakout' => [],
-			'patterns' => [],
-			'theme'    => '',
+			'pages'       => [],
+			'ended_pages' => [],
+			'places'      => [],
+			'breakout'    => [],
+			'patterns'    => [],
+			'theme'       => '',
 		];
 	}
 
 	/**
 	 * Scans every published place for the blocks.
 	 *
-	 * @return array{pages: array<int,int>, places: array<int,array[]>, breakout: array[], patterns: int[], theme: string}
+	 * @return array{pages: array<int,int>, ended_pages: array<int,int>, places: array<int,array[]>, breakout: array[], patterns: int[], theme: string}
 	 */
 	private static function build(): array {
 		$map = [
-			'pages'    => [],
-			'places'   => [],
-			'breakout' => [],
-			'patterns' => [],
-			'theme'    => self::theme_signature(),
+			'pages'       => [],
+			'ended_pages' => [],
+			'places'      => [],
+			'breakout'    => [],
+			'patterns'    => [],
+			'theme'       => self::theme_signature(),
 		];
 
 		$patterns = self::patterns_with_blocks();
@@ -1185,6 +1194,10 @@ class Placements {
 
 					if ( self::has_uncapped_feed( array_keys( $tags ) ) && ! isset( $map['pages'][ $coverage_id ] ) ) {
 						$map['pages'][ $coverage_id ] = $post_id;
+					}
+
+					if ( isset( $found['stays_when_ended'][ $coverage_id ] ) && ! isset( $map['ended_pages'][ $coverage_id ] ) ) {
+						$map['ended_pages'][ $coverage_id ] = $post_id;
 					}
 				}
 			}
@@ -1628,11 +1641,12 @@ class Placements {
 	 */
 	private static function scan( string $content ): array {
 		$found = [
-			'coverages' => [],
-			'automatic' => [],
-			'refs'      => [],
-			'parts'     => [],
-			'feeds'     => [],
+			'coverages'        => [],
+			'stays_when_ended' => [],
+			'automatic'        => [],
+			'refs'             => [],
+			'parts'            => [],
+			'feeds'            => [],
 		];
 
 		self::walk( parse_blocks( $content ), $found, false, [] );
@@ -1669,6 +1683,10 @@ class Placements {
 					$layout    = $layout_id > 0 ? (string) $layout_id : ( empty( $block['innerBlocks'] ) ? '' : self::LAYOUT_DETACHED );
 					$tag       = implode( ':', [ self::TAG_FEED, $layout, Rolling_Coverage_Block::latest_count( $attrs ) ] );
 					self::add_tags( $found['coverages'], $coverage_id, [ $tag ] );
+
+					if ( 0 === Rolling_Coverage_Block::latest_count( $attrs ) && empty( $attrs['hideWhenEnded'] ) ) {
+						$found['stays_when_ended'][ $coverage_id ] = true;
+					}
 				}
 
 				if ( $coverage_id > 0 && empty( $attrs['latestOnly'] ) ) {

@@ -84,13 +84,13 @@ Promote an entry to a standalone article. Breaking out creates a **draft** `post
 
 ### Push notifications
 
-When the OneSignal plugin is installed, configured, and v3-active, readers can follow a coverage with the Follow Coverage block. An entry opted into a notification, from the entry editor's Push Notifications panel or automatically when it comes from a chat source such as Slack, notifies only that coverage's followers (tag `coverage_{id}`) when published. The notification links to the entry on the coverage's canonical URL, so it needs one set. See the Follow Coverage block's [README](../src/blocks/coverage-follow/README.md) and [DEVELOPMENT.md](../src/blocks/coverage-follow/DEVELOPMENT.md).
+When the OneSignal plugin is installed, configured, and v3-active, readers can follow a coverage with the Follow Coverage block. An entry opted into a notification, from the entry editor's Push Notifications panel or automatically when it comes from a chat source such as Slack, notifies only that coverage's followers (tag `coverage_{id}`) when published. The notification links to the entry on the coverage's page (`Taxonomy::get_coverage_page_url()`), so it needs one. See the Follow Coverage block's [README](../src/blocks/coverage-follow/README.md) and [DEVELOPMENT.md](../src/blocks/coverage-follow/DEVELOPMENT.md).
 
 ### Social sharing and deep links
 
-- **Share links.** The Share block shares the entry's permalink with `?rc_source={host_post_id}`, the page it was shared from. The entry page serves its own Open Graph tags to social crawlers, which don't run JavaScript, and a script sends visitors on to the host page.
-- **Plain permalinks.** When the entry's coverage has a canonical URL, a request for the entry's permalink without `rc_source` is redirected (302 by default) to that URL, for crawlers and visitors alike. Without a canonical URL, the entry page renders.
-- Both destinations carry `?rolling-coverage-entry={slug}` and the `#newspack-rolling-coverage-entry-{id}` anchor, so the feed opens at the entry.
+- **Share links.** The Share block shares the entry's permalink with `?rc_source={post_id}`: the page it was shared from, or for a capped feed, the coverage's page. A capped feed shares the plain permalink when its canonical URL has no post behind it, has a query the post's permalink doesn't, or its coverage has no page. The entry page serves its own Open Graph tags to social crawlers, which don't run JavaScript, and a script sends visitors on to the host page.
+- **Plain permalinks.** When the entry's coverage has a page (`Taxonomy::get_coverage_page_url()`: its canonical URL, or else the newest published post with an uncapped feed), a request for the entry's permalink without `rc_source` is redirected (302 by default) to that page, for crawlers and visitors alike. Without one, the entry page renders.
+- Both destinations carry `?rolling-coverage-entry={slug}` and the `#newspack-rolling-coverage-entry-{id}` anchor, so the feed opens at the entry. The slug isn't a public query var, because WordPress would then show the blog posts page for a link to a static front page. `Social_Sharing::read_entry_query_var()` sets it after the main query runs.
 - **Entries hidden by their coverage.** When none of an entry's coverages exists outside the trash, its permalink answers with a 404 for every visitor, before either redirect. Front-end listings of entries, such as `?post_type=rolling_cov_entry` and its feed, leave it out, and so do oEmbed and Yoast SEO's head route (`Post_Type::is_hidden_by_coverage()`, `Post_Type::hide_entries_from_main_query()`).
 
 See [Share and Read more](../src/blocks/rolling-coverage/DEVELOPMENT.md#share-and-read-more).
@@ -265,7 +265,7 @@ Core WordPress routes are also used: `/wp/v2/rolling-coverage` (coverages) and `
 | Entries | `pinned` | view, edit | Whether the entry is pinned. |
 | Entries | `coverageStatus` | view, edit | The status of the entry's coverage. |
 | Entries | `rolling_coverage_breakout_status` | edit | The linked breakout post's status. |
-| Entries | `rolling_coverage_has_notifiable_coverage` | edit | Whether the entry's coverage has the canonical URL push notifications need. |
+| Entries | `rolling_coverage_has_notifiable_coverage` | edit | Whether the entry's coverage has the page push notifications need. |
 | Coverages | `pageUrl` | view, edit | The coverage's page; empty without `edit_posts`. |
 | Coverages | `placements` | view, edit | Published places that show the coverage, the main page first. |
 | Coverages | `newestEntry` | view, edit | When the newest published entry went out (ISO 8601); null without `edit_posts`. |

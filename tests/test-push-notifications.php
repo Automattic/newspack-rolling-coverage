@@ -5,8 +5,10 @@
  * @package Newspack_Rolling_Coverage
  */
 
+use Newspack_Rolling_Coverage\Placements;
 use Newspack_Rolling_Coverage\Post_Type;
 use Newspack_Rolling_Coverage\Push_Notifications;
+use Newspack_Rolling_Coverage\Social_Sharing;
 use Newspack_Rolling_Coverage\Taxonomy;
 
 /**
@@ -403,10 +405,10 @@ class Test_Push_Notifications extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * With no canonical URL there is nowhere to send readers, so nothing is
+	 * With no page there is nowhere to send readers, so nothing is
 	 * sent. The opt-in is kept rather than spent on a send that did not happen.
 	 */
-	public function test_coverage_without_a_canonical_url_sends_nothing_and_keeps_the_opt_in() {
+	public function test_coverage_without_a_page_sends_nothing_and_keeps_the_opt_in() {
 		$entry_id = self::create_draft_entry( self::create_coverage(), true );
 
 		wp_publish_post( $entry_id );
@@ -814,5 +816,59 @@ class Test_Push_Notifications extends Rolling_Coverage_TestCase {
 
 		$this->assertCount( 1, self::get_sent_notifications(), 'The notification should be sent straight away.' );
 		$this->assertFalse( wp_next_scheduled( Push_Notifications::SEND_HOOK, [ $entry_id ] ), 'Nothing should be left scheduled.' );
+	}
+
+	/**
+	 * Without a canonical URL, a notification goes to the page showing the
+	 * full feed, opened at the entry, and the editor panels say it can be sent.
+	 */
+	public function test_coverage_with_a_page_and_no_canonical_url_is_notified() {
+		$coverage_id = self::create_coverage();
+		$page_id     = self::factory()->post->create(
+			[
+				'post_status'  => 'publish',
+				'post_content' => '<!-- wp:newspack-rolling-coverage/rolling-coverage {"coverageId":' . $coverage_id . '} /-->',
+			]
+		);
+		$entry_id    = self::create_draft_entry( $coverage_id, true );
+
+		wp_publish_post( $entry_id );
+
+		$sent = self::get_sent_notifications();
+
+		$this->assertCount( 1, $sent );
+		$this->assertSame( Social_Sharing::get_entry_deep_link( get_post( $entry_id ), get_permalink( $page_id ) ), $sent[0]['url'] );
+		$this->assertTrue( Push_Notifications::has_notifiable_coverage( get_post( $entry_id ) ) );
+	}
+
+	/**
+	 * A page trashed while another rebuild holds the lock gets no notification
+	 * link, though the stored map still names it.
+	 */
+	public function test_notification_does_not_link_to_a_page_just_trashed() {
+		global $wpdb;
+
+		$coverage_id = self::create_coverage();
+		$page_id     = self::factory()->post->create(
+			[
+				'post_status'  => 'publish',
+				'post_content' => '<!-- wp:newspack-rolling-coverage/rolling-coverage {"coverageId":' . $coverage_id . '} /-->',
+			]
+		);
+
+		Placements::rebuild();
+		$wpdb->insert( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+			$wpdb->options,
+			[
+				'option_name'  => Placements::LOCK_OPTION,
+				'option_value' => (string) ( time() + 60 ),
+				'autoload'     => 'off',
+			]
+		);
+		wp_trash_post( $page_id );
+
+		wp_publish_post( self::create_draft_entry( $coverage_id, true ) );
+
+		$this->assertSame( [], self::get_sent_notifications() );
 	}
 }

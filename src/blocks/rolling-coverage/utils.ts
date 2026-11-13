@@ -86,6 +86,7 @@ async function searchCoverages( search: string ): Promise< CoverageOption[] > {
 					( ( term.meta as Record< string, unknown > )?.[
 						CANONICAL_URL_META_KEY
 					] as string ) || '',
+				pageUrl: String( term.pageUrl ?? '' ),
 				adsDisabled: Boolean(
 					( term.meta as Record< string, unknown > )?.[
 						ADS_DISABLED_META_KEY
@@ -125,6 +126,7 @@ async function getCoverage( id: number ): Promise< CoverageOption | null > {
 				( ( term.meta as Record< string, unknown > )?.[
 					CANONICAL_URL_META_KEY
 				] as string ) || '',
+			pageUrl: String( term.pageUrl ?? '' ),
 			adsDisabled: Boolean(
 				( term.meta as Record< string, unknown > )?.[
 					ADS_DISABLED_META_KEY

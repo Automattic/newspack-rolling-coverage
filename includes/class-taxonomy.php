@@ -629,6 +629,7 @@ class Taxonomy {
 	 * Returns the URL of the page that displays a coverage: its canonical URL
 	 * when set, since share links and notifications send readers there, else
 	 * the newest published post embedding an uncapped Rolling Coverage block for it.
+	 * Once the coverage has ended, a block set to hide when ended no longer counts.
 	 *
 	 * @param int $coverage_id Coverage term ID.
 	 * @return string Page URL, or '' when the coverage has no page.

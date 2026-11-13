@@ -2182,6 +2182,13 @@ export default function Edit( {
 	}, [ coverageId ] );
 
 	const coverageAdsDisabled = currentCoverage?.adsDisabled ?? false;
+	const isAllUpdatesLinkMissing =
+		!! currentCoverage &&
+		coverageLoadedFor === coverageId &&
+		! currentCoverage.pageUrl &&
+		! pendingCanonicalUrl &&
+		! isAllUpdatesHidden &&
+		allUpdatesBlockIds( [ ...headerBlocks, ...footerBlocks ] ).length > 0;
 
 	const showCopied = useCallback( () => {
 		setCopied( true );
@@ -2415,7 +2422,7 @@ export default function Edit( {
 								onChange={ setPendingCanonicalUrl }
 								disabled={ isApplyingUrl }
 								help={ __(
-									"The page readers land on when they open a link to one of this liveblog's entries. Shared across every block connected to this liveblog.",
+									"The page readers land on when they open a link to one of this liveblog's entries. Leave blank to use the newest published post with Show set to All. Shared across every block connected to this liveblog.",
 									'newspack-rolling-coverage'
 								) }
 							/>
@@ -2589,6 +2596,18 @@ export default function Edit( {
 								}
 							/>
 						</ToggleGroupControl>
+						{ isAllUpdatesLinkMissing && (
+							<Notice
+								className="newspack-rolling-coverage-all-updates-notice"
+								status="warning"
+								isDismissible={ false }
+							>
+								{ __(
+									'This liveblog has no page yet, so the link won’t show. Publish a post with a Rolling Coverage block for this liveblog with Show set to All, or set a Canonical URL.',
+									'newspack-rolling-coverage'
+								) }
+							</Notice>
+						) }
 						{ allUpdatesLink !== false &&
 							layoutLinkText !== null && (
 								<TextControl

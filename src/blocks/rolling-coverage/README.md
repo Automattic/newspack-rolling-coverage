@@ -59,7 +59,7 @@ Says whether the block uses a shared layout, naming it (such as "Uses the shared
 | Setting | What it does |
 | --- | --- |
 | Liveblog | The liveblog the block shows. |
-| Canonical URL | The page readers land on when they open a link to one of this liveblog's entries. It is shared by every block connected to this liveblog. Saved to the liveblog when you save the page. Editors and administrators can change it. Shown once a liveblog is selected. |
+| Canonical URL | The page readers land on when they open a link to one of this liveblog's entries, instead of the newest published post with Show set to All. It is shared by every block connected to this liveblog. Saved to the liveblog when you save the page. Editors and administrators can change it. Shown once a liveblog is selected. |
 | Use This Page | Fills Canonical URL with this page's address. Save the page first to get its address. Hidden when Show is set to Latest. |
 
 ### Entries
@@ -69,7 +69,7 @@ Says whether the block uses a shared layout, naming it (such as "Uses the shared
 | Show | All shows every entry, one page at a time. Latest shows only the most recent entries. |
 | Older entries | With Show set to All: what happens after the first page. Load on scroll (default) loads the next page as readers reach the end of the feed. “Load more” button shows a Load more button below the entries, where the layout's [Load More](../load-more/README.md) block sits; each press adds a page, and the button goes away once every entry is shown. Don’t load shows the first page only. |
 | Number of entries | With Show set to Latest: how many entries to show, from 1 to 100. |
-| Link to all updates | With Show set to Latest, in layouts that have one (Ticker, Wire, Digest, Flash, Alert): Show or Hide the link to the liveblog page. The link is hidden on the liveblog page itself. It starts as "See all entries", or "See all" followed by the site's plural name for entries ("See all updates"). It is an ordinary paragraph, so you can reword it. |
+| Link to all updates | With Show set to Latest, in layouts that have one (Ticker, Wire, Digest, Flash, Alert): Show or Hide the link to the liveblog page. The link is hidden on the liveblog page itself. The block warns you when the liveblog has no page, since the link can't show without one. It starts as "See all entries", or "See all" followed by the site's plural name for entries ("See all updates"). It is an ordinary paragraph, so you can reword it. |
 | Link text | With Link to all updates set to Show, in a shared layout that has the link: this block's own wording for it, such as "Follow the storm". Leave it empty to use the layout's text, which shows in the field and below it. The layout stays shared, so later changes to it still reach this block. Detaching the layout writes the wording into the detached copy. |
 | Entries per page | With Show set to All: how many entries show first, and how many each load of older entries adds. From 1 to 100. Default 20. |
 | Author name | In layouts that show the author's name: Show or Hide each entry's author's name, the one they chose under "Display name publicly as" in their profile. Default Show. |

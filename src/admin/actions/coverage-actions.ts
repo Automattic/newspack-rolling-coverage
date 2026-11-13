@@ -100,8 +100,6 @@ function getCoverageActions(
 		{
 			id: 'placements',
 			label: __( 'Placements', 'newspack-rolling-coverage' ),
-			isEligible: ( coverage: Coverage ) =>
-				( coverage.placements ?? [] ).length > 0,
 			callback: ( items: Coverage[] ) => {
 				if ( items.length === 1 ) {
 					onViewPlacements( items[ 0 ] );

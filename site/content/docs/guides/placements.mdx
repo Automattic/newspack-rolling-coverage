@@ -9,7 +9,7 @@ Placements lists every page, template, widget area, and pattern that shows a liv
 
 In **Rolling Coverage > All Liveblogs**, open the liveblog's row actions and select **Placements**. On a liveblog's entries screen, the **Placements** button in the header does the same.
 
-A liveblog that no page shows, and that has no canonical URL, has no **Placements** option.
+A liveblog that no page shows yet opens an empty list, and **All Liveblogs** shows "No page yet" in its **Main page** column.
 
 <Screenshot label="The Placements panel for a liveblog, showing its main page and the Rolling Coverage block on it" src="/screenshots/guides/placements-1.webp" width={3024} height={1964} />
 
@@ -35,14 +35,16 @@ The main page is the liveblog's home. Links to an entry, including shared ones, 
 
 The main page sits at the top of the list. "Main" follows what the place is, as in "Page · Main".
 
-The main page is the liveblog's **Canonical URL**. To set it, do either of these:
+The main page is the newest published post with a Rolling Coverage block for the liveblog with **Show** set to **All**. A block with **Show** set to **Latest** doesn't count, since it shows only a few entries. Once the liveblog has ended, neither does a block set to hide when ended, since it shows nothing.
+
+To choose a different page, set the liveblog's **Canonical URL**. Do either of these:
 
 - In the Rolling Coverage block on the page, open the **Liveblog** panel and select **Use This Page**. Save the page first, so it has an address.
 - In **All Liveblogs**, edit the liveblog and fill in **Canonical URL**.
 
 If the canonical URL matches no page in the list, it still gets a row at the top. That row is marked "Main page" and has only a **View** link.
 
-Without a canonical URL, a link to an entry opens the entry's own page.
+A liveblog with no main page has nowhere to send readers. A link to an entry opens the entry's own page, the **Latest** block's link to all updates doesn't show, and no notifications are sent. The block and the entry editor warn you when this happens.
 
 ## Next
 

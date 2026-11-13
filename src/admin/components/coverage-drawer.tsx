@@ -84,7 +84,7 @@ function getCoverageFormFields( labels: StatusLabels ) {
 				'newspack-rolling-coverage'
 			),
 			description: __(
-				"The page readers land on when they open a link to one of this liveblog's entries.",
+				"The page readers land on when they open a link to one of this liveblog's entries. Leave blank to use the newest published post with Show set to All.",
 				'newspack-rolling-coverage'
 			),
 		},

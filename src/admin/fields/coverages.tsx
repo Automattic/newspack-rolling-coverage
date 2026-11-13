@@ -16,7 +16,13 @@ import {
 } from '../utils/fields';
 import { formatSiteDateTime } from '../utils/site-date';
 import type { View } from '@wordpress/dataviews';
-import type { Field, ViewState, Coverage, StatusLabels } from '../types';
+import type {
+	Field,
+	ViewState,
+	Coverage,
+	Placement,
+	StatusLabels,
+} from '../types';
 
 /**
  * The coverage statuses as the list shows them, named after the site's
@@ -35,8 +41,18 @@ function getCoverageStatusElements( labels: StatusLabels ) {
 }
 
 /**
+ * The placement that is the coverage's main page.
+ *
+ * @param {Coverage} coverage The coverage.
+ * @return {Placement|undefined} The main page, if it has one.
+ */
+function getMainPage( coverage: Coverage ): Placement | undefined {
+	return coverage.placements?.find( ( placement ) => placement.isMain );
+}
+
+/**
  * Field definitions for the coverage DataViews table.
- * Configures columns: term ID, name, entry count, status, created date, modified date.
+ * Configures columns: term ID, name, entry count, status, main page, created date, modified date.
  *
  * @param {string}                       statusKey            Meta key for the coverage status (from AdminConfig).
  * @param {string}                       lastModifiedKey      Meta key for the coverage's latest entry activity (from AdminConfig).
@@ -120,6 +136,23 @@ function getCoverageFields(
 			},
 			filterBy: {
 				operators: [ 'is', 'isNot' ],
+			},
+		},
+		{
+			id: 'main_page',
+			type: 'text',
+			label: __( 'Main page', 'newspack-rolling-coverage' ),
+			enableSorting: false,
+			getValue: ( { item } ) => getMainPage( item )?.title ?? '',
+			render: ( { item } ) => {
+				const mainPage = getMainPage( item );
+				return mainPage ? (
+					<a href={ mainPage.viewUrl }>{ mainPage.title }</a>
+				) : (
+					<span>
+						{ __( 'No page yet', 'newspack-rolling-coverage' ) }
+					</span>
+				);
 			},
 		},
 		{
@@ -214,7 +247,13 @@ const defaultCoverageView: ViewState = {
 	sort: { field: 'name', direction: 'asc' },
 	search: '',
 	filters: [ { field: 'status', operator: 'isNot', value: 'trash' } ],
-	fields: [ 'status', 'slack_channel', 'created_at', 'last_modified' ],
+	fields: [
+		'status',
+		'main_page',
+		'slack_channel',
+		'created_at',
+		'last_modified',
+	],
 	titleField: 'name',
 	descriptionField: 'entry_count',
 	layout: { styles: { count: { align: 'start' } } },

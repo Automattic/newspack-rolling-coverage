@@ -591,11 +591,12 @@ class Test_Taxonomy extends Rolling_Coverage_TestCase {
 	 */
 	private static function stored_map( array $pages ): array {
 		return [
-			'pages'    => $pages,
-			'places'   => [],
-			'breakout' => [],
-			'patterns' => [],
-			'theme'    => get_stylesheet() . '@' . wp_get_theme()->get( 'Version' ),
+			'pages'       => $pages,
+			'ended_pages' => [],
+			'places'      => [],
+			'breakout'    => [],
+			'patterns'    => [],
+			'theme'       => get_stylesheet() . '@' . wp_get_theme()->get( 'Version' ),
 		];
 	}
 
