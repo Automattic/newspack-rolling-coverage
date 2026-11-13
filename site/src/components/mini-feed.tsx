@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 
-const NEW_ENTRY = 'Power back for 4,000 homes';
+const NEW_ENTRY = 'Power back for half of Northgate';
 
 const ENTRIES = [
-	{ time: '5:27 pm', title: 'Harbor Bridge closed as gusts top 70 mph' },
-	{ time: '5:17 pm', title: 'Shelters open at three schools' },
-	{ time: '5:08 pm', title: 'Flood warning lifted for Lower Quay' },
+	{ time: '5:27 pm', title: 'River reaches Water Street shops' },
+	{ time: '5:17 pm', title: 'Route 5 detours away from Fell Street' },
+	{ time: '5:08 pm', title: 'Flood warning covers Fell Creek blocks' },
 ];
 
 function Feed( { arrived }: { arrived: boolean } ) {

@@ -76,10 +76,10 @@ add_filter(
 		if ( get_option( 'newspack_rc_screenshots_ai_error' ) ) {
 			return new WP_Error( 'ai_failed', 'The AI provider did not respond. Try again in a minute.', [ 'status' => 500 ] );
 		}
-		$text = "- Storm Ingrid made landfall near the harbor at 6:40 a.m., with gusts above 70 mph.\n"
-			. "- About 18,000 homes are without power; crews expect restoration by Friday evening.\n"
-			. "- Flood warnings remain in effect along the river until midnight.\n"
-			. '- Schools in the district are closed today, and the Harbor Road bridge is shut.';
+		$text = "- The Kettle River crested at 21.3 feet at the Bridge Street gauge just after 6 p.m., 3.3 feet above flood stage.\n"
+			. "- About 18,000 homes are without power; crews can't reach two flooded substations until the river drops.\n"
+			. "- Water Street, the greenway and the Mill Race Footbridge are closed, and the fairgrounds shelter is open.\n"
+			. '- Schools close at noon today, and sandbags are free at the public works yard on Depot Street.';
 		return new WP_REST_Response( [ 'result' => $text ], 200 );
 	},
 	10,
