@@ -2,6 +2,7 @@
 	"site": {
 		"title": "The Riverbend Gazette",
 		"icon": "site-icon.png",
+		"logo": "riverbend-gazette-wordmark.png",
 		"default_author": "dokafor",
 		"categories": [
 			"News",
@@ -242,7 +243,8 @@
 				"content": "<!-- wp:paragraph -->\n<p>An Ashgrove runner won the women’s race in 1:13:40, her first win in her hometown race.</p>\n<!-- /wp:paragraph -->",
 				"excerpt": "She pulled clear at mile 10 on the greenway and finished in 1:13:40, the fastest women’s time in the race’s history.",
 				"author": "hbrennan",
-				"age": 877433
+				"age": 877433,
+				"category": "Sport"
 			}
 		},
 		{
@@ -256,7 +258,8 @@
 				"content": "<!-- wp:paragraph -->\n<p>Full results, including age-group rankings, are now on the race website.</p>\n<!-- /wp:paragraph -->",
 				"excerpt": "Every finisher’s time, plus the top 10 in each age group, from this year’s race along the greenway.",
 				"author": "dokafor",
-				"age": 877563
+				"age": 877563,
+				"category": "Sport"
 			}
 		},
 		{
@@ -348,7 +351,8 @@
 				"content": "<!-- wp:paragraph --><p>Halvorsen at full stretch to push a Fresno Verde header over the bar, four minutes into stoppage time. The North Bank greets it like a third goal.</p><!-- /wp:paragraph -->",
 				"excerpt": "The keeper’s fingertip stop on a late Fresno Verde header kept the visitors out in the 94th minute and sent the North Bank home happy.",
 				"author": "mquinn",
-				"age": 877433
+				"age": 877433,
+				"category": "Sport"
 			}
 		},
 		{
@@ -363,7 +367,8 @@
 				"content": "<!-- wp:paragraph --><p>Two goals from Bree Kowalski and a stoppage-time save from Petra Halvorsen. The champions' first meeting with Fresno Verde since the final ended the way the final did.</p><!-- /wp:paragraph -->",
 				"excerpt": "",
 				"author": "mquinn",
-				"age": 2075268
+				"age": 2075268,
+				"category": "Sport"
 			}
 		},
 		{
@@ -441,7 +446,8 @@
 				"content": "<!-- wp:paragraph -->\n<p>88&#039; Malik pushes a header onto the crossbar and claims the rebound in a crowd.</p>\n<!-- /wp:paragraph -->",
 				"excerpt": "Malik’s stop on a Beacon header, then the rebound claimed in a crowd, summed up a tense final 10 minutes at DS Stadium.",
 				"author": "mquinn",
-				"age": 877434
+				"age": 877434,
+				"category": "Sport"
 			}
 		},
 		{
@@ -456,7 +462,8 @@
 				"content": "<!-- wp:paragraph -->\n<p>90+4&#039; Full time. Riverbend 2, Toledo Beacon 1, before 16,842 at DS Stadium.</p>\n<!-- /wp:paragraph -->",
 				"excerpt": "The 81st-minute winner lifts the Millers to seventh in the conference before next Saturday’s trip to Birmingham Furnace FC.",
 				"author": "mquinn",
-				"age": 877563
+				"age": 877563,
+				"category": "Sport"
 			}
 		},
 		{
@@ -472,7 +479,8 @@
 				"excerpt": "Where the 18,000 outages are, which crews are working where, and when power should be back street by street.",
 				"author": "dokafor",
 				"age": 894747,
-				"image": "flood-street.jpg"
+				"image": "flood-street.jpg",
+				"category": "News"
 			}
 		},
 		{
@@ -521,7 +529,8 @@
 				"content": "<!-- wp:paragraph -->\n<p>Readers are reporting 9 inches in Ashgrove and 11 inches near the airport as of 7 a.m.</p>\n<!-- /wp:paragraph -->",
 				"excerpt": "Reader reports and weather service measurements from every neighborhood, updated through the morning as the snow tapers off.",
 				"author": "ethorne",
-				"age": 877433
+				"age": 877433,
+				"category": "Environment"
 			}
 		},
 		{
@@ -535,7 +544,8 @@
 				"content": "<!-- wp:paragraph -->\n<p>The storm has moved east. We will resume updates if conditions change this evening.</p>\n<!-- /wp:paragraph -->",
 				"excerpt": "What to know about roads, schools and power this evening, and when the next band of snow could arrive.",
 				"author": "dokafor",
-				"age": 877562
+				"age": 877562,
+				"category": "Environment"
 			}
 		},
 		{
@@ -769,7 +779,8 @@
 				"content": "<p>Public comment has opened. More than 40 people signed up to speak, most of them teachers from the Northgate schools.</p>",
 				"excerpt": "More than 40 people signed up to speak, most of them from the Northgate schools facing the deepest cuts.",
 				"author": "pverma",
-				"age": 877433
+				"age": 877433,
+				"category": "Education"
 			}
 		},
 		{
@@ -789,7 +800,8 @@
 				"content": "<p>The school board meeting is called to order. All seven members and Superintendent Yvonne Ferris are present, and the budget vote is third on the agenda.</p>",
 				"excerpt": "All seven members are present for a vote on a budget that holds class sizes and leaves about 30 teaching posts unfilled.",
 				"author": "pverma",
-				"age": 877563
+				"age": 877563,
+				"category": "Education"
 			}
 		},
 		{
@@ -888,7 +900,8 @@
 				"content": "<!-- wp:paragraph -->\n<p>Studios reopen at 11 a.m. tomorrow and close at 5 p.m. The free shuttle from Courthouse Square runs all day.</p>\n<!-- /wp:paragraph -->",
 				"excerpt": "Studios reopen at 11 a.m. and close at 5 p.m., and the free shuttle from Courthouse Square runs all day.",
 				"author": "rdelgado",
-				"age": 877563
+				"age": 877563,
+				"category": "Arts & Culture"
 			}
 		},
 		{
@@ -1122,7 +1135,8 @@
 				"content": "<!-- wp:paragraph -->\n<p><strong>The last hour has started</strong> across the district. Foot traffic looks like a <em>record</em>, up from <s>5,100</s> 5,200 last year 🎨</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Studios close at 9pm in the <a href=\"https://example.com/stock-house\">Stock House</a>. Thanks @Wren Castellano for the photos.<br>More soon.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:list -->\n<ul class=\"wp-block-list\"><!-- wp:list-item -->\n<li>Stock House: open</li>\n<!-- /wp:list-item -->\n\n<!-- wp:list-item -->\n<li>Beater Room: <strong>full</strong><!-- wp:list -->\n<ul class=\"wp-block-list\"><!-- wp:list-item -->\n<li>Queue back to Mill Race Road</li>\n<!-- /wp:list-item --></ul>\n<!-- /wp:list --></li>\n<!-- /wp:list-item -->\n\n<!-- wp:list-item -->\n<li>Drying Loft: open</li>\n<!-- /wp:list-item --></ul>\n<!-- /wp:list -->\n\n<!-- wp:paragraph -->\n<p>What happens next:</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:list {\"ordered\":true} -->\n<ol class=\"wp-block-list\"><!-- wp:list-item -->\n<li>Studios close at 9pm</li>\n<!-- /wp:list-item -->\n\n<!-- wp:list-item -->\n<li>Studios reopen at 11am tomorrow</li>\n<!-- /wp:list-item --></ol>\n<!-- /wp:list -->\n\n<!-- wp:quote -->\n<blockquote class=\"wp-block-quote\"><!-- wp:paragraph -->\n<p>We expect to pass 6,000 before we close.</p>\n<!-- /wp:paragraph --></blockquote>\n<!-- /wp:quote -->\n\n<!-- wp:code -->\n<pre class=\"wp-block-code\"><code>Stock House  4,712\nDrying Loft  1,088</code></pre>\n<!-- /wp:code -->",
 				"excerpt": "Door counts passed last year’s Saturday total of 5,200 with an hour to go, and studios reopen at 11 a.m. tomorrow.",
 				"author": "rdelgado",
-				"age": 877434
+				"age": 877434,
+				"category": "Arts & Culture"
 			}
 		},
 		{
@@ -1142,7 +1156,8 @@
 				"content": "<!-- wp:paragraph -->\n<p>Public works says Marla Deen will speak at the site shortly, alongside Lucia Amaro from Riverbend Transit.</p>\n<!-- /wp:paragraph -->",
 				"excerpt": "Crews are still pumping water from the street as the public works director prepares to explain what failed.",
 				"author": "mreilly",
-				"age": 877433
+				"age": 877433,
+				"category": "News"
 			}
 		},
 		{
@@ -1170,7 +1185,8 @@
 				"content": "<!-- wp:paragraph -->\n<p>The city will spend $4.2 million to replace the water main that burst under Bridge Street this morning, along with half a mile of aging pipe around it, Marla Deen, director of Riverbend Public Works, said this evening.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Standing beside the fenced-off hole three blocks up from the river, Deen said the money would come from the city&#039;s emergency reserve and that work would begin tomorrow morning. The replacement had not been due for about two years.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:quote -->\n<blockquote class=\"wp-block-quote\"><!-- wp:paragraph -->\n<p>We can&#039;t keep patching pipes that were laid before anyone on this street was born. This one gave us no warning, and the next one won&#039;t either.</p>\n<!-- /wp:paragraph --><cite>Marla Deen</cite></blockquote>\n<!-- /wp:quote -->\n\n<!-- wp:heading -->\n<h2 class=\"wp-block-heading\">A pipe nearly a century old</h2>\n<!-- /wp:heading -->\n\n<!-- wp:paragraph -->\n<p>The main that failed is a 24-inch cast iron line installed in 1931. Deen said inspectors flagged the downtown section as high risk three years ago, but it sat behind other work on the capital plan, including the Grove Avenue main in Ashgrove.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>She said the break most likely started as a small crack that widened as pressure rose during the morning peak. By the time crews shut the valves on either side, around 9:40 a.m., the escaping water had undermined roughly 60 feet of road surface.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>The plan replaces the failed section and the neighboring pipe for four blocks in each direction with ductile iron, which the department has used for all new mains since the early 2000s.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:heading -->\n<h2 class=\"wp-block-heading\">What it means for downtown</h2>\n<!-- /wp:heading -->\n\n<!-- wp:paragraph -->\n<p>Bridge Street will reopen in stages over the next three weeks. The block around the break will stay closed to traffic until the road is rebuilt, while the outer blocks should reopen to one lane by the weekend. Routes 2, 5 and 9 will keep crossing the river on the Depot Street Bridge, which adds about 10 minutes to each trip, said Lucia Amaro, general manager of Riverbend Transit.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>At least six businesses on Bridge Street reported water damage. Delia Marchetti, president of the Halloway County Chamber of Commerce, said the chamber would help owners with insurance claims and cleanup costs.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>&quot;Most of these owners can&#039;t afford to lose a week, and this took one,&quot; Marchetti said. &quot;The least we can do is take the paperwork off their hands.&quot;</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:heading -->\n<h2 class=\"wp-block-heading\">Boil-water notice stays in place</h2>\n<!-- /wp:heading -->\n\n<!-- wp:paragraph -->\n<p>The boil-water notice for the Grid remains in effect. Residents should bring tap water to a rolling boil for at least one minute before drinking it, cooking with it or using it to brush their teeth. The department expects test results to come back clean within three days.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Bottled water is available at the main library on Courthouse Square until 8 p.m. each day while the notice is in effect. Residents who can&#039;t get there can call the city&#039;s helpline to arrange a delivery.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Deen said the department will bring a plan to replace the rest of the Grid&#039;s cast iron mains, estimated at $28 million over five years, to city officials next month.</p>\n<!-- /wp:paragraph -->",
 				"excerpt": "",
 				"author": "mreilly",
-				"age": 2100697
+				"age": 2100697,
+				"category": "News"
 			}
 		},
 		{
@@ -1191,7 +1207,8 @@
 				"content": "<!-- wp:paragraph -->\n<p>The Mill Race Footbridge is closed. People walking or cycling should cross on the Depot Street Bridge.</p>\n<!-- /wp:paragraph -->",
 				"excerpt": "The footbridge stays shut until the river drops below flood stage. Here is how to get across the river on foot in the meantime.",
 				"author": "mreilly",
-				"age": 877433
+				"age": 877433,
+				"category": "News"
 			}
 		},
 		{
@@ -1230,7 +1247,8 @@
 			"title": "Live: Open Studios",
 			"content": "<!-- wp:newspack-rolling-coverage/rolling-coverage {\"coverageId\":\"{{coverage:open-studios}}\",\"layoutId\":\"{{layout:default}}\"} /-->",
 			"author": null,
-			"age": 2448542
+			"age": 2448542,
+			"category": "Arts & Culture"
 		},
 		{
 			"type": "post",
@@ -1238,7 +1256,8 @@
 			"title": "Live: Winter storm warning",
 			"content": "<!-- wp:paragraph -->\n<p>Follow our live coverage below.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:newspack-rolling-coverage/rolling-coverage {\"coverageId\":\"{{coverage:winter-storm-warning}}\"} /-->",
 			"author": "ethorne",
-			"age": 2610541
+			"age": 2610541,
+			"category": "Environment"
 		},
 		{
 			"type": "post",
@@ -1246,7 +1265,8 @@
 			"title": "Live: Kettle Greenway Half Marathon",
 			"content": "<!-- wp:paragraph -->\n<p>Follow our live coverage below.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:newspack-rolling-coverage/rolling-coverage {\"coverageId\":\"{{coverage:kettle-greenway-half-marathon}}\"} /-->",
 			"author": "hbrennan",
-			"age": 3215341
+			"age": 3215341,
+			"category": "Sport"
 		},
 		{
 			"type": "post",
@@ -1254,7 +1274,8 @@
 			"title": "Live: Bridge Street water main break",
 			"content": "<!-- wp:newspack-rolling-coverage/rolling-coverage {\"coverageId\":\"{{coverage:bridge-street-water-main-break}}\",\"layoutId\":\"{{layout:default}}\"} /-->",
 			"author": null,
-			"age": 2100890
+			"age": 2100890,
+			"category": "News"
 		},
 		{
 			"type": "post",
@@ -1262,7 +1283,8 @@
 			"title": "Friday night games moved as the Kettle River rises",
 			"content": "<!-- wp:paragraph -->\n<p>Coaches across the county scrambled to find new dates for Friday&#039;s high school games as the Kettle River left fields in Northgate and along the greenway under water.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:newspack-rolling-coverage/rolling-coverage {\"coverageId\":\"{{coverage:live-kettle-river-flood}}\",\"layoutId\":\"{{layout:digest}}\",\"latestOnly\":true,\"latestCount\":3} /-->\n\n<!-- wp:paragraph -->\n<p>Ruth Ambrose, director of Halloway County Emergency Management, said the river should crest by early evening, but Water Street and the greenway will stay closed through the night.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Residents in the floodplain were urged to stay at the fairgrounds shelter until officials confirm it is safe to return. Schools in Northgate will open late tomorrow.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Marla Deen, director of Riverbend Public Works, said her department will review the storm drains on Water Street once the water drops, starting with the low point at Depot Street.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Business owners along Water Street spent the morning moving stock upstairs and setting door barriers in place.</p>\n<!-- /wp:paragraph -->\n\n\n",
 			"author": "hbrennan",
-			"age": 1825317
+			"age": 1825317,
+			"category": "Sport"
 		},
 		{
 			"type": "post",
@@ -1270,7 +1292,8 @@
 			"title": "Schools close across the county as the snow arrives",
 			"content": "<!-- wp:paragraph -->\n<p>Every public school in the county will stay closed tomorrow as the winter storm brings heavy snow and freezing rain across the region, Riverbend Public Schools and the Kettleford district said this evening.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>After-school activities and evening events are canceled, and Riverbend Public Schools will text families with the following day&#039;s schedule by 6 a.m.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:newspack-rolling-coverage/rolling-coverage {\"coverageId\":\"{{coverage:winter-storm-warning}}\",\"layoutId\":\"{{layout:digest}}\",\"latestOnly\":true,\"latestCount\":3} /-->\n",
 			"author": "pverma",
-			"age": 1479066
+			"age": 1479066,
+			"category": "Education"
 		},
 		{
 			"type": "page",
@@ -1353,13 +1376,13 @@
 			"slug": "header-desktop",
 			"title": "Header (Desktop)",
 			"area": "header",
-			"content": "<!-- wp:group {\"lock\":{\"move\":true,\"remove\":true},\"metadata\":{\"name\":\"Header (Desktop)\"},\"style\":{\"spacing\":{\"padding\":{\"top\":\"var:preset|spacing|30\",\"bottom\":\"0\",\"right\":\"var:preset|spacing|30\",\"left\":\"var:preset|spacing|30\"},\"blockGap\":\"var:preset|spacing|30\",\"margin\":{\"bottom\":\"var:preset|spacing|80\"}}},\"backgroundColor\":\"base\",\"layout\":{\"type\":\"default\"}} -->\n<div class=\"wp-block-group has-base-background-color has-background\" style=\"margin-bottom:var(--wp--preset--spacing--80);padding-top:var(--wp--preset--spacing--30);padding-right:var(--wp--preset--spacing--30);padding-bottom:0;padding-left:var(--wp--preset--spacing--30)\"><!-- wp:group {\"lock\":{\"move\":false,\"remove\":true},\"layout\":{\"type\":\"flex\",\"flexWrap\":\"nowrap\",\"justifyContent\":\"space-between\"}} -->\n<div class=\"wp-block-group\"><!-- wp:group {\"layout\":{\"type\":\"flex\",\"flexWrap\":\"nowrap\"}} -->\n<div class=\"wp-block-group\"><!-- wp:newspack/overlay-menu {\"instanceId\":\"d71b3c2892be\"} -->\n<div class=\"wp-block-newspack-overlay-menu\"><!-- wp:newspack/overlay-menu-trigger {\"className\":\"has-background-transparent\",\"style\":{\"typography\":{\"textTransform\":\"uppercase\"},\"elements\":{\"link\":{\"color\":{\"text\":\"var:preset|color|contrast\"}}},\"spacing\":{\"padding\":{\"top\":\"var:preset|spacing|20\",\"bottom\":\"var:preset|spacing|20\",\"left\":\"var:preset|spacing|20\",\"right\":\"var:preset|spacing|20\"}}},\"textColor\":\"contrast\"} /-->\n\n<!-- wp:newspack/overlay-menu-panel -->\n<div class=\"wp-block-newspack-overlay-menu-panel\"><!-- wp:navigation {\"ref\":\"{{navigation}}\",\"className\":\"is-style-flatten\",\"layout\":{\"type\":\"flex\",\"setCascadingProperties\":true,\"orientation\":\"vertical\"}} /--></div>\n<!-- /wp:newspack/overlay-menu-panel --></div>\n<!-- /wp:newspack/overlay-menu -->\n\n<!-- wp:site-title {\"level\":0,\"style\":{\"typography\":{\"fontStyle\":\"normal\",\"fontWeight\":\"700\",\"letterSpacing\":\"-0.01em\"},\"elements\":{\"link\":{\"color\":{\"text\":\"var:preset|color|contrast\"}}}},\"fontSize\":\"large\"} /-->\n\n<!-- wp:navigation {\"ref\":\"{{navigation}}\",\"className\":\"primary-navigation\",\"style\":{\"typography\":{\"textTransform\":\"uppercase\"}},\"layout\":{\"type\":\"flex\",\"setCascadingProperties\":true,\"justifyContent\":\"left\",\"orientation\":\"horizontal\",\"flexWrap\":\"wrap\"}} /--></div>\n<!-- /wp:group -->\n\n<!-- wp:group {\"style\":{\"spacing\":{\"blockGap\":\"var:preset|spacing|20\"}},\"layout\":{\"type\":\"flex\",\"flexWrap\":\"nowrap\"}} -->\n<div class=\"wp-block-group\"><!-- wp:buttons {\"lock\":{\"move\":true,\"remove\":false},\"className\":\"has-small-size\",\"style\":{\"spacing\":{\"blockGap\":\"var:preset|spacing|20\"}},\"fontSize\":\"x-small\"} -->\n<div class=\"wp-block-buttons has-custom-font-size has-small-size has-x-small-font-size\"><!-- wp:button -->\n<div class=\"wp-block-button\"><a class=\"wp-block-button__link wp-element-button\">Donate</a></div>\n<!-- /wp:button --></div>\n<!-- /wp:buttons -->\n\n<!-- wp:newspack/my-account-button {\"className\":\"has-small-size\",\"lock\":{\"move\":true,\"remove\":false},\"style\":{\"elements\":{\"link\":{\"color\":{\"text\":\"var:preset|color|contrast\"}}}},\"backgroundColor\":\"base-2\",\"textColor\":\"contrast\",\"fontSize\":\"x-small\"} /-->\n\n<!-- wp:newspack/overlay-search {\"className\":\"is-style-icon-only has-background-transparent\",\"style\":{\"elements\":{\"link\":{\"color\":{\"text\":\"var:preset|color|contrast\"}}},\"spacing\":{\"padding\":{\"right\":\"var:preset|spacing|20\",\"left\":\"var:preset|spacing|20\",\"top\":\"var:preset|spacing|20\",\"bottom\":\"var:preset|spacing|20\"}}},\"textColor\":\"contrast\"} /--></div>\n<!-- /wp:group --></div>\n<!-- /wp:group --></div>\n<!-- /wp:group -->\n"
+			"content": "<!-- wp:group {\"lock\":{\"move\":true,\"remove\":true},\"metadata\":{\"name\":\"Header (Desktop)\"},\"style\":{\"spacing\":{\"padding\":{\"top\":\"0\",\"bottom\":\"0\",\"right\":\"var:preset|spacing|30\",\"left\":\"var:preset|spacing|30\"},\"blockGap\":\"0\",\"margin\":{\"bottom\":\"var:preset|spacing|80\"}},\"border\":{\"top\":{\"color\":\"var:preset|color|accent\",\"width\":\"12px\"}}},\"backgroundColor\":\"base\",\"layout\":{\"type\":\"constrained\"}} -->\n<div class=\"wp-block-group has-base-background-color has-background\" style=\"border-top-color:var(--wp--preset--color--accent);border-top-width:12px;margin-bottom:var(--wp--preset--spacing--80);padding-top:0;padding-right:var(--wp--preset--spacing--30);padding-bottom:0;padding-left:var(--wp--preset--spacing--30)\"><!-- wp:group {\"lock\":{\"move\":false,\"remove\":true},\"metadata\":{\"name\":\"Masthead\"},\"align\":\"wide\",\"style\":{\"spacing\":{\"padding\":{\"top\":\"var:preset|spacing|40\",\"bottom\":\"var:preset|spacing|40\"},\"blockGap\":\"var:preset|spacing|30\"}},\"layout\":{\"type\":\"grid\",\"columnCount\":3}} -->\n<div class=\"wp-block-group alignwide\" style=\"padding-top:var(--wp--preset--spacing--40);padding-bottom:var(--wp--preset--spacing--40)\"><!-- wp:group {\"layout\":{\"type\":\"flex\",\"flexWrap\":\"nowrap\"}} -->\n<div class=\"wp-block-group\"><!-- wp:newspack/overlay-menu {\"instanceId\":\"d71b3c2892be\"} -->\n<div class=\"wp-block-newspack-overlay-menu\"><!-- wp:newspack/overlay-menu-trigger {\"className\":\"has-background-transparent\",\"style\":{\"typography\":{\"textTransform\":\"uppercase\"},\"elements\":{\"link\":{\"color\":{\"text\":\"var:preset|color|contrast\"}}},\"spacing\":{\"padding\":{\"top\":\"var:preset|spacing|20\",\"bottom\":\"var:preset|spacing|20\",\"left\":\"var:preset|spacing|20\",\"right\":\"var:preset|spacing|20\"}}},\"textColor\":\"contrast\"} /-->\n\n<!-- wp:newspack/overlay-menu-panel -->\n<div class=\"wp-block-newspack-overlay-menu-panel\"><!-- wp:navigation {\"ref\":\"{{navigation}}\",\"className\":\"is-style-flatten\",\"layout\":{\"type\":\"flex\",\"setCascadingProperties\":true,\"orientation\":\"vertical\"}} /--></div>\n<!-- /wp:newspack/overlay-menu-panel --></div>\n<!-- /wp:newspack/overlay-menu --></div>\n<!-- /wp:group -->\n\n<!-- wp:group {\"layout\":{\"type\":\"flex\",\"flexWrap\":\"nowrap\",\"justifyContent\":\"center\"}} -->\n<div class=\"wp-block-group\"><!-- wp:site-logo {\"width\":332} /--></div>\n<!-- /wp:group -->\n\n<!-- wp:group {\"style\":{\"spacing\":{\"blockGap\":\"var:preset|spacing|20\"}},\"layout\":{\"type\":\"flex\",\"flexWrap\":\"nowrap\",\"justifyContent\":\"right\"}} -->\n<div class=\"wp-block-group\"><!-- wp:buttons {\"lock\":{\"move\":true,\"remove\":false},\"className\":\"has-small-size\",\"style\":{\"spacing\":{\"blockGap\":\"var:preset|spacing|20\"}},\"fontSize\":\"x-small\"} -->\n<div class=\"wp-block-buttons has-custom-font-size has-small-size has-x-small-font-size\"><!-- wp:button -->\n<div class=\"wp-block-button\"><a class=\"wp-block-button__link wp-element-button\">Donate</a></div>\n<!-- /wp:button --></div>\n<!-- /wp:buttons -->\n\n<!-- wp:newspack/my-account-button {\"className\":\"has-small-size\",\"lock\":{\"move\":true,\"remove\":false},\"style\":{\"elements\":{\"link\":{\"color\":{\"text\":\"var:preset|color|contrast\"}}}},\"backgroundColor\":\"base-2\",\"textColor\":\"contrast\",\"fontSize\":\"x-small\"} /-->\n\n<!-- wp:newspack/overlay-search {\"className\":\"is-style-icon-only has-background-transparent\",\"style\":{\"elements\":{\"link\":{\"color\":{\"text\":\"var:preset|color|contrast\"}}},\"spacing\":{\"padding\":{\"right\":\"var:preset|spacing|20\",\"left\":\"var:preset|spacing|20\",\"top\":\"var:preset|spacing|20\",\"bottom\":\"var:preset|spacing|20\"}}},\"textColor\":\"contrast\"} /--></div>\n<!-- /wp:group --></div>\n<!-- /wp:group -->\n\n<!-- wp:group {\"metadata\":{\"name\":\"Sections\"},\"align\":\"wide\",\"style\":{\"border\":{\"top\":{\"color\":\"var:preset|color|base-3\",\"width\":\"1px\"},\"bottom\":{\"color\":\"var:preset|color|base-3\",\"width\":\"1px\"}},\"spacing\":{\"padding\":{\"top\":\"var:preset|spacing|20\",\"bottom\":\"var:preset|spacing|20\"}}},\"layout\":{\"type\":\"flex\",\"flexWrap\":\"nowrap\",\"justifyContent\":\"center\"}} -->\n<div class=\"wp-block-group alignwide\" style=\"border-top-color:var(--wp--preset--color--base-3);border-top-width:1px;border-bottom-color:var(--wp--preset--color--base-3);border-bottom-width:1px;padding-top:var(--wp--preset--spacing--20);padding-bottom:var(--wp--preset--spacing--20)\"><!-- wp:navigation {\"ref\":\"{{navigation}}\",\"className\":\"primary-navigation\",\"layout\":{\"type\":\"flex\",\"setCascadingProperties\":true,\"justifyContent\":\"center\",\"orientation\":\"horizontal\",\"flexWrap\":\"wrap\"}} /--></div>\n<!-- /wp:group --></div>\n<!-- /wp:group -->\n"
 		},
 		{
 			"slug": "header-mobile",
 			"title": "Header (Mobile)",
 			"area": "header",
-			"content": "<!-- wp:group {\"lock\":{\"move\":true,\"remove\":true},\"metadata\":{\"name\":\"Header (Mobile)\"},\"style\":{\"spacing\":{\"padding\":{\"top\":\"var:preset|spacing|30\",\"bottom\":\"0\",\"left\":\"var:preset|spacing|30\",\"right\":\"var:preset|spacing|30\"},\"margin\":{\"bottom\":\"var:preset|spacing|50\"}}},\"backgroundColor\":\"base\",\"layout\":{\"type\":\"constrained\"}} -->\n<div class=\"wp-block-group has-base-background-color has-background\" style=\"margin-bottom:var(--wp--preset--spacing--50);padding-top:var(--wp--preset--spacing--30);padding-right:var(--wp--preset--spacing--30);padding-bottom:0;padding-left:var(--wp--preset--spacing--30)\">\n\n\t<!-- wp:group {\"lock\":{\"move\":true,\"remove\":true},\"align\":\"wide\",\"style\":{\"spacing\":{\"blockGap\":\"var:preset|spacing|30\"}},\"layout\":{\"type\":\"flex\",\"justifyContent\":\"space-between\",\"flexWrap\":\"nowrap\"}} -->\n\t<div class=\"wp-block-group alignwide\">\n\n\t\t<!-- wp:group {\"style\":{\"spacing\":{\"blockGap\":\"var:preset|spacing|30\"}},\"layout\":{\"type\":\"flex\",\"flexWrap\":\"nowrap\"}} -->\n\t\t<div class=\"wp-block-group\">\n\t\t\t<!-- wp:newspack/overlay-menu {\"instanceId\":\"1a382fccbd5d\"} -->\n\t\t\t\t<div class=\"wp-block-newspack-overlay-menu\"><!-- wp:newspack/overlay-menu-trigger {\"className\":\"is-style-icon-only has-background-transparent\",\"style\":{\"elements\":{\"link\":{\"color\":{\"text\":\"var:preset|color|contrast\"}}},\"spacing\":{\"padding\":{\"right\":\"0\",\"left\":\"0\"}}},\"textColor\":\"contrast\"} /-->\n\t\t\t\t<!-- wp:newspack/overlay-menu-panel -->\n\t\t\t\t<div class=\"wp-block-newspack-overlay-menu-panel\"><!-- wp:navigation {\"ref\":\"{{navigation}}\",\"className\":\"is-style-flatten\",\"layout\":{\"type\":\"flex\",\"setCascadingProperties\":true,\"orientation\":\"vertical\"}} /--></div>\n\t\t\t\t<!-- /wp:newspack/overlay-menu-panel --></div>\n\t\t\t<!-- /wp:newspack/overlay-menu -->\n\n\t\t\t<!-- wp:site-title {\"level\":0,\"style\":{\"typography\":{\"fontStyle\":\"normal\",\"fontWeight\":\"700\",\"letterSpacing\":\"-0.01em\"},\"elements\":{\"link\":{\"color\":{\"text\":\"var:preset|color|contrast\"}}}},\"fontSize\":\"medium\"} /-->\n\t\t</div>\n\t\t<!-- /wp:group -->\n\n\t\t<!-- wp:group {\"style\":{\"spacing\":{\"blockGap\":\"var:preset|spacing|20\"}},\"layout\":{\"type\":\"flex\",\"flexWrap\":\"nowrap\"}} -->\n\t\t<div class=\"wp-block-group\">\n\t\t\t\t\t\t\t<!-- wp:newspack/my-account-button {\"lock\":{\"move\":false,\"remove\":true},\"className\":\"is-style-icon-only has-x-small-size\",\"style\":{\"spacing\":{\"padding\":{\"top\":\"0.375rem\",\"bottom\":\"0.375rem\",\"left\":\"0.375rem\",\"right\":\"0.375rem\"}},\"elements\":{\"link\":{\"color\":{\"text\":\"var:preset|color|contrast\"}}}},\"backgroundColor\":\"base\",\"textColor\":\"contrast\",\"fontSize\":\"x-small\"} /-->\n\t\t\t\n\t\t\t<!-- wp:buttons {\"layout\":{\"type\":\"flex\",\"flexWrap\":\"nowrap\"},\"style\":{\"spacing\":{\"blockGap\":\"var:preset|spacing|20\"}}} -->\n\t\t\t<div class=\"wp-block-buttons\">\n\t\t\t\t<!-- wp:button {\"className\":\"has-x-small-size\",\"fontSize\":\"x-small\"} -->\n\t\t\t\t<div class=\"wp-block-button has-custom-font-size has-x-small-size has-x-small-font-size\"><a class=\"wp-block-button__link wp-element-button\"></a></div>\n\t\t\t\t<!-- /wp:button -->\n\t\t\t</div>\n\t\t\t<!-- /wp:buttons -->\n\t\t</div>\n\t\t<!-- /wp:group -->\n\n\t</div>\n\t<!-- /wp:group -->\n\n</div>\n<!-- /wp:group -->\n"
+			"content": "<!-- wp:group {\"lock\":{\"move\":true,\"remove\":true},\"metadata\":{\"name\":\"Header (Mobile)\"},\"style\":{\"spacing\":{\"padding\":{\"top\":\"var:preset|spacing|30\",\"bottom\":\"0\",\"left\":\"var:preset|spacing|30\",\"right\":\"var:preset|spacing|30\"},\"margin\":{\"bottom\":\"var:preset|spacing|50\"}},\"border\":{\"top\":{\"color\":\"var:preset|color|accent\",\"width\":\"8px\"}}},\"backgroundColor\":\"base\",\"layout\":{\"type\":\"constrained\"}} -->\n<div class=\"wp-block-group has-base-background-color has-background\" style=\"border-top-color:var(--wp--preset--color--accent);border-top-width:8px;margin-bottom:var(--wp--preset--spacing--50);padding-top:var(--wp--preset--spacing--30);padding-right:var(--wp--preset--spacing--30);padding-bottom:0;padding-left:var(--wp--preset--spacing--30)\"><!-- wp:group {\"lock\":{\"move\":true,\"remove\":true},\"align\":\"wide\",\"style\":{\"spacing\":{\"blockGap\":\"var:preset|spacing|30\"}},\"layout\":{\"type\":\"flex\",\"justifyContent\":\"space-between\",\"flexWrap\":\"nowrap\"}} -->\n<div class=\"wp-block-group alignwide\"><!-- wp:group {\"style\":{\"spacing\":{\"blockGap\":\"var:preset|spacing|30\"}},\"layout\":{\"type\":\"flex\",\"flexWrap\":\"nowrap\"}} -->\n<div class=\"wp-block-group\"><!-- wp:newspack/overlay-menu {\"instanceId\":\"1a382fccbd5d\"} -->\n<div class=\"wp-block-newspack-overlay-menu\"><!-- wp:newspack/overlay-menu-trigger {\"className\":\"is-style-icon-only has-background-transparent\",\"style\":{\"elements\":{\"link\":{\"color\":{\"text\":\"var:preset|color|contrast\"}}},\"spacing\":{\"padding\":{\"right\":\"0\",\"left\":\"0\"}}},\"textColor\":\"contrast\"} /-->\n\n<!-- wp:newspack/overlay-menu-panel -->\n<div class=\"wp-block-newspack-overlay-menu-panel\"><!-- wp:navigation {\"ref\":\"{{navigation}}\",\"className\":\"is-style-flatten\",\"layout\":{\"type\":\"flex\",\"setCascadingProperties\":true,\"orientation\":\"vertical\"}} /--></div>\n<!-- /wp:newspack/overlay-menu-panel --></div>\n<!-- /wp:newspack/overlay-menu -->\n\n<!-- wp:site-logo {\"width\":160} /--></div>\n<!-- /wp:group -->\n\n<!-- wp:group {\"style\":{\"spacing\":{\"blockGap\":\"var:preset|spacing|20\"}},\"layout\":{\"type\":\"flex\",\"flexWrap\":\"nowrap\"}} -->\n<div class=\"wp-block-group\"><!-- wp:newspack/my-account-button {\"lock\":{\"move\":false,\"remove\":true},\"className\":\"is-style-icon-only has-x-small-size\",\"style\":{\"spacing\":{\"padding\":{\"top\":\"0.375rem\",\"bottom\":\"0.375rem\",\"left\":\"0.375rem\",\"right\":\"0.375rem\"}},\"elements\":{\"link\":{\"color\":{\"text\":\"var:preset|color|contrast\"}}}},\"backgroundColor\":\"base\",\"textColor\":\"contrast\",\"fontSize\":\"x-small\"} /-->\n\n<!-- wp:buttons {\"layout\":{\"type\":\"flex\",\"flexWrap\":\"nowrap\"},\"style\":{\"spacing\":{\"blockGap\":\"var:preset|spacing|20\"}}} -->\n<div class=\"wp-block-buttons\"><!-- wp:button {\"className\":\"has-x-small-size\",\"fontSize\":\"x-small\"} -->\n<div class=\"wp-block-button has-custom-font-size has-x-small-size has-x-small-font-size\"><a class=\"wp-block-button__link wp-element-button\"></a></div>\n<!-- /wp:button --></div>\n<!-- /wp:buttons --></div>\n<!-- /wp:group --></div>\n<!-- /wp:group --></div>\n<!-- /wp:group -->\n"
 		}
 	],
 	"slack": {
@@ -1392,50 +1415,41 @@
 	"styles": {
 		"styles": {
 			"blocks": {
-				"core/button": {
+				"core/post-author": {
 					"typography": {
-						"fontFamily": "var( --wp--preset--font-family--inter )"
+						"fontFamily": "var:preset|font-family|inter"
 					}
 				},
-				"core/navigation": {
+				"core/post-author-name": {
 					"typography": {
-						"fontFamily": "var( --wp--preset--font-family--dmsans )"
+						"fontFamily": "var:preset|font-family|inter"
+					}
+				},
+				"core/post-date": {
+					"typography": {
+						"fontFamily": "var:preset|font-family|inter"
+					}
+				},
+				"core/post-terms": {
+					"typography": {
+						"fontFamily": "var:preset|font-family|inter"
+					}
+				},
+				"newspack/byline": {
+					"typography": {
+						"fontFamily": "var:preset|font-family|inter"
 					}
 				}
 			},
 			"typography": {
-				"fontFamily": "var(--wp--preset--font-family--helvetica)"
+				"fontFamily": "var:preset|font-family|source-serif-4"
 			},
 			"elements": {
-				"button": {
-					"typography": {
-						"fontFamily": "var( --wp--preset--font-family--inter )"
-					}
-				},
-				"caption": {
-					"typography": {
-						"fontFamily": "var( --wp--preset--font-family--dmsans )"
-					}
-				},
 				"heading": {
 					"typography": {
-						"fontFamily": "var(--wp--preset--font-family--times)",
-						"fontStyle": "normal",
-						"fontWeight": "800"
-					}
-				},
-				"h5": {
-					"typography": {
 						"fontFamily": "var:preset|font-family|inter",
 						"fontStyle": "normal",
-						"fontWeight": "900"
-					}
-				},
-				"h6": {
-					"typography": {
-						"fontFamily": "var:preset|font-family|inter",
-						"fontStyle": "normal",
-						"fontWeight": "900"
+						"fontWeight": "700"
 					}
 				}
 			}
@@ -1445,17 +1459,17 @@
 				"palette": {
 					"theme": [
 						{
-							"color": "#D63638",
+							"color": "#117644",
 							"name": "Accent",
 							"slug": "accent"
 						},
 						{
-							"color": "#691C1C",
+							"color": "#2A5FA8",
 							"name": "Accent / Two",
 							"slug": "accent-2"
 						},
 						{
-							"color": "#26A69A",
+							"color": "#005826",
 							"name": "Accent / Three",
 							"slug": "accent-3"
 						},
@@ -1490,7 +1504,7 @@
 							"slug": "contrast"
 						},
 						{
-							"color": "#3E3E3E",
+							"color": "#5D5D5D",
 							"name": "Contrast / Two",
 							"slug": "contrast-2"
 						},
@@ -1509,99 +1523,34 @@
 			"typography": {
 				"fluid": true,
 				"fontFamilies": {
-					"theme": [
-						{
-							"fontFace": [
-								{
-									"fontFamily": "Inter",
-									"fontStretch": "normal",
-									"fontStyle": "normal",
-									"fontWeight": "100 900",
-									"src": [
-										"file:./assets/fonts/inter/InterVariable.woff2"
-									]
-								},
-								{
-									"fontFamily": "Inter",
-									"fontStretch": "normal",
-									"fontStyle": "italic",
-									"fontWeight": "100 900",
-									"src": [
-										"file:./assets/fonts/inter/InterVariable-Italic.woff2"
-									]
-								}
-							],
-							"fontFamily": "\"Inter\", system-ui, sans-serif",
-							"name": "Inter",
-							"slug": "inter"
-						},
-						{
-							"fontFace": [
-								{
-									"fontFamily": "Fraunces",
-									"fontStretch": "normal",
-									"fontStyle": "normal",
-									"fontWeight": "100 900",
-									"src": [
-										"file:./assets/fonts/fraunces/Fraunces-VariableFont_SOFT,WONK,opsz,wght.ttf"
-									]
-								},
-								{
-									"fontFamily": "Fraunces",
-									"fontStretch": "normal",
-									"fontStyle": "italic",
-									"fontWeight": "100 900",
-									"src": [
-										"file:./assets/fonts/fraunces/Fraunces-Italic-VariableFont_SOFT,WONK,opsz,wght.ttf"
-									]
-								}
-							],
-							"fontFamily": "\"Fraunces\", ui-serif, serif",
-							"name": "Fraunces",
-							"slug": "fraunces"
-						},
-						{
-							"fontFace": [
-								{
-									"fontFamily": "DM Sans",
-									"fontStretch": "normal",
-									"fontStyle": "normal",
-									"fontWeight": "100 900",
-									"src": [
-										"file:./assets/fonts/dm-sans/DMSans-VariableFont_opsz,wght.ttf"
-									]
-								},
-								{
-									"fontFamily": "DM Sans",
-									"fontStretch": "normal",
-									"fontStyle": "italic",
-									"fontWeight": "100 900",
-									"src": [
-										"file:./assets/fonts/dm-sans/DMSans-Italic-VariableFont_opsz,wght.ttf"
-									]
-								}
-							],
-							"fontFamily": "\"DM Sans\", system-ui, sans-serif",
-							"name": "DM Sans",
-							"slug": "dmsans"
-						}
-					],
 					"custom": [
 						{
-							"name": "Times",
-							"slug": "times",
-							"fontFamily": "Times, \"Times New Roman\", serif"
-						},
-						{
-							"name": "Helvetica",
-							"slug": "helvetica",
-							"fontFamily": "Helvetica, Arial, sans-serif"
+							"fontFace": [
+								{
+									"fontFamily": "Source Serif 4",
+									"fontStretch": "normal",
+									"fontStyle": "normal",
+									"fontWeight": "200 900",
+									"src": [
+										"{{assets}}/fonts/source-serif-4/SourceSerif4Variable-Roman.ttf.woff2"
+									]
+								},
+								{
+									"fontFamily": "Source Serif 4",
+									"fontStretch": "normal",
+									"fontStyle": "italic",
+									"fontWeight": "200 900",
+									"src": [
+										"{{assets}}/fonts/source-serif-4/SourceSerif4Variable-Italic.ttf.woff2"
+									]
+								}
+							],
+							"fontFamily": "\"Source Serif 4\", Georgia, serif",
+							"name": "Source Serif 4",
+							"slug": "source-serif-4"
 						}
 					]
 				}
-			},
-			"custom": {
-				"className": "bulletin-alt"
 			}
 		}
 	}

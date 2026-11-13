@@ -16,6 +16,7 @@ The site needs:
 - The [Newspack plugin](https://github.com/Automattic/newspack-plugin/releases), active.
 - The [Newspack Block Theme](https://github.com/Automattic/newspack-block-theme/releases), installed. The seed activates it.
 - A git checkout of Rolling Coverage, active, with its assets built (`npm ci && npm run build` and `composer install` in the plugin folder). The plugin zip doesn't include this folder.
+- No posts, pages or users of its own besides the administrator. Delete WordPress's "Hello world!" post and "Sample Page", and any sample posts and users your setup tool created: the front page lists the newest posts, and the editor's author menus list every author. The seed warns when it finds published posts it didn't create.
 - An environment type of `local` or `development`. Set it in `wp-config.php` with `define( 'WP_ENVIRONMENT_TYPE', 'local' );`. WordPress assumes `production` when it isn't set, which is the case on many Docker images and Studio sites, and the seed refuses those unless you add `force` to the command.
 
 On your computer you need Node 24 and [Google Chrome](https://www.google.com/chrome/).
@@ -52,11 +53,11 @@ The seed creates, and marks as its own:
 - The coverages and their statuses. Live: "Live: Kettle River rises above flood stage", "Open Studios" and "Bridge Street water main break". Paused: "Winter storm warning" and "School board budget vote". Ended: "Kettle Greenway Half Marathon", "Live: Riverbend FC v Fresno Verde" and "Riverbend FC v Toledo Beacon".
 - Their entries, authors (with fixed avatars), all from the Gazette's newsroom, photos, full story posts and pinned entries. Entry times are set relative to when you run the seed, so "2 days ago" reads the same whenever you seed.
 - The pages and posts that show them, such as `/live-kettle-river-flood/`, `/riverbend-fc-v-toledo-beacon-live-updates/`, `/weather-desk/` and `/follow-the-river/`, the front page, and two draft pages for editor screenshots: "Kettle River flood" and "Kettle River flood: live updates".
-- The built-in layouts, the categories in the header menu that the site doesn't have yet, the header menu, the header template parts, and the site icon. Built-in layouts the site already has are reused, so if someone has edited one, images that show it can differ.
+- The built-in layouts, the categories in the header menu that the site doesn't have yet, the header menu, the header template parts, the site logo and the site icon. Built-in layouts the site already has are reused, so if someone has edited one, images that show it can differ.
 - A connected Slack workspace, "The Riverbend Gazette", with four channel mappings and the Slack Bot user. These are settings only: nothing talks to Slack. If the site already has Slack settings, the seed leaves Slack alone.
 - A must-use plugin, `wp-content/mu-plugins/newspack-rc-screenshots.php`, copied from `fakes.php`. It makes the AI and Push Notifications screens appear without keys when those plugins aren't active, answers Key Takeaways with sample text, blocks every request WordPress's HTTP API makes to a host other than the site itself, blocks all email, turns away requests to the Slack webhooks, and gives every account a fixed avatar. It does nothing on a site the seed hasn't seeded.
 
-It also changes these settings, and keeps their old values to put back on removal: the site title, the active theme (with the widgets and menu locations of the theme it replaces), the front page, the site icon, the theme's styles (the Bulletin alt variation, with Times for headings and Helvetica for text), and the list of pinned entries. Changing the styles adds no revisions. Other plugins can react to a theme switch in ways removal can't undo, and cron events or webhooks they queued while the seed ran may still fire after removal.
+It also changes these settings, and keeps their old values to put back on removal: the site title, the active theme (with the widgets and menu locations of the theme it replaces), the front page, the site logo, the site icon, the theme's styles (The Riverbend Gazette's green and blue as the accent colors, with Inter for headings and Source Serif 4 for text), and the list of pinned entries. Changing the styles adds no revisions. Other plugins can react to a theme switch in ways removal can't undo, and cron events or webhooks they queued while the seed ran may still fire after removal.
 
 Run `remove` before activating the WordPress AI plugin or OneSignal on the screenshot site: the stand-ins are already loaded while the plugin activates, and the two would clash.
 
@@ -177,6 +178,7 @@ Before you commit an image, look at it.
 
 ## Credits
 
-- **Photos** in `assets/media/` (all but the site icon) are from [Pexels](https://www.pexels.com/), free to use under the [Pexels license](https://www.pexels.com/license/): `flood-street.jpg` by Sveta K, `polling.jpg` by Osviel Rodriguez Valdés, `late-winner.jpg` by George Zografidis, `marathon.jpg` by Stephen Leonardi, and `stadium.jpg` by Leticia Golubov.
-- **The site icon**, `assets/media/site-icon.png`, is The Riverbend Gazette's icon, made for Newspack's demo sites.
+- **Photos** in `assets/media/` (all but the site logo and site icon) are from [Pexels](https://www.pexels.com/), free to use under the [Pexels license](https://www.pexels.com/license/): `flood-street.jpg` by Sveta K, `polling.jpg` by Osviel Rodriguez Valdés, `late-winner.jpg` by George Zografidis, `marathon.jpg` by Stephen Leonardi, and `stadium.jpg` by Leticia Golubov.
+- **The site logo and site icon**, `assets/media/riverbend-gazette-wordmark.png` and `assets/media/site-icon.png`, are The Riverbend Gazette's wordmark and icon, made for Newspack's demo sites.
+- **Source Serif 4**, the variable WOFF2 files in `assets/fonts/source-serif-4/`, is by Adobe, from [adobe-fonts/source-serif](https://github.com/adobe-fonts/source-serif) release 4.005, under the [SIL Open Font License 1.1](https://openfontlicense.org/) (`assets/fonts/source-serif-4/LICENSE.md`). The site loads it from this folder. Inter comes with the Newspack Block Theme.
 - **Avatars** in `assets/avatars/` are flat colors made for this folder, one per seeded author.

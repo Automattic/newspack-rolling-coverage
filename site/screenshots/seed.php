@@ -74,6 +74,7 @@ function newspack_rc_screenshots_main( $args ) {
 
 	$content = newspack_rc_screenshots_read_content();
 	newspack_rc_screenshots_preflight( $content );
+	newspack_rc_screenshots_warn_other_posts();
 
 	newspack_rc_screenshots_seed( $content );
 	WP_CLI::success( 'The screenshot site is ready. Rerun this command any time to reset it.' );
@@ -265,9 +266,13 @@ function newspack_rc_screenshots_preflight( $content ) {
 		$problems[] = 'The mu-plugins folder is not writable: ' . WPMU_PLUGIN_DIR;
 	}
 
-	$files = [ 'fakes.php', 'assets/media/' . $content['site']['icon'] ];
+	$files = [ 'fakes.php', 'assets/media/' . $content['site']['icon'], 'assets/media/' . $content['site']['logo'] ];
 	foreach ( $content['media'] as $item ) {
 		$files[] = 'assets/media/' . $item['file'];
+	}
+	preg_match_all( '#\{\{assets\}\}/([^"]+)#', (string) wp_json_encode( $content['styles'], JSON_UNESCAPED_SLASHES ), $assets );
+	foreach ( $assets[1] as $asset ) {
+		$files[] = 'assets/' . $asset;
 	}
 	foreach ( $files as $file ) {
 		if ( ! is_readable( __DIR__ . '/' . $file ) ) {
@@ -295,6 +300,30 @@ function newspack_rc_screenshots_preflight( $content ) {
 
 	if ( $problems ) {
 		WP_CLI::error( "Nothing was changed.\n- " . implode( "\n- ", $problems ) . "\nUse a site set aside for screenshots." );
+	}
+}
+
+/**
+ * Warns about published posts the seed didn't create, such as a new site's
+ * sample post: the front page lists the newest posts, so they can show up in
+ * screenshots.
+ */
+function newspack_rc_screenshots_warn_other_posts() {
+	$others = get_posts(
+		[
+			'post_type'   => 'post',
+			'post_status' => 'publish',
+			'numberposts' => 3,
+			'meta_query'  => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+				[
+					'key'     => NEWSPACK_RC_SCREENSHOTS_MARK,
+					'compare' => 'NOT EXISTS',
+				],
+			],
+		]
+	);
+	if ( $others ) {
+		WP_CLI::warning( sprintf( 'The site has posts the seed didn\'t create, such as "%s". The front page lists the newest posts, so delete them if they show up in screenshots.', get_the_title( $others[0] ) ) );
 	}
 }
 
@@ -328,6 +357,10 @@ function newspack_rc_screenshots_seed( $content ) {
 		];
 		newspack_rc_screenshots_save_state( $state );
 	}
+	if ( ! array_key_exists( 'site_logo', $state['previous'] ) ) {
+		$state['previous']['site_logo'] = get_option( 'site_logo' );
+		newspack_rc_screenshots_save_state( $state );
+	}
 
 	newspack_rc_screenshots_install_fakes();
 	newspack_rc_screenshots_remove( false );
@@ -358,13 +391,13 @@ function newspack_rc_screenshots_seed( $content ) {
 		$tokens[ '"{{layout:' . $slug . '}}"' ] = (string) $layout_id;
 	}
 
-	$posts = newspack_rc_screenshots_seed_posts( $content['posts'], $users, $tokens );
+	$posts = newspack_rc_screenshots_seed_posts( $content['posts'], $users, $tokens, $categories );
 	foreach ( $content['coverages'] as $coverage ) {
 		if ( ! empty( $coverage['canonical'] ) && isset( $posts[ $coverage['canonical'] ] ) ) {
 			update_term_meta( $coverages[ $coverage['slug'] ], Taxonomy::CANONICAL_URL_META_KEY, get_permalink( $posts[ $coverage['canonical'] ] ) );
 		}
 	}
-	newspack_rc_screenshots_seed_entries( $content['entries'], $coverages, $users, $media, $tokens );
+	newspack_rc_screenshots_seed_entries( $content['entries'], $coverages, $users, $media, $tokens, $categories );
 	newspack_rc_screenshots_seed_parts( $content['parts'], newspack_rc_screenshots_seed_navigation( $categories ) );
 
 	$icon = [
@@ -374,6 +407,13 @@ function newspack_rc_screenshots_seed( $content ) {
 		'caption' => '',
 	];
 	update_option( 'site_icon', newspack_rc_screenshots_seed_media( [ $icon ] )[ $icon['file'] ] );
+	$logo = [
+		'file'    => $content['site']['logo'],
+		'title'   => 'Site logo',
+		'alt'     => '',
+		'caption' => '',
+	];
+	update_option( 'site_logo', newspack_rc_screenshots_seed_media( [ $logo ] )[ $logo['file'] ] );
 	update_option( 'show_on_front', 'page' );
 	update_option( 'page_on_front', $posts['front-page'] );
 
@@ -381,9 +421,12 @@ function newspack_rc_screenshots_seed( $content ) {
 }
 
 /**
- * Applies the demo site's styles: the theme's Bulletin alt variation with a
- * serif for headings and a sans serif for text. A site's own styles are kept
- * in the seed's state before they are replaced, and put back on removal.
+ * Applies the demo site's styles, The Riverbend Gazette's branding: its green
+ * and blue as the theme's accent colors, Inter for headings and Source Serif 4
+ * for text. Source Serif 4 is served from assets/fonts in this folder, through
+ * the `{{assets}}` placeholder, as a path without the host so it loads over
+ * http and https alike. A site's own styles are kept in the seed's state
+ * before they are replaced, and put back on removal.
  *
  * @param array $styles Styles from content.json.
  * @param array $state  Seed state.
@@ -393,7 +436,8 @@ function newspack_rc_screenshots_seed_styles( $styles, $state ) {
 	$styles['version']                     = 3;
 	$styles['isGlobalStylesUserThemeJSON'] = true;
 
-	$content  = wp_json_encode( $styles, JSON_UNESCAPED_SLASHES );
+	$assets   = wp_make_link_relative( plugins_url( 'site/screenshots/assets', NEWSPACK_ROLLING_COVERAGE_PLUGIN_FILE ) );
+	$content  = strtr( wp_json_encode( $styles, JSON_UNESCAPED_SLASHES ), [ '{{assets}}' => $assets ] );
 	$existing = WP_Theme_JSON_Resolver::get_user_data_from_wp_global_styles( wp_get_theme( NEWSPACK_RC_SCREENSHOTS_THEME ), false );
 
 	if ( ! empty( $existing['ID'] ) && ! get_post_meta( $existing['ID'], NEWSPACK_RC_SCREENSHOTS_MARK, true ) ) {
@@ -570,6 +614,20 @@ function newspack_rc_screenshots_seed_categories( $names ) {
 }
 
 /**
+ * Looks up a category ID by name, failing if it isn't one of the site's categories.
+ *
+ * @param string             $name       Category name.
+ * @param array<string, int> $categories Category IDs by name.
+ * @return int Category ID.
+ */
+function newspack_rc_screenshots_category_id( $name, $categories ) {
+	if ( ! isset( $categories[ $name ] ) ) {
+		newspack_rc_screenshots_fail( 'Unknown category', sprintf( '"%s" is not in site.categories in content.json.', $name ) );
+	}
+	return $categories[ $name ];
+}
+
+/**
  * Creates the built-in layouts the editor would create on first use, so
  * pages can name them.
  *
@@ -625,25 +683,27 @@ function newspack_rc_screenshots_seed_coverages( $coverages ) {
 /**
  * Creates the pages and posts that show the coverages.
  *
- * @param array $posts  Pages and posts from content.json.
- * @param array $users  User IDs by login.
- * @param array $tokens Placeholders in content.json and their values.
+ * @param array              $posts  Pages and posts from content.json.
+ * @param array              $users  User IDs by login.
+ * @param array              $tokens Placeholders in content.json and their values.
+ * @param array<string, int> $categories Category IDs by name.
  * @return array<string, int> Post IDs by slug.
  */
-function newspack_rc_screenshots_seed_posts( $posts, $users, $tokens ) {
+function newspack_rc_screenshots_seed_posts( $posts, $users, $tokens, $categories ) {
 	$ids = [];
 	foreach ( $posts as $post ) {
-		$ids[ $post['slug'] ] = newspack_rc_screenshots_insert_post(
-			[
-				'post_type'    => $post['type'],
-				'post_status'  => $post['status'] ?? 'publish',
-				'post_name'    => $post['slug'],
-				'post_title'   => $post['title'],
-				'post_content' => strtr( $post['content'], $tokens ),
-				'post_author'  => $users[ (string) $post['author'] ],
-			],
-			$post['age']
-		);
+		$args = [
+			'post_type'    => $post['type'],
+			'post_status'  => $post['status'] ?? 'publish',
+			'post_name'    => $post['slug'],
+			'post_title'   => $post['title'],
+			'post_content' => strtr( $post['content'], $tokens ),
+			'post_author'  => $users[ (string) $post['author'] ],
+		];
+		if ( ! empty( $post['category'] ) ) {
+			$args['post_category'] = [ newspack_rc_screenshots_category_id( $post['category'], $categories ) ];
+		}
+		$ids[ $post['slug'] ] = newspack_rc_screenshots_insert_post( $args, $post['age'] );
 	}
 	return $ids;
 }
@@ -651,13 +711,14 @@ function newspack_rc_screenshots_seed_posts( $posts, $users, $tokens ) {
 /**
  * Creates the entries, their full story posts and pins.
  *
- * @param array $entries   Entries from content.json, oldest first.
- * @param array $coverages Coverage term IDs by slug.
- * @param array $users     User IDs by login.
- * @param array $media     Attachment IDs by file name.
- * @param array $tokens    Placeholders in content.json and their values.
+ * @param array              $entries   Entries from content.json, oldest first.
+ * @param array              $coverages Coverage term IDs by slug.
+ * @param array              $users     User IDs by login.
+ * @param array              $media     Attachment IDs by file name.
+ * @param array              $tokens    Placeholders in content.json and their values.
+ * @param array<string, int> $categories Category IDs by name.
  */
-function newspack_rc_screenshots_seed_entries( $entries, $coverages, $users, $media, $tokens ) {
+function newspack_rc_screenshots_seed_entries( $entries, $coverages, $users, $media, $tokens, $categories ) {
 	foreach ( $entries as $entry ) {
 		$entry_id = newspack_rc_screenshots_insert_post(
 			[
@@ -692,12 +753,13 @@ function newspack_rc_screenshots_seed_entries( $entries, $coverages, $users, $me
 			$breakout    = $entry['breakout'];
 			$breakout_id = newspack_rc_screenshots_insert_post(
 				[
-					'post_type'    => 'post',
-					'post_status'  => $breakout['status'] ?? 'publish',
-					'post_title'   => $breakout['title'],
-					'post_content' => strtr( $breakout['content'], $tokens ),
-					'post_excerpt' => $breakout['excerpt'],
-					'post_author'  => $users[ (string) $breakout['author'] ],
+					'post_type'     => 'post',
+					'post_status'   => $breakout['status'] ?? 'publish',
+					'post_title'    => $breakout['title'],
+					'post_content'  => strtr( $breakout['content'], $tokens ),
+					'post_excerpt'  => $breakout['excerpt'],
+					'post_author'   => $users[ (string) $breakout['author'] ],
+					'post_category' => [ newspack_rc_screenshots_category_id( $breakout['category'], $categories ) ],
 				],
 				$breakout['age']
 			);
@@ -778,8 +840,9 @@ function newspack_rc_screenshots_seed_navigation( $categories ) {
 }
 
 /**
- * Replaces the theme's header with the demo site's: the menu button, site
- * title and section menu on one row.
+ * Replaces the theme's header with the demo site's: a green strip above the
+ * masthead, which holds the menu button, the site logo and the account
+ * buttons, with the section menu on a row of its own beneath.
  *
  * @param array $parts      Template parts from content.json.
  * @param int   $navigation Navigation post ID.
@@ -1039,6 +1102,13 @@ function newspack_rc_screenshots_remove( $everything ) {
 		update_option( 'show_on_front', $state['previous']['show_on_front'] );
 		update_option( 'page_on_front', $state['previous']['page_on_front'] );
 		update_option( 'site_icon', $state['previous']['site_icon'] );
+		if ( array_key_exists( 'site_logo', $state['previous'] ) ) {
+			if ( false === $state['previous']['site_logo'] ) {
+				delete_option( 'site_logo' );
+			} else {
+				update_option( 'site_logo', $state['previous']['site_logo'] );
+			}
+		}
 		if ( get_stylesheet() !== $state['previous']['stylesheet'] ) {
 			$requirements = wp_get_theme( $state['previous']['stylesheet'] )->exists() ? validate_theme_requirements( $state['previous']['stylesheet'] ) : false;
 			if ( is_wp_error( $requirements ) ) {
