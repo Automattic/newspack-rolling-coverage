@@ -65,7 +65,8 @@ const USAGE = `Usage: npm run shot -- <section>/<name>-<n> --site <url> [options
   --hover <selector>     Rest the pointer on an element (repeatable)
   --scroll <selector|px> Scroll an element into the middle of the window,
                          or the page, editor canvas or open modal by a
-                         number of pixels, negative to go up (repeatable)
+                         number of pixels, negative to go up as
+                         --scroll=-300 (repeatable)
   --press <key>          Press a key, such as Escape (repeatable)
   --wait <ms>            Wait this many milliseconds (repeatable)
   --eval <js>            Run JavaScript in the page and its frames
@@ -84,28 +85,36 @@ function fail( message ) {
 }
 
 function parse() {
-	const { values, positionals, tokens } = parseArgs( {
-		allowPositionals: true,
-		tokens: true,
-		options: {
-			site: { type: 'string', default: process.env.SHOT_SITE },
-			url: { type: 'string', default: 'wp-admin/' },
-			'logged-out': { type: 'boolean', default: false },
-			spotlight: { type: 'string', multiple: true, default: [] },
-			click: { type: 'string', multiple: true, default: [] },
-			fill: { type: 'string', multiple: true, default: [] },
-			value: { type: 'string', multiple: true, default: [] },
-			hover: { type: 'string', multiple: true, default: [] },
-			scroll: { type: 'string', multiple: true, default: [] },
-			press: { type: 'string', multiple: true, default: [] },
-			wait: { type: 'string', multiple: true, default: [] },
-			eval: { type: 'string', multiple: true, default: [] },
-			mouse: { type: 'string' },
-			now: { type: 'boolean', default: false },
-			out: { type: 'string' },
-			help: { type: 'boolean', default: false },
-		},
-	} );
+	let parsed;
+	try {
+		parsed = parseArgs( {
+			allowPositionals: true,
+			tokens: true,
+			options: {
+				site: { type: 'string', default: process.env.SHOT_SITE },
+				url: { type: 'string', default: 'wp-admin/' },
+				'logged-out': { type: 'boolean', default: false },
+				spotlight: { type: 'string', multiple: true, default: [] },
+				click: { type: 'string', multiple: true, default: [] },
+				fill: { type: 'string', multiple: true, default: [] },
+				value: { type: 'string', multiple: true, default: [] },
+				hover: { type: 'string', multiple: true, default: [] },
+				scroll: { type: 'string', multiple: true, default: [] },
+				press: { type: 'string', multiple: true, default: [] },
+				wait: { type: 'string', multiple: true, default: [] },
+				eval: { type: 'string', multiple: true, default: [] },
+				mouse: { type: 'string' },
+				now: { type: 'boolean', default: false },
+				out: { type: 'string' },
+				help: { type: 'boolean', default: false },
+			},
+		} );
+	} catch ( error ) {
+		fail(
+			`${ error.message }\n\nA negative --scroll value needs an equals sign: --scroll=-300.\n\n${ USAGE }`
+		);
+	}
+	const { values, positionals, tokens } = parsed;
 	if ( values.help ) {
 		console.log( USAGE );
 		process.exit( 0 );

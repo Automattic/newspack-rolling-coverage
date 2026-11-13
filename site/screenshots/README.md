@@ -135,8 +135,8 @@ npm run shot -- getting-started/create-your-first-coverage-2 --site https://scre
 A hover, and a spotlight around two elements at once (the box that contains both):
 
 ```bash
-npm run shot -- guides/placements-1 --site https://screenshots.local \
-  --url "wp-admin/admin.php?page=rolling-coverage" \
+npm run shot -- guides/scratch-1 --site https://screenshots.local \
+  --url "wp-admin/admin.php?page=rolling-coverage" --out /tmp/hover-test.webp \
   --hover 'button:has-text("Add Liveblog")' \
   --spotlight 'button:has-text("Add Liveblog")' --spotlight 'text=Bridge Street water main break'
 ```

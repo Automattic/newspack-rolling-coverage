@@ -29,6 +29,7 @@ const NEWSPACK_RC_SCREENSHOTS_FAKES    = 'newspack-rc-screenshots.php';
 const NEWSPACK_RC_SCREENSHOTS_THEME    = 'newspack-block-theme';
 const NEWSPACK_RC_SCREENSHOTS_TOKEN    = 'xoxb-0000000000-screenshots';
 const NEWSPACK_RC_SCREENSHOTS_SUBTITLE = 'newspack_post_subtitle';
+const NEWSPACK_RC_SCREENSHOTS_WOO_EMAIL_OPTIONS = [ 'woocommerce_email_header_image', 'woocommerce_email_base_color' ];
 
 /**
  * Entry point.
@@ -291,6 +292,24 @@ function newspack_rc_screenshots_preflight( $content ) {
 		$problems[] = "content.json uses the photo {$image}, which isn't in its media list.";
 	}
 
+	$known_categories = $content['site']['categories'] ?? [];
+	$category_uses    = [];
+	foreach ( $content['posts'] as $post ) {
+		if ( ! empty( $post['category'] ) ) {
+			$category_uses[ 'post "' . $post['slug'] . '"' ] = $post['category'];
+		}
+	}
+	foreach ( $content['entries'] as $entry ) {
+		if ( ! empty( $entry['breakout'] ) ) {
+			$category_uses[ 'breakout "' . ( $entry['breakout']['title'] ?? '' ) . '"' ] = $entry['breakout']['category'] ?? '';
+		}
+	}
+	foreach ( $category_uses as $label => $category ) {
+		if ( ! in_array( $category, $known_categories, true ) ) {
+			$problems[] = sprintf( 'content.json gives the %s the category "%s", which isn\'t in site.categories.', $label, $category );
+		}
+	}
+
 	$requirements = validate_theme_requirements( NEWSPACK_RC_SCREENSHOTS_THEME );
 	if ( is_wp_error( $requirements ) ) {
 		$problems[] = 'The Newspack Block Theme cannot run on this site: ' . $requirements->get_error_message();
@@ -366,6 +385,12 @@ function newspack_rc_screenshots_seed( $content ) {
 			'menus'         => get_theme_mod( 'nav_menu_locations' ),
 			'pinned'        => false !== get_option( Post_Type::PINNED_OPTION_KEY ),
 		];
+		newspack_rc_screenshots_save_state( $state );
+	}
+	if ( class_exists( 'WooCommerce' ) && ! array_key_exists( 'woocommerce_email_header_image', $state['previous'] ) ) {
+		foreach ( NEWSPACK_RC_SCREENSHOTS_WOO_EMAIL_OPTIONS as $option ) {
+			$state['previous'][ $option ] = get_option( $option, 'delete' );
+		}
 		newspack_rc_screenshots_save_state( $state );
 	}
 	if ( ! array_key_exists( 'site_logo', $state['previous'] ) ) {
@@ -493,21 +518,24 @@ function newspack_rc_screenshots_seed_styles( $styles, $state ) {
  *
  * @param int    $post_id Styles post ID.
  * @param string $content Styles JSON.
+ * @return int|WP_Error Post ID, or the error.
  */
 function newspack_rc_screenshots_update_styles( $post_id, $content ) {
 	$revisions = has_action( 'post_updated', 'wp_save_post_revision' );
 	remove_action( 'post_updated', 'wp_save_post_revision', 10 );
-	wp_update_post(
+	$result = wp_update_post(
 		wp_slash(
 			[
 				'ID'           => $post_id,
 				'post_content' => $content,
 			]
-		)
+		),
+		true
 	);
 	if ( false !== $revisions ) {
 		add_action( 'post_updated', 'wp_save_post_revision', 10, 1 );
 	}
+	return $result;
 }
 
 /**
@@ -889,6 +917,7 @@ function newspack_rc_screenshots_seed_navigation( $categories ) {
  *                      section menu, the site icon and the home URL.
  */
 function newspack_rc_screenshots_seed_parts( $parts, $tokens ) {
+	$tokens['{{year}}'] = gmdate( 'Y' );
 	foreach ( $parts as $part ) {
 		$part_id = newspack_rc_screenshots_insert_post(
 			[
@@ -1134,7 +1163,10 @@ function newspack_rc_screenshots_remove( $everything ) {
 	}
 
 	if ( ! empty( $state['styles'] ) && get_post( $state['styles']['id'] ) ) {
-		newspack_rc_screenshots_update_styles( $state['styles']['id'], $state['styles']['content'] );
+		$restored = newspack_rc_screenshots_update_styles( $state['styles']['id'], $state['styles']['content'] );
+		if ( is_wp_error( $restored ) ) {
+			WP_CLI::error( "Could not restore the site's own styles ({$restored->get_error_message()}). Nothing else was removed, so run remove again once that is fixed." );
+		}
 	}
 	wp_clean_theme_json_cache();
 
@@ -1148,6 +1180,15 @@ function newspack_rc_screenshots_remove( $everything ) {
 				delete_option( 'site_logo' );
 			} else {
 				update_option( 'site_logo', $state['previous']['site_logo'] );
+			}
+		}
+		foreach ( NEWSPACK_RC_SCREENSHOTS_WOO_EMAIL_OPTIONS as $option ) {
+			if ( array_key_exists( $option, $state['previous'] ) ) {
+				if ( 'delete' === $state['previous'][ $option ] ) {
+					delete_option( $option );
+				} else {
+					update_option( $option, $state['previous'][ $option ] );
+				}
 			}
 		}
 		if ( get_stylesheet() !== $state['previous']['stylesheet'] ) {
