@@ -178,7 +178,20 @@ Before you commit an image, look at it.
 
 ## Credits
 
-- **Photos** in `assets/media/` (all but the site logo and site icon) are from [Pexels](https://www.pexels.com/), free to use under the [Pexels license](https://www.pexels.com/license/): `flood-street.jpg` by Sveta K, `polling.jpg` by Osviel Rodriguez Valdés, `late-winner.jpg` by George Zografidis, `marathon.jpg` by Stephen Leonardi, and `stadium.jpg` by Leticia Golubov.
+- **Photos** in `assets/media/` (all but the site logo and site icon):
+  - From [Pexels](https://www.pexels.com/), free to use under the [Pexels license](https://www.pexels.com/license/): `flood-street.jpg` by Sveta K, `polling.jpg` by Osviel Rodriguez Valdés, `late-winner.jpg` by George Zografidis, `marathon.jpg` by Stephen Leonardi, and `stadium.jpg` by Leticia Golubov.
+  - Found through [Openverse](https://openverse.org/), dedicated to the public domain under [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) or marked with the [Public Domain Mark 1.0](https://creativecommons.org/publicdomain/mark/1.0/), so they need no credit on the image. Each is resized, and `paper-lanterns.jpg` is cropped to remove its frame.
+    - `ball-on-grass.jpg`: "Soccer ball grass field", photographer not named, CC0, [rawpixel](https://www.rawpixel.com/image/5911893/image-public-domain-free-grass).
+    - `bridge-girders.jpg`: "Close-up view of a steel bridge structure showing intersecting beams, rivets, and metal joints against a light blue sky." by genepine, CC0, [WordPress Photo Directory](https://wordpress.org/photos/photo/53268f989d/).
+    - `kettle-river-sunset.jpg`: "autumn sunset on the river" by azxa661, Public Domain Mark, [Flickr](https://www.flickr.com/photos/197207264@N02/52581985117).
+    - `library-shelves.jpg`: "Book shelves library", photographer not named, CC0, [rawpixel](https://www.rawpixel.com/image/6021855/photo-image-book-public-domain-room).
+    - `paper-lanterns.jpg`: "Lanterns for mid-autumn festival" by GeorgeTan#3, Public Domain Mark, [Flickr](https://www.flickr.com/photos/190270151@N02/51498605534).
+    - `pump-house-pipes.jpg`: "20130618-RD-LSC-0226" by USDAgov, Public Domain Mark, [Flickr](https://www.flickr.com/photos/41284017@N08/9404330011).
+    - `reporters-notebook.jpg`: "Research" by neil conway, Public Domain Mark, [Flickr](https://www.flickr.com/photos/30934989@N06/5625707813).
+    - `stacked-chairs.jpg`: "Stacked chairs along wall covered", photographer not named, CC0, [rawpixel](https://www.rawpixel.com/image/3294353/free-photo-image-architecture-banister-boardwalk).
+    - `string-lights.jpg`: "String lights night", photographer not named, CC0, [rawpixel](https://www.rawpixel.com/image/3283840/free-photo-image-christmas-lights-background-festive-bokeh).
+    - `studio-rafters.jpg`: "Ceiling house wooden beams rafters", photographer not named, CC0, [rawpixel](https://www.rawpixel.com/image/3284145/free-photo-image-building-lamp-lighting-home).
+    - `water-main-trench.jpg`: "Bøgeskov Høvej 25, vejarbejde - DSC_2223_Balancer" by Lav Ulv, CC0, [Flickr](https://www.flickr.com/photos/99460566@N06/35776145673).
 - **The site logo and site icon**, `assets/media/riverbend-gazette-wordmark.png` and `assets/media/site-icon.png`, are The Riverbend Gazette's wordmark and icon, made for Newspack's demo sites.
 - **Source Serif 4**, the variable WOFF2 files in `assets/fonts/source-serif-4/`, is by Adobe, from [adobe-fonts/source-serif](https://github.com/adobe-fonts/source-serif) release 4.005, under the [SIL Open Font License 1.1](https://openfontlicense.org/) (`assets/fonts/source-serif-4/LICENSE.md`). The site loads it from this folder. Inter comes with the Newspack Block Theme.
 - **Avatars** in `assets/avatars/` are flat colors made for this folder, one per seeded author.

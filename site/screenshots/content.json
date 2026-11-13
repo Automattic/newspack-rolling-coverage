@@ -140,6 +140,72 @@
 			"title": "Stadium roof",
 			"alt": "Steel roof trusses curve over the glass side of a stadium.",
 			"caption": ""
+		},
+		{
+			"file": "kettle-river-sunset.jpg",
+			"title": "River at sunset",
+			"alt": "The sun sets behind bare trees on the far bank of a wide, calm river, with gravel bars at the water's edge.",
+			"caption": ""
+		},
+		{
+			"file": "bridge-girders.jpg",
+			"title": "Steel bridge girders",
+			"alt": "Riveted steel girders of a truss bridge cross against a pale blue sky.",
+			"caption": ""
+		},
+		{
+			"file": "water-main-trench.jpg",
+			"title": "Roadworks trench",
+			"alt": "A deep trench cuts through the soil beside a road, with a length of pipe in the dirt and a safety railing along the edge.",
+			"caption": ""
+		},
+		{
+			"file": "pump-house-pipes.jpg",
+			"title": "Water pipes at a pump house",
+			"alt": "Blue water pipes run out of a metal building beside a white storage tank on a gravel lot.",
+			"caption": ""
+		},
+		{
+			"file": "ball-on-grass.jpg",
+			"title": "Ball on a grass field",
+			"alt": "A soccer ball sits alone on a wide, freshly cut grass field.",
+			"caption": ""
+		},
+		{
+			"file": "stacked-chairs.jpg",
+			"title": "Stacked chairs",
+			"alt": "Chairs stand stacked along the wall of an empty room, with striped shadows across the floor.",
+			"caption": ""
+		},
+		{
+			"file": "reporters-notebook.jpg",
+			"title": "Notebook and pen",
+			"alt": "An open notebook of handwritten notes lies on a desk with a pen across the page.",
+			"caption": ""
+		},
+		{
+			"file": "library-shelves.jpg",
+			"title": "Library shelves",
+			"alt": "Two rows of bookshelves line a quiet library aisle.",
+			"caption": ""
+		},
+		{
+			"file": "studio-rafters.jpg",
+			"title": "Studio rafters",
+			"alt": "Copper pendant lamps hang from exposed wooden rafters above a stone chimney.",
+			"caption": ""
+		},
+		{
+			"file": "string-lights.jpg",
+			"title": "String lights",
+			"alt": "Colored string lights glow against a dark wall.",
+			"caption": ""
+		},
+		{
+			"file": "paper-lanterns.jpg",
+			"title": "Painted paper lanterns",
+			"alt": "Dozens of white paper lanterns painted with flowers, stripes and birds hang from a ceiling.",
+			"caption": ""
 		}
 	],
 	"coverages": [
@@ -244,6 +310,7 @@
 				"excerpt": "She pulled clear at mile 10 on the greenway and finished in 1:13:40, the fastest women’s time in the race’s history.",
 				"author": "hbrennan",
 				"age": 877433,
+				"image": "marathon.jpg",
 				"category": "Sport"
 			}
 		},
@@ -259,6 +326,7 @@
 				"excerpt": "Every finisher’s time, plus the top 10 in each age group, from this year’s race along the greenway.",
 				"author": "dokafor",
 				"age": 877563,
+				"image": "marathon.jpg",
 				"category": "Sport"
 			}
 		},
@@ -352,6 +420,7 @@
 				"excerpt": "The keeper’s fingertip stop on a late Fresno Verde header kept the visitors out in the 94th minute and sent the North Bank home happy.",
 				"author": "mquinn",
 				"age": 877433,
+				"image": "stadium.jpg",
 				"category": "Sport"
 			}
 		},
@@ -368,6 +437,7 @@
 				"excerpt": "",
 				"author": "mquinn",
 				"age": 2075268,
+				"image": "late-winner.jpg",
 				"category": "Sport"
 			}
 		},
@@ -447,6 +517,7 @@
 				"excerpt": "Malik’s stop on a Beacon header, then the rebound claimed in a crowd, summed up a tense final 10 minutes at DS Stadium.",
 				"author": "mquinn",
 				"age": 877434,
+				"image": "ball-on-grass.jpg",
 				"category": "Sport"
 			}
 		},
@@ -463,6 +534,7 @@
 				"excerpt": "The 81st-minute winner lifts the Millers to seventh in the conference before next Saturday’s trip to Birmingham Furnace FC.",
 				"author": "mquinn",
 				"age": 877563,
+				"image": "late-winner.jpg",
 				"category": "Sport"
 			}
 		},
@@ -780,6 +852,7 @@
 				"excerpt": "More than 40 people signed up to speak, most of them from the Northgate schools facing the deepest cuts.",
 				"author": "pverma",
 				"age": 877433,
+				"image": "reporters-notebook.jpg",
 				"category": "Education"
 			}
 		},
@@ -801,6 +874,7 @@
 				"excerpt": "All seven members are present for a vote on a budget that holds class sizes and leaves about 30 teaching posts unfilled.",
 				"author": "pverma",
 				"age": 877563,
+				"image": "library-shelves.jpg",
 				"category": "Education"
 			}
 		},
@@ -901,6 +975,7 @@
 				"excerpt": "Studios reopen at 11 a.m. and close at 5 p.m., and the free shuttle from Courthouse Square runs all day.",
 				"author": "rdelgado",
 				"age": 877563,
+				"image": "paper-lanterns.jpg",
 				"category": "Arts & Culture"
 			}
 		},
@@ -1136,6 +1211,7 @@
 				"excerpt": "Door counts passed last year’s Saturday total of 5,200 with an hour to go, and studios reopen at 11 a.m. tomorrow.",
 				"author": "rdelgado",
 				"age": 877434,
+				"image": "string-lights.jpg",
 				"category": "Arts & Culture"
 			}
 		},
@@ -1157,6 +1233,7 @@
 				"excerpt": "Crews are still pumping water from the street as the public works director prepares to explain what failed.",
 				"author": "mreilly",
 				"age": 877433,
+				"image": "flood-street.jpg",
 				"category": "News"
 			}
 		},
@@ -1186,6 +1263,7 @@
 				"excerpt": "",
 				"author": "mreilly",
 				"age": 2100697,
+				"image": "pump-house-pipes.jpg",
 				"category": "News"
 			}
 		},
@@ -1208,6 +1286,7 @@
 				"excerpt": "The footbridge stays shut until the river drops below flood stage. Here is how to get across the river on foot in the meantime.",
 				"author": "mreilly",
 				"age": 877433,
+				"image": "bridge-girders.jpg",
 				"category": "News"
 			}
 		},
@@ -1216,21 +1295,24 @@
 			"title": "River falls below 20 feet",
 			"content": "<!-- wp:paragraph --><p>The Bridge Street gauge reads 19.8 feet and falling. The county expects the river back under flood stage by tomorrow morning.</p><!-- /wp:paragraph -->",
 			"author": "dokafor",
-			"age": 25860
+			"age": 25860,
+			"image": "kettle-river-sunset.jpg"
 		},
 		{
 			"coverage": "open-studios",
 			"title": "Studios reopen for the last day",
 			"content": "<!-- wp:paragraph --><p>Studios reopened at 11 a.m. The line at the Stock House is shorter than yesterday&#039;s.</p><!-- /wp:paragraph -->",
 			"author": "dokafor",
-			"age": 25737
+			"age": 25737,
+			"image": "paper-lanterns.jpg"
 		},
 		{
 			"coverage": "live-kettle-river-flood",
 			"title": "Main library opens late for flooded households",
 			"content": "<!-- wp:paragraph --><p>The main library on Courthouse Square is open until 9 p.m. for anyone flooded out. Coffee and phone charging are free.</p><!-- /wp:paragraph -->",
 			"author": "dokafor",
-			"age": 25614
+			"age": 25614,
+			"image": "library-shelves.jpg"
 		},
 		{
 			"coverage": "open-studios",
@@ -1248,6 +1330,7 @@
 			"content": "<!-- wp:newspack-rolling-coverage/rolling-coverage {\"coverageId\":\"{{coverage:open-studios}}\",\"layoutId\":\"{{layout:default}}\"} /-->",
 			"author": null,
 			"age": 2448542,
+			"image": "studio-rafters.jpg",
 			"category": "Arts & Culture"
 		},
 		{
@@ -1266,6 +1349,7 @@
 			"content": "<!-- wp:paragraph -->\n<p>Follow our live coverage below.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:newspack-rolling-coverage/rolling-coverage {\"coverageId\":\"{{coverage:kettle-greenway-half-marathon}}\"} /-->",
 			"author": "hbrennan",
 			"age": 3215341,
+			"image": "marathon.jpg",
 			"category": "Sport"
 		},
 		{
@@ -1275,6 +1359,7 @@
 			"content": "<!-- wp:newspack-rolling-coverage/rolling-coverage {\"coverageId\":\"{{coverage:bridge-street-water-main-break}}\",\"layoutId\":\"{{layout:default}}\"} /-->",
 			"author": null,
 			"age": 2100890,
+			"image": "water-main-trench.jpg",
 			"category": "News"
 		},
 		{
@@ -1284,6 +1369,7 @@
 			"content": "<!-- wp:paragraph -->\n<p>Coaches across the county scrambled to find new dates for Friday&#039;s high school games as the Kettle River left fields in Northgate and along the greenway under water.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:newspack-rolling-coverage/rolling-coverage {\"coverageId\":\"{{coverage:live-kettle-river-flood}}\",\"layoutId\":\"{{layout:digest}}\",\"latestOnly\":true,\"latestCount\":3} /-->\n\n<!-- wp:paragraph -->\n<p>Ruth Ambrose, director of Halloway County Emergency Management, said the river should crest by early evening, but Water Street and the greenway will stay closed through the night.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Residents in the floodplain were urged to stay at the fairgrounds shelter until officials confirm it is safe to return. Schools in Northgate will open late tomorrow.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Marla Deen, director of Riverbend Public Works, said her department will review the storm drains on Water Street once the water drops, starting with the low point at Depot Street.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Business owners along Water Street spent the morning moving stock upstairs and setting door barriers in place.</p>\n<!-- /wp:paragraph -->\n\n\n",
 			"author": "hbrennan",
 			"age": 1825317,
+			"image": "kettle-river-sunset.jpg",
 			"category": "Sport"
 		},
 		{
@@ -1293,6 +1379,7 @@
 			"content": "<!-- wp:paragraph -->\n<p>Every public school in the county will stay closed tomorrow as the winter storm brings heavy snow and freezing rain across the region, Riverbend Public Schools and the Kettleford district said this evening.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>After-school activities and evening events are canceled, and Riverbend Public Schools will text families with the following day&#039;s schedule by 6 a.m.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:newspack-rolling-coverage/rolling-coverage {\"coverageId\":\"{{coverage:winter-storm-warning}}\",\"layoutId\":\"{{layout:digest}}\",\"latestOnly\":true,\"latestCount\":3} /-->\n",
 			"author": "pverma",
 			"age": 1479066,
+			"image": "stacked-chairs.jpg",
 			"category": "Education"
 		},
 		{

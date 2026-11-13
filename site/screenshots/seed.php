@@ -280,6 +280,16 @@ function newspack_rc_screenshots_preflight( $content ) {
 		}
 	}
 
+	$images = array_column( $content['posts'], 'image' );
+	foreach ( $content['entries'] as $entry ) {
+		$images[] = $entry['image'] ?? '';
+		$images[] = $entry['breakout']['image'] ?? '';
+	}
+	$missing_media = array_diff( array_filter( $images ), array_column( $content['media'], 'file' ) );
+	foreach ( array_unique( $missing_media ) as $image ) {
+		$problems[] = "content.json uses the photo {$image}, which isn't in its media list.";
+	}
+
 	$requirements = validate_theme_requirements( NEWSPACK_RC_SCREENSHOTS_THEME );
 	if ( is_wp_error( $requirements ) ) {
 		$problems[] = 'The Newspack Block Theme cannot run on this site: ' . $requirements->get_error_message();
@@ -391,7 +401,7 @@ function newspack_rc_screenshots_seed( $content ) {
 		$tokens[ '"{{layout:' . $slug . '}}"' ] = (string) $layout_id;
 	}
 
-	$posts = newspack_rc_screenshots_seed_posts( $content['posts'], $users, $tokens, $categories );
+	$posts = newspack_rc_screenshots_seed_posts( $content['posts'], $users, $media, $tokens, $categories );
 	foreach ( $content['coverages'] as $coverage ) {
 		if ( ! empty( $coverage['canonical'] ) && isset( $posts[ $coverage['canonical'] ] ) ) {
 			update_term_meta( $coverages[ $coverage['slug'] ], Taxonomy::CANONICAL_URL_META_KEY, get_permalink( $posts[ $coverage['canonical'] ] ) );
@@ -683,13 +693,14 @@ function newspack_rc_screenshots_seed_coverages( $coverages ) {
 /**
  * Creates the pages and posts that show the coverages.
  *
- * @param array              $posts  Pages and posts from content.json.
- * @param array              $users  User IDs by login.
- * @param array              $tokens Placeholders in content.json and their values.
+ * @param array              $posts      Pages and posts from content.json.
+ * @param array              $users      User IDs by login.
+ * @param array              $media      Attachment IDs by file name.
+ * @param array              $tokens     Placeholders in content.json and their values.
  * @param array<string, int> $categories Category IDs by name.
  * @return array<string, int> Post IDs by slug.
  */
-function newspack_rc_screenshots_seed_posts( $posts, $users, $tokens, $categories ) {
+function newspack_rc_screenshots_seed_posts( $posts, $users, $media, $tokens, $categories ) {
 	$ids = [];
 	foreach ( $posts as $post ) {
 		$args = [
@@ -704,6 +715,9 @@ function newspack_rc_screenshots_seed_posts( $posts, $users, $tokens, $categorie
 			$args['post_category'] = [ newspack_rc_screenshots_category_id( $post['category'], $categories ) ];
 		}
 		$ids[ $post['slug'] ] = newspack_rc_screenshots_insert_post( $args, $post['age'] );
+		if ( ! empty( $post['image'] ) ) {
+			set_post_thumbnail( $ids[ $post['slug'] ], $media[ $post['image'] ] );
+		}
 	}
 	return $ids;
 }
