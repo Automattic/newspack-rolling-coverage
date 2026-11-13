@@ -192,7 +192,7 @@ The script also captures without waiting when it isn't run from a terminal.
 Signing in through wp-admin makes WordPress's Quick Draft create an auto-draft post. Delete the strays after a session:
 
 ```bash
-wp post delete $(wp post list --post_type=post --post_status=auto-draft --format=ids) --force
+ids=$(wp post list --post_type=post --post_status=auto-draft --format=ids); [ -n "$ids" ] && wp post delete $ids --force
 ```
 
 ## House settings
@@ -204,7 +204,7 @@ Every screenshot uses these, and the script applies them for you:
 - Signed in as James Smith, who has a flat blue avatar. Update notices, cookie banners, the Newspack debug notice and similar noise are hidden from the moment the page loads.
 - The reader sign-up prompt is closed on front-end pages.
 - The editor isn't in fullscreen mode and shows no block breadcrumbs, welcome guides or pattern chooser. Top toolbar is on, so a selected block's toolbar sits in the editor's header instead of over the page. These apply in the post, page, pattern and Site Editor alike, and the script saves them for the account you sign in with each time it runs.
-- At most one spotlight: everything outside the element and an 8px margin is dimmed with 45% black.
+- At most one spotlighted box, around one element or around all the `--spotlight` matches: everything outside it and an 8px margin is dimmed with 45% black.
 
 Before you commit an image, look at it.
 
