@@ -53,6 +53,15 @@ Yes, when the WordPress AI plugin and an AI provider are configured. Use the AI 
 
 OneSignal. The feed's follow button and the per-entry notification option require the OneSignal plugin to be installed and configured.
 
+== Credits ==
+
+The sample entries that preview each layout in the editor use these photos, both released under CC0 1.0 (https://creativecommons.org/publicdomain/zero/1.0/):
+
+* `assets/sample-images/corner.webp`: soccer field corner, by Robert Katzki, https://stocksnap.io/photo/soccer-field-FS8QBX48GP
+* `assets/sample-images/stadium.webp`: soccer stadium, by Michal Jarmoluk, https://stocksnap.io/photo/soccer-ball-FN9W4V6TK5
+
+The sample author avatars in `assets/sample-avatars/` were made for this plugin and are licensed under GPL-3.0, like the rest of the plugin.
+
 == Changelog ==
 
 See https://github.com/Automattic/newspack-rolling-coverage/releases

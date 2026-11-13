@@ -82,6 +82,7 @@ interface BlockConfig {
 	entryPostType: string;
 	entryPlural: string;
 	sampleAvatarUrls?: Record< string, string >;
+	sampleImageUrls?: { entry: string; breakout: string };
 	breakoutLabel?: string;
 }
 

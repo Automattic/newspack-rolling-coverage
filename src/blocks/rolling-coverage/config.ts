@@ -45,6 +45,7 @@ const {
 	entryPostType: ENTRY_POST_TYPE,
 	entryPlural: ENTRY_PLURAL,
 	sampleAvatarUrls: SAMPLE_AVATAR_URLS,
+	sampleImageUrls: SAMPLE_IMAGE_URLS,
 } = config;
 
 // wp_localize_script() sends numbers as strings.
@@ -73,4 +74,5 @@ export {
 	ENTRY_POST_TYPE,
 	ENTRY_PLURAL,
 	SAMPLE_AVATAR_URLS,
+	SAMPLE_IMAGE_URLS,
 };
