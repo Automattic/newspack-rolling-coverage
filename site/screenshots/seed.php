@@ -29,7 +29,7 @@ const NEWSPACK_RC_SCREENSHOTS_FAKES    = 'newspack-rc-screenshots.php';
 const NEWSPACK_RC_SCREENSHOTS_THEME    = 'newspack-block-theme';
 const NEWSPACK_RC_SCREENSHOTS_TOKEN    = 'xoxb-0000000000-screenshots';
 const NEWSPACK_RC_SCREENSHOTS_SUBTITLE = 'newspack_post_subtitle';
-const NEWSPACK_RC_SCREENSHOTS_WOO_EMAIL_OPTIONS = [ 'woocommerce_email_header_image', 'woocommerce_email_base_color' ];
+const NEWSPACK_RC_SCREENSHOTS_WOO_EMAIL_OPTIONS = [ 'woocommerce_email_header_image', 'woocommerce_email_base_color', 'newspack_wc_email_style_sync_last_base_color' ];
 
 /**
  * Entry point.
@@ -494,7 +494,10 @@ function newspack_rc_screenshots_seed_styles( $styles, $state ) {
 			];
 			newspack_rc_screenshots_save_state( $state );
 		}
-		newspack_rc_screenshots_update_styles( $existing['ID'], $content );
+		$updated = newspack_rc_screenshots_update_styles( $existing['ID'], $content );
+		if ( is_wp_error( $updated ) ) {
+			newspack_rc_screenshots_fail( 'Updating the site styles', $updated->get_error_message() );
+		}
 	} else {
 		$styles_id = newspack_rc_screenshots_insert_post(
 			[
@@ -917,7 +920,7 @@ function newspack_rc_screenshots_seed_navigation( $categories ) {
  *                      section menu, the site icon and the home URL.
  */
 function newspack_rc_screenshots_seed_parts( $parts, $tokens ) {
-	$tokens['{{year}}'] = gmdate( 'Y' );
+	$tokens['{{year}}'] = wp_date( 'Y' );
 	foreach ( $parts as $part ) {
 		$part_id = newspack_rc_screenshots_insert_post(
 			[
@@ -1165,7 +1168,7 @@ function newspack_rc_screenshots_remove( $everything ) {
 	if ( ! empty( $state['styles'] ) && get_post( $state['styles']['id'] ) ) {
 		$restored = newspack_rc_screenshots_update_styles( $state['styles']['id'], $state['styles']['content'] );
 		if ( is_wp_error( $restored ) ) {
-			WP_CLI::error( "Could not restore the site's own styles ({$restored->get_error_message()}). Nothing else was removed, so run remove again once that is fixed." );
+			WP_CLI::error( "Could not restore the site's own styles ({$restored->get_error_message()}). The site's settings and theme were left as they are; fix the error and run remove again." );
 		}
 	}
 	wp_clean_theme_json_cache();
