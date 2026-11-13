@@ -5,7 +5,7 @@ The screenshots in `site/public/screenshots/` all show the same demo site, "The 
 - `seed.php` turns a local WordPress site into that demo site, and resets it when you run it again.
 - `shot.mjs` (run as `npm run shot`) takes one screenshot at the house settings, with an optional spotlight, and writes the WebP into `site/public/screenshots/`.
 
-When you change a screen publishers see, retake only the screenshots that show it.
+When you change a screen publishers see, retake only the screenshots that show it. [`SHOTS.md`](SHOTS.md) lists every screenshot, what it shows and the command that retakes it.
 
 ## Set up a screenshot site
 
@@ -132,6 +132,23 @@ npm run shot -- getting-started/create-your-first-coverage-2 --site https://scre
   --click 'text=An internal note about this liveblog'
 ```
 
+A hover, and a spotlight around two elements at once (the box that contains both):
+
+```bash
+npm run shot -- guides/placements-1 --site https://screenshots.local \
+  --url "wp-admin/admin.php?page=rolling-coverage" \
+  --hover 'button:has-text("Add Liveblog")' \
+  --spotlight 'button:has-text("Add Liveblog")' --spotlight 'text=Bridge Street water main break'
+```
+
+Scrolling a signed-out page to an element, then down a little further, after waiting for an animation:
+
+```bash
+npm run shot -- guides/layouts-1 --site https://screenshots.local \
+  --url live-kettle-river-flood/ --logged-out \
+  --scroll 'text=River falls below 20 feet' --scroll 200 --wait 500
+```
+
 A page as a signed-out reader sees it:
 
 ```bash
@@ -146,11 +163,19 @@ npm run shot -- getting-started/put-the-feed-on-a-page-4 --site https://screensh
 | `--site <url>` | The screenshot site's address, including any folder WordPress is installed in. `https://` is added when you leave it out. You can set `SHOT_SITE` instead. |
 | `--url <path>` | The page to open, relative to the site's address. Defaults to `wp-admin/`. |
 | `--logged-out` | Opens the page in a fresh browser with no one signed in, so there's no admin bar. |
-| `--spotlight <selector>` | Spotlights the first element that matches, instead of Alt-clicking. |
+| `--spotlight <selector>` | Spotlights the first element that matches, instead of Alt-clicking. Repeat it to spotlight the one box that contains all the matches, such as a field and its button. |
 | `--click <selector>` | Clicks an element before the capture, and waits for the page to settle. Repeat it for several clicks, in order. |
-| `--fill <selector>` and `--value <text>` | Types the text into the first field that matches, such as a name in a panel or a paragraph in the entry editor. Put each `--value` right after its `--fill`. Fills and clicks run in the order you give them. |
+| `--fill <selector>` and `--value <text>` | Types the text into the first field that matches, such as a name in a panel or a paragraph in the entry editor. When the field is a select menu, picks the choice with that label instead. Put each `--value` right after its `--fill`. |
+| `--hover <selector>` | Rests the pointer on the first element that matches, to show a tooltip or a hover state. The pointer stays there for the capture. Repeat it for several hovers. |
+| `--scroll <selector or px>` | With a selector, scrolls the first element that matches into the middle of the window. With a number of pixels, scrolls down by that much, or up when it's negative. It scrolls an open modal first, then the block editor's canvas, then the page. |
+| `--press <key>` | Presses a key, such as `Escape`, `Enter` or `Control+a`, using Playwright's key names. Repeat it for several keys. |
+| `--wait <ms>` | Waits that many milliseconds, for an animation or a slow panel. Repeat it where you need it. |
+| `--eval <js>` | Runs JavaScript in the page and in each frame inside it, such as the editor canvas, for a step no other option covers. Errors in the main page are printed. Repeat it for several scripts. |
+| `--mouse <x,y>` | Leaves the pointer at this point in the window, in pixels from the top left of the 1512×982 viewport. By default it moves to the bottom right corner after a click or fill. |
 | `--now` | Captures as soon as the page settles, without opening a window or waiting for Enter. Use it with `--click` and `--spotlight` for screens you can reach without help. Without a saved sign-in it needs `WP_USER` and `WP_PASSWORD`, since it can't ask. |
 | `--out <file>` | Writes the image somewhere else, for trying things out. A relative path starts from the folder you ran `npm run` in. |
+
+Clicks, fills, hovers, scrolls, key presses, waits and scripts all run in the order you give them, whichever options they use.
 
 Selectors can be CSS, or Playwright's text selectors such as `button:has-text("Add Entry")` and `text=Bridge Street water main break`. To find a field by its label, use `internal:label="<label>"s`, where the `s` makes the match exact. They also find elements inside the block editor's canvas.
 

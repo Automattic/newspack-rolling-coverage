@@ -56,11 +56,23 @@ const USAGE = `Usage: npm run shot -- <section>/<name>-<n> --site <url> [options
   --site <url>           The screenshot site, e.g. https://screenshots.local
   --url <path>           The page to open, relative to --site (default wp-admin/)
   --logged-out           Open the page as a signed-out reader
-  --spotlight <selector> Dim everything except this element
+  --spotlight <selector> Dim everything except this element. Repeat it to
+                         spotlight the box around several elements
   --click <selector>     Click an element before capturing (repeatable)
-  --fill <selector>      Type the next --value into a field (repeatable)
-  --value <text>         What the --fill before it types
-                         Clicks and fills run in the order you give them.
+  --fill <selector>      Type the next --value into a field, or pick it
+                         from a menu (repeatable)
+  --value <text>         What the --fill before it types or picks
+  --hover <selector>     Rest the pointer on an element (repeatable)
+  --scroll <selector|px> Scroll an element into the middle of the window,
+                         or the page, editor canvas or open modal by a
+                         number of pixels, negative to go up (repeatable)
+  --press <key>          Press a key, such as Escape (repeatable)
+  --wait <ms>            Wait this many milliseconds (repeatable)
+  --eval <js>            Run JavaScript in the page and its frames
+                         (repeatable)
+                         Steps run in the order you give them.
+  --mouse <x,y>          Leave the pointer at this point in the window
+                         instead of the bottom right corner
   --now                  Capture without waiting for you (headless)
   --out <file>           Write the image somewhere else
 
@@ -79,10 +91,16 @@ function parse() {
 			site: { type: 'string', default: process.env.SHOT_SITE },
 			url: { type: 'string', default: 'wp-admin/' },
 			'logged-out': { type: 'boolean', default: false },
-			spotlight: { type: 'string' },
+			spotlight: { type: 'string', multiple: true, default: [] },
 			click: { type: 'string', multiple: true, default: [] },
 			fill: { type: 'string', multiple: true, default: [] },
 			value: { type: 'string', multiple: true, default: [] },
+			hover: { type: 'string', multiple: true, default: [] },
+			scroll: { type: 'string', multiple: true, default: [] },
+			press: { type: 'string', multiple: true, default: [] },
+			wait: { type: 'string', multiple: true, default: [] },
+			eval: { type: 'string', multiple: true, default: [] },
+			mouse: { type: 'string' },
 			now: { type: 'boolean', default: false },
 			out: { type: 'string' },
 			help: { type: 'boolean', default: false },
@@ -106,8 +124,27 @@ function parse() {
 		if ( 'option' !== token.kind ) {
 			continue;
 		}
-		if ( 'click' === token.name || 'fill' === token.name ) {
+		if ( [ 'click', 'fill', 'hover' ].includes( token.name ) ) {
 			steps.push( { action: token.name, selector: token.value } );
+		} else if ( 'scroll' === token.name ) {
+			const pixels = /^-?\d+$/.test( token.value.trim() )
+				? Number( token.value )
+				: null;
+			steps.push( {
+				action: 'scroll',
+				selector: token.value,
+				pixels,
+			} );
+		} else if ( 'press' === token.name ) {
+			steps.push( { action: 'press', key: token.value } );
+		} else if ( 'eval' === token.name ) {
+			steps.push( { action: 'eval', script: token.value } );
+		} else if ( 'wait' === token.name ) {
+			const ms = Number( token.value );
+			if ( ! Number.isInteger( ms ) || ms < 0 ) {
+				fail( `give --wait a number of milliseconds.\n\n${ USAGE }` );
+			}
+			steps.push( { action: 'wait', ms } );
 		} else if ( 'value' === token.name ) {
 			const step = steps[ steps.length - 1 ];
 			if ( ! step || 'fill' !== step.action || undefined !== step.text ) {
@@ -125,6 +162,14 @@ function parse() {
 	) {
 		fail( `give each --fill a --value.\n\n${ USAGE }` );
 	}
+	let mouse = null;
+	if ( values.mouse ) {
+		const match = /^(\d+),(\d+)$/.exec( values.mouse.trim() );
+		if ( ! match ) {
+			fail( `give --mouse as x,y, such as 400,300.\n\n${ USAGE }` );
+		}
+		mouse = { x: Number( match[ 1 ] ), y: Number( match[ 2 ] ) };
+	}
 	const site = siteUrl( values.site );
 	return {
 		name,
@@ -132,6 +177,7 @@ function parse() {
 		target: new URL( values.url.replace( /^\/+/, '' ), site ),
 		loggedOut: values[ 'logged-out' ],
 		spotlight: values.spotlight,
+		mouse,
 		steps,
 		interactive:
 			! values.now && process.stdin.isTTY && process.stdout.isTTY,
@@ -435,11 +481,22 @@ async function click( page, selector ) {
 	const navigated = page
 		.waitForEvent( 'framenavigated', {
 			predicate: ( frame ) => frame === page.mainFrame(),
-			timeout: 3000,
+			timeout: SETTLE_TIMEOUT,
 		} )
 		.catch( () => null );
+	const leaving = page
+		.waitForRequest(
+			( request ) =>
+				request.isNavigationRequest() &&
+				request.frame() === page.mainFrame(),
+			{ timeout: 500 }
+		)
+		.then( () => true )
+		.catch( () => false );
 	await locator.click();
-	await navigated;
+	if ( await leaving ) {
+		await navigated;
+	}
 	await settle( page );
 }
 
@@ -448,8 +505,118 @@ async function fill( page, selector, text ) {
 	if ( ! locator ) {
 		fail( `--fill found nothing for ${ selector }` );
 	}
-	await locator.fill( text );
+	const tag = await locator.evaluate( ( element ) => element.tagName );
+	if ( 'SELECT' === tag ) {
+		await locator.selectOption( { label: text } ).catch( () => {
+			fail( `--fill found no "${ text }" in the menu ${ selector }` );
+		} );
+	} else {
+		await locator.fill( text );
+	}
 	await settle( page );
+}
+
+async function hover( page, selector ) {
+	const locator = await findInFrames( page, selector );
+	if ( ! locator ) {
+		fail( `--hover found nothing for ${ selector }` );
+	}
+	await locator.hover();
+	await page.waitForTimeout( 1000 );
+}
+
+async function scroll( page, step ) {
+	if ( null === step.pixels ) {
+		const locator = await findInFrames( page, step.selector );
+		if ( ! locator ) {
+			fail( `--scroll found nothing for ${ step.selector }` );
+		}
+		await locator.evaluate( ( element ) =>
+			element.scrollIntoView( { block: 'center', behavior: 'instant' } )
+		);
+		await page.waitForTimeout( 500 );
+		return;
+	}
+	const main = page.mainFrame();
+	const passes = [
+		{ frame: main, part: 'modal' },
+		...page
+			.frames()
+			.filter( ( frame ) => frame !== main )
+			.map( ( frame ) => ( { frame, part: 'canvas' } ) ),
+		{ frame: main, part: 'page' },
+	];
+	let scrolled = false;
+	for ( const { frame, part } of passes ) {
+		scrolled = await frame
+			.evaluate( ( { pixels, part: where } ) => {
+				const canScroll = ( element ) =>
+					element.getClientRects().length > 0 &&
+					element.scrollHeight > element.clientHeight + 1 &&
+					[ 'auto', 'scroll' ].includes(
+						getComputedStyle( element ).overflowY
+					);
+				let target = null;
+				if ( 'modal' === where ) {
+					target = [
+						...document.querySelectorAll(
+							'.components-modal__content, .components-modal__frame'
+						),
+					].find( canScroll );
+				} else if ( 'canvas' === where ) {
+					target = document.scrollingElement;
+				} else {
+					target =
+						[
+							...document.querySelectorAll(
+								'.interface-interface-skeleton__content, .edit-site-layout__canvas, .editor-visual-editor'
+							),
+						].find( canScroll ) || document.scrollingElement;
+				}
+				if ( ! target ) {
+					return false;
+				}
+				const before = target.scrollTop;
+				target.scrollBy( { top: pixels, behavior: 'instant' } );
+				return target.scrollTop !== before;
+			}, { pixels: step.pixels, part } )
+			.catch( () => false );
+		if ( scrolled ) {
+			break;
+		}
+	}
+	if ( ! scrolled ) {
+		console.warn( `shot: nothing scrolled for --scroll ${ step.selector }.` );
+	}
+	await page.waitForTimeout( 500 );
+}
+
+async function runStep( page, step ) {
+	if ( 'fill' === step.action ) {
+		await fill( page, step.selector, step.text );
+	} else if ( 'hover' === step.action ) {
+		await hover( page, step.selector );
+	} else if ( 'scroll' === step.action ) {
+		await scroll( page, step );
+	} else if ( 'press' === step.action ) {
+		await page.keyboard.press( step.key );
+		await settle( page );
+	} else if ( 'wait' === step.action ) {
+		await page.waitForTimeout( step.ms );
+	} else if ( 'eval' === step.action ) {
+		for ( const frame of page.frames() ) {
+			await frame.evaluate( step.script ).catch( ( error ) => {
+				if ( frame === page.mainFrame() ) {
+					console.warn(
+						`shot: --eval failed: ${ error.message.split( '\n' )[ 0 ] }`
+					);
+				}
+			} );
+		}
+		await page.waitForTimeout( 600 );
+	} else {
+		await click( page, step.selector );
+	}
 }
 
 function watchAltClicks( page ) {
@@ -551,13 +718,18 @@ async function main() {
 		await settle( page );
 		await closeGuides( page );
 		for ( const step of options.steps ) {
-			if ( 'fill' === step.action ) {
-				await fill( page, step.selector, step.text );
-			} else {
-				await click( page, step.selector );
-			}
+			await runStep( page, step );
 		}
-		if ( options.steps.length ) {
+		const pointerSteps = options.steps.filter( ( step ) =>
+			[ 'click', 'fill', 'hover' ].includes( step.action )
+		);
+		if ( options.mouse ) {
+			await page.mouse.move( options.mouse.x, options.mouse.y );
+			await page.waitForTimeout( 400 );
+		} else if (
+			pointerSteps.length &&
+			'hover' !== pointerSteps[ pointerSteps.length - 1 ].action
+		) {
 			await page.mouse.move( VIEWPORT.width - 1, VIEWPORT.height - 1 );
 		}
 
@@ -571,18 +743,31 @@ async function main() {
 		}
 
 		let box = null;
-		if ( options.spotlight ) {
-			const locator = await findInFrames( page, options.spotlight );
-			if ( ! locator ) {
-				fail( `--spotlight found nothing for ${ options.spotlight }` );
+		if ( options.spotlight.length ) {
+			const boxes = [];
+			for ( const selector of options.spotlight ) {
+				const locator = await findInFrames( page, selector );
+				if ( ! locator ) {
+					fail( `--spotlight found nothing for ${ selector }` );
+				}
+				await nextFrames( page );
+				const found = await locator.boundingBox();
+				if ( ! found ) {
+					fail(
+						`--spotlight matched ${ selector }, but it isn't visible on the page.`
+					);
+				}
+				boxes.push( found );
 			}
-			await nextFrames( page );
-			box = await locator.boundingBox();
-			if ( ! box ) {
-				fail(
-					`--spotlight matched ${ options.spotlight }, but it isn't visible on the page.`
-				);
-			}
+			const left = Math.min( ...boxes.map( ( b ) => b.x ) );
+			const top = Math.min( ...boxes.map( ( b ) => b.y ) );
+			box = {
+				x: left,
+				y: top,
+				width: Math.max( ...boxes.map( ( b ) => b.x + b.width ) ) - left,
+				height:
+					Math.max( ...boxes.map( ( b ) => b.y + b.height ) ) - top,
+			};
 		} else if ( watcher ) {
 			await nextFrames( page );
 			const pick = await pickedBox( page );
