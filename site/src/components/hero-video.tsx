@@ -23,7 +23,10 @@ export function HeroVideo() {
 		}
 		const observer = new IntersectionObserver(
 			( [ entry ] ) => {
-				if ( entry.isIntersecting ) {
+				// A window shorter than the video can never show 90% of it, so a view that fills most of the window counts too.
+				const inView =
+					entry.intersectionRatio >= 0.9 || entry.intersectionRect.height >= window.innerHeight * 0.9;
+				if ( inView ) {
 					observer.disconnect();
 					timer.current = setTimeout( () => {
 						if ( ! touched.current ) {
@@ -32,7 +35,7 @@ export function HeroVideo() {
 					}, 400 );
 				}
 			},
-			{ threshold: 0.3 }
+			{ threshold: Array.from( { length: 21 }, ( _, index ) => index / 20 ) }
 		);
 		observer.observe( node );
 		return () => {
