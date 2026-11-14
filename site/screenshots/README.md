@@ -190,7 +190,7 @@ With `--video`, the command records the steps as an MP4 instead of taking a scre
 
 | Option | What it does |
 | :--- | :--- |
-| `--video` | Records a video. `--out` sets the file, which defaults to `site/public/screenshots/<section>/<name>-<n>.mp4`. A video can't have a spotlight. |
+| `--video` | Records a video. `--out` sets the file, which defaults to `site/public/screenshots/<section>/<name>-<n>.mp4`. A video can't have a spotlight or `--mouse`. |
 | `--record` | Starts the recording at this point in the steps, so the steps before it, such as waiting for the next check, stay out of the video. Give it once. |
 | `--poster <file>` | Also saves the video's first frame as a WebP at the house settings, for a page to show before the video plays and in its place for readers who prefer reduced motion. |
 

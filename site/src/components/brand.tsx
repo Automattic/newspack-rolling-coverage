@@ -5,7 +5,7 @@ import { LiveIcon } from './live-icon';
 
 function BetaBadge() {
 	return (
-		<Badge variant="outline" className="ms-(--newspack-ui-spacer-half) gap-(--newspack-ui-spacer-half) uppercase">
+		<Badge variant="outline" className="ms-(--newspack-ui-spacer-half) cursor-[inherit] gap-(--newspack-ui-spacer-half) uppercase">
 			<span aria-hidden="true" className="relative flex size-1.5">
 				<span className="absolute inline-flex size-full animate-ping rounded-full bg-(--newspack-ui-color-error) opacity-75 motion-reduce:animate-none" />
 				<span className="relative inline-flex size-1.5 rounded-full bg-(--newspack-ui-color-error)" />

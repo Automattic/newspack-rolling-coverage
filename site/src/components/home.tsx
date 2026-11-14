@@ -161,7 +161,7 @@ export function Home( props: SitePageProps ) {
 					<Headline />
 				</h1>
 				<div className="lg:pb-[0.35em]">
-					<p className="type-lead text-muted-foreground">{ HERO_TEXT }</p>
+					<p className="max-w-[58ch] type-lead text-muted-foreground">{ HERO_TEXT }</p>
 					<div className="mt-(--newspack-ui-spacer-5) flex flex-col gap-(--newspack-ui-spacer-1) sm:flex-row">
 						<Button asChild variant="brand" className="group">
 							<a href="/docs/getting-started/">
@@ -181,7 +181,7 @@ export function Home( props: SitePageProps ) {
 				<figure className="site-container relative">
 					<HeroVideo />
 					<figcaption className="mt-(--newspack-ui-spacer-3) max-w-[70ch] type-small text-muted-foreground">
-						A storm, an election night, a council meeting, or a big game. Here, a river flood on a demo site, in the Rail layout: a new entry arrives below the pinned one, marked New until the reader has seen it.
+						A storm, an election night, a council meeting, or a big game. Here, a liveblog of a river flood on a demo site, in the Rail layout: a new entry arrives below the pinned one, marked New until the reader has seen it.
 					</figcaption>
 				</figure>
 				<section
