@@ -32,7 +32,7 @@ export function HeroVideo() {
 					}, 400 );
 				}
 			},
-			{ threshold: 0.4 }
+			{ threshold: 0.3 }
 		);
 		observer.observe( node );
 		return () => {
@@ -83,7 +83,7 @@ export function HeroVideo() {
 				variant="default"
 				aria-label={ LABELS[ status ] }
 				onClick={ toggle }
-				className="absolute right-(--newspack-ui-spacer-3) bottom-(--newspack-ui-spacer-3) rounded-full"
+				className="[--btn-bg:var(--newspack-ui-color-overlay-80)] [--btn-bg-hover:var(--newspack-ui-color-overlay-90)] [--btn-bg-pressed:var(--newspack-ui-color-overlay-100)] dark:[--btn-ink:var(--newspack-ui-color-neutral-100)] dark:[--btn-focus:var(--newspack-ui-color-neutral-100)] dark:hover:text-(color:--newspack-ui-color-neutral-100) absolute right-(--newspack-ui-spacer-3) bottom-(--newspack-ui-spacer-3) rounded-full"
 			>
 				<Icon icon={ ICONS[ status ] } size={ 20 } />
 			</Button>
