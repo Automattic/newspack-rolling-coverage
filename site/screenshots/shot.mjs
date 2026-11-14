@@ -1,5 +1,14 @@
-import { chmodSync, existsSync, mkdirSync } from 'node:fs';
-import { homedir } from 'node:os';
+import { spawnSync } from 'node:child_process';
+import {
+	chmodSync,
+	existsSync,
+	mkdirSync,
+	linkSync,
+	mkdtempSync,
+	rmSync,
+	writeFileSync,
+} from 'node:fs';
+import { homedir, tmpdir } from 'node:os';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
@@ -17,6 +26,34 @@ const SPOTLIGHT_MARGIN = 8;
 const SPOTLIGHT_DIM = 'rgba(0, 0, 0, 0.45)';
 const LOGIN_NAME = 'james';
 const SETTLE_TIMEOUT = 15000;
+const LONG_WAIT_TIMEOUT = 120000;
+const VIDEO_FPS = 30;
+const VIDEO_CRF = 18;
+const VIDEO_ENCODE = [
+	'-c:v',
+	'libx264',
+	'-preset',
+	'veryslow',
+	'-crf',
+	String( VIDEO_CRF ),
+	'-profile:v',
+	'high',
+	'-level:v',
+	'5.1',
+	'-pix_fmt',
+	'yuv420p',
+	'-color_primaries',
+	'bt709',
+	'-color_trc',
+	'bt709',
+	'-colorspace',
+	'bt709',
+	'-x264-params',
+	'colorprim=bt709:transfer=bt709:colormatrix=bt709',
+	'-movflags',
+	'+faststart',
+	'-an',
+];
 
 const EDITOR_PREFERENCES = {
 	core: {
@@ -71,11 +108,23 @@ const USAGE = `Usage: npm run shot -- <section>/<name>-<n> --site <url> [options
   --wait <ms>            Wait this many milliseconds (repeatable)
   --eval <js>            Run JavaScript in the page and its frames
                          (repeatable)
+  --run <command>        Run a command on this computer, such as WP-CLI,
+                         and wait for it to finish (repeatable)
+  --before-check <ms>    Wait until this long before the liveblog's next
+                         check for new entries (repeatable)
+  --wait-for <selector>  Wait until an element shows, such as an entry
+                         that arrives (repeatable)
                          Steps run in the order you give them.
   --mouse <x,y>          Leave the pointer at this point in the window
                          instead of the bottom right corner
   --now                  Capture without waiting for you (headless)
   --out <file>           Write the image somewhere else
+
+Video (an MP4 instead of a WebP; needs ffmpeg):
+  --video                Record the steps as a video, without waiting for you
+  --record               Start recording here instead of before the first
+                         step. Recording stops after the last step
+  --poster <file>        Also save the video's first frame as a WebP
 
 Sign in as James Smith: from WP_USER and WP_PASSWORD, or a prompt.`;
 
@@ -106,6 +155,12 @@ function parse() {
 				mouse: { type: 'string' },
 				now: { type: 'boolean', default: false },
 				out: { type: 'string' },
+				video: { type: 'boolean', default: false },
+				record: { type: 'boolean', multiple: true, default: [] },
+				poster: { type: 'string' },
+				run: { type: 'string', multiple: true, default: [] },
+				'before-check': { type: 'string', multiple: true, default: [] },
+				'wait-for': { type: 'string', multiple: true, default: [] },
 				help: { type: 'boolean', default: false },
 			},
 		} );
@@ -144,6 +199,23 @@ function parse() {
 				selector: token.value,
 				pixels,
 			} );
+		} else if ( 'wait-for' === token.name ) {
+			steps.push( { action: 'wait-for', selector: token.value } );
+		} else if ( 'run' === token.name ) {
+			steps.push( { action: 'run', command: token.value } );
+		} else if ( 'before-check' === token.name ) {
+			const ms = Number( token.value );
+			if ( ! Number.isInteger( ms ) || ms < 0 ) {
+				fail(
+					`give --before-check a number of milliseconds.\n\n${ USAGE }`
+				);
+			}
+			steps.push( { action: 'before-check', ms } );
+		} else if ( 'record' === token.name ) {
+			if ( steps.some( ( step ) => 'record' === step.action ) ) {
+				fail( `give --record once.\n\n${ USAGE }` );
+			}
+			steps.push( { action: 'record' } );
 		} else if ( 'press' === token.name ) {
 			steps.push( { action: 'press', key: token.value } );
 		} else if ( 'eval' === token.name ) {
@@ -179,6 +251,24 @@ function parse() {
 		}
 		mouse = { x: Number( match[ 1 ] ), y: Number( match[ 2 ] ) };
 	}
+	if ( ! values.video ) {
+		if ( values.record.length || values.poster ) {
+			fail( `--record and --poster need --video.\n\n${ USAGE }` );
+		}
+	} else if ( values.spotlight.length ) {
+		fail( `a video can't have a spotlight.\n\n${ USAGE }` );
+	} else if ( mouse ) {
+		fail( `a video can't use --mouse.\n\n${ USAGE }` );
+	} else {
+		const record = steps.findIndex( ( step ) => 'record' === step.action );
+		const lastRun = steps.findLastIndex( ( step ) => 'run' === step.action );
+		// A command blocks the browser's frames until it returns, which would freeze the video.
+		if ( -1 !== lastRun && ( -1 === record || lastRun > record ) ) {
+			fail( `in a video, put each --run before --record.\n\n${ USAGE }` );
+		}
+	}
+	const fromCwd = ( file ) =>
+		resolve( process.env.INIT_CWD || process.cwd(), file );
 	const site = siteUrl( values.site );
 	return {
 		name,
@@ -188,11 +278,20 @@ function parse() {
 		spotlight: values.spotlight,
 		mouse,
 		steps,
+		video: values.video,
+		poster: values.poster ? fromCwd( values.poster ) : null,
 		interactive:
-			! values.now && process.stdin.isTTY && process.stdout.isTTY,
+			! values.now &&
+			! values.video &&
+			process.stdin.isTTY &&
+			process.stdout.isTTY,
 		out: values.out
-			? resolve( process.env.INIT_CWD || process.cwd(), values.out )
-			: join( PUBLIC_DIR, 'screenshots', `${ name }.webp` ),
+			? fromCwd( values.out )
+			: join(
+					PUBLIC_DIR,
+					'screenshots',
+					`${ name }.${ values.video ? 'mp4' : 'webp' }`
+				),
 	};
 }
 
@@ -241,10 +340,12 @@ function ask( question, { hidden = false } = {} ) {
 	} );
 }
 
-async function launch( headless ) {
+async function launch( headless, video ) {
 	try {
 		return await chromium.launch( {
 			headless,
+			// Without it, a headless browser records at the viewport's own size.
+			args: video ? [ `--force-device-scale-factor=${ SCALE }` ] : [],
 			...( process.env.CHROME_PATH
 				? { executablePath: process.env.CHROME_PATH }
 				: { channel: 'chrome' } ),
@@ -600,7 +701,191 @@ async function scroll( page, step ) {
 	await page.waitForTimeout( 500 );
 }
 
-async function runStep( page, step ) {
+function runCommand( command ) {
+	console.log( `shot: running ${ command }` );
+	const result = spawnSync( command, {
+		shell: true,
+		stdio: 'inherit',
+		cwd: process.env.INIT_CWD || process.cwd(),
+	} );
+	if ( 0 !== result.status ) {
+		fail( `--run failed: ${ command }` );
+	}
+}
+
+async function beforeCheck( page, ms ) {
+	const waited = await page.evaluate(
+		async ( { before, timeout } ) => {
+			const deadline = Date.now() + timeout;
+			while ( Date.now() < deadline ) {
+				const feed = document.querySelector(
+					'[data-check-state="waiting"][data-next-check-at]'
+				);
+				const at = feed
+					? Number( feed.dataset.nextCheckAt ) - before
+					: 0;
+				if ( at > Date.now() ) {
+					await new Promise( ( done ) =>
+						setTimeout( done, at - Date.now() )
+					);
+					return true;
+				}
+				await new Promise( ( done ) => setTimeout( done, 100 ) );
+			}
+			return false;
+		},
+		{ before: ms, timeout: LONG_WAIT_TIMEOUT }
+	);
+	if ( ! waited ) {
+		fail(
+			'--before-check found no liveblog feed checking for new entries. The liveblog must be live.'
+		);
+	}
+}
+
+async function waitFor( page, selector ) {
+	await page
+		.locator( selector )
+		.first()
+		.waitFor( { state: 'visible', timeout: LONG_WAIT_TIMEOUT } )
+		.catch( () =>
+			fail(
+				`--wait-for found nothing showing for ${ selector } within ${
+					LONG_WAIT_TIMEOUT / 1000
+				} seconds`
+			)
+		);
+}
+
+async function startRecording( page ) {
+	const session = await page.context().newCDPSession( page );
+	const frames = [];
+	const start = Date.now() / 1000;
+	session.on( 'Page.screencastFrame', ( { data, metadata, sessionId } ) => {
+		frames.push( { data, time: Math.max( metadata.timestamp, start ) } );
+		session
+			.send( 'Page.screencastFrameAck', { sessionId } )
+			.catch( () => {} );
+	} );
+	await session.send( 'Page.startScreencast', {
+		format: 'png',
+		maxWidth: VIEWPORT.width * SCALE,
+		maxHeight: VIEWPORT.height * SCALE,
+		everyNthFrame: 1,
+	} );
+	return {
+		async stop() {
+			const end = Date.now() / 1000;
+			await session.send( 'Page.stopScreencast' ).catch( () => {} );
+			await session.detach().catch( () => {} );
+			return { frames, start, end };
+		},
+	};
+}
+
+function ffmpeg( args ) {
+	const result = spawnSync( process.env.FFMPEG_PATH || 'ffmpeg', args, {
+		stdio: [ 'ignore', 'ignore', 'pipe' ],
+	} );
+	if ( result.error ) {
+		throw new Error(
+			"couldn't run ffmpeg. Install it (on a Mac, brew install ffmpeg), or set FFMPEG_PATH to an ffmpeg binary with libx264."
+		);
+	}
+	if ( 0 !== result.status ) {
+		throw new Error(
+			`ffmpeg failed:\n${ result.stderr.toString().trim().split( '\n' ).slice( -5 ).join( '\n' ) }`
+		);
+	}
+}
+
+async function saveVideo( { frames, start, end }, out, poster ) {
+	if ( ! frames.length ) {
+		fail( 'the recording has no frames.' );
+	}
+	const first = Buffer.from( frames[ 0 ].data, 'base64' );
+	const { width, height } = await sharp( first ).metadata();
+	if (
+		width !== VIEWPORT.width * SCALE ||
+		height !== VIEWPORT.height * SCALE
+	) {
+		fail(
+			`the recording came out at ${ width }×${ height }, not at twice the viewport.`
+		);
+	}
+	const dir = mkdtempSync( join( tmpdir(), 'newspack-rc-shot-' ) );
+	let failure = null;
+	try {
+		frames.forEach( ( frame, index ) =>
+			writeFileSync(
+				join( dir, `source-${ index }.png` ),
+				Buffer.from( frame.data, 'base64' )
+			)
+		);
+		// The browser sends a frame only when the page changes, so each
+		// moment of the video shows the last frame sent before it.
+		const count = Math.max( 1, Math.round( ( end - start ) * VIDEO_FPS ) );
+		let source = 0;
+		for ( let index = 0; index < count; index++ ) {
+			const at = start + index / VIDEO_FPS;
+			while (
+				source + 1 < frames.length &&
+				frames[ source + 1 ].time <= at
+			) {
+				source++;
+			}
+			linkSync(
+				join( dir, `source-${ source }.png` ),
+				join( dir, `frame-${ String( index ).padStart( 5, '0' ) }.png` )
+			);
+		}
+		mkdirSync( dirname( out ), { recursive: true } );
+		ffmpeg( [
+			'-y',
+			'-framerate',
+			String( VIDEO_FPS ),
+			'-i',
+			join( dir, 'frame-%05d.png' ),
+			'-vf',
+			'scale=out_color_matrix=bt709:out_range=tv,format=yuv420p',
+			...VIDEO_ENCODE,
+			out,
+		] );
+		console.log(
+			`Saved ${ out } (${ ( count / VIDEO_FPS ).toFixed( 1 ) } seconds)`
+		);
+	} catch ( error ) {
+		failure = error;
+	} finally {
+		rmSync( dir, { recursive: true, force: true } );
+	}
+	if ( failure ) {
+		fail( failure.message );
+	}
+	if ( poster ) {
+		mkdirSync( dirname( poster ), { recursive: true } );
+		await sharp( first ).webp( { quality: 85 } ).toFile( poster );
+		console.log( `Saved ${ poster }` );
+	}
+}
+
+async function runStep( page, step, video ) {
+	if ( 'record' === step.action ) {
+		video.recording = await startRecording( page );
+		return;
+	}
+	if ( 'run' === step.action ) {
+		runCommand( step.command );
+		return;
+	}
+	if ( 'before-check' === step.action ) {
+		await beforeCheck( page, step.ms );
+		return;
+	}
+	if ( 'wait-for' === step.action ) {
+		await waitFor( page, step.selector );
+		return;
+	}
 	if ( 'fill' === step.action ) {
 		await fill( page, step.selector, step.text );
 	} else if ( 'hover' === step.action ) {
@@ -713,7 +998,7 @@ async function drawSpotlight( page, box ) {
 
 async function main() {
 	const options = parse();
-	const browser = await launch( ! options.interactive );
+	const browser = await launch( ! options.interactive, options.video );
 	try {
 		const context = await openContext( browser, options );
 		const page = await context.newPage();
@@ -726,8 +1011,26 @@ async function main() {
 		await goto( page, options.target.href );
 		await settle( page );
 		await closeGuides( page );
+		const video = { recording: null };
+		if (
+			options.video &&
+			! options.steps.some( ( step ) => 'record' === step.action )
+		) {
+			video.recording = await startRecording( page );
+		}
 		for ( const step of options.steps ) {
-			await runStep( page, step );
+			await runStep( page, step, video );
+		}
+		if ( options.video ) {
+			if ( ! video.recording ) {
+				fail( '--record never ran.' );
+			}
+			await saveVideo(
+				await video.recording.stop(),
+				options.out,
+				options.poster
+			);
+			return;
 		}
 		const pointerSteps = options.steps.filter( ( step ) =>
 			[ 'click', 'fill', 'hover' ].includes( step.action )

@@ -809,19 +809,8 @@
 	animation-delay: 120ms;
 }
 
-@keyframes rc-arrive-tint {
-	from {
-		background-color: color-mix(in oklab, var(--newspack-ui-color-accent) 12%, transparent);
-	}
-}
-
-.rc-arrived {
-	animation: rc-arrive-tint 1800ms ease 300ms both;
-}
-
 @media (prefers-reduced-motion: reduce) {
-	.rc-live-icon--on-air path,
-	.rc-arrived {
+	.rc-live-icon--on-air path {
 		animation: none !important;
 	}
 }
