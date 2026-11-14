@@ -1,6 +1,19 @@
 import { SiteFooter } from '@/components/site/site-footer';
+import { Badge } from '@/components/ui/badge';
 import { SITE_NAME } from '@/lib/site';
 import { LiveIcon } from './live-icon';
+
+function BetaBadge() {
+	return (
+		<Badge variant="outline" className="ms-(--newspack-ui-spacer-half) gap-(--newspack-ui-spacer-half) uppercase">
+			<span aria-hidden="true" className="relative flex size-1.5">
+				<span className="absolute inline-flex size-full animate-ping rounded-full bg-(--newspack-ui-color-error) opacity-75 motion-reduce:animate-none" />
+				<span className="relative inline-flex size-1.5 rounded-full bg-(--newspack-ui-color-error)" />
+			</span>
+			Beta
+		</Badge>
+	);
+}
 
 /** The header wordmark: the live icon, lit on the first page of a visit, and the site name. */
 export function Wordmark() {
@@ -8,6 +21,7 @@ export function Wordmark() {
 		<span className="inline-flex items-center gap-(--newspack-ui-spacer-half)">
 			<LiveIcon onAir className="-ms-1 size-7 text-brand" />
 			{ SITE_NAME }
+			<BetaBadge />
 		</span>
 	);
 }

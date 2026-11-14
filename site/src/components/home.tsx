@@ -3,9 +3,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Headline } from './headline';
-import { MiniFeed } from './mini-feed';
+import { HeroVideo } from './hero-video';
 import { PARTNERS } from './partner-logos';
-import { SITE_NAME } from '@/lib/site';
 import { SiteLayout, type SitePageProps } from './site-layout';
 
 const HERO_TEXT =
@@ -157,36 +156,38 @@ const sections = [
 export function Home( props: SitePageProps ) {
 	return (
 		<SiteLayout { ...props }>
-			<section aria-labelledby="home-title" className="site-container pt-[calc(var(--section-space)/2)]">
-				<p className="flex flex-wrap items-center gap-(--newspack-ui-spacer-1) type-small font-(weight:--newspack-ui-font-weight-medium) text-muted-foreground">
-					<Badge variant="outline" className="gap-(--newspack-ui-spacer-half) uppercase">
-						<span aria-hidden="true" className="relative flex size-1.5">
-							<span className="absolute inline-flex size-full animate-ping rounded-full bg-(--newspack-ui-color-error) opacity-75 motion-reduce:animate-none" />
-							<span className="relative inline-flex size-1.5 rounded-full bg-(--newspack-ui-color-error)" />
-						</span>
-						Beta
-					</Badge>
-					<span>{ SITE_NAME } for WordPress</span>
-				</p>
-				<h1 id="home-title" className="mt-(--newspack-ui-spacer-3) max-w-[9.25em] type-display text-foreground">
+			<section aria-labelledby="home-title" className="site-container grid gap-(--newspack-ui-spacer-3) pt-(--section-space) lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] lg:items-end lg:gap-(--newspack-ui-spacer-11)">
+				<h1 id="home-title" className="max-w-[9.25em] type-display text-foreground">
 					<Headline />
 				</h1>
-				<p className="mt-(--newspack-ui-spacer-3) max-w-[58ch] type-lead text-muted-foreground">{ HERO_TEXT }</p>
-				<div className="mt-(--newspack-ui-spacer-5) flex flex-col gap-(--newspack-ui-spacer-1) sm:flex-row">
-					<Button asChild variant="brand" className="group">
-						<a href="/docs/getting-started/">
-							Get started
-							<Arrow className="transition-transform duration-200 ease-out-strong group-hover:translate-x-0.5 motion-reduce:transition-none" />
-						</a>
-					</Button>
-					<Button asChild variant="outline">
-						<a href="/docs/">Browse the docs</a>
-					</Button>
+				<div className="lg:pb-[0.35em]">
+					<p className="type-lead text-muted-foreground">{ HERO_TEXT }</p>
+					<div className="mt-(--newspack-ui-spacer-5) flex flex-col gap-(--newspack-ui-spacer-1) sm:flex-row">
+						<Button asChild variant="brand" className="group">
+							<a href="/docs/getting-started/">
+								Get started
+								<Arrow className="transition-transform duration-200 ease-out-strong group-hover:translate-x-0.5 motion-reduce:transition-none" />
+							</a>
+						</Button>
+						<Button asChild variant="outline">
+							<a href="/docs/">Browse the docs</a>
+						</Button>
+					</div>
 				</div>
 			</section>
 
-			<section aria-labelledby="home-partners" className="site-container mt-(--newspack-ui-spacer-9)">
-				<div className="flex flex-col gap-(--newspack-ui-spacer-5) border-y border-(--newspack-ui-color-border) py-(--newspack-ui-spacer-5) lg:flex-row lg:items-center lg:justify-between lg:gap-(--newspack-ui-spacer-11)">
+			<div className="relative mt-(--newspack-ui-spacer-8) mb-[calc(var(--section-space)/2)] md:mt-(--newspack-ui-spacer-9)">
+				<div aria-hidden="true" className="absolute inset-x-0 top-[38%] bottom-0 bg-linear-to-b from-transparent to-(--newspack-ui-color-surface-subtle)" />
+				<figure className="site-container relative">
+					<HeroVideo />
+					<figcaption className="mt-(--newspack-ui-spacer-3) max-w-[70ch] type-small text-muted-foreground">
+						A storm, an election night, a council meeting, or a big game. Here, a river flood on a demo site, in the Rail layout: a new entry arrives below the pinned one, marked New until the reader has seen it.
+					</figcaption>
+				</figure>
+				<section
+					aria-labelledby="home-partners"
+					className="site-container relative flex flex-col gap-(--newspack-ui-spacer-5) pt-(--newspack-ui-spacer-9) pb-[calc(var(--section-space)/2)] lg:flex-row lg:items-end lg:justify-between lg:gap-(--newspack-ui-spacer-11)"
+				>
 					<div className="max-w-[34ch]">
 						<h2 id="home-partners" className="type-small font-(weight:--newspack-ui-font-weight-medium) text-foreground">
 							Part of{ ' ' }
@@ -197,6 +198,9 @@ export function Home( props: SitePageProps ) {
 						<p className="mt-(--newspack-ui-spacer-half) type-small text-pretty text-muted-foreground">
 							A collaboration between OpenNews, Newspack, and NC Local, supported by Press Forward.
 						</p>
+						<a href="/about/" className="mt-(--newspack-ui-spacer-1) inline-flex min-h-6 items-center py-1 type-small text-link">
+							Why we built it
+						</a>
 					</div>
 					<ul className="flex flex-wrap items-center gap-x-(--newspack-ui-spacer-8) gap-y-(--newspack-ui-spacer-4) lg:gap-x-(--newspack-ui-spacer-11)">
 						{ PARTNERS.map( ( partner ) => (
@@ -213,44 +217,8 @@ export function Home( props: SitePageProps ) {
 							</li>
 						) ) }
 					</ul>
-				</div>
-			</section>
-
-			<figure className="site-container mt-(--newspack-ui-spacer-8)">
-				<img
-					src="/images/home/live-feed.webp"
-					srcSet="/images/home/live-feed-1672.webp 1512w, /images/home/live-feed.webp 3024w"
-					sizes="(min-width: 1328px) 1264px, (min-width: 782px) calc(100vw - 4rem), calc(100vw - 2rem)"
-					width={ 3024 }
-					height={ 1964 }
-					alt="A liveblog of a river flood on a news site, below the site’s masthead: a pinned entry from the county’s emergency management director at the top, then timestamped entries with the newest first, each with its reporter and a Share link."
-					loading="lazy"
-					decoding="async"
-					className="h-auto w-full rounded-(--newspack-ui-radius-surface) border border-border"
-				/>
-				<figcaption className="mt-(--newspack-ui-spacer-2) max-w-[70ch] type-small text-muted-foreground">
-					A liveblog on a demo site: the pinned entry first, then the feed in the Clock layout.
-				</figcaption>
-			</figure>
-
-			<section
-				aria-labelledby="home-audience"
-				className="site-container section-space mt-[calc(var(--section-space)/2)] grid gap-(--newspack-ui-spacer-8) lg:grid-cols-[minmax(0,1fr)_16rem] lg:items-center lg:gap-(--newspack-ui-spacer-11)"
-			>
-				<div>
-					<h2 id="home-audience" className="max-w-[15.85em] type-section text-foreground">
-						For any story that unfolds live
-					</h2>
-					<p className="mt-(--newspack-ui-spacer-2) max-w-[60ch] type-lead text-muted-foreground">
-						A storm, an election night, a council meeting, or a big game. Rolling Coverage puts a live feed on the
-						newsroom’s own WordPress site for any story that changes by the minute, with tools the team already knows.
-					</p>
-					<a href="/about/" className="mt-(--newspack-ui-spacer-2) inline-flex min-h-6 items-center py-1 type-small text-link">
-						Why we built it
-					</a>
-				</div>
-				<MiniFeed />
-			</section>
+				</section>
+			</div>
 
 			<section aria-labelledby="home-features" className="site-container section-space">
 				<h2 id="home-features" className="type-section text-foreground">
