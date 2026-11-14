@@ -3,7 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Headline } from './headline';
-import { MiniFeed } from './mini-feed';
+import { HeroVideo } from './hero-video';
 import { PARTNERS } from './partner-logos';
 import { SITE_NAME } from '@/lib/site';
 import { SiteLayout, type SitePageProps } from './site-layout';
@@ -216,41 +216,25 @@ export function Home( props: SitePageProps ) {
 				</div>
 			</section>
 
-			<figure className="site-container mt-(--newspack-ui-spacer-8)">
-				<img
-					src="/images/home/live-feed.webp"
-					srcSet="/images/home/live-feed-1672.webp 1512w, /images/home/live-feed.webp 3024w"
-					sizes="(min-width: 1328px) 1264px, (min-width: 782px) calc(100vw - 4rem), calc(100vw - 2rem)"
-					width={ 3024 }
-					height={ 1964 }
-					alt="A liveblog of a river flood on a news site, below the site’s masthead: a pinned entry from the county’s emergency management director at the top, then timestamped entries with the newest first, each with its reporter and a Share link."
-					loading="lazy"
-					decoding="async"
-					className="h-auto w-full rounded-(--newspack-ui-radius-surface) border border-border"
-				/>
+			<section aria-labelledby="home-audience" className="site-container pt-[calc(var(--section-space)/2)]">
+				<h2 id="home-audience" className="max-w-[15.85em] type-section text-foreground">
+					For any story that unfolds live
+				</h2>
+				<p className="mt-(--newspack-ui-spacer-2) max-w-[60ch] type-lead text-muted-foreground">
+					A storm, an election night, a council meeting, or a big game. Rolling Coverage puts a live feed on the
+					newsroom’s own WordPress site for any story that changes by the minute, with tools the team already knows.
+				</p>
+				<a href="/about/" className="mt-(--newspack-ui-spacer-2) inline-flex min-h-6 items-center py-1 type-small text-link">
+					Why we built it
+				</a>
+			</section>
+
+			<figure className="site-container mt-(--newspack-ui-spacer-6)">
+				<HeroVideo />
 				<figcaption className="mt-(--newspack-ui-spacer-2) max-w-[70ch] type-small text-muted-foreground">
-					A liveblog on a demo site: the pinned entry first, then the feed in the Clock layout.
+					A liveblog on a demo site in the Rail layout. A new entry arrives below the pinned one, marked New until the reader has seen it.
 				</figcaption>
 			</figure>
-
-			<section
-				aria-labelledby="home-audience"
-				className="site-container section-space mt-[calc(var(--section-space)/2)] grid gap-(--newspack-ui-spacer-8) lg:grid-cols-[minmax(0,1fr)_16rem] lg:items-center lg:gap-(--newspack-ui-spacer-11)"
-			>
-				<div>
-					<h2 id="home-audience" className="max-w-[15.85em] type-section text-foreground">
-						For any story that unfolds live
-					</h2>
-					<p className="mt-(--newspack-ui-spacer-2) max-w-[60ch] type-lead text-muted-foreground">
-						A storm, an election night, a council meeting, or a big game. Rolling Coverage puts a live feed on the
-						newsroom’s own WordPress site for any story that changes by the minute, with tools the team already knows.
-					</p>
-					<a href="/about/" className="mt-(--newspack-ui-spacer-2) inline-flex min-h-6 items-center py-1 type-small text-link">
-						Why we built it
-					</a>
-				</div>
-				<MiniFeed />
-			</section>
 
 			<section aria-labelledby="home-features" className="site-container section-space">
 				<h2 id="home-features" className="type-section text-foreground">

@@ -3,7 +3,7 @@
 The screenshots in `site/public/screenshots/` all show the same demo site, "The Riverbend Gazette", taken at the same size and settings. This folder lets anyone retake one so it matches the rest:
 
 - `seed.php` turns a local WordPress site into that demo site, and resets it when you run it again.
-- `shot.mjs` (run as `npm run shot`) takes one screenshot at the house settings, with an optional spotlight, and writes the WebP into `site/public/screenshots/`.
+- `shot.mjs` (run as `npm run shot`) takes one screenshot at the house settings, with an optional spotlight, and writes the WebP into `site/public/screenshots/`. With `--video`, it records a short video at the same settings instead, such as the homepage's.
 
 When you change a screen publishers see, retake only the screenshots that show it. [`SHOTS.md`](SHOTS.md) lists every screenshot, what it shows and the command that retakes it.
 
@@ -19,7 +19,7 @@ The site needs:
 - No posts, pages or users of its own besides the administrator. Delete WordPress's "Hello world!" post and "Sample Page", and any sample posts and users your setup tool created: the front page lists the newest posts, and the editor's author menus list every author. The seed warns when it finds published posts it didn't create.
 - An environment type of `local` or `development`. Set it in `wp-config.php` with `define( 'WP_ENVIRONMENT_TYPE', 'local' );`. WordPress assumes `production` when it isn't set, which is the case on many Docker images and Studio sites, and the seed refuses those unless you add `force` to the command.
 
-On your computer you need Node 24 and [Google Chrome](https://www.google.com/chrome/).
+On your computer you need Node 24 and [Google Chrome](https://www.google.com/chrome/). Videos also need [ffmpeg](https://ffmpeg.org/) with H.264 support (libx264), which most builds include; on a Mac, `brew install ffmpeg`.
 
 The admin menu shows whatever plugins the site has active. The existing screenshots also have plugins such as Newspack Newsletters, Newspack Ads and Newspack Network in the menu; activate them if a screenshot needs them.
 
@@ -174,12 +174,27 @@ npm run shot -- getting-started/put-the-feed-on-a-page-4 --site https://screensh
 | `--mouse <x,y>` | Leaves the pointer at this point in the window, in pixels from the top left of the 1512×982 viewport. By default it moves to the bottom right corner after a click or fill. |
 | `--now` | Captures as soon as the page settles, without opening a window or waiting for Enter. Use it with `--click` and `--spotlight` for screens you can reach without help. Without a saved sign-in it needs `WP_USER` and `WP_PASSWORD`, since it can't ask. |
 | `--out <file>` | Writes the image somewhere else, for trying things out. A relative path starts from the folder you ran `npm run` in. |
+| `--run <command>` | Runs a command on your computer, such as WP-CLI, and waits for it to finish. The shot stops if the command fails. It runs from the folder you ran `npm run` in, so `wp` needs to reach the screenshot site from there. Repeat it for several commands. |
+| `--before-check <ms>` | Waits until that many milliseconds before the liveblog's next check for new entries, which a live liveblog makes every 30 seconds unless its block says otherwise. When less time than that is left, it waits for the check after. Use it to publish an entry while the page is open, so it arrives at a known moment. |
+| `--wait-for <selector>` | Waits, for up to two minutes, until the first element that matches shows, such as `[data-new]` for an entry that arrived while the page was open. |
 
-Clicks, fills, hovers, scrolls, key presses, waits and scripts all run in the order you give them, whichever options they use.
+Clicks, fills, hovers, scrolls, key presses, waits, scripts, commands and the waits for a check or an element all run in the order you give them, whichever options they use.
 
 Selectors can be CSS, or Playwright's text selectors such as `button:has-text("Add Entry")` and `text=Bridge Street water main break`. To find a field by its label, use `internal:label="<label>"s`, where the `s` makes the match exact. They also find elements inside the block editor's canvas.
 
 The script also captures without waiting when it isn't run from a terminal.
+
+### Record a video
+
+With `--video`, the command records the steps as an MP4 instead of taking a screenshot, at the same settings as every screenshot. It doesn't wait for you: the recording starts once the page has settled, or at `--record` if you give it, and stops after the last step. Signed in, it needs a saved sign-in or `WP_USER` and `WP_PASSWORD`, as with `--now`, since it can't ask. These options only work with `--video`:
+
+| Option | What it does |
+| :--- | :--- |
+| `--video` | Records a video. `--out` sets the file, which defaults to `site/public/screenshots/<section>/<name>-<n>.mp4`. A video can't have a spotlight. |
+| `--record` | Starts the recording at this point in the steps, so the steps before it, such as waiting for the next check, stay out of the video. Give it once. |
+| `--poster <file>` | Also saves the video's first frame as a WebP at the house settings, for a page to show before the video plays and in its place for readers who prefer reduced motion. |
+
+The homepage video, a new entry arriving in the Kettle River flood liveblog, is the example: its command and the steps around it are in [`SHOTS.md`](SHOTS.md). Watch the video before you commit it, and check its first and last frames, since the page stops on the last one.
 
 ### Selector tips
 
@@ -205,6 +220,7 @@ Every screenshot uses these, and the script applies them for you:
 - The reader sign-up prompt is closed on front-end pages.
 - The editor isn't in fullscreen mode and shows no block breadcrumbs, welcome guides or pattern chooser. Top toolbar is on, so a selected block's toolbar sits in the editor's header instead of over the page. These apply in the post, page, pattern and Site Editor alike, and the script saves them for the account you sign in with each time it runs.
 - At most one spotlighted box, around one element or around all the `--spotlight` matches: everything outside it and an 8px margin is dimmed with 45% black.
+- Videos use the same page setup as screenshots, with no spotlight, and nothing is drawn over them: no pointer, captions or frame. They are saved as 3024×1964 MP4s: H.264 (High profile, level 5.1, which browsers and phones decode in hardware) at 30 frames a second, quality (CRF) 18, 4:2:0 color tagged as BT.709, no sound, and the index at the start of the file so they start playing while they load. The `--poster` image is the first frame, saved like a screenshot.
 
 Before you commit an image, look at it.
 
@@ -212,6 +228,7 @@ Before you commit an image, look at it.
 
 - **The seed refuses to run:** read the list it prints. Nothing was changed.
 - **Chrome doesn't start:** install Google Chrome, or set `CHROME_PATH` to a Chrome or Chromium binary.
+- **ffmpeg isn't found:** install ffmpeg, or set `FFMPEG_PATH` to an ffmpeg binary that has libx264. The ffmpeg that comes with Playwright can't write MP4s.
 - **Signed in as the wrong user:** the script stops without saving anything. Run it again and sign in as James Smith. A good sign-in is saved in `~/.cache/newspack-rc-shot/`, one file per site, readable only by you.
 - **The site uses http or a self-signed certificate:** that's fine; the script accepts both.
 
