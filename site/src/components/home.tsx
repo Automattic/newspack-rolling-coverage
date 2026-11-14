@@ -156,7 +156,7 @@ const sections = [
 export function Home( props: SitePageProps ) {
 	return (
 		<SiteLayout { ...props }>
-			<section aria-labelledby="home-title" className="site-container grid gap-(--newspack-ui-spacer-3) pt-(--section-space) lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] lg:items-end lg:gap-(--newspack-ui-spacer-11)">
+			<section aria-labelledby="home-title" className="site-container grid gap-(--newspack-ui-spacer-3) pt-[calc(var(--section-space)/2)] lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] lg:items-end lg:gap-(--newspack-ui-spacer-11)">
 				<h1 id="home-title" className="max-w-[9.25em] type-display text-foreground">
 					<Headline />
 				</h1>
