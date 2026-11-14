@@ -178,7 +178,7 @@ npm run shot -- getting-started/put-the-feed-on-a-page-4 --site https://screensh
 | `--before-check <ms>` | Waits until that many milliseconds before the liveblog's next check for new entries, which a live liveblog makes every 30 seconds unless its block says otherwise. When less time than that is left, it waits for the check after. Use it to publish an entry while the page is open, so it arrives at a known moment. |
 | `--wait-for <selector>` | Waits, for up to two minutes, until the first element that matches shows, such as `[data-new]` for an entry that arrived while the page was open. |
 
-Clicks, fills, hovers, scrolls, key presses, waits, scripts, commands and the waits for a check or an element all run in the order you give them, whichever options they use.
+Clicks, fills, hovers, scrolls, key presses, waits, scripts, commands and the waits for a check or an element all run in the order you give them, whichever options they use. In a video, put each `--run` before `--record`: a command holds up the browser's frames until it finishes, which would freeze the video.
 
 Selectors can be CSS, or Playwright's text selectors such as `button:has-text("Add Entry")` and `text=Bridge Street water main break`. To find a field by its label, use `internal:label="<label>"s`, where the `s` makes the match exact. They also find elements inside the block editor's canvas.
 

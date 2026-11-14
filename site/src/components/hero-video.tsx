@@ -32,7 +32,7 @@ export function HeroVideo() {
 					}, 400 );
 				}
 			},
-			{ threshold: 0.6 }
+			{ threshold: 0.4 }
 		);
 		observer.observe( node );
 		return () => {

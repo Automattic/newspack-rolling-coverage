@@ -257,6 +257,15 @@ function parse() {
 		}
 	} else if ( values.spotlight.length ) {
 		fail( `a video can't have a spotlight.\n\n${ USAGE }` );
+	} else if ( mouse ) {
+		fail( `a video can't use --mouse.\n\n${ USAGE }` );
+	} else {
+		const record = steps.findIndex( ( step ) => 'record' === step.action );
+		const lastRun = steps.findLastIndex( ( step ) => 'run' === step.action );
+		// A command blocks the browser's frames until it returns, which would freeze the video.
+		if ( -1 !== lastRun && ( -1 === record || lastRun > record ) ) {
+			fail( `in a video, put each --run before --record.\n\n${ USAGE }` );
+		}
 	}
 	const fromCwd = ( file ) =>
 		resolve( process.env.INIT_CWD || process.cwd(), file );
@@ -779,12 +788,12 @@ function ffmpeg( args ) {
 		stdio: [ 'ignore', 'ignore', 'pipe' ],
 	} );
 	if ( result.error ) {
-		fail(
+		throw new Error(
 			"couldn't run ffmpeg. Install it (on a Mac, brew install ffmpeg), or set FFMPEG_PATH to an ffmpeg binary with libx264."
 		);
 	}
 	if ( 0 !== result.status ) {
-		fail(
+		throw new Error(
 			`ffmpeg failed:\n${ result.stderr.toString().trim().split( '\n' ).slice( -5 ).join( '\n' ) }`
 		);
 	}
@@ -805,6 +814,7 @@ async function saveVideo( { frames, start, end }, out, poster ) {
 		);
 	}
 	const dir = mkdtempSync( join( tmpdir(), 'newspack-rc-shot-' ) );
+	let failure = null;
 	try {
 		frames.forEach( ( frame, index ) =>
 			writeFileSync(
@@ -844,8 +854,13 @@ async function saveVideo( { frames, start, end }, out, poster ) {
 		console.log(
 			`Saved ${ out } (${ ( count / VIDEO_FPS ).toFixed( 1 ) } seconds)`
 		);
+	} catch ( error ) {
+		failure = error;
 	} finally {
 		rmSync( dir, { recursive: true, force: true } );
+	}
+	if ( failure ) {
+		fail( failure.message );
 	}
 	if ( poster ) {
 		mkdirSync( dirname( poster ), { recursive: true } );
