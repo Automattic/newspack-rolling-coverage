@@ -9,7 +9,7 @@ import {
 	writeFileSync,
 } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
-import { dirname, join, relative, resolve } from 'node:path';
+import { dirname, extname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { createInterface } from 'node:readline';
@@ -118,7 +118,11 @@ const USAGE = `Usage: npm run shot -- <section>/<name>-<n> --site <url> [options
   --mouse <x,y>          Leave the pointer at this point in the window
                          instead of the bottom right corner
   --now                  Capture without waiting for you (headless)
-  --out <file>           Write the image somewhere else
+  --out <file>           Write the image somewhere else. A .png name writes
+                         a lossless PNG instead of a WebP
+  --boxes <selector>     Also write <out>.boxes.json with the element's
+                         x, y, width and height in CSS pixels from the
+                         top left of the window (repeatable)
 
 Video (an MP4 instead of a WebP; needs ffmpeg):
   --video                Record the steps as a video, without waiting for you
@@ -155,6 +159,7 @@ function parse() {
 				mouse: { type: 'string' },
 				now: { type: 'boolean', default: false },
 				out: { type: 'string' },
+				boxes: { type: 'string', multiple: true, default: [] },
 				video: { type: 'boolean', default: false },
 				record: { type: 'boolean', multiple: true, default: [] },
 				poster: { type: 'string' },
@@ -255,6 +260,8 @@ function parse() {
 		if ( values.record.length || values.poster ) {
 			fail( `--record and --poster need --video.\n\n${ USAGE }` );
 		}
+	} else if ( values.boxes.length ) {
+		fail( `a video can't record --boxes.\n\n${ USAGE }` );
 	} else if ( values.spotlight.length ) {
 		fail( `a video can't have a spotlight.\n\n${ USAGE }` );
 	} else if ( mouse ) {
@@ -276,6 +283,7 @@ function parse() {
 		target: new URL( values.url.replace( /^\/+/, '' ), site ),
 		loggedOut: values[ 'logged-out' ],
 		spotlight: values.spotlight,
+		boxes: values.boxes,
 		mouse,
 		steps,
 		video: values.video,
@@ -1097,14 +1105,45 @@ async function main() {
 		await nextFrames( page );
 		await page.waitForTimeout( 300 );
 
+		const elementBoxes = {};
+		for ( const selector of options.boxes ) {
+			const locator = await findInFrames( page, selector );
+			if ( ! locator ) {
+				fail( `--boxes found nothing for ${ selector }` );
+			}
+			const found = await locator.boundingBox();
+			if ( ! found || ! found.width || ! found.height ) {
+				fail(
+					`--boxes matched ${ selector }, but it isn't visible on the page.`
+				);
+			}
+			elementBoxes[ selector ] = {
+				x: found.x,
+				y: found.y,
+				width: found.width,
+				height: found.height,
+			};
+		}
+
 		const png = await page.screenshot( { type: 'png' } );
 		mkdirSync( dirname( options.out ), { recursive: true } );
-		const { width, height } = await sharp( png )
-			.webp( { quality: 85 } )
-			.toFile( options.out );
+		const isPng = '.png' === extname( options.out ).toLowerCase();
+		const image = sharp( png );
+		const { width, height } = await ( isPng
+			? image.png( { compressionLevel: 9 } )
+			: image.webp( { quality: 85 } )
+		).toFile( options.out );
 		console.log( `Saved ${ options.out }` );
+		if ( options.boxes.length ) {
+			const boxesFile = `${ options.out }.boxes.json`;
+			writeFileSync(
+				boxesFile,
+				`${ JSON.stringify( elementBoxes, null, 2 ) }\n`
+			);
+			console.log( `Saved ${ boxesFile }` );
+		}
 		const inPublic = relative( PUBLIC_DIR, options.out );
-		if ( ! inPublic.startsWith( '..' ) ) {
+		if ( ! isPng && ! inPublic.startsWith( '..' ) ) {
 			const src = `/${ inPublic.split( '\\' ).join( '/' ) }`;
 			console.log(
 				`<Screenshot label="..." src="${ src }" width={${ width }} height={${ height }} />`

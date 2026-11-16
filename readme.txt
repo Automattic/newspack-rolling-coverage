@@ -53,6 +53,15 @@ Yes, when the WordPress AI plugin and an AI provider are configured. Use the AI 
 
 OneSignal. The feed's follow button and the per-entry notification option require the OneSignal plugin to be installed and configured.
 
+== Screenshots ==
+
+1. A liveblog on a page in the Rail layout, with the pinned entry first and a Full story card below it.
+2. The "Choose a layout" window, with a preview of each layout.
+3. Writing a new entry in the "Add Entry" editor.
+4. The "Slack Connection" panel for a liveblog, with the Channel field and the Publish Mode setting.
+5. The AI panel in the block settings, with key takeaways generated from the latest entries under "Generated Output".
+6. The "Edit Liveblog" panel with Status set to "Ended".
+
 == Credits ==
 
 The sample entries that preview each layout in the editor use these photos, both released under CC0 1.0 (https://creativecommons.org/publicdomain/zero/1.0/):

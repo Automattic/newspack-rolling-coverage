@@ -67,9 +67,10 @@ cd site
 npm ci
 npm run dev           # Local site at http://localhost:4321
 npm run build         # Static build in site/dist/
-npm test              # Content and color contrast checks
+npm test              # Content, color contrast and WordPress.org asset checks (test:wporg needs Chrome or CHROME_PATH)
 npm run check:build   # Checks site/dist/ after a build
 npm run shot -- <section>/<name>-<n> --site <url>   # Retakes a screenshot
+npm run wporg -- --capture <png>   # Renders the WordPress.org banner and icon
 ```
 
 - Pages are MDX files in `site/content/docs/`; each folder's `meta.json` sets the sidebar order. The homepage is `site/src/components/home.tsx`, and the About page is `site/src/components/about.tsx`.

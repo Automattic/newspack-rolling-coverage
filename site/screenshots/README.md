@@ -5,7 +5,7 @@ The screenshots in `site/public/screenshots/` all show the same demo site, "The 
 - `seed.php` turns a local WordPress site into that demo site, and resets it when you run it again.
 - `shot.mjs` (run as `npm run shot`) takes one screenshot at the house settings, with an optional spotlight, and writes the WebP into `site/public/screenshots/`. With `--video`, it records a short video at the same settings instead, such as the homepage's.
 
-When you change a screen publishers see, retake only the screenshots that show it. [`SHOTS.md`](SHOTS.md) lists every screenshot, what it shows and the command that retakes it.
+When you change a screen publishers see, retake only the screenshots that show it. [`SHOTS.md`](SHOTS.md) lists every screenshot, what it shows and the command that retakes it. The same file has the commands for the images in `.wordpress-org/`, under "WordPress.org assets". That includes the listing banner and icon, which are drawn by `npm run wporg` from a capture of the Rail layout.
 
 ## Set up a screenshot site
 
@@ -173,7 +173,8 @@ npm run shot -- getting-started/put-the-feed-on-a-page-4 --site https://screensh
 | `--eval <js>` | Runs JavaScript in the page and in each frame inside it, such as the editor canvas, for a step no other option covers. Errors in the main page are printed. Repeat it for several scripts. |
 | `--mouse <x,y>` | Leaves the pointer at this point in the window, in pixels from the top left of the 1512×982 viewport. By default it moves to the bottom right corner after a click or fill. |
 | `--now` | Captures as soon as the page settles, without opening a window or waiting for Enter. Use it with `--click` and `--spotlight` for screens you can reach without help. Without a saved sign-in it needs `WP_USER` and `WP_PASSWORD`, since it can't ask. |
-| `--out <file>` | Writes the image somewhere else, for trying things out. A relative path starts from the folder you ran `npm run` in. |
+| `--out <file>` | Writes the image somewhere else, for trying things out. A relative path starts from the folder you ran `npm run` in. A `.png` name writes a lossless PNG instead of a WebP. |
+| `--boxes <selector>` | Also writes `<out>.boxes.json`, with the element's `x`, `y`, `width` and `height` in CSS pixels from the top left of the viewport, read just before the capture. If a selector matches nothing visible, the shot fails and writes no files. Repeat it for several elements. A video can't record `--boxes`. |
 | `--run <command>` | Runs a command on your computer, such as WP-CLI, and waits for it to finish. The shot stops if the command fails. It runs from the folder you ran `npm run` in, so `wp` needs to reach the screenshot site from there. Repeat it for several commands. |
 | `--before-check <ms>` | Waits until that many milliseconds before the liveblog's next check for new entries, which a live liveblog makes every 30 seconds unless its block says otherwise. When less time than that is left, it waits for the check after. Use it to publish an entry while the page is open, so it arrives at a known moment. |
 | `--wait-for <selector>` | Waits, for up to two minutes, until the first element that matches shows, such as `[data-new]` for an entry that arrived while the page was open. |

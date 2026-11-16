@@ -39,3 +39,4 @@ node_modules
 docs
 tsconfig.json
 /site
+/.wordpress-org
