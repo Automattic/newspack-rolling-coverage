@@ -1,15 +1,21 @@
 @use "~@wordpress/base-styles/breakpoints" as wp-breakpoints;
+@use "~@wordpress/base-styles/colors" as wp-colors;
 @use "~@wordpress/base-styles/variables" as wp-vars;
 
+.newspack-rolling-coverage-admin__content:has(> .newspack-rolling-coverage-score:first-child) {
+	padding-top: 0;
+}
+
 .newspack-rolling-coverage-score {
-	padding: 0 wp-vars.$grid-unit-30 wp-vars.$grid-unit-30;
+	border-block-end: var(--wpds-border-width-xs, #{wp-vars.$border-width}) solid var(--wpds-color-stroke-surface-neutral-weak, #{wp-colors.$gray-100});
+	padding: var(--wpds-dimension-padding-lg, #{wp-vars.$grid-unit-20}) var(--wpds-dimension-padding-2xl, #{wp-vars.$grid-unit-30});
 
 	@media (min-width: #{wp-breakpoints.$break-small}) {
 		padding-inline: wp-vars.$grid-unit-60;
 	}
 
 	&__team {
-		width: wp-vars.$grid-unit-80 * 2;
+		width: wp-vars.$grid-unit * 16;
 	}
 
 	&__status {

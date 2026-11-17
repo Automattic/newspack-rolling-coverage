@@ -8,6 +8,8 @@ import {
 	Modal,
 	TextControl,
 	// eslint-disable-next-line @wordpress/no-unsafe-wp-apis
+	__experimentalInputControl as InputControl,
+	// eslint-disable-next-line @wordpress/no-unsafe-wp-apis
 	__experimentalNumberControl as NumberControl,
 } from '@wordpress/components';
 import {
@@ -439,7 +441,7 @@ function ScorePanel( {
 				role="group"
 				aria-label={ __( 'Score', 'newspack-rolling-coverage' ) }
 			>
-				<Stack direction="row" gap="lg" align="flex-end" wrap="wrap">
+				<Stack direction="row" gap="md" align="flex-end" wrap="wrap">
 					{ ( [ 0, 1 ] as const ).map( ( index ) => (
 						<div
 							key={ index }
@@ -447,6 +449,7 @@ function ScorePanel( {
 						>
 							<NumberControl
 								__next40pxDefaultSize
+								size="compact"
 								label={ score.teams[ index ].name }
 								value={
 									drafts[ index ] ??
@@ -470,8 +473,9 @@ function ScorePanel( {
 						</div>
 					) ) }
 					<div className="newspack-rolling-coverage-score__status">
-						<TextControl
+						<InputControl
 							__next40pxDefaultSize
+							size="compact"
 							label={ __(
 								'Status',
 								'newspack-rolling-coverage'
@@ -484,7 +488,7 @@ function ScorePanel( {
 							maxLength={ MAX_TEXT_LENGTH }
 							onChange={ ( value ) => {
 								isStatusEdited.current = true;
-								setStatus( value );
+								setStatus( value ?? '' );
 							} }
 							onBlur={ saveStatus }
 							onKeyDown={ ( event ) => {
@@ -500,6 +504,7 @@ function ScorePanel( {
 							'Score actions',
 							'newspack-rolling-coverage'
 						) }
+						toggleProps={ { size: 'compact' } }
 						controls={ [
 							{
 								title: __(
