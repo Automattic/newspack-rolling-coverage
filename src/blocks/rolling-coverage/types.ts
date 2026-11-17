@@ -153,11 +153,12 @@ interface PollEntry {
 
 /**
  * The coverage's Summary in a poll reply, for the summary card: its ID, last
- * edit and rendered card.
+ * edit, the "Updated" line as the server writes it, and the rendered card.
  */
 interface PollSummary {
 	id: number;
 	modified: string;
+	updated: string;
 	html: string;
 }
 

@@ -130,6 +130,14 @@ class Rolling_Coverage_Block {
 	const SUMMARY_ATTRIBUTE = 'data-rc-summary';
 
 	/**
+	 * Attribute holding the summary card's "Updated" line as rendered, which
+	 * the view script compares with each poll's to tell when the line now
+	 * reads differently, rather than the card's text, which the browser or an
+	 * embed's script may have changed.
+	 */
+	const SUMMARY_UPDATED_ATTRIBUTE = 'data-rc-updated';
+
+	/**
 	 * Class of the layout's Feed group, which holds everything the coverage
 	 * shows.
 	 */
@@ -4112,6 +4120,7 @@ class Rolling_Coverage_Block {
 
 		$card_html->set_attribute( self::SUMMARY_ATTRIBUTE, (string) $summary->ID );
 		$card_html->set_attribute( 'data-modified-gmt', self::post_modified_gmt( $summary ) );
+		$card_html->set_attribute( self::SUMMARY_UPDATED_ATTRIBUTE, Entry_Bindings::updated_text( $summary ) );
 
 		return $card_html->get_updated_html();
 	}
@@ -4126,7 +4135,7 @@ class Rolling_Coverage_Block {
 	 * @param int    $coverage_id Coverage term ID.
 	 * @param array  $stored      The stored summary card and the Feed's layout (see persist_block_config()).
 	 * @param string $status      Coverage status.
-	 * @return array{id: int, modified: string, html: string}|null
+	 * @return array{id: int, modified: string, updated: string, html: string}|null
 	 */
 	private static function summary_reply( int $coverage_id, array $stored, string $status ): ?array {
 		$summary = Summary::get_published( $coverage_id );
@@ -4161,6 +4170,7 @@ class Rolling_Coverage_Block {
 		return [
 			'id'       => $summary->ID,
 			'modified' => self::post_modified_gmt( $summary ),
+			'updated'  => Entry_Bindings::updated_text( $summary ),
 			'html'     => $html,
 		];
 	}

@@ -37,6 +37,7 @@ import {
 import { NewEntryMarks } from './new-entry-marks';
 import { carryArrival, openSpace, stopArrivalFade } from './entry-arrival';
 import { idsNewerThan, newIdsInReplace } from './new-entry-ids';
+import { applySummaryCard, SUMMARY_ATTRIBUTE } from './summary-card';
 import {
 	glideScrollTo,
 	holdAnimations,
@@ -82,10 +83,6 @@ type PollOutcome = 'ok' | 'failed' | 'reloading' | 'skipped';
 type Takedown = 'shown' | 'counted' | 'off-page';
 
 const PINNED_STACK = '.newspack-rolling-coverage-pinned-stack';
-
-// The summary card, or the empty placeholder a feed holds while there is no
-// Summary, mirroring Rolling_Coverage_Block::SUMMARY_ATTRIBUTE.
-const SUMMARY_ATTRIBUTE = 'data-rc-summary';
 
 const STICKY_CARD_SELECTOR = `:is(.newspack-rolling-coverage-pinned-card, ${ PINNED_STACK }).is-position-sticky`;
 
@@ -3696,12 +3693,10 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 	}
 
 	/**
-	 * Shows the Summary a poll brings in the feed's summary card: a new one in
-	 * place of the empty placeholder, an edit in place of the card, the card
-	 * again when its "Updated" line now reads differently (the edit is no
-	 * longer today's), or the placeholder in place of a Summary taken down. The card isn't a live
-	 * region, so a swap is never announced, and it waits while focus is inside
-	 * the card, for a later poll, so a reader's place isn't lost.
+	 * Shows the Summary a poll brings in the feed's summary card (see
+	 * applySummaryCard()). The card isn't a live region, so a swap is never
+	 * announced, and it waits while focus is inside the card, for a later
+	 * poll, so a reader's place isn't lost.
 	 *
 	 * @param {PollSummary|null} summary The coverage's Summary, or null for none.
 	 */
@@ -3712,37 +3707,9 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 			return;
 		}
 
-		const shownId = card.getAttribute( SUMMARY_ATTRIBUTE ) ?? '0';
-
-		if ( ! summary ) {
-			if ( shownId === '0' ) {
-				return;
-			}
-
-			const placeholder = document.createElement( 'div' );
-			placeholder.className = 'newspack-rolling-coverage-summary-card';
-			placeholder.setAttribute( SUMMARY_ATTRIBUTE, '0' );
-			placeholder.hidden = true;
-			card.replaceWith( placeholder );
-			return;
-		}
-
-		const next = parseElement( sanitizeHtml( summary.html ) );
-
-		if ( ! next?.hasAttribute( SUMMARY_ATTRIBUTE ) ) {
-			return;
-		}
-
-		// The "Updated" line reads differently once the day of the edit has passed.
-		if (
-			shownId === String( summary.id ) &&
-			card.dataset.modifiedGmt === summary.modified &&
-			card.textContent === next.textContent
-		) {
-			return;
-		}
-
-		card.replaceWith( next );
+		applySummaryCard( card, summary, ( html ) =>
+			parseElement( sanitizeHtml( html ) )
+		);
 	}
 
 	/**

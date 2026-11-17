@@ -373,6 +373,8 @@ class Test_Summary extends Rolling_Coverage_TestCase {
 
 		$this->assertSame( $summary_id, $poll['summary']['id'] );
 		$this->assertStringContainsString( 'data-rc-summary="' . $summary_id . '"', $poll['summary']['html'] );
+		$this->assertStringStartsWith( 'Updated ', $poll['summary']['updated'] );
+		$this->assertStringContainsString( 'data-rc-updated="' . esc_attr( $poll['summary']['updated'] ) . '"', $poll['summary']['html'] );
 		$this->assertNotContains( $summary_id, wp_list_pluck( $poll['entries'], 'id' ), 'The Summary is never a new entry.' );
 
 		$shared = self::dispatch(
