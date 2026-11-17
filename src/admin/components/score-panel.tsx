@@ -1,0 +1,521 @@
+/**
+ * WordPress dependencies
+ */
+import apiFetch from '@wordpress/api-fetch';
+import {
+	Button,
+	DropdownMenu,
+	Modal,
+	TextControl,
+	// eslint-disable-next-line @wordpress/no-unsafe-wp-apis
+	__experimentalNumberControl as NumberControl,
+} from '@wordpress/components';
+import {
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from '@wordpress/element';
+import { __, sprintf } from '@wordpress/i18n';
+import { moreVertical } from '@wordpress/icons';
+import { Stack, Text } from '@wordpress/ui';
+
+/**
+ * Internal dependencies
+ */
+import { SCORE_META_KEY, isScore, type Score } from '../../blocks/shared/score';
+import { handleApiError } from '../utils/api-error';
+import { notifyError, notifySuccess } from '../utils/notices';
+import { useAdminContext } from '../hooks/useAdminContext';
+import { useConfirmDialog } from './confirm-dialog';
+import type { ContextExports, Coverage } from '../types';
+
+// Score::MAX_TEXT_LENGTH and Score::MAX_SCORE.
+const MAX_TEXT_LENGTH = 40;
+const MAX_SCORE = 999;
+
+/**
+ * The form that names the two teams, for Add Score and Edit Teams.
+ *
+ * @param {Object}   props             Props.
+ * @param {string}   props.title       The modal's title.
+ * @param {string}   props.submitLabel The submit button's label.
+ * @param {string[]} props.names       The names to start from.
+ * @param {Function} props.onSubmit    Called with the two names.
+ * @param {Function} props.onClose     Closes the modal.
+ */
+function TeamsModal( {
+	title,
+	submitLabel,
+	names,
+	onSubmit,
+	onClose,
+}: {
+	title: string;
+	submitLabel: string;
+	names: [ string, string ];
+	onSubmit: ( names: [ string, string ] ) => Promise< boolean >;
+	onClose: () => void;
+} ) {
+	const [ first, setFirst ] = useState( names[ 0 ] );
+	const [ second, setSecond ] = useState( names[ 1 ] );
+	const [ isBusy, setIsBusy ] = useState( false );
+	const isValid = !! first.trim() && !! second.trim();
+
+	const submit = async ( event: React.FormEvent ) => {
+		event.preventDefault();
+
+		if ( ! isValid || isBusy ) {
+			return;
+		}
+
+		setIsBusy( true );
+
+		if ( await onSubmit( [ first.trim(), second.trim() ] ) ) {
+			onClose();
+			return;
+		}
+
+		setIsBusy( false );
+	};
+
+	return (
+		<Modal title={ title } onRequestClose={ onClose } size="small">
+			<form onSubmit={ submit }>
+				<Stack direction="column" gap="lg">
+					<TextControl
+						__next40pxDefaultSize
+						label={ __(
+							'First team',
+							'newspack-rolling-coverage'
+						) }
+						help={ __(
+							'Shown on the left.',
+							'newspack-rolling-coverage'
+						) }
+						value={ first }
+						onChange={ setFirst }
+						maxLength={ MAX_TEXT_LENGTH }
+						required
+					/>
+					<TextControl
+						__next40pxDefaultSize
+						label={ __(
+							'Second team',
+							'newspack-rolling-coverage'
+						) }
+						help={ __(
+							'Shown on the right.',
+							'newspack-rolling-coverage'
+						) }
+						value={ second }
+						onChange={ setSecond }
+						maxLength={ MAX_TEXT_LENGTH }
+						required
+					/>
+					<Stack direction="row" gap="sm" justify="flex-end">
+						<Button
+							__next40pxDefaultSize
+							variant="tertiary"
+							onClick={ onClose }
+							disabled={ isBusy }
+						>
+							{ __( 'Cancel', 'newspack-rolling-coverage' ) }
+						</Button>
+						<Button
+							__next40pxDefaultSize
+							variant="primary"
+							type="submit"
+							isBusy={ isBusy }
+							disabled={ ! isValid || isBusy }
+							accessibleWhenDisabled
+						>
+							{ submitLabel }
+						</Button>
+					</Stack>
+				</Stack>
+			</form>
+		</Modal>
+	);
+}
+
+/**
+ * The score of the liveblog whose entries are listed: an Add Score button
+ * for the header while it has none, and once it has one, a row above the
+ * list with a stepper for each team's score and the status line. Each
+ * change saves at once through the coverages route and shows straight
+ * away; a failed save puts back the last saved score and says why.
+ *
+ * Users who can't edit the liveblog see the score as text, and no button.
+ *
+ * @param {Coverage|null} coverage   The listed coverage.
+ * @param {Function}      setContext Sets the admin context, whose copy of the coverage takes each saved score.
+ * @return {Object} The header button and the panel, either of which can be null.
+ */
+function useScorePanel(
+	coverage: Coverage | null,
+	setContext: ContextExports[ 1 ]
+): { addButton: JSX.Element | null; panel: JSX.Element | null } {
+	const config = useAdminContext();
+	const canEdit = config.capabilities.canManageTerms;
+	const stored = coverage?.meta?.[ SCORE_META_KEY ];
+	const saved = isScore( stored ) ? stored : null;
+	const coverageId = coverage?.id ?? 0;
+	const isTrashed = coverage?.meta?.rolling_coverage_status === 'trash';
+
+	const [ score, setScore ] = useState< Score | null >( saved );
+	const [ status, setStatus ] = useState( saved?.status ?? '' );
+	const [ modal, setModal ] = useState< 'add' | 'teams' | null >( null );
+	const confirmed = useRef< Score | null >( saved );
+	const pending = useRef< { score: Score | null } | null >( null );
+	const isSaving = useRef( false );
+	const { requestConfirm, dialog } = useConfirmDialog();
+
+	const onSaved = useCallback(
+		( id: number, next: Score | null ) =>
+			setContext( ( prev ) =>
+				prev.selectedCoverage?.id === id
+					? {
+							...prev,
+							selectedCoverage: {
+								...prev.selectedCoverage,
+								meta: {
+									...prev.selectedCoverage.meta,
+									[ SCORE_META_KEY ]: next,
+								},
+							},
+						}
+					: prev
+			),
+		[ setContext ]
+	);
+
+	const savedKey = JSON.stringify( saved );
+
+	useEffect( () => {
+		if ( isSaving.current ) {
+			return;
+		}
+
+		const next = savedKey
+			? ( JSON.parse( savedKey ) as Score | null )
+			: null;
+
+		confirmed.current = next;
+		setScore( next );
+		setStatus( next?.status ?? '' );
+	}, [ coverageId, savedKey ] );
+
+	/**
+	 * Saves the newest score asked for, one request at a time. Steps taken
+	 * while a save is out go in the next request, which carries the whole
+	 * score, so a slow request never lands after a newer one.
+	 */
+	const flush = useCallback( async (): Promise< boolean > => {
+		if ( isSaving.current ) {
+			return true;
+		}
+
+		isSaving.current = true;
+		let ok = true;
+
+		while ( pending.current ) {
+			const next = pending.current.score;
+
+			pending.current = null;
+
+			try {
+				await apiFetch( {
+					url: `${ config.restBaseUrls.coverages }/${ coverageId }`,
+					method: 'POST',
+					data: { meta: { [ SCORE_META_KEY ]: next } },
+				} );
+				confirmed.current = next;
+				ok = true;
+			} catch ( error ) {
+				ok = false;
+
+				if ( ! pending.current ) {
+					setScore( confirmed.current );
+					setStatus( confirmed.current?.status ?? '' );
+					notifyError(
+						sprintf(
+							/* translators: %s: Why the score couldn't be saved. */
+							__(
+								'The score couldn’t be saved: %s',
+								'newspack-rolling-coverage'
+							),
+							handleApiError( error )
+						)
+					);
+				}
+			}
+		}
+
+		isSaving.current = false;
+		onSaved( coverageId, confirmed.current );
+
+		return ok;
+	}, [ config.restBaseUrls.coverages, coverageId, onSaved ] );
+
+	const save = useCallback(
+		( next: Score | null ): Promise< boolean > => {
+			setScore( next );
+			pending.current = { score: next };
+
+			return flush();
+		},
+		[ flush ]
+	);
+
+	const step = ( index: 0 | 1, value: string | undefined ) => {
+		if ( ! score ) {
+			return;
+		}
+
+		const parsed = Math.min(
+			MAX_SCORE,
+			Math.max( 0, Math.floor( Number( value ) || 0 ) )
+		);
+
+		if ( parsed === score.teams[ index ].score ) {
+			return;
+		}
+
+		const teams = score.teams.map( ( team, i ) =>
+			i === index ? { ...team, score: parsed } : team
+		) as Score[ 'teams' ];
+
+		save( { ...score, teams } );
+	};
+
+	const saveStatus = () => {
+		const next = status.trim();
+
+		if ( ! score || next === score.status ) {
+			return;
+		}
+
+		save( { ...score, status: next } );
+	};
+
+	const addButton = useMemo(
+		() =>
+			canEdit && ! saved && coverage && ! isTrashed ? (
+				<Button variant="tertiary" onClick={ () => setModal( 'add' ) }>
+					{ __( 'Add Score', 'newspack-rolling-coverage' ) }
+				</Button>
+			) : null,
+		[ canEdit, saved, coverage, isTrashed ]
+	);
+
+	const modals = (
+		<>
+			{ modal === 'add' && (
+				<TeamsModal
+					title={ __( 'Add Score', 'newspack-rolling-coverage' ) }
+					submitLabel={ __(
+						'Add Score',
+						'newspack-rolling-coverage'
+					) }
+					names={ [ '', '' ] }
+					onSubmit={ async ( [ first, second ] ) => {
+						const ok = await save( {
+							teams: [
+								{ name: first, score: 0 },
+								{ name: second, score: 0 },
+							],
+							status: '',
+						} );
+
+						if ( ok ) {
+							notifySuccess(
+								__(
+									'Score added.',
+									'newspack-rolling-coverage'
+								)
+							);
+						}
+
+						return ok;
+					} }
+					onClose={ () => setModal( null ) }
+				/>
+			) }
+			{ modal === 'teams' && score && (
+				<TeamsModal
+					title={ __( 'Edit Teams', 'newspack-rolling-coverage' ) }
+					submitLabel={ __( 'Save', 'newspack-rolling-coverage' ) }
+					names={ [ score.teams[ 0 ].name, score.teams[ 1 ].name ] }
+					onSubmit={ async ( [ first, second ] ) => {
+						const ok = await save( {
+							...score,
+							teams: [
+								{ ...score.teams[ 0 ], name: first },
+								{ ...score.teams[ 1 ], name: second },
+							],
+						} );
+
+						if ( ok ) {
+							notifySuccess(
+								__(
+									'Changes saved.',
+									'newspack-rolling-coverage'
+								)
+							);
+						}
+
+						return ok;
+					} }
+					onClose={ () => setModal( null ) }
+				/>
+			) }
+			{ dialog }
+		</>
+	);
+
+	if ( ! score ) {
+		return { addButton, panel: modal ? modals : null };
+	}
+
+	if ( ! canEdit || isTrashed ) {
+		return {
+			addButton: null,
+			panel: (
+				<div className="newspack-rolling-coverage-score">
+					<Text>
+						{ score.status
+							? sprintf(
+									/* translators: 1: The first team's name. 2: Its score. 3: The second team's name. 4: Its score. 5: The status line, such as "Second half". */
+									__(
+										'Score: %1$s %2$d, %3$s %4$d (%5$s)',
+										'newspack-rolling-coverage'
+									),
+									score.teams[ 0 ].name,
+									score.teams[ 0 ].score,
+									score.teams[ 1 ].name,
+									score.teams[ 1 ].score,
+									score.status
+								)
+							: sprintf(
+									/* translators: 1: The first team's name. 2: Its score. 3: The second team's name. 4: Its score. */
+									__(
+										'Score: %1$s %2$d, %3$s %4$d',
+										'newspack-rolling-coverage'
+									),
+									score.teams[ 0 ].name,
+									score.teams[ 0 ].score,
+									score.teams[ 1 ].name,
+									score.teams[ 1 ].score
+								) }
+					</Text>
+				</div>
+			),
+		};
+	}
+
+	return {
+		addButton: null,
+		panel: (
+			<div
+				className="newspack-rolling-coverage-score"
+				role="group"
+				aria-label={ __( 'Score', 'newspack-rolling-coverage' ) }
+			>
+				<Stack direction="row" gap="lg" align="flex-end" wrap="wrap">
+					{ ( [ 0, 1 ] as const ).map( ( index ) => (
+						<div
+							key={ index }
+							className="newspack-rolling-coverage-score__team"
+						>
+							<NumberControl
+								__next40pxDefaultSize
+								label={ score.teams[ index ].name }
+								value={ score.teams[ index ].score }
+								min={ 0 }
+								max={ MAX_SCORE }
+								step={ 1 }
+								spinControls="custom"
+								isDragEnabled={ false }
+								onChange={ ( value ) => step( index, value ) }
+							/>
+						</div>
+					) ) }
+					<div className="newspack-rolling-coverage-score__status">
+						<TextControl
+							__next40pxDefaultSize
+							label={ __(
+								'Status',
+								'newspack-rolling-coverage'
+							) }
+							placeholder={ __(
+								'For example, Second half',
+								'newspack-rolling-coverage'
+							) }
+							value={ status }
+							maxLength={ MAX_TEXT_LENGTH }
+							onChange={ setStatus }
+							onBlur={ saveStatus }
+							onKeyDown={ ( event ) => {
+								if ( event.key === 'Enter' ) {
+									saveStatus();
+								}
+							} }
+						/>
+					</div>
+					<DropdownMenu
+						icon={ moreVertical }
+						label={ __(
+							'Score actions',
+							'newspack-rolling-coverage'
+						) }
+						controls={ [
+							{
+								title: __(
+									'Edit Teams',
+									'newspack-rolling-coverage'
+								),
+								onClick: () => setModal( 'teams' ),
+							},
+							{
+								title: __(
+									'Remove Score',
+									'newspack-rolling-coverage'
+								),
+								onClick: () =>
+									requestConfirm( {
+										title: __(
+											'Remove the score?',
+											'newspack-rolling-coverage'
+										),
+										description: __(
+											'Scoreboard blocks for this liveblog stop showing on the site. Open pages hide theirs at their next check.',
+											'newspack-rolling-coverage'
+										),
+										confirmLabel: __(
+											'Remove Score',
+											'newspack-rolling-coverage'
+										),
+										onConfirm: async () => {
+											if ( await save( null ) ) {
+												notifySuccess(
+													__(
+														'Score removed.',
+														'newspack-rolling-coverage'
+													)
+												);
+											}
+										},
+									} ),
+							},
+						] }
+					/>
+				</Stack>
+				{ modals }
+			</div>
+		),
+	};
+}
+
+export { useScorePanel };

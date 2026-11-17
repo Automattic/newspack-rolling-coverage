@@ -35,6 +35,7 @@ import { QuickEditModal } from './quick-edit-modal';
 import { EntryDetailsDrawer } from './entry-details-drawer';
 import { SlackConnectionDrawer } from './slack-connection-drawer';
 import { PlacementsDrawer } from './placements-drawer';
+import { useScorePanel } from './score-panel';
 import { useConfirmDialog } from './confirm-dialog';
 import { getEntryActions } from '../actions/entry-actions';
 import { getEntryNoticeMessage } from '../utils/notices';
@@ -635,10 +636,19 @@ function EntryView() {
 		[]
 	);
 
+	const { addButton: addScoreButton, panel: scorePanel } = useScorePanel(
+		isFirstLoad ? null : routeCoverage,
+		setContext
+	);
+
 	const headerActions = useMemo(
 		() =>
-			showNewEntry || showSlackInHeader || showPlacements ? (
+			showNewEntry ||
+			showSlackInHeader ||
+			showPlacements ||
+			addScoreButton ? (
 				<>
+					{ addScoreButton }
 					{ showSlackInHeader && slackButton }
 					{ showPlacements && placementsButton }
 					{ showNewSummary && addSummaryButton }
@@ -654,6 +664,7 @@ function EntryView() {
 			placementsButton,
 			slackButton,
 			addEntryButton,
+			addScoreButton,
 		]
 	);
 	useHeader( {
@@ -721,6 +732,7 @@ function EntryView() {
 				className="newspack-rolling-coverage-view-notice"
 				message={ error }
 			/>
+			{ scorePanel }
 			{ isFirstLoad && (
 				<LoadingState
 					label={ __(
