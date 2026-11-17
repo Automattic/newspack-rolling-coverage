@@ -22,7 +22,7 @@ The Liveblog panel is at the top of the block's settings. It appears only when t
 
 Automatic works on single posts and pages only, not on archives or password-protected posts. It ignores a Rolling Coverage block that only previews the latest entries.
 
-The block shows nothing on the site when there is no liveblog to show, or when the liveblog has no score. Most liveblogs aren't matches, so a liveblog has no score until someone adds one.
+The block shows nothing on the site when there is no liveblog to show. Most liveblogs aren't matches, so a liveblog has no score until someone adds one. Until then the scoreboard stays hidden, and open pages show it as soon as a score is added, without a reload. An ended liveblog without a score shows nothing.
 
 ## Setting the score
 

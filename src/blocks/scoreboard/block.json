@@ -4,7 +4,7 @@
 	"name": "newspack-rolling-coverage/scoreboard",
 	"title": "Scoreboard",
 	"category": "newspack",
-	"description": "Shows a liveblog's score and keeps it current: the one around it, a chosen one, or else the one this page or breakout post belongs to. Shows nothing without a score.",
+	"description": "Shows a liveblog's score and keeps it current: the one around it, a chosen one, or else the one this page or breakout post belongs to. Stays hidden until the liveblog has a score.",
 	"textdomain": "newspack-rolling-coverage",
 	"keywords": [ "score", "match", "liveblog" ],
 	"usesContext": [

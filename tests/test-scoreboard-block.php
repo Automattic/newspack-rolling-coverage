@@ -176,13 +176,25 @@ class Test_Scoreboard_Block extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Without a score, or without a coverage, the block renders nothing.
+	 * Without a coverage the block renders nothing.
 	 */
-	public function test_renders_nothing_without_a_score() {
-		$coverage_id = self::create_coverage();
-
-		$this->assertSame( '', trim( do_blocks( self::scoreboard( [ 'coverageId' => $coverage_id ] ) ) ) );
+	public function test_renders_nothing_without_a_coverage() {
 		$this->assertSame( '', trim( do_blocks( self::scoreboard() ) ) );
+	}
+
+	/**
+	 * A coverage without a score yet renders the scoreboard hidden, ready
+	 * for its script to show a score added later; an ended one renders
+	 * nothing, as it won't check.
+	 */
+	public function test_renders_hidden_until_a_score_is_added() {
+		$coverage_id = self::create_coverage();
+		$ended_id    = self::create_coverage( Taxonomy::STATUS_ARCHIVED );
+		$html        = do_blocks( self::scoreboard( [ 'coverageId' => $coverage_id ] ) );
+
+		$this->assertMatchesRegularExpression( '/<div [^>]*data-coverage-id="' . $coverage_id . '"[^>]*data-score-url="[^"]+"[^>]* hidden>/', $html );
+		$this->assertStringContainsString( 'data-rc-score-announce', $html );
+		$this->assertSame( '', trim( do_blocks( self::scoreboard( [ 'coverageId' => $ended_id ] ) ) ) );
 	}
 
 	/**

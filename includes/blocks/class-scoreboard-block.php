@@ -198,34 +198,47 @@ class Scoreboard_Block {
 	/**
 	 * Server-side render callback.
 	 *
+	 * A coverage without a score yet renders the scoreboard hidden, with
+	 * what its view script needs to check the score, so an open or cached
+	 * page shows a score added later, such as one added at kickoff to a
+	 * page built the day before. An ended coverage won't get one, and Lite
+	 * Site pages and syndication feeds run no script, so those render
+	 * nothing without a score.
+	 *
 	 * @param array    $attributes Block attributes.
 	 * @param string   $content    The inner blocks, rendered.
 	 * @param WP_Block $block      Block instance.
-	 * @return string Rendered HTML, or '' when the coverage has no score.
+	 * @return string Rendered HTML, or '' when it could never show a score.
 	 */
 	public static function render_block( array $attributes, string $content, WP_Block $block ): string {
 		$coverage_id = self::coverage_id( $block );
-		$score       = Score::get( $coverage_id );
 
-		if ( ! $score ) {
+		if ( ! $coverage_id ) {
 			return '';
 		}
 
-		// Lite Site pages and syndication feeds run no script, so they get the score as it is.
+		$score  = Score::get( $coverage_id );
+		$status = Rolling_Coverage_Block::coverage_status( $coverage_id );
+
 		if ( is_feed() || Lite_Feed::is_lite_render() ) {
-			return sprintf( '<div %s>%s</div>', get_block_wrapper_attributes(), $content );
+			return $score ? sprintf( '<div %s>%s</div>', get_block_wrapper_attributes(), $content ) : '';
+		}
+
+		if ( ! $score && Taxonomy::STATUS_ARCHIVED === $status ) {
+			return '';
 		}
 
 		return sprintf(
-			'<div %s>%s<div class="screen-reader-text" aria-live="polite" aria-atomic="true" data-rc-score-announce></div></div>',
+			'<div %s%s>%s<div class="screen-reader-text" aria-live="polite" aria-atomic="true" data-rc-score-announce></div></div>',
 			get_block_wrapper_attributes(
 				[
 					'data-coverage-id'   => $coverage_id,
-					'data-status'        => Rolling_Coverage_Block::coverage_status( $coverage_id ),
+					'data-status'        => $status,
 					'data-score-url'     => rest_url( sprintf( '%s/coverages/%d/score', NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE, $coverage_id ) ),
 					'data-poll-interval' => max( self::POLL_INTERVAL, Rolling_Coverage_Block::get_min_poll_interval() ),
 				]
 			),
+			$score ? '' : ' hidden',
 			$content
 		);
 	}

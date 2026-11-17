@@ -52,14 +52,14 @@ Inside a feed it is a coverage-level item (`Entry_Bindings::is_coverage_item()`,
 
 ## Rendering
 
-With no coverage, or a coverage without a score, the block renders nothing. Otherwise it renders the inner blocks in the wrapper, with:
+With no coverage, the block renders nothing. Otherwise it renders the inner blocks in the wrapper, with the attributes below. A coverage without a score yet gets the wrapper `hidden`, its bound parts empty and hidden, so an open or cached page, such as one built before kickoff, shows a score added later at its next check (`applyScore()` fills the parts and unhides it). An ended coverage without a score renders nothing, since nothing checks it.
 
 - `data-coverage-id` and `data-status` (the coverage's status),
 - `data-score-url`, the coverage's score route,
 - `data-poll-interval`, seconds between the page's own checks: `POLL_INTERVAL` (30, the feed's default) or the site's minimum poll interval when that is longer,
 - an empty `div.screen-reader-text` with `aria-live="polite"` and `aria-atomic="true"`, for the view script's announcement.
 
-On a Lite Site page (`Lite_Feed::is_lite_render()`) and in syndication feeds, which run no script, it renders the inner blocks in a plain wrapper, without the data attributes or the live region.
+On a Lite Site page (`Lite_Feed::is_lite_render()`) and in syndication feeds, which run no script, it renders the inner blocks in a plain wrapper, without the data attributes or the live region, and nothing without a score.
 
 ## Live updates
 
@@ -73,7 +73,7 @@ On a Lite Site page (`Lite_Feed::is_lite_render()`) and in syndication feeds, wh
 ## Tests
 
 - `tests/test-score.php`: the meta's sanitizing, saving and removing it through the coverages route, the capability, schema validation, the score route and its cache header, and the score in poll replies.
-- `tests/test-scoreboard-block.php`: rendering the bound parts, nothing without a score, the hidden empty status line, Automatic, the feed's context, Lite Site pages, and the coverage-level item.
+- `tests/test-scoreboard-block.php`: rendering the bound parts, nothing without a coverage, hidden until a score is added (and nothing for an ended coverage without one), the hidden empty status line, Automatic, the feed's context, Lite Site pages, and the coverage-level item.
 - `tests/js/scoreboard-apply.test.ts`: applying a score, when it is announced, and hiding and showing the scoreboard.
 - `tests/js/scoreboard-template.test.ts`: the inserted defaults on block and classic theme presets, and the heading font lookup.
 
