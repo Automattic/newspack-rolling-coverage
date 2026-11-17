@@ -241,7 +241,8 @@ class Summary {
 	 * Leave the Summary out of every query that lists entries, alone or with
 	 * other post types, unless it asks for it with QUERY_VAR or is the main
 	 * query for one entry. This runs for get_posts() too, which skips the SQL
-	 * filters.
+	 * filters. The query's own meta query stays first, so its clause remains
+	 * the one `meta_value` ordering reads.
 	 *
 	 * @param WP_Query $query The query about to run.
 	 */
@@ -271,8 +272,8 @@ class Summary {
 				? [ $clause ]
 				: [
 					'relation' => 'AND',
-					$clause,
 					$meta_query,
+					$clause,
 				]
 		);
 	}
