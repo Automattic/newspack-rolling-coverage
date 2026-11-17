@@ -24,13 +24,11 @@ defined( 'ABSPATH' ) || exit;
  */
 class Score {
 
-	// Term meta key holding the score.
 	const META_KEY = 'rolling_coverage_score';
 
 	// Longest team name and status line, in characters.
 	const MAX_TEXT_LENGTH = 40;
 
-	// Highest score a team can have.
 	const MAX_SCORE = 999;
 
 	/**

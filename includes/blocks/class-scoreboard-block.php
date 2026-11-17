@@ -23,16 +23,13 @@ defined( 'ABSPATH' ) || exit;
  */
 class Scoreboard_Block {
 
-	// Block name, as registered in block.json.
 	const BLOCK_NAME = 'newspack-rolling-coverage/scoreboard';
 
-	// Block bindings source for the score's parts.
 	const SOURCE_NAME = 'newspack-rolling-coverage/score';
 
 	// Attribute naming the part a bound block shows, for the view script.
 	const PART_ATTRIBUTE = 'data-rc-score';
 
-	// The parts a block can bind to.
 	const KEYS = [ 'team1Name', 'team1Score', 'team2Score', 'team2Name', 'status' ];
 
 	// Seconds between a page's own score checks, as the feed's default poll interval.
