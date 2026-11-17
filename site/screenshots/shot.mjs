@@ -730,8 +730,8 @@ async function hideSiteAddress( page, swaps ) {
 }
 
 // While a video records, steps still type and save, so only page text and
-// placeholders swap: never field values, menu choices or editable text, which a
-// save could read back.
+// placeholders swap: never field values, menu choices, editable text or the
+// hidden Quick Edit data, which a save could read back.
 function keepSiteAddressHidden( swaps ) {
 	if ( window.__shotAddressHidden ) {
 		return 0;
@@ -762,19 +762,22 @@ function keepSiteAddressHidden( swaps ) {
 		'TEXTAREA',
 		'OPTION',
 	];
-	const editable = ( element ) => !! element.closest( '[contenteditable]' );
+	const kept = ( element ) =>
+		!! element.closest(
+			'[contenteditable], .hidden[id^="inline_"], .hidden[id^="inline-"]'
+		);
 	const swapText = ( node ) => {
 		const parent = node.parentElement;
 		if (
 			parent &&
 			! skip.includes( parent.nodeName.toUpperCase() ) &&
-			! editable( parent )
+			! kept( parent )
 		) {
 			update( node.nodeValue, ( after ) => ( node.nodeValue = after ) );
 		}
 	};
 	const swapPlaceholder = ( element ) => {
-		if ( ! editable( element ) ) {
+		if ( ! kept( element ) ) {
 			update( element.getAttribute( 'placeholder' ), ( after ) =>
 				element.setAttribute( 'placeholder', after )
 			);
