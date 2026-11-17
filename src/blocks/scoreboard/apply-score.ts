@@ -58,7 +58,7 @@ function renderedLine( block: HTMLElement ): string | null {
  * With several scoreboards of one coverage on a page, only one announces,
  * so screen readers hear each change once.
  *
- * @param {HTMLElement} block The scoreboard's wrapper.
+ * @param {HTMLElement} block    The scoreboard's wrapper.
  * @param {Score|null}  score    The coverage's score, or null for none.
  * @param {boolean}     announce Whether this scoreboard announces changes.
  * @return {boolean} Whether the change was announced.
