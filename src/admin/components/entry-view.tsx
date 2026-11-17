@@ -647,6 +647,7 @@ function EntryView() {
 		setContext
 	);
 
+	const menuUsedFor = useRef< number | null >( null );
 	const menuControls = useMemo( () => {
 		const controls: MenuControl[] = [];
 		if ( showNewSummary ) {
@@ -658,26 +659,35 @@ function EntryView() {
 		if ( addScoreControl ) {
 			controls.push( addScoreControl );
 		}
-		return controls;
-	}, [ showNewSummary, handleNewSummary, addScoreControl ] );
+		return controls.map( ( control ) => ( {
+			...control,
+			onClick: () => {
+				menuUsedFor.current = numericCoverageId;
+				control.onClick();
+			},
+		} ) );
+	}, [
+		showNewSummary,
+		handleNewSummary,
+		addScoreControl,
+		numericCoverageId,
+	] );
 	const hasMenu = menuControls.length > 0;
 
-	// Adding the last item the menu holds takes the menu away, and focus with
-	// it, so focus moves to Add Entry instead of dropping to the page.
-	const menuShownFor = useRef< number | null >( null );
+	// Adding the last item through the menu takes the menu away, and focus
+	// with it, so focus moves to Add Entry instead of dropping to the page.
 	useEffect( () => {
+		if (
+			menuUsedFor.current === null ||
+			menuUsedFor.current !== numericCoverageId
+		) {
+			menuUsedFor.current = null;
+			return;
+		}
 		if ( hasMenu ) {
-			menuShownFor.current = numericCoverageId;
 			return;
 		}
-		if ( menuShownFor.current === null ) {
-			return;
-		}
-		const wasSameCoverage = menuShownFor.current === numericCoverageId;
-		menuShownFor.current = null;
-		if ( ! wasSameCoverage ) {
-			return;
-		}
+		menuUsedFor.current = null;
 		window.requestAnimationFrame( () => {
 			const button = addEntryButtonRef.current;
 			const active = button?.ownerDocument.activeElement;
