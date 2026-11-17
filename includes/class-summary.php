@@ -192,14 +192,15 @@ class Summary {
 	}
 
 	/**
-	 * Whether another Summary outside the trash shares a coverage with an
-	 * entry.
+	 * Whether another saved Summary outside the trash shares a coverage with
+	 * an entry: one of its own, or one it is about to join.
 	 *
-	 * @param int $entry_id Entry post ID.
+	 * @param int   $entry_id     Entry post ID.
+	 * @param int[] $joining_ids  Coverages a save is about to assign it to.
 	 * @return bool
 	 */
-	public static function collides( int $entry_id ): bool {
-		foreach ( self::coverage_ids( $entry_id ) as $coverage_id ) {
+	public static function collides( int $entry_id, array $joining_ids = [] ): bool {
+		foreach ( array_unique( array_merge( self::coverage_ids( $entry_id ), $joining_ids ) ) as $coverage_id ) {
 			if ( self::get_current( $coverage_id, $entry_id ) ) {
 				return true;
 			}
@@ -211,7 +212,10 @@ class Summary {
 	/**
 	 * Refuse a save through the core entries route that would leave a
 	 * coverage with two Summaries outside the trash, such as publishing a
-	 * second auto-draft started in another tab.
+	 * second auto-draft started in another tab, or moving a Summary into a
+	 * coverage that has one. The route assigns the request's coverages after
+	 * this runs, so they are checked along with the stored ones, as
+	 * Archive_Mode::block_rest_writes() does.
 	 *
 	 * @param \stdClass|WP_Error $prepared_post The post about to be saved.
 	 * @param WP_REST_Request    $request       Request object.
@@ -228,7 +232,9 @@ class Summary {
 			return $prepared_post;
 		}
 
-		return self::collides( (int) $prepared_post->ID ) ? self::exists_error() : $prepared_post;
+		$joining_ids = $request instanceof WP_REST_Request ? wp_parse_id_list( $request[ Taxonomy::REST_BASE ] ?? [] ) : [];
+
+		return self::collides( (int) $prepared_post->ID, $joining_ids ) ? self::exists_error() : $prepared_post;
 	}
 
 	/**

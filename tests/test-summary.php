@@ -192,6 +192,23 @@ class Test_Summary extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * The core entries route refuses to move a Summary into a coverage that
+	 * already has one.
+	 */
+	public function test_core_route_refuses_moving_a_summary_into_a_coverage_with_one() {
+		self::log_in_as( 'editor' );
+		$target_id = self::create_coverage();
+		self::create_summary( $target_id );
+		$moving_id = self::create_summary( self::create_coverage() );
+
+		$request = new WP_REST_Request( 'POST', '/wp/v2/' . Post_Type::REST_BASE . '/' . $moving_id );
+		$request->set_param( Taxonomy::REST_BASE, [ $target_id ] );
+
+		$this->assertSame( 409, rest_get_server()->dispatch( $request )->get_status() );
+		$this->assertNotContains( $target_id, wp_get_post_terms( $moving_id, Taxonomy::TAXONOMY_SLUG, [ 'fields' => 'ids' ] ) );
+	}
+
+	/**
 	 * Entry queries leave the Summary out unless they ask for it.
 	 */
 	public function test_entry_queries_leave_the_summary_out() {
