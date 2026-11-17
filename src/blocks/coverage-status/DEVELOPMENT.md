@@ -63,7 +63,7 @@ The badge classes per status are `Coverage_Status_Block::BADGE_CLASSES`, mirrore
 
 ## Live updates
 
-The block never fetches on its own. `view.ts` listens for the `newspack-rolling-coverage:poll` event (`src/blocks/shared/poll-event.ts`), which the Rolling Coverage block's view script fires on `document` after each poll with `coverageId`, `status` and `newestEntry`. For each Status block with the same `data-coverage-id`, it swaps the badge classes, the label and the inline style, and updates the "Updated" time.
+The block never fetches on its own. `view.ts` listens for the `newspack-rolling-coverage:poll` event (`src/blocks/shared/poll-event.ts`), which the Rolling Coverage block's view script fires on `document` after each poll with `coverageId`, `status` and `newestEntry` (and the `score` the Scoreboard block reads). For each Status block with the same `data-coverage-id`, it swaps the badge classes, the label and the inline style, and updates the "Updated" time.
 
 To make that swap possible, the server prints every status's label as `data-label-{status}` and every custom style as `data-style-{status}` on the wrapper.
 

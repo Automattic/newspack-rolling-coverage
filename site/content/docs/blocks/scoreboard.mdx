@@ -1,0 +1,108 @@
+---
+title: Scoreboard block
+description: Show a match's score above the liveblog, and keep it current on open pages.
+---
+
+The Scoreboard block shows a liveblog's score: the two team names with a score for each on one row, and a short status line beneath, such as "Second half" or "Full time". When you change the score, readers who have the page open see the new score without reloading.
+
+The score belongs to the liveblog, so you set it once, in the liveblog's entries list, and every Scoreboard block for that liveblog shows it.
+
+## Where to use it
+
+- **Above the feed.** Add it to a match's page or post, above the Rolling Coverage block.
+- **Inside a Rolling Coverage layout.** Add it to the layout's header. It shows that block's liveblog, and the **Liveblog** panel is hidden. It can't go inside an entry or the pinned entry.
+
+## Add a score to the liveblog
+
+A liveblog has no score until you add one, so the block shows nothing on the site until then. Editors and administrators can add a score.
+
+<Steps>
+<Step>
+
+### Open the liveblog's entries
+
+Go to **Rolling Coverage** > **All Liveblogs** and select the liveblog.
+
+</Step>
+<Step>
+
+### Name the teams
+
+Select **Add Score** at the top of the page. Type the **First team** and **Second team** names, then select **Add Score**. The first team shows on the left.
+
+<Screenshot label="The Add Score window, with the First team and Second team fields filled in" src="/screenshots/blocks/scoreboard-1.webp" width={3024} height={1964} />
+
+</Step>
+<Step>
+
+### Update the score
+
+The score row appears above the entries. Use the + and − buttons beside each team, or type a number. Each change saves straight away.
+
+Type a short status line in **Status**, such as "84'" or "Full time", and press Enter.
+
+<Screenshot label="The liveblog's entries list, with the score row above the entries picked out" src="/screenshots/blocks/scoreboard-2.webp" width={3024} height={1964} />
+
+</Step>
+</Steps>
+
+If a change can't be saved, the score goes back to what it was and a message says why.
+
+To rename the teams, open the menu at the end of the score row and select **Edit Teams**. To take the score off the liveblog, select **Remove Score**. Every Scoreboard block for the liveblog then stops showing.
+
+## Add the block
+
+<Steps>
+<Step>
+
+### Insert the block
+
+Open the page, post, or template. Add a block and search for "Scoreboard".
+
+<Screenshot label="The block inserter with Scoreboard in the search results" src="/screenshots/blocks/scoreboard-3.webp" width={3024} height={1964} />
+
+</Step>
+<Step>
+
+### Choose the liveblog
+
+Outside a Rolling Coverage block, open the **Liveblog** panel in the block settings. Choose **Automatic** or **Custom**. With **Custom**, pick the liveblog from the list.
+
+<Screenshot label="The block settings, Liveblog panel, with Automatic and Custom picked out" src="/screenshots/blocks/scoreboard-4.webp" width={3024} height={1964} />
+
+</Step>
+</Steps>
+
+In the editor, the block shows the liveblog's score. In a template, or when the liveblog has no score yet, it shows a sample score so you can style it.
+
+## Settings
+
+### Liveblog panel
+
+The panel appears only outside a Rolling Coverage block.
+
+| Setting | What it does |
+| --- | --- |
+| **Automatic** | Shows the liveblog on this page, or a breakout post's liveblog. |
+| **Custom** | Always shows the liveblog you pick. |
+
+**Automatic** works on single posts and pages. It uses the first Rolling Coverage block in the page's own content.
+
+### Styling
+
+The scoreboard is made of a row of four paragraphs and a status line, so you can style each part on its own. Select a team name, a score, or the status line to change its size, weight, color, or alignment in the **Styles** tab. Select the Scoreboard block itself to give the whole scoreboard a background, text color, border, padding, or margin.
+
+## What readers see
+
+The score updates on open pages without a reload. With a Rolling Coverage block for the same liveblog on the page, it updates each time that block checks for new entries. Without one, the page checks the score itself every 30 seconds while the liveblog is live or paused.
+
+When the score changes, screen readers hear the new score, such as "Riverbend FC 3, Toledo Beacon 1". Nothing on the scoreboard moves or flashes.
+
+<Screenshot label="A match page with the scoreboard above the liveblog" src="/screenshots/blocks/scoreboard-5.webp" width={3024} height={1964} />
+
+## When it doesn't appear
+
+The block shows nothing on the site when:
+
+- The liveblog has no score.
+- There is no liveblog to show: **Automatic** on a page with no Rolling Coverage block, or on an archive page.

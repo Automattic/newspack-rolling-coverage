@@ -107,7 +107,7 @@ The options, their limits and what reads them are documented with the blocks: th
 
 ## A coverage's entries
 
-`EntryView` (`entry-view.tsx`) lists one coverage's entries. Its header holds a subtitle, the Slack channel button ("Connect Slack", or the connected channel's name), Placements, and Add Entry. While the coverage has no entries, the empty state holds Add Entry, and Add Summary for Editors and above (except on an ended or trashed coverage), and the header keeps the Slack button only when a channel is linked; with no channel linked, Connect Slack moves into the empty state as a secondary button before Add Entry. Both Slack buttons open the same Slack Connection drawer, and when connecting or disconnecting swaps one for the other, focus moves to the new one. Add Entry opens [Quick Edit](#quick-edit) on a new entry in the coverage, without leaving the list. On an ended coverage, Add Entry stays disabled, with a tooltip saying which status allows new entries; on a trashed coverage it is hidden.
+`EntryView` (`entry-view.tsx`) lists one coverage's entries. Its header holds a subtitle, Add Score while the coverage has no score (see [Score](#score)), the Slack channel button ("Connect Slack", or the connected channel's name), Placements, and Add Entry. While the coverage has no entries, the empty state holds Add Entry, and Add Summary for Editors and above (except on an ended or trashed coverage), and the header keeps the Slack button only when a channel is linked; with no channel linked, Connect Slack moves into the empty state as a secondary button before Add Entry. Both Slack buttons open the same Slack Connection drawer, and when connecting or disconnecting swaps one for the other, focus moves to the new one. Add Entry opens [Quick Edit](#quick-edit) on a new entry in the coverage, without leaving the list. On an ended coverage, Add Entry stays disabled, with a tooltip saying which status allows new entries; on a trashed coverage it is hidden.
 
 ### Data and live sync
 
@@ -184,6 +184,16 @@ With Co-Authors Plus, the new author's nicename is looked up first (`get_coautho
 It answers 200 with `{ results: [ { entryId, updated, error, slug } ] }`, whether or not some entries failed; `slug` is the saved slug, present only when one was sent.
 
 Tests: `tests/test-entry-details.php` and `tests/test-entry-author.php`. The entries-view route is covered by `tests/test-entries-view.php`, restoring entries by `tests/test-entry-restore.php`, and Archive Mode's locks by `tests/test-archive-mode.php`.
+
+### Score
+
+A coverage can have a score, which the [Scoreboard block](../blocks/scoreboard/DEVELOPMENT.md) shows. `useScorePanel()` (`score-panel.tsx`) gives `EntryView` two things: the header's Add Score button, and the row above the list.
+
+- **Add Score** shows while the coverage has no score, to users with `canManageTerms`, except on a trashed coverage. It opens a modal with First team and Second team, both required, and saves both teams at 0 with an empty status.
+- **The row** shows once the coverage has a score: a `NumberControl` for each team, labeled with the team's name, with + and − buttons (`spinControls="custom"`) from 0 to 999, a Status field, and a menu with Edit Teams (the same modal) and Remove Score (a confirmation, then `null`). A number saves on each change; Status saves on Enter or blur.
+- Users without `canManageTerms`, and everyone on a trashed coverage, get the score as text and no controls.
+
+Every change shows at once and saves the whole score as `meta.rolling_coverage_score` through the core coverages route, which checks `manage_categories` again. Saves go out one at a time: steps taken while one is out go in the next request, which carries the newest score, so a slow request never lands after a newer one. When the last save fails, the row goes back to the last saved score and an error snackbar gives the reason. Each saved score is written to the coverage in the admin context, so moving away and back shows it. The score's meta and route are in `src/blocks/scoreboard/DEVELOPMENT.md`.
 
 ## Summary
 
