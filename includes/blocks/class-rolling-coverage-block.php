@@ -5999,7 +5999,8 @@ class Rolling_Coverage_Block {
 	 * drops below POLL_MAX_AGE.
 	 *
 	 * It also carries the coverage's status and newest entry date for the
-	 * Coverage Status block. Once the coverage has ended, it carries the
+	 * Coverage Status block, and its score (null without one) for the
+	 * Scoreboard block. Once the coverage has ended, it carries the
 	 * latest breakout post's URL too, or null, for the ended notice of a page
 	 * rendered before then, which links to it. For a feed whose layout shows
 	 * the summary card, it carries the coverage's Summary as `summary`, or null
@@ -6013,6 +6014,7 @@ class Rolling_Coverage_Block {
 	private static function poll_response( array $data, int $coverage_id ): WP_REST_Response {
 		$data['status']          = self::coverage_status( $coverage_id );
 		$data['newestEntry']     = Newest_Entry::get_iso( $coverage_id );
+		$data['score']           = Score::get( $coverage_id );
 		$min_poll_interval       = self::get_min_poll_interval();
 		$data['minPollInterval'] = $min_poll_interval;
 
@@ -6025,8 +6027,19 @@ class Rolling_Coverage_Block {
 		}
 
 		$response = new WP_REST_Response( $data );
-		$response->header( 'Cache-Control', 'public, max-age=' . max( self::POLL_MAX_AGE, intdiv( $min_poll_interval, 2 ) ) );
+		$response->header( 'Cache-Control', 'public, max-age=' . self::poll_max_age( $min_poll_interval ) );
 
 		return $response;
+	}
+
+	/**
+	 * How long caches may keep a poll reply: half the site's minimum poll
+	 * interval, and never less than POLL_MAX_AGE.
+	 *
+	 * @param int $min_poll_interval The site's minimum poll interval, in seconds.
+	 * @return int Seconds.
+	 */
+	public static function poll_max_age( int $min_poll_interval ): int {
+		return max( self::POLL_MAX_AGE, intdiv( $min_poll_interval, 2 ) );
 	}
 }

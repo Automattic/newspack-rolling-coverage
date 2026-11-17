@@ -34,6 +34,7 @@ class Initializer {
 		Taxonomy::init();
 		Placements::init();
 		Newest_Entry::init();
+		Score::init();
 		Slack::init();
 		Breakout::init();
 		Social_Sharing::init();
