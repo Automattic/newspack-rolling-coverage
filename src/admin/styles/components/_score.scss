@@ -18,5 +18,9 @@
 	&__fields {
 		flex: 1 1 auto;
 		min-width: 0;
+
+		@media (min-width: #{wp-breakpoints.$break-large}) {
+			max-width: 50%;
+		}
 	}
 }
