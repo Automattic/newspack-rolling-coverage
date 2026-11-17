@@ -191,7 +191,7 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 	 */
 	public function test_titles_with_their_own_link_stay_as_they_are() {
 		$coverage_id = self::create_coverage();
-		$with_link   = self::create_entry( $coverage_id, [ 'post_title' => 'See <a href="https://example.com/">the map</a>' ] );
+		$with_link   = self::create_entry( $coverage_id, [ 'post_title' => 'See <a href="https://yourgroovydomain.com/">the map</a>' ] );
 		$broken_out  = self::create_entry( $coverage_id, [ 'post_title' => 'Map published' ] );
 		$paragraph   = self::create_entry( $coverage_id, [ 'post_title' => 'Repair plan announced' ] );
 		$breakout_id = self::add_breakout( $paragraph, 'publish', [ 'post_title' => 'Repair plan announced' ] );
@@ -199,14 +199,14 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 
 		$html = Rolling_Coverage_Block::render_entry( get_post( $with_link ), parse_blocks( '<!-- wp:post-title {"className":"newspack-rolling-coverage-entry-link"} /-->' ) );
 
-		$this->assertStringContainsString( 'href="https://example.com/"', $html, "The title's own link should be kept." );
+		$this->assertStringContainsString( 'href="https://yourgroovydomain.com/"', $html, "The title's own link should be kept." );
 		$this->assertSame( 1, substr_count( $html, '<a ' ), 'No second link should be added.' );
 
-		add_filter( 'the_title', fn( $title ) => in_array( $title, [ 'The map', 'See the map' ], true ) ? 'See <a href="https://example.com/">the map</a>' : $title, 30 );
+		add_filter( 'the_title', fn( $title ) => in_array( $title, [ 'The map', 'See the map' ], true ) ? 'See <a href="https://yourgroovydomain.com/">the map</a>' : $title, 30 );
 
 		$html = Rolling_Coverage_Block::render_entry( get_post( $broken_out ), parse_blocks( '<!-- wp:post-title /-->' ) );
 
-		$this->assertStringContainsString( 'href="https://example.com/"', $html, "A breakout title's own link should be kept." );
+		$this->assertStringContainsString( 'href="https://yourgroovydomain.com/"', $html, "A breakout title's own link should be kept." );
 		$this->assertSame( 1, substr_count( $html, '<a ' ), 'No link to the breakout should be added around it.' );
 
 		$this->assertStringContainsString(
@@ -1121,11 +1121,11 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 		$html = self::render_feed_block(
 			[
 				'coverageId'            => $coverage_id,
-				'archivedNoticeLinkUrl' => 'https://example.com/story',
+				'archivedNoticeLinkUrl' => 'https://yourgroovydomain.com/story',
 			]
 		);
 
-		$this->assertStringContainsString( 'href="https://example.com/story"', $html, "The block's URL should be used." );
+		$this->assertStringContainsString( 'href="https://yourgroovydomain.com/story"', $html, "The block's URL should be used." );
 		$this->assertStringNotContainsString( esc_url( get_permalink( $breakout_id ) ), $html, 'The breakout post should not be linked.' );
 	}
 
@@ -1227,7 +1227,7 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 		$attributes = [
 			'coverageId'            => $coverage_id,
 			'archivedNotice'        => 'Coverage ended.',
-			'archivedNoticeLinkUrl' => 'https://example.com/story',
+			'archivedNoticeLinkUrl' => 'https://yourgroovydomain.com/story',
 		];
 
 		$this->assertStringContainsString( 'class="newspack-rolling-coverage-archived-notice"', self::render_feed_block( $attributes ), 'The notice shows by default.' );
@@ -1248,12 +1248,12 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 		$attributes = [
 			'coverageId'              => $coverage_id,
 			'archivedNotice'          => 'Coverage ended.',
-			'archivedNoticeLinkUrl'   => 'https://example.com/story?a=1&b=2',
+			'archivedNoticeLinkUrl'   => 'https://yourgroovydomain.com/story?a=1&b=2',
 			'archivedNoticeLinkLabel' => 'Follow <em>the</em> story',
 		];
 
 		$this->assertStringContainsString(
-			'<p class="newspack-rolling-coverage-archived-notice">Coverage ended. <a class="newspack-rolling-coverage-archived-notice__link" href="https://example.com/story?a=1&#038;b=2">Follow &lt;em&gt;the&lt;/em&gt; story</a></p>',
+			'<p class="newspack-rolling-coverage-archived-notice">Coverage ended. <a class="newspack-rolling-coverage-archived-notice__link" href="https://yourgroovydomain.com/story?a=1&#038;b=2">Follow &lt;em&gt;the&lt;/em&gt; story</a></p>',
 			self::render_feed_block( $attributes ),
 			"The link should carry the block's text."
 		);
@@ -1261,7 +1261,7 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 		$attributes['archivedNoticeLinkLabel'] = '';
 
 		$this->assertStringContainsString(
-			'Coverage ended. <a class="newspack-rolling-coverage-archived-notice__link" href="https://example.com/story?a=1&#038;b=2">Read more</a></p>',
+			'Coverage ended. <a class="newspack-rolling-coverage-archived-notice__link" href="https://yourgroovydomain.com/story?a=1&#038;b=2">Read more</a></p>',
 			self::render_feed_block( $attributes ),
 			'Without text, the link should read "Read more".'
 		);
@@ -1283,13 +1283,13 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 
 		$this->assertStringContainsString( '<p class="newspack-rolling-coverage-archived-notice">Coverage ended.</p>', self::render_feed_block( $attributes ), 'No link to the breakout post.' );
 
-		$attributes['archivedNoticeLinkUrl'] = 'https://example.com/story';
+		$attributes['archivedNoticeLinkUrl'] = 'https://yourgroovydomain.com/story';
 
 		$this->assertStringContainsString( '<p class="newspack-rolling-coverage-archived-notice">Coverage ended.</p>', self::render_feed_block( $attributes ), "No link to the block's URL." );
 
 		$attributes['archivedNoticeShowLink'] = true;
 
-		$this->assertStringContainsString( 'href="https://example.com/story"', self::render_feed_block( $attributes ), "Turned back on, the block's URL is linked." );
+		$this->assertStringContainsString( 'href="https://yourgroovydomain.com/story"', self::render_feed_block( $attributes ), "Turned back on, the block's URL is linked." );
 	}
 
 	/**
@@ -1688,9 +1688,9 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 		$entry_id = self::create_entry( self::create_coverage() );
 		self::add_breakout( $entry_id, 'publish' );
 
-		$html = self::render_markup( $entry_id, self::read_more_paragraph( 'newspack-rolling-coverage-read-more', '<a href="https://example.com/">Elsewhere</a>' ) );
+		$html = self::render_markup( $entry_id, self::read_more_paragraph( 'newspack-rolling-coverage-read-more', '<a href="https://yourgroovydomain.com/">Elsewhere</a>' ) );
 
-		$this->assertStringContainsString( '<a href="https://example.com/">Elsewhere</a></p>', $html );
+		$this->assertStringContainsString( '<a href="https://yourgroovydomain.com/">Elsewhere</a></p>', $html );
 		$this->assertSame( 1, substr_count( $html, '<a ' ) );
 	}
 

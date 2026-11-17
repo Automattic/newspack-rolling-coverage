@@ -114,7 +114,7 @@ class Test_Entry_Summary extends Rolling_Coverage_TestCase {
 	 * The first block with words can sit inside a group, after a photo.
 	 */
 	public function test_headline_looks_inside_wrappers_and_past_media() {
-		$entry_id = self::create_untitled_entry( '<!-- wp:image --><figure class="wp-block-image"><img src="https://example.com/a.jpg" alt="Sandbags"/><figcaption class="wp-element-caption">Sandbags on the quay</figcaption></figure><!-- /wp:image --><!-- wp:group --><div class="wp-block-group"><!-- wp:paragraph --><p>Shops have been sandbagging since noon.</p><!-- /wp:paragraph --><!-- wp:paragraph --><p>More are available from the depot.</p><!-- /wp:paragraph --></div><!-- /wp:group -->' );
+		$entry_id = self::create_untitled_entry( '<!-- wp:image --><figure class="wp-block-image"><img src="https://yourgroovydomain.com/a.jpg" alt="Sandbags"/><figcaption class="wp-element-caption">Sandbags on the quay</figcaption></figure><!-- /wp:image --><!-- wp:group --><div class="wp-block-group"><!-- wp:paragraph --><p>Shops have been sandbagging since noon.</p><!-- /wp:paragraph --><!-- wp:paragraph --><p>More are available from the depot.</p><!-- /wp:paragraph --></div><!-- /wp:group -->' );
 
 		$this->assertSame( 'Shops have been sandbagging since noon.', Entry_Bindings::get_fallback_title( get_post( $entry_id ) ) );
 		$this->assertSame( 'Shops have been sandbagging since noon. More are available from the depot.', get_the_excerpt( $entry_id ) );
@@ -124,7 +124,7 @@ class Test_Entry_Summary extends Rolling_Coverage_TestCase {
 	 * An embed beside text adds nothing: neither its URL nor its caption.
 	 */
 	public function test_embed_contributes_no_words() {
-		$entry_id = self::create_untitled_entry( '<!-- wp:paragraph --><p>Our full report is now up.</p><!-- /wp:paragraph -->' . self::embed( 'https://example.com/2026/10/09/full-time/', 'The report' ) );
+		$entry_id = self::create_untitled_entry( '<!-- wp:paragraph --><p>Our full report is now up.</p><!-- /wp:paragraph -->' . self::embed( 'https://yourgroovydomain.com/2026/10/09/full-time/', 'The report' ) );
 
 		$this->assertSame( 'Our full report is now up.', Entry_Bindings::get_fallback_title( get_post( $entry_id ) ) );
 		$this->assertSame( 'Our full report is now up.', get_the_excerpt( $entry_id ) );
@@ -199,7 +199,7 @@ class Test_Entry_Summary extends Rolling_Coverage_TestCase {
 	public function test_hidden_blocks_add_no_words() {
 		$hidden   = '<!-- wp:paragraph {"metadata":{"blockVisibility":false}} --><p>Hidden draft line.</p><!-- /wp:paragraph -->';
 		$text_id  = self::create_untitled_entry( $hidden . '<!-- wp:paragraph --><p>The visible line.</p><!-- /wp:paragraph -->' );
-		$photo_id = self::create_untitled_entry( $hidden . '<!-- wp:image --><figure class="wp-block-image"><img src="https://example.com/a.jpg" alt=""/></figure><!-- /wp:image -->' );
+		$photo_id = self::create_untitled_entry( $hidden . '<!-- wp:image --><figure class="wp-block-image"><img src="https://yourgroovydomain.com/a.jpg" alt=""/></figure><!-- /wp:image -->' );
 
 		$this->assertSame( 'The visible line.', get_the_excerpt( $text_id ) );
 		$this->assertSame( 'The visible line.', Entry_Bindings::get_fallback_title( get_post( $text_id ) ) );
@@ -211,7 +211,7 @@ class Test_Entry_Summary extends Rolling_Coverage_TestCase {
 	 * one of the entry's words.
 	 */
 	public function test_controls_add_no_words() {
-		$entry_id = self::create_untitled_entry( '<!-- wp:file {"href":"https://example.com/report.pdf"} --><div class="wp-block-file"><a href="https://example.com/report.pdf">report.pdf</a><a href="https://example.com/report.pdf" class="wp-block-file__button wp-element-button" download>Download</a></div><!-- /wp:file --><!-- wp:paragraph --><p>The full report is attached.</p><!-- /wp:paragraph --><!-- wp:buttons --><div class="wp-block-buttons"><!-- wp:button --><div class="wp-block-button"><a class="wp-block-button__link wp-element-button" href="https://example.com/donate">Donate</a></div><!-- /wp:button --></div><!-- /wp:buttons -->' );
+		$entry_id = self::create_untitled_entry( '<!-- wp:file {"href":"https://yourgroovydomain.com/report.pdf"} --><div class="wp-block-file"><a href="https://yourgroovydomain.com/report.pdf">report.pdf</a><a href="https://yourgroovydomain.com/report.pdf" class="wp-block-file__button wp-element-button" download>Download</a></div><!-- /wp:file --><!-- wp:paragraph --><p>The full report is attached.</p><!-- /wp:paragraph --><!-- wp:buttons --><div class="wp-block-buttons"><!-- wp:button --><div class="wp-block-button"><a class="wp-block-button__link wp-element-button" href="https://yourgroovydomain.com/donate">Donate</a></div><!-- /wp:button --></div><!-- /wp:buttons -->' );
 
 		$this->assertSame( 'The full report is attached.', get_the_excerpt( $entry_id ) );
 		$this->assertSame( 'The full report is attached.', Entry_Bindings::get_fallback_title( get_post( $entry_id ) ) );
@@ -249,8 +249,8 @@ class Test_Entry_Summary extends Rolling_Coverage_TestCase {
 	 * breakout post are named after its media instead.
 	 */
 	public function test_public_summary_reads_the_same_words() {
-		$text_id  = self::create_untitled_entry( '<!-- wp:paragraph --><p>Our full report is now up.</p><!-- /wp:paragraph -->' . self::embed( 'https://example.com/2026/10/09/full-time/' ) );
-		$photo_id = self::create_untitled_entry( '<!-- wp:image --><figure class="wp-block-image"><img src="https://example.com/a.jpg" alt="Crews on the quay"/><figcaption class="wp-element-caption">Crews on the quay</figcaption></figure><!-- /wp:image -->' );
+		$text_id  = self::create_untitled_entry( '<!-- wp:paragraph --><p>Our full report is now up.</p><!-- /wp:paragraph -->' . self::embed( 'https://yourgroovydomain.com/2026/10/09/full-time/' ) );
+		$photo_id = self::create_untitled_entry( '<!-- wp:image --><figure class="wp-block-image"><img src="https://yourgroovydomain.com/a.jpg" alt="Crews on the quay"/><figcaption class="wp-element-caption">Crews on the quay</figcaption></figure><!-- /wp:image -->' );
 
 		$this->assertSame( 'Our full report is now up.', Entry_Bindings::public_summary( get_post( $text_id ) ) );
 		$this->assertSame( '', Entry_Bindings::public_summary( get_post( $photo_id ) ) );

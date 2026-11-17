@@ -160,7 +160,7 @@ class Test_Slack_Config extends Rolling_Coverage_TestCase {
 	 */
 	public function test_uploaded_avatar_replaces_the_bundled_one() {
 		$bot_user_id = Slack_Config::get_or_create_bot_user_id();
-		$uploaded    = 'https://example.com/uploaded-avatar.png';
+		$uploaded    = 'https://yourgroovydomain.com/uploaded-avatar.png';
 		self::local_avatars()->uploaded[ $bot_user_id ] = $uploaded;
 		self::supply_avatar_url( $uploaded );
 
@@ -174,7 +174,7 @@ class Test_Slack_Config extends Rolling_Coverage_TestCase {
 	public function test_fallback_avatar_does_not_replace_the_bundled_one() {
 		$bot_user_id = Slack_Config::get_or_create_bot_user_id();
 		self::local_avatars();
-		self::supply_avatar_url( 'https://example.com/default-avatar.png' );
+		self::supply_avatar_url( 'https://yourgroovydomain.com/default-avatar.png' );
 
 		$this->assertSame( NEWSPACK_ROLLING_COVERAGE_URL . Slack_Config::BOT_AVATAR_PATH, get_avatar_url( $bot_user_id ) );
 	}
