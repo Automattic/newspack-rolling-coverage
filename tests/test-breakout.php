@@ -253,7 +253,7 @@ class Test_Breakout extends Rolling_Coverage_TestCase {
 	 * trashes their published breakout leaves the entry's embed in place.
 	 */
 	public function test_touching_the_entry_keeps_its_stored_content() {
-		$content  = '<!-- wp:html --><iframe src="https://example.com/embed"></iframe><!-- /wp:html -->';
+		$content  = '<!-- wp:html --><iframe src="https://yourgroovydomain.com/embed"></iframe><!-- /wp:html -->';
 		$entry_id = self::create_entry( self::create_coverage() );
 		$GLOBALS['wpdb']->update( $GLOBALS['wpdb']->posts, [ 'post_content' => $content ], [ 'ID' => $entry_id ] ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 		clean_post_cache( $entry_id );

@@ -80,7 +80,7 @@ function getCoverageFormFields( labels: StatusLabels ) {
 			type: 'text' as const,
 			label: __( 'Canonical URL', 'newspack-rolling-coverage' ),
 			placeholder: __(
-				'https://example.com/live-coverage',
+				'https://yourgroovydomain.com/live-coverage',
 				'newspack-rolling-coverage'
 			),
 			description: __(

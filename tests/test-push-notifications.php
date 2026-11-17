@@ -346,7 +346,7 @@ class Test_Push_Notifications extends Rolling_Coverage_TestCase {
 				'post_status'  => 'draft',
 				'post_title'   => 'Crowds at the finish line',
 				'post_excerpt' => '',
-				'post_content' => '<!-- wp:image --><figure class="wp-block-image"><img src="https://example.com/a.jpg" alt=""/></figure><!-- /wp:image -->',
+				'post_content' => '<!-- wp:image --><figure class="wp-block-image"><img src="https://yourgroovydomain.com/a.jpg" alt=""/></figure><!-- /wp:image -->',
 			]
 		);
 		update_post_meta( $entry_id, Push_Notifications::NOTIFY_META_KEY, true );

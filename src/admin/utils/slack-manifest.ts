@@ -9,7 +9,7 @@
  * the structure accepted by Slack's app manifest editor.
  *
  * @param {string} restUrl - The base REST URL for the Slack route namespace,
- *                         e.g. `https://example.com/wp-json/newspack-rolling-coverage/v1/`.
+ *                         e.g. `https://yourgroovydomain.com/wp-json/newspack-rolling-coverage/v1/`.
  * @return {string} Pretty-printed Slack app manifest JSON.
  */
 function buildSlackManifest( restUrl: string ): string {

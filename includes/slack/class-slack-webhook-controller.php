@@ -1412,7 +1412,7 @@ class Slack_Webhook_Controller {
 				'label'    => [
 					'type' => 'plain_text',
 					'text' => sprintf(
-						/* translators: %s: the site's name and address, such as "Example News (example.com)". */
+						/* translators: %s: the site's name and address, such as "Example News (yourgroovydomain.com)". */
 						__( 'Select a liveblog on %s', 'newspack-rolling-coverage' ),
 						self::site_label()
 					),
@@ -1727,7 +1727,7 @@ class Slack_Webhook_Controller {
 
 	/**
 	 * Blocks for a Slack message that names the site it came from: the text,
-	 * then a line such as "From Example News (example.com)". Another site's
+	 * then a line such as "From Example News (yourgroovydomain.com)". Another site's
 	 * app installed later in the workspace takes over commands that share its
 	 * names (see handle_command()), and every site's bot has the same name,
 	 * so command replies and the bot's messages in a channel would otherwise
@@ -1751,7 +1751,7 @@ class Slack_Webhook_Controller {
 					[
 						'type' => 'plain_text',
 						'text' => sprintf(
-							/* translators: %s: the site's name and address, such as "Example News (example.com)". */
+							/* translators: %s: the site's name and address, such as "Example News (yourgroovydomain.com)". */
 							__( 'From %s', 'newspack-rolling-coverage' ),
 							self::site_label()
 						),
@@ -1762,7 +1762,7 @@ class Slack_Webhook_Controller {
 	}
 
 	/**
-	 * The site's name and address, such as "Example News (example.com)", for
+	 * The site's name and address, such as "Example News (yourgroovydomain.com)", for
 	 * Slack messages that say which site answered. The address tells apart
 	 * two sites with the same name, such as a site and its staging copy.
 	 *
@@ -1776,7 +1776,7 @@ class Slack_Webhook_Controller {
 			return $address;
 		}
 
-		/* translators: 1: site name, 2: site address, such as example.com. */
+		/* translators: 1: site name, 2: site address, such as yourgroovydomain.com. */
 		return sprintf( __( '%1$s (%2$s)', 'newspack-rolling-coverage' ), $name, $address );
 	}
 

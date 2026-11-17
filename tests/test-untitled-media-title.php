@@ -20,7 +20,7 @@ class Test_Untitled_Media_Title extends Rolling_Coverage_TestCase {
 
 	const EXCERPT_MARKUP = '<!-- wp:post-excerpt {"excerptLength":15,"moreText":""} /-->';
 
-	const CAPTIONED_IMAGE = '<!-- wp:image --><figure class="wp-block-image"><img src="https://example.com/finish.jpg" alt="Runners at the line"/><figcaption class="wp-element-caption">Crowds <em>at</em> the finish &amp; line</figcaption></figure><!-- /wp:image -->';
+	const CAPTIONED_IMAGE = '<!-- wp:image --><figure class="wp-block-image"><img src="https://yourgroovydomain.com/finish.jpg" alt="Runners at the line"/><figcaption class="wp-element-caption">Crowds <em>at</em> the finish &amp; line</figcaption></figure><!-- /wp:image -->';
 
 	/**
 	 * Create an untitled entry with the given content and no excerpt.
@@ -82,25 +82,25 @@ class Test_Untitled_Media_Title extends Rolling_Coverage_TestCase {
 	 * @return array[]
 	 */
 	public function data_media_labels(): array {
-		$embed = static fn( string $provider, string $type ) => '<!-- wp:embed {"url":"https://example.com/media","type":"' . $type . '","providerNameSlug":"' . $provider . '"} --><figure class="wp-block-embed is-type-' . $type . ' is-provider-' . $provider . '"><div class="wp-block-embed__wrapper">
-https://example.com/media
+		$embed = static fn( string $provider, string $type ) => '<!-- wp:embed {"url":"https://yourgroovydomain.com/media","type":"' . $type . '","providerNameSlug":"' . $provider . '"} --><figure class="wp-block-embed is-type-' . $type . ' is-provider-' . $provider . '"><div class="wp-block-embed__wrapper">
+https://yourgroovydomain.com/media
 </div></figure><!-- /wp:embed -->';
 
 		return [
-			'image'             => [ '<!-- wp:image --><figure class="wp-block-image"><img src="https://example.com/a.jpg" alt=""/></figure><!-- /wp:image -->', 'Photo' ],
-			'gallery'           => [ '<!-- wp:gallery {"linkTo":"none"} --><figure class="wp-block-gallery has-nested-images"><!-- wp:image --><figure class="wp-block-image"><img src="https://example.com/a.jpg" alt=""/></figure><!-- /wp:image --></figure><!-- /wp:gallery -->', 'Gallery' ],
-			'video'             => [ '<!-- wp:video --><figure class="wp-block-video"><video controls src="https://example.com/a.mp4"></video></figure><!-- /wp:video -->', 'Video' ],
-			'audio'             => [ '<!-- wp:audio --><figure class="wp-block-audio"><audio controls src="https://example.com/a.mp3"></audio></figure><!-- /wp:audio -->', 'Audio' ],
+			'image'             => [ '<!-- wp:image --><figure class="wp-block-image"><img src="https://yourgroovydomain.com/a.jpg" alt=""/></figure><!-- /wp:image -->', 'Photo' ],
+			'gallery'           => [ '<!-- wp:gallery {"linkTo":"none"} --><figure class="wp-block-gallery has-nested-images"><!-- wp:image --><figure class="wp-block-image"><img src="https://yourgroovydomain.com/a.jpg" alt=""/></figure><!-- /wp:image --></figure><!-- /wp:gallery -->', 'Gallery' ],
+			'video'             => [ '<!-- wp:video --><figure class="wp-block-video"><video controls src="https://yourgroovydomain.com/a.mp4"></video></figure><!-- /wp:video -->', 'Video' ],
+			'audio'             => [ '<!-- wp:audio --><figure class="wp-block-audio"><audio controls src="https://yourgroovydomain.com/a.mp3"></audio></figure><!-- /wp:audio -->', 'Audio' ],
 			'video embed'       => [ $embed( 'youtube', 'video' ), 'Video' ],
 			'other video embed' => [ $embed( 'example', 'video' ), 'Video' ],
 			'audio embed'       => [ $embed( 'spotify', 'rich' ), 'Audio' ],
-			'other embed'       => [ $embed( 'twitter', 'rich' ), 'Embed from example.com' ],
+			'other embed'       => [ $embed( 'twitter', 'rich' ), 'Embed from yourgroovydomain.com' ],
 			'photo embed'       => [ $embed( 'flickr', 'photo' ), 'Photo' ],
-			'spaces only'       => [ '<!-- wp:paragraph --><p>&nbsp; &nbsp; &nbsp;</p><!-- /wp:paragraph --><!-- wp:image --><figure class="wp-block-image"><img src="https://example.com/a.jpg" alt=""/></figure><!-- /wp:image -->', 'Photo' ],
-			'image cover'       => [ '<!-- wp:cover {"url":"https://example.com/a.jpg","dimRatio":50} --><div class="wp-block-cover"><img class="wp-block-cover__image-background" alt="" src="https://example.com/a.jpg"/><span class="wp-block-cover__background has-background-dim"></span><div class="wp-block-cover__inner-container"><!-- wp:paragraph --><p></p><!-- /wp:paragraph --></div></div><!-- /wp:cover -->', 'Photo' ],
-			'video cover'       => [ '<!-- wp:cover {"url":"https://example.com/a.mp4","backgroundType":"video"} --><div class="wp-block-cover"><video class="wp-block-cover__video-background" src="https://example.com/a.mp4"></video><div class="wp-block-cover__inner-container"></div></div><!-- /wp:cover -->', 'Video' ],
-			'nested image'      => [ '<!-- wp:group --><div class="wp-block-group"><!-- wp:paragraph --><p>&nbsp;</p><!-- /wp:paragraph --><!-- wp:image --><figure class="wp-block-image"><img src="https://example.com/a.jpg" alt=""/></figure><!-- /wp:image --></div><!-- /wp:group -->', 'Photo' ],
-			'first media wins'  => [ '<!-- wp:video --><figure class="wp-block-video"><video controls src="https://example.com/a.mp4"></video></figure><!-- /wp:video -->' . self::CAPTIONED_IMAGE, 'Video' ],
+			'spaces only'       => [ '<!-- wp:paragraph --><p>&nbsp; &nbsp; &nbsp;</p><!-- /wp:paragraph --><!-- wp:image --><figure class="wp-block-image"><img src="https://yourgroovydomain.com/a.jpg" alt=""/></figure><!-- /wp:image -->', 'Photo' ],
+			'image cover'       => [ '<!-- wp:cover {"url":"https://yourgroovydomain.com/a.jpg","dimRatio":50} --><div class="wp-block-cover"><img class="wp-block-cover__image-background" alt="" src="https://yourgroovydomain.com/a.jpg"/><span class="wp-block-cover__background has-background-dim"></span><div class="wp-block-cover__inner-container"><!-- wp:paragraph --><p></p><!-- /wp:paragraph --></div></div><!-- /wp:cover -->', 'Photo' ],
+			'video cover'       => [ '<!-- wp:cover {"url":"https://yourgroovydomain.com/a.mp4","backgroundType":"video"} --><div class="wp-block-cover"><video class="wp-block-cover__video-background" src="https://yourgroovydomain.com/a.mp4"></video><div class="wp-block-cover__inner-container"></div></div><!-- /wp:cover -->', 'Video' ],
+			'nested image'      => [ '<!-- wp:group --><div class="wp-block-group"><!-- wp:paragraph --><p>&nbsp;</p><!-- /wp:paragraph --><!-- wp:image --><figure class="wp-block-image"><img src="https://yourgroovydomain.com/a.jpg" alt=""/></figure><!-- /wp:image --></div><!-- /wp:group -->', 'Photo' ],
+			'first media wins'  => [ '<!-- wp:video --><figure class="wp-block-video"><video controls src="https://yourgroovydomain.com/a.mp4"></video></figure><!-- /wp:video -->' . self::CAPTIONED_IMAGE, 'Video' ],
 		];
 	}
 
@@ -112,11 +112,11 @@ https://example.com/media
 		$this->assertSame( 'Photo: Crowds at the finish & line', self::fallback_title( self::CAPTIONED_IMAGE ) );
 		$this->assertSame(
 			'Audio: one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen…',
-			self::fallback_title( '<!-- wp:audio --><figure class="wp-block-audio"><audio controls src="https://example.com/a.mp3"></audio><figcaption class="wp-element-caption">one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen</figcaption></figure><!-- /wp:audio -->' )
+			self::fallback_title( '<!-- wp:audio --><figure class="wp-block-audio"><audio controls src="https://yourgroovydomain.com/a.mp3"></audio><figcaption class="wp-element-caption">one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen</figcaption></figure><!-- /wp:audio -->' )
 		);
 		$this->assertSame(
 			'Gallery: The parade route',
-			self::fallback_title( '<!-- wp:gallery {"linkTo":"none"} --><figure class="wp-block-gallery has-nested-images"><!-- wp:image --><figure class="wp-block-image"><img src="https://example.com/a.jpg" alt=""/></figure><!-- /wp:image --><figcaption class="blocks-gallery-caption wp-element-caption">The parade route</figcaption></figure><!-- /wp:gallery -->' )
+			self::fallback_title( '<!-- wp:gallery {"linkTo":"none"} --><figure class="wp-block-gallery has-nested-images"><!-- wp:image --><figure class="wp-block-image"><img src="https://yourgroovydomain.com/a.jpg" alt=""/></figure><!-- /wp:image --><figcaption class="blocks-gallery-caption wp-element-caption">The parade route</figcaption></figure><!-- /wp:gallery -->' )
 		);
 	}
 
@@ -126,7 +126,7 @@ https://example.com/media
 	 * its descriptions on its images.
 	 */
 	public function test_gallery_without_a_caption_takes_its_first_described_image() {
-		$image = static fn( string $alt, string $caption = '' ) => '<!-- wp:image --><figure class="wp-block-image"><img src="https://example.com/a.jpg" alt="' . $alt . '"/>' . ( $caption ? '<figcaption class="wp-element-caption">' . $caption . '</figcaption>' : '' ) . '</figure><!-- /wp:image -->';
+		$image = static fn( string $alt, string $caption = '' ) => '<!-- wp:image --><figure class="wp-block-image"><img src="https://yourgroovydomain.com/a.jpg" alt="' . $alt . '"/>' . ( $caption ? '<figcaption class="wp-element-caption">' . $caption . '</figcaption>' : '' ) . '</figure><!-- /wp:image -->';
 		$gallery = static fn( string $images ) => '<!-- wp:gallery {"linkTo":"none"} --><figure class="wp-block-gallery has-nested-images">' . $images . '</figure><!-- /wp:gallery -->';
 
 		$this->assertSame( 'Gallery: Crowds at the finish line', self::fallback_title( $gallery( $image( '' ) . $image( 'Crowds at the finish line' ) . $image( 'The podium' ) ) ) );
@@ -138,9 +138,9 @@ https://example.com/media
 	 * alt text of a cover's image or the text over the cover.
 	 */
 	public function test_alt_text_follows_the_label_without_a_caption() {
-		$this->assertSame( 'Photo: Runners & <b> crowd', self::fallback_title( '<!-- wp:image --><figure class="wp-block-image"><img src="https://example.com/a.jpg" alt="Runners &amp; &lt;b&gt; crowd"/></figure><!-- /wp:image -->' ) );
-		$this->assertSame( 'Photo: The square at dawn', self::fallback_title( '<!-- wp:cover {"url":"https://example.com/a.jpg","alt":"The square at dawn"} --><div class="wp-block-cover"><img class="wp-block-cover__image-background" alt="The square at dawn" src="https://example.com/a.jpg"/><div class="wp-block-cover__inner-container"></div></div><!-- /wp:cover -->' ) );
-		$this->assertSame( 'Photo: Over the line', self::fallback_title( '<!-- wp:cover {"url":"https://example.com/a.jpg","alt":"The square at dawn"} --><div class="wp-block-cover"><img class="wp-block-cover__image-background" alt="The square at dawn" src="https://example.com/a.jpg"/><div class="wp-block-cover__inner-container"><!-- wp:paragraph --><p>Over the line</p><!-- /wp:paragraph --></div></div><!-- /wp:cover -->' ) );
+		$this->assertSame( 'Photo: Runners & <b> crowd', self::fallback_title( '<!-- wp:image --><figure class="wp-block-image"><img src="https://yourgroovydomain.com/a.jpg" alt="Runners &amp; &lt;b&gt; crowd"/></figure><!-- /wp:image -->' ) );
+		$this->assertSame( 'Photo: The square at dawn', self::fallback_title( '<!-- wp:cover {"url":"https://yourgroovydomain.com/a.jpg","alt":"The square at dawn"} --><div class="wp-block-cover"><img class="wp-block-cover__image-background" alt="The square at dawn" src="https://yourgroovydomain.com/a.jpg"/><div class="wp-block-cover__inner-container"></div></div><!-- /wp:cover -->' ) );
+		$this->assertSame( 'Photo: Over the line', self::fallback_title( '<!-- wp:cover {"url":"https://yourgroovydomain.com/a.jpg","alt":"The square at dawn"} --><div class="wp-block-cover"><img class="wp-block-cover__image-background" alt="The square at dawn" src="https://yourgroovydomain.com/a.jpg"/><div class="wp-block-cover__inner-container"><!-- wp:paragraph --><p>Over the line</p><!-- /wp:paragraph --></div></div><!-- /wp:cover -->' ) );
 	}
 
 	/**
@@ -199,7 +199,7 @@ https://www.youtube.com/watch?v=1
 	 * Literal entity text in a caption or alt text survives as typed.
 	 */
 	public function test_literal_entities_survive() {
-		$entry_id = self::create_untitled_entry( '<!-- wp:image --><figure class="wp-block-image"><img src="https://example.com/a.jpg" alt="R&amp;amp;D lab"/></figure><!-- /wp:image -->' );
+		$entry_id = self::create_untitled_entry( '<!-- wp:image --><figure class="wp-block-image"><img src="https://yourgroovydomain.com/a.jpg" alt="R&amp;amp;D lab"/></figure><!-- /wp:image -->' );
 
 		$this->assertSame( 'Photo: R&amp;D lab', Entry_Bindings::get_fallback_title( get_post( $entry_id ) ) );
 		$this->assertSame( 'Photo: R&amp;amp;D lab', get_the_excerpt( $entry_id ), 'The excerpt is HTML, so the typed entity stays encoded.' );

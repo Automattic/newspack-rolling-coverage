@@ -447,8 +447,8 @@ class Test_Entries_REST extends Rolling_Coverage_TestCase {
 	 */
 	public function test_entry_raw_excerpt_matches_the_front_end() {
 		self::log_in_as( 'editor' );
-		$content  = '<!-- wp:image --><figure class="wp-block-image"><img src="https://example.com/a.jpg" alt=""/></figure><!-- /wp:image -->';
-		$content .= '<!-- wp:embed {"url":"https://example.com/video"} --><figure class="wp-block-embed"><div class="wp-block-embed__wrapper">https://example.com/video</div></figure><!-- /wp:embed -->';
+		$content  = '<!-- wp:image --><figure class="wp-block-image"><img src="https://yourgroovydomain.com/a.jpg" alt=""/></figure><!-- /wp:image -->';
+		$content .= '<!-- wp:embed {"url":"https://yourgroovydomain.com/video"} --><figure class="wp-block-embed"><div class="wp-block-embed__wrapper">https://yourgroovydomain.com/video</div></figure><!-- /wp:embed -->';
 		$content .= '<!-- wp:paragraph --><p>Q&amp;A</p><!-- /wp:paragraph --><!-- wp:paragraph --><p>second</p><!-- /wp:paragraph -->';
 		$entry_id = self::create_entry(
 			self::create_coverage(),

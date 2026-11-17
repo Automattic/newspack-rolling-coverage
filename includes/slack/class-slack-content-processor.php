@@ -170,10 +170,10 @@ class Slack_Content_Processor {
 		// Channel mentions: <#C123> → #C123.
 		$text = preg_replace( '/<#([A-Z0-9]+)>/', '#$1', $text );
 
-		// Links with label: <https://example.com|label> → label.
+		// Links with label: <https://yourgroovydomain.com|label> → label.
 		$text = preg_replace( '/<(https?:\/\/[^|>]+)\|([^>]+)>/', '$2', $text );
 
-		// Bare links: <https://example.com> → https://example.com.
+		// Bare links: <https://yourgroovydomain.com> → https://yourgroovydomain.com.
 		$text = preg_replace( '/<(https?:\/\/[^>]+)>/', '$1', $text );
 
 		// Mailto links: <mailto:addr|display> → addr.

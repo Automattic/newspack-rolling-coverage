@@ -87,7 +87,7 @@ Enter the **Channel**, as a name such as #general or a channel ID. Choose a **Pu
 
 You can also run `/rolling-coverage-connect` in the Slack channel and pick the liveblog. Channels connected that way start in **Draft** mode.
 
-A channel connects to one liveblog, and a liveblog to one channel. `/rolling-coverage-status` shows a channel's connection, and `/rolling-coverage-unlink` removes it. Each reply names the site that answered, such as "From Example News (example.com)".
+A channel connects to one liveblog, and a liveblog to one channel. `/rolling-coverage-status` shows a channel's connection, and `/rolling-coverage-unlink` removes it. Each reply names the site that answered, such as "From Example News (yourgroovydomain.com)".
 
 To see every linked channel, open the **Channel Mappings** tab on the Slack Connection page. To unlink one, select **Disconnect**.
 
@@ -97,7 +97,7 @@ Each site sets up its own Slack app, and every app comes with the same three com
 
 Messages and reactions aren't affected. They reach every site whose bot is in the channel.
 
-The bot's own messages in a channel also name its site, such as "From Example News (example.com)". When you invite the bot with `/invite @Rolling Coverage`, its greeting shows which site's bot joined. If it names another site, invite the other Rolling Coverage bot.
+The bot's own messages in a channel also name its site, such as "From Example News (yourgroovydomain.com)". When you invite the bot with `/invite @Rolling Coverage`, its greeting shows which site's bot joined. If it names another site, invite the other Rolling Coverage bot.
 
 To use the commands with each site, give each site's app its own command names. For a new app, paste the manifest in Slack, then change the three command names there before you create the app, keeping the end of each name as in the steps below. For an app that already exists:
 
