@@ -389,7 +389,8 @@ class Test_Summary extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Polls render the summary card once, and again only after an edit.
+	 * Polls render the summary card once, and again after an edit or once its
+	 * "Updated" line reads differently.
 	 */
 	public function test_polls_reuse_the_rendered_card_until_the_summary_changes() {
 		$coverage_id = self::create_coverage();
@@ -414,9 +415,14 @@ class Test_Summary extends Rolling_Coverage_TestCase {
 
 		self::set_entry_modified( $summary_id, '2026-01-05 15:42:00' );
 		self::dispatch( 'GET', "/coverages/{$coverage_id}/entries", $params );
+		$this->assertSame( 2, $renders, 'An edit renders the card again.' );
+
+		update_option( 'time_format', 'H:i' === get_option( 'time_format' ) ? 'g:i a' : 'H:i' );
+		$third = self::dispatch( 'GET', "/coverages/{$coverage_id}/entries", $params )->get_data()['summary'];
 		remove_filter( 'render_block_core/post-content', $count );
 
-		$this->assertSame( 2, $renders, 'An edit renders the card again.' );
+		$this->assertSame( 3, $renders, 'A new time format renders the card again, since its Updated line reads differently.' );
+		$this->assertStringContainsString( 'data-rc-updated="' . esc_attr( $third['updated'] ) . '"', $third['html'] );
 	}
 
 	/**
