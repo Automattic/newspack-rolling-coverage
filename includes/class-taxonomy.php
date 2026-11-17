@@ -126,6 +126,7 @@ class Taxonomy {
 				'rewrite'               => false,
 				'query_var'             => true,
 				'meta_box_cb'           => false,
+				'update_count_callback' => [ Summary::class, 'update_term_count' ],
 			]
 		);
 

@@ -287,6 +287,10 @@ class Archive_Mode {
 			);
 		}
 
+		if ( $archived && Summary::is_summary( $entry_id ) ) {
+			return Summary::unsupported_error();
+		}
+
 		$coverage_ids = wp_get_post_terms( $entry_id, Taxonomy::TAXONOMY_SLUG, [ 'fields' => 'ids' ] );
 
 		if ( ! is_wp_error( $coverage_ids ) ) {

@@ -208,6 +208,11 @@ class Push_Notifications {
 			return;
 		}
 
+		// The Summary isn't an update, so it never notifies followers.
+		if ( Summary::is_summary( $post->ID ) ) {
+			return;
+		}
+
 		// OneSignal sets this meta after a successful send.
 		if ( ! empty( get_post_meta( $post->ID, 'os_notification_id', true ) ) ) {
 			return;

@@ -434,6 +434,9 @@ class Post_Type {
 	 * @return array Filtered query arguments.
 	 */
 	public static function filter_rest_query( array $args, \WP_REST_Request $request ): array {
+		// The core route lists the Summary with the entries, flagged by its isSummary field.
+		$args[ Summary::QUERY_VAR ] = 'include';
+
 		if ( 'edit' === $request->get_param( 'context' ) ) {
 			// Core drops uneditable entries from the body but counts them in
 			// X-WP-Total, so core-data fails unless the query is scoped too.
@@ -784,6 +787,10 @@ class Post_Type {
 						'required'          => true,
 						'validate_callback' => [ __CLASS__, 'validate_numeric_id' ],
 					],
+					'summary'     => [
+						'type'    => 'boolean',
+						'default' => false,
+					],
 				],
 			]
 		);
@@ -965,12 +972,26 @@ class Post_Type {
 	 * scheduled here as `post-new.php` schedules it, deletes it after a week
 	 * if it is never saved.
 	 *
+	 * With `summary`, it starts the coverage's Summary instead (see
+	 * Summary::start()), which takes Editors and above, as pinning does. A
+	 * coverage holds one Summary outside the trash, so this answers 409 while
+	 * it has one, and hands back an unsaved Summary left behind.
+	 *
 	 * @param WP_REST_Request $request Request object.
 	 * @return WP_REST_Response|WP_Error The new entry's ID, or why none was made.
 	 */
 	public static function handle_create_entry( WP_REST_Request $request ): WP_REST_Response|WP_Error {
 		$coverage_id = (int) $request->get_param( 'coverage_id' );
-		$coverage    = Taxonomy::get_coverage_term( $coverage_id );
+		$is_summary  = (bool) $request->get_param( 'summary' );
+
+		if ( $is_summary && ! current_user_can( self::EDIT_ENTRIES_CAP ) ) {
+			return new WP_Error(
+				'rest_forbidden',
+				__( 'Sorry, you are not allowed to add a summary to this liveblog.', 'newspack-rolling-coverage' ),
+				[ 'status' => rest_authorization_required_code() ]
+			);
+		}
+		$coverage = Taxonomy::get_coverage_term( $coverage_id );
 
 		if ( is_wp_error( $coverage ) ) {
 			return $coverage;
@@ -986,6 +1007,20 @@ class Post_Type {
 				__( 'This liveblog is in the trash. Restore it before adding entries.', 'newspack-rolling-coverage' ),
 				[ 'status' => 403 ]
 			);
+		}
+
+		if ( $is_summary ) {
+			$summary_id = Summary::start( $coverage_id );
+
+			if ( is_wp_error( $summary_id ) ) {
+				return $summary_id;
+			}
+
+			if ( ! wp_next_scheduled( 'wp_scheduled_auto_draft_delete' ) ) {
+				wp_schedule_event( time(), 'daily', 'wp_scheduled_auto_draft_delete' );
+			}
+
+			return new WP_REST_Response( [ 'id' => $summary_id ], 201 );
 		}
 
 		// The auto-draft starts with nothing in it, which wp_insert_post() refuses by default.
@@ -1283,7 +1318,8 @@ class Post_Type {
 	 * recently edited first: a pinned entry is often a summary kept up to
 	 * date, and pinning counts as an edit (see handle_toggle_pin()). Pinned
 	 * entries edited in the same second, and unpinned entries, keep the
-	 * query's own order.
+	 * query's own order. A query that sets Summary::FIRST_QUERY_VAR, the
+	 * entries list's, puts the Summary ahead of them all.
 	 *
 	 * Registered globally on posts_orderby. Guarded by a post_type check
 	 * so non-CPT queries pass through untouched. Queries that need to
@@ -1299,22 +1335,25 @@ class Post_Type {
 			return $orderby;
 		}
 
-		if ( $query->get( self::SKIP_PIN_ORDER_VAR ) ) {
-			return $orderby;
+		$first      = [];
+		$pinned_ids = $query->get( self::SKIP_PIN_ORDER_VAR ) ? [] : self::get_pinned_ids();
+
+		if ( $query->get( Summary::FIRST_QUERY_VAR ) ) {
+			$first[] = Summary::first_order();
 		}
 
-		$pinned_ids = self::get_pinned_ids();
+		if ( $pinned_ids ) {
+			global $wpdb;
+			$ids_list = implode( ',', array_map( 'intval', $pinned_ids ) );
 
-		if ( empty( $pinned_ids ) ) {
-			return $orderby;
+			$first[] = "CASE WHEN {$wpdb->posts}.ID IN ({$ids_list}) THEN 0 ELSE 1 END, CASE WHEN {$wpdb->posts}.ID IN ({$ids_list}) THEN {$wpdb->posts}.post_modified_gmt END DESC";
 		}
 
-		global $wpdb;
-		$ids_list = implode( ',', $pinned_ids );
+		if ( '' !== $orderby ) {
+			$first[] = $orderby;
+		}
 
-		$pinned_order = "CASE WHEN {$wpdb->posts}.ID IN ({$ids_list}) THEN 0 ELSE 1 END, CASE WHEN {$wpdb->posts}.ID IN ({$ids_list}) THEN {$wpdb->posts}.post_modified_gmt END DESC";
-
-		return '' === $orderby ? $pinned_order : $pinned_order . ', ' . $orderby;
+		return implode( ', ', $first );
 	}
 
 	/**
@@ -1434,6 +1473,10 @@ class Post_Type {
 				__( 'Entry not found.', 'newspack-rolling-coverage' ),
 				[ 'status' => 404 ]
 			);
+		}
+
+		if ( Summary::is_summary( $entry_id ) ) {
+			return Summary::unsupported_error();
 		}
 
 		$is_pinned = self::is_pinned( $entry_id );
@@ -1580,6 +1623,7 @@ class Post_Type {
 					'totalPages' => 1,
 					'page'       => $params['page'],
 					'cursor'     => self::coverage_sync_cursor( $term_id ),
+					'summaryId'  => self::summary_id( $term_id ),
 				]
 			);
 		}
@@ -1587,6 +1631,8 @@ class Post_Type {
 		$query_args = [
 			'post_type'              => self::CPT_SLUG,
 			'post_status'            => $params['statuses'],
+			Summary::QUERY_VAR       => 'include',
+			Summary::FIRST_QUERY_VAR => true,
 			self::AUTHOR_SCOPE_VAR   => self::entry_visibility_scope(),
 			'tax_query'              => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
 				[
@@ -1846,8 +1892,23 @@ class Post_Type {
 				'totalPages' => $total_pages,
 				'page'       => $params['page'],
 				'cursor'     => $cursor,
+				'summaryId'  => self::summary_id( $term_id ),
 			]
 		);
+	}
+
+	/**
+	 * The coverage's Summary that the entries list shows, so it can offer Add
+	 * Summary only while there is none: one outside the trash that has been
+	 * saved at least once.
+	 *
+	 * @param int $term_id Coverage term ID.
+	 * @return int The Summary's ID, 0 for none.
+	 */
+	private static function summary_id( int $term_id ): int {
+		$summary = Summary::get_summary( $term_id, [ 'publish', 'future', 'draft', 'pending', 'private' ] );
+
+		return $summary ? $summary->ID : 0;
 	}
 
 	/**
@@ -1870,6 +1931,7 @@ class Post_Type {
 			[
 				'post_type'              => self::CPT_SLUG,
 				'post_status'            => self::ALLOWED_STATUSES,
+				Summary::QUERY_VAR       => 'include',
 				self::AUTHOR_SCOPE_VAR   => self::entry_visibility_scope(),
 				'tax_query'              => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
 					[
@@ -1959,6 +2021,7 @@ class Post_Type {
 			[
 				'post_type'              => self::CPT_SLUG,
 				'post_status'            => self::ALLOWED_STATUSES,
+				Summary::QUERY_VAR       => 'include',
 				self::AUTHOR_SCOPE_VAR   => self::entry_visibility_scope(),
 				'tax_query'              => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
 					[
@@ -2121,6 +2184,7 @@ class Post_Type {
 			'modified'         => mysql2date( 'c', $post->post_modified, false ),
 			'status'           => $post->post_status,
 			'pinned'           => self::is_pinned( $post->ID ),
+			'is_summary'       => Summary::is_summary( $post->ID ),
 			'archived_at'      => Archive_Mode::get_entry_archived_at( $post->ID ),
 			'coverage_status'  => self::get_coverage_status_rest_field( [ 'id' => $post->ID ] ),
 			'author'           => $author ? [
@@ -3746,6 +3810,10 @@ class Post_Type {
 			return Archive_Mode::coverage_ended_error( 'rolling_coverage_entry_locked' );
 		}
 
+		if ( Summary::is_summary( $entry_id ) && Summary::collides( $entry_id ) ) {
+			return Summary::exists_error();
+		}
+
 		$coverage_id      = 0;
 		$coverage_created = false;
 
@@ -3912,18 +3980,19 @@ class Post_Type {
 
 		$query = new WP_Query(
 			[
-				'post_type'      => self::CPT_SLUG,
-				'post_status'    => 'any', // excludes trash by default.
-				'posts_per_page' => self::CLEANUP_BATCH_SIZE,
-				'fields'         => 'ids',
-				'no_found_rows'  => false,
-				'meta_query'     => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+				'post_type'        => self::CPT_SLUG,
+				'post_status'      => 'any', // excludes trash by default.
+				Summary::QUERY_VAR => 'include',
+				'posts_per_page'   => self::CLEANUP_BATCH_SIZE,
+				'fields'           => 'ids',
+				'no_found_rows'    => false,
+				'meta_query'       => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
 					[
 						'key'     => self::META_ORIGINAL_COVERAGE_ID,
 						'compare' => 'EXISTS',
 					],
 				],
-				'tax_query'      => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
+				'tax_query'        => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
 					[
 						'taxonomy' => Taxonomy::TAXONOMY_SLUG,
 						'field'    => 'term_id',
