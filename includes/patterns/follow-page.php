@@ -17,9 +17,7 @@ defined( 'ABSPATH' ) || exit;
 
 <!-- wp:columns {"style":{"spacing":{"margin":{"top":"var:preset|spacing|60"}}}} -->
 <div class="wp-block-columns" style="margin-top:var(--wp--preset--spacing--60)"><!-- wp:column -->
-<div class="wp-block-column"><!-- wp:heading {"level":3,"fontSize":"medium"} -->
-<h3 class="wp-block-heading has-medium-font-size"><?php esc_html_e( 'An alert when it matters', 'newspack-rolling-coverage' ); ?></h3>
-<!-- /wp:heading -->
+<div class="wp-block-column"><?php echo Page_Patterns::heading( esc_html__( 'An alert when it matters', 'newspack-rolling-coverage' ), [ 'medium', 'normal' ] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Block markup from serialize_block(). ?>
 
 <!-- wp:paragraph -->
 <p><?php esc_html_e( 'We send an alert for the updates that matter, not for every entry.', 'newspack-rolling-coverage' ); ?></p>
@@ -27,9 +25,7 @@ defined( 'ABSPATH' ) || exit;
 <!-- /wp:column -->
 
 <!-- wp:column -->
-<div class="wp-block-column"><!-- wp:heading {"level":3,"fontSize":"medium"} -->
-<h3 class="wp-block-heading has-medium-font-size"><?php esc_html_e( 'No account needed', 'newspack-rolling-coverage' ); ?></h3>
-<!-- /wp:heading -->
+<div class="wp-block-column"><?php echo Page_Patterns::heading( esc_html__( 'No account needed', 'newspack-rolling-coverage' ), [ 'medium', 'normal' ] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Block markup from serialize_block(). ?>
 
 <!-- wp:paragraph -->
 <p><?php esc_html_e( 'There is nothing to sign up for. Your browser asks for permission the first time you select Follow.', 'newspack-rolling-coverage' ); ?></p>
@@ -37,9 +33,7 @@ defined( 'ABSPATH' ) || exit;
 <!-- /wp:column -->
 
 <!-- wp:column -->
-<div class="wp-block-column"><!-- wp:heading {"level":3,"fontSize":"medium"} -->
-<h3 class="wp-block-heading has-medium-font-size"><?php esc_html_e( 'Stop anytime', 'newspack-rolling-coverage' ); ?></h3>
-<!-- /wp:heading -->
+<div class="wp-block-column"><?php echo Page_Patterns::heading( esc_html__( 'Stop anytime', 'newspack-rolling-coverage' ), [ 'medium', 'normal' ] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Block markup from serialize_block(). ?>
 
 <!-- wp:paragraph -->
 <p><?php esc_html_e( 'Select Following to stop, or turn alerts off in your browser settings.', 'newspack-rolling-coverage' ); ?></p>
@@ -47,9 +41,7 @@ defined( 'ABSPATH' ) || exit;
 <!-- /wp:column --></div>
 <!-- /wp:columns -->
 
-<!-- wp:heading {"style":{"spacing":{"margin":{"top":"var:preset|spacing|60"}}},"fontSize":"x-large"} -->
-<h2 class="wp-block-heading has-x-large-font-size" style="margin-top:var(--wp--preset--spacing--60)"><?php esc_html_e( 'Latest updates', 'newspack-rolling-coverage' ); ?></h2>
-<!-- /wp:heading -->
+<?php echo Page_Patterns::heading( esc_html__( 'Latest updates', 'newspack-rolling-coverage' ), [ 'x-large', 'large' ], 2, '60' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Block markup from serialize_block(). ?>
 
 <?php
 // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Block markup from serialize_block().

@@ -49,15 +49,11 @@ echo Page_Patterns::scoreboard(
 ?>
 
 <!-- wp:details {"style":{"spacing":{"margin":{"top":"var:preset|spacing|50"}}}} -->
-<details class="wp-block-details" style="margin-top:var(--wp--preset--spacing--50)"><summary><?php esc_html_e( 'Line-ups', 'newspack-rolling-coverage' ); ?></summary><!-- wp:heading {"level":3,"fontSize":"small"} -->
-<h3 class="wp-block-heading has-small-font-size"><?php esc_html_e( 'Home team', 'newspack-rolling-coverage' ); ?></h3>
-<!-- /wp:heading -->
+<details class="wp-block-details" style="margin-top:var(--wp--preset--spacing--50)"><summary><?php esc_html_e( 'Line-ups', 'newspack-rolling-coverage' ); ?></summary><?php echo Page_Patterns::heading( esc_html__( 'Home team', 'newspack-rolling-coverage' ), [ 'small' ] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Block markup from serialize_block(). ?>
 
 <?php echo $newspack_rc_players(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Block markup with escaped text. ?>
 
-<!-- wp:heading {"level":3,"fontSize":"small"} -->
-<h3 class="wp-block-heading has-small-font-size"><?php esc_html_e( 'Away team', 'newspack-rolling-coverage' ); ?></h3>
-<!-- /wp:heading -->
+<?php echo Page_Patterns::heading( esc_html__( 'Away team', 'newspack-rolling-coverage' ), [ 'small' ] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Block markup from serialize_block(). ?>
 
 <?php echo $newspack_rc_players(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Block markup with escaped text. ?></details>
 <!-- /wp:details --></div>
