@@ -49,12 +49,8 @@ echo Page_Patterns::scoreboard(
 );
 ?>
 
-<!-- wp:group {"style":{"spacing":{"blockGap":"var:preset|spacing|20","margin":{"top":"var:preset|spacing|50"}}},"layout":{"type":"default"}} -->
-<div class="wp-block-group" style="margin-top:var(--wp--preset--spacing--50)"><!-- wp:heading {"fontSize":"medium"} -->
-<h2 class="wp-block-heading has-medium-font-size"><?php esc_html_e( 'Line-ups', 'newspack-rolling-coverage' ); ?></h2>
-<!-- /wp:heading -->
-
-<!-- wp:heading {"level":3,"fontSize":"small"} -->
+<!-- wp:details {"style":{"spacing":{"margin":{"top":"var:preset|spacing|50"}}}} -->
+<details class="wp-block-details" style="margin-top:var(--wp--preset--spacing--50)"><summary><?php esc_html_e( 'Line-ups', 'newspack-rolling-coverage' ); ?></summary><!-- wp:heading {"level":3,"fontSize":"small"} -->
 <h3 class="wp-block-heading has-small-font-size"><?php esc_html_e( 'Home team', 'newspack-rolling-coverage' ); ?></h3>
 <!-- /wp:heading -->
 
@@ -64,8 +60,8 @@ echo Page_Patterns::scoreboard(
 <h3 class="wp-block-heading has-small-font-size"><?php esc_html_e( 'Away team', 'newspack-rolling-coverage' ); ?></h3>
 <!-- /wp:heading -->
 
-<?php echo $newspack_rc_players(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Block markup with escaped text. ?></div>
-<!-- /wp:group --></div>
+<?php echo $newspack_rc_players(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Block markup with escaped text. ?></details>
+<!-- /wp:details --></div>
 <!-- /wp:column -->
 
 <!-- wp:column {"verticalAlignment":"top","width":"66.66%"} -->
