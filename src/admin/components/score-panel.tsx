@@ -31,6 +31,14 @@ import { useAdminContext } from '../hooks/useAdminContext';
 import { useConfirmDialog } from './confirm-dialog';
 import type { ContextExports, Coverage } from '../types';
 
+/**
+ * A score waiting to be sent, and the promises of the changes it carries.
+ */
+type PendingSave = {
+	score: Score | null;
+	waiters: ( ( ok: boolean ) => void )[];
+};
+
 // Score::MAX_TEXT_LENGTH and Score::MAX_SCORE.
 const MAX_TEXT_LENGTH = 40;
 const MAX_SCORE = 999;
@@ -216,7 +224,7 @@ function ScorePanel( {
 	const [ status, setStatus ] = useState( saved?.status ?? '' );
 	const [ isEditingTeams, setIsEditingTeams ] = useState( false );
 	const confirmed = useRef< Score | null >( saved );
-	const pending = useRef< { score: Score | null } | null >( null );
+	const pending = useRef< PendingSave | null >( null );
 	const isSaving = useRef( false );
 	const { requestConfirm, dialog } = useConfirmDialog();
 
@@ -235,20 +243,22 @@ function ScorePanel( {
 	}, [ savedKey ] );
 
 	/**
-	 * Saves the newest score asked for, one request at a time. Steps taken
+	 * Sends the newest score asked for, one request at a time. Steps taken
 	 * while a save is out go in the next request, which carries the whole
-	 * score, so a slow request never lands after a newer one.
+	 * score, so a slow request never lands after a newer one. Each change's
+	 * promise settles with the request that carried it: a change folded into
+	 * a later request, or one whose request failed while a later one was
+	 * waiting, settles with that later request.
 	 */
-	const flush = useCallback( async (): Promise< boolean > => {
+	const flush = useCallback( async () => {
 		if ( isSaving.current ) {
-			return true;
+			return;
 		}
 
 		isSaving.current = true;
-		let ok = true;
 
 		while ( pending.current ) {
-			const next = pending.current.score;
+			const { score: next, waiters } = pending.current;
 
 			pending.current = null;
 
@@ -259,40 +269,45 @@ function ScorePanel( {
 					data: { meta: { [ SCORE_META_KEY ]: next } },
 				} );
 				confirmed.current = next;
-				ok = true;
+				waiters.forEach( ( settle ) => settle( true ) );
 			} catch ( error ) {
-				ok = false;
+				const later = pending.current as PendingSave | null;
 
-				if ( ! pending.current ) {
-					setScore( confirmed.current );
-					setStatus( confirmed.current?.status ?? '' );
-					notifyError(
-						sprintf(
-							/* translators: %s: Why the score couldn't be saved. */
-							__(
-								'The score couldn’t be saved: %s',
-								'newspack-rolling-coverage'
-							),
-							handleApiError( error )
-						)
-					);
+				if ( later ) {
+					later.waiters.push( ...waiters );
+					continue;
 				}
+
+				setScore( confirmed.current );
+				setStatus( confirmed.current?.status ?? '' );
+				notifyError(
+					sprintf(
+						/* translators: %s: Why the score couldn't be saved. */
+						__(
+							'The score couldn’t be saved: %s',
+							'newspack-rolling-coverage'
+						),
+						handleApiError( error )
+					)
+				);
+				waiters.forEach( ( settle ) => settle( false ) );
 			}
 		}
 
 		isSaving.current = false;
 		onSaved( coverageId, confirmed.current );
-
-		return ok;
 	}, [ config.restBaseUrls.coverages, coverageId, onSaved ] );
 
 	const save = useCallback(
-		( next: Score | null ): Promise< boolean > => {
-			setScore( next );
-			pending.current = { score: next };
-
-			return flush();
-		},
+		( next: Score | null ): Promise< boolean > =>
+			new Promise( ( settle ) => {
+				setScore( next );
+				pending.current = {
+					score: next,
+					waiters: [ ...( pending.current?.waiters ?? [] ), settle ],
+				};
+				flush();
+			} ),
 		[ flush ]
 	);
 

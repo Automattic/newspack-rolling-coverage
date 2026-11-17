@@ -148,4 +148,36 @@ describe( 'useScorePanel', () => {
 		expect( screen.queryByLabelText( 'First team' ) ).toBeNull();
 		expect( mockFetch ).not.toHaveBeenCalled();
 	} );
+
+	it( 'keeps Edit Teams open until its own request has saved', async () => {
+		const setContext = jest.fn();
+		const release = holdNextFetch();
+		render( createElement( Screen, { coverage: A, setContext } ) );
+
+		fireEvent.click(
+			screen.getAllByRole( 'button', { name: 'Increment' } )[ 0 ]
+		);
+		fireEvent.click(
+			screen.getByRole( 'button', { name: 'Score actions' } )
+		);
+		fireEvent.click(
+			screen.getByRole( 'menuitem', { name: 'Edit Teams' } )
+		);
+		fireEvent.change( screen.getByLabelText( 'Second team' ), {
+			target: { value: 'Toledo Beacon FC' },
+		} );
+		await act( async () => {
+			fireEvent.click( screen.getByRole( 'button', { name: 'Save' } ) );
+		} );
+
+		expect( screen.getByLabelText( 'Second team' ) ).toBeInTheDocument();
+
+		await act( async () => release() );
+
+		expect( screen.queryByLabelText( 'Second team' ) ).toBeNull();
+		expect( sentTo()[ 1 ] ).toEqual( [
+			`${ COVERAGES }/1`,
+			[ 'Riverbend FC', 'Toledo Beacon FC' ],
+		] );
+	} );
 } );
