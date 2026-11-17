@@ -229,11 +229,11 @@ class Test_Scoreboard_Block extends Rolling_Coverage_TestCase {
 	public function test_feed_context_wins() {
 		$feed_coverage = self::create_coverage();
 		$chosen        = self::create_coverage();
-		$add_context   = static fn( $context ) => array_merge( (array) $context, [ Entry_Bindings::COVERAGE_ID_CONTEXT => $feed_coverage ] );
+		$add_context   = static fn( $context, $parsed_block ) => Scoreboard_Block::BLOCK_NAME === ( $parsed_block['blockName'] ?? '' ) ? array_merge( (array) $context, [ Entry_Bindings::COVERAGE_ID_CONTEXT => $feed_coverage ] ) : $context;
 		self::set_score( $feed_coverage, 'Feed' );
 		self::set_score( $chosen, 'Chosen' );
 
-		add_filter( 'render_block_context', $add_context );
+		add_filter( 'render_block_context', $add_context, 10, 2 );
 		$html = do_blocks( self::scoreboard( [ 'coverageId' => $chosen ] ) );
 		remove_filter( 'render_block_context', $add_context );
 
