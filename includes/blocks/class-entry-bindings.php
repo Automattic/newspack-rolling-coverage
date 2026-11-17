@@ -1546,9 +1546,8 @@ class Entry_Bindings {
 	 * Updates block, the Load More block, the Coverage Status block, the
 	 * Update Timer block, the Scoreboard block, a heading bound to the
 	 * coverage's name, the all-updates paragraph, the summary card, or a block
-	 * holding one at any depth. The pinned card, the entry group and
-	 * the Full Story Entry group always belong to each entry, whatever they
-	 * hold.
+	 * holding one at any depth. The pinned card, the entry group and the Full
+	 * Story Entry group always belong to each entry, whatever they hold.
 	 *
 	 * @param array $parsed_block Parsed block.
 	 * @return bool

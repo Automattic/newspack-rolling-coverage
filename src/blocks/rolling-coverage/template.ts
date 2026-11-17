@@ -3624,10 +3624,9 @@ function summaryCard(
  * renders once: the Follow Coverage block, the Coverage Status block, the
  * Update Timer block, the Scoreboard block, a heading bound to the
  * coverage's name, the all-updates paragraph, the summary card, or a block
- * holding one at any depth, mirroring
- * Entry_Bindings::is_coverage_item(). The Pinned group, the pinned card, the
- * entry group and the Full Story Entry group always belong to each entry,
- * whatever they hold.
+ * holding one at any depth, mirroring Entry_Bindings::is_coverage_item(). The
+ * Pinned group, the pinned card, the entry group and the Full Story Entry
+ * group always belong to each entry, whatever they hold.
  *
  * @param {Object} block      The block.
  * @param {string} block.name Block name.
