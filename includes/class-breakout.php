@@ -262,6 +262,10 @@ class Breakout {
 			);
 		}
 
+		if ( Summary::is_summary( $entry_id ) ) {
+			return Summary::unsupported_error();
+		}
+
 		if ( self::get_existing_breakout_id( $entry_id ) ) {
 			return new WP_Error(
 				'rolling_coverage_already_broken_out',

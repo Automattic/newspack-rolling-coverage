@@ -81,6 +81,43 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * A Split block saved without an alignment renders wide, and other layouts keep theirs.
+	 */
+	public function test_split_layout_renders_wide() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id );
+		$split_id = self::create_layout( self::layout_markup() );
+		$other_id = self::create_layout( self::layout_markup() );
+		update_post_meta( $split_id, Layout::SLUG_META_KEY, 'split' );
+		update_post_meta( $other_id, Layout::SLUG_META_KEY, 'stream' );
+
+		$opening_tag = static fn( string $html ): string => (string) strstr( $html, '>', true );
+
+		$this->assertStringContainsString(
+			'alignwide',
+			$opening_tag(
+				self::render_story(
+					[
+						'coverageId' => $coverage_id,
+						'layoutId'   => $split_id,
+					]
+				)
+			)
+		);
+		$this->assertStringNotContainsString(
+			'alignwide',
+			$opening_tag(
+				self::render_story(
+					[
+						'coverageId' => $coverage_id,
+						'layoutId'   => $other_id,
+					]
+				)
+			)
+		);
+	}
+
+	/**
 	 * A block without a layoutId keeps its own inner blocks.
 	 */
 	public function test_detached_block_keeps_its_own_layout() {

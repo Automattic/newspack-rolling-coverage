@@ -8,6 +8,7 @@ For the contribution process (bug reports, feature requests, pull requests, and 
 
 - [Features](#features)
   - [Editorial workflow](#editorial-workflow)
+  - [Summary](#summary)
   - [Blocks](#blocks)
   - [Slack ingestion](#slack-ingestion)
   - [Ending a coverage](#ending-a-coverage)
@@ -36,6 +37,10 @@ How each feature works is documented next to its code; this section says what ea
 ### Editorial workflow
 
 The Rolling Coverage admin menu holds All Liveblogs (the coverages list, each coverage's entries list and Quick Edit), Slack Connection, and Settings. All Rolling Coverage settings are on one page, Rolling Coverage > Settings (`rolling-coverage-settings`), with General, Slack and AI tabs; each tab shows only to users with its capability, and the menu item to anyone who can open one. The entries list picks up changes as they happen and offers row and bulk actions, among them Reassign, pinning, and restoring entries from its "Trashed" status filter. See [`src/admin/DEVELOPMENT.md`](../src/admin/DEVELOPMENT.md).
+
+### Summary
+
+Each coverage can hold one Summary: an entry flagged with `_rolling_coverage_summary` that the feed shows once, above every other entry, in the layout's summary card (a group with the class `newspack-rolling-coverage-summary-card`), and never as an entry. Every full built-in layout has the card; the capped ones don't, and a capped feed leaves it out. Polls carry the Summary, so open pages show a new, edited or removed one. The `Summary` class (`includes/class-summary.php`) holds the model and leaves the Summary out of every entry query, so it is never a new entry, never counts toward the coverage's entry count or its newest entry, never notifies followers, never takes the New label, and never reaches the structured data, key takeaways or Slack. See [Summary](../src/admin/DEVELOPMENT.md#summary) and [the summary card](../src/blocks/rolling-coverage/DEVELOPMENT.md#summary-card).
 
 ### Blocks
 
@@ -193,6 +198,7 @@ All PHP classes live under the `Newspack_Rolling_Coverage` namespace and are loa
 | `rolling_coverage_breakout_status` | Cached breakout post status | edit only (as a REST field, not as meta) |
 | `_rolling_coverage_archived_at` | Entry archived timestamp (non-empty = archived) | — |
 | `_rolling_coverage_notify_on_publish` | Push-notification opt-in flag, read and cleared by the publish transition | edit only |
+| `_rolling_coverage_summary` | Set on the coverage's Summary (protected). Only `POST /coverages/{coverage_id}/entries` with `summary` sets it. | — (the `isSummary` REST field reports it) |
 
 Sensitive Slack/source meta (`RESTRICTED_META` in `Post_Type`) is stripped from REST responses outside the `edit` context. On entry post meta, WordPress does not gate reads by `auth_callback` — writes are gated by the post's `edit_post` capability; the strip filter is what protects those keys on read.
 
@@ -221,9 +227,9 @@ Namespace: **`rolling-coverage/v1`** (constant `NEWSPACK_ROLLING_COVERAGE_REST_N
 | Method | Route | Permission | Purpose |
 | :--- | :--- | :--- | :--- |
 | GET | `/coverages/{term_id}/entries-view` | `edit_posts` | Admin entries DataViews; page mode, or sync mode when `since` is passed. |
-| GET | `/coverages/{term_id}/entries` | public | Frontend poll/load-more feed. |
-| GET | `/coverages/{term_id}/entries-preview` | `edit_posts` | Entry IDs for editor previews. |
-| POST | `/coverages/{coverage_id}/entries` | `create_posts` on the entry type | Start a new entry in the coverage, for Quick Edit. |
+| GET | `/coverages/{term_id}/entries` | public | Frontend poll/load-more feed. Polls of a feed whose layout shows the summary card carry `summary` (`{ id, modified, updated, html }`, or null). |
+| GET | `/coverages/{term_id}/entries-preview` | `edit_posts` | Entry IDs for editor previews, led by the published Summary (`summary: true`) unless `latest_only`. |
+| POST | `/coverages/{coverage_id}/entries` | `create_posts` on the entry type; `edit_others_posts` with `summary` | Start a new entry in the coverage, for Quick Edit. With `summary`, start a new auto-draft of the coverage's Summary; 409 (`rolling_coverage_summary_exists`) while it has a saved one outside the trash. |
 | POST | `/coverages/{coverage_id}/generate-key-takeaways` | `edit_posts` | AI summary generation. |
 | POST | `/coverages/{coverage_id}/trash` | `manage_categories` | Soft-delete a coverage. |
 | POST | `/coverages/{coverage_id}/restore` | `manage_categories` | Restore a trashed coverage to the status it had. |
@@ -263,6 +269,7 @@ Core WordPress routes are also used: `/wp/v2/rolling-coverage` (coverages) and `
 | Route | Field | Context | Value |
 | :--- | :--- | :--- | :--- |
 | Entries | `pinned` | view, edit | Whether the entry is pinned. |
+| Entries | `isSummary` | view, edit | Whether the entry is its coverage's Summary. The core route lists the Summary with the entries; saving it so its coverage would hold two outside the trash answers 409. |
 | Entries | `coverageStatus` | view, edit | The status of the entry's coverage. |
 | Entries | `rolling_coverage_breakout_status` | edit | The linked breakout post's status. |
 | Entries | `rolling_coverage_has_notifiable_coverage` | edit | Whether the entry's coverage has the canonical URL push notifications need. |
@@ -271,7 +278,7 @@ Core WordPress routes are also used: `/wp/v2/rolling-coverage` (coverages) and `
 | Coverages | `newestEntry` | view, edit | When the newest published entry went out (ISO 8601); null without `edit_posts`. |
 | Posts | `rolling_coverage_source_entry` | edit | The entry the post broke out of, or 0. |
 
-The `entries-view` endpoint accepts `page`, `per_page`, `orderby` (`date`\|`modified`), `order`, `search`, `status`, `status_exclude`, `source`, `source_exclude`, `author`, `title`, `post_id`, `breakout_status`, `breakout_status_exclude`, `archived`, `category_search`, `tag_search`, `date_filter`, `modified_filter`, and `since`. The sync cursor format is `{id}:{modified_gmt}`.
+The `entries-view` endpoint lists the Summary first and flags it `is_summary`, and its page replies carry `summaryId`: the coverage's saved Summary outside the trash, whatever the filters, or 0. It accepts `page`, `per_page`, `orderby` (`date`\|`modified`), `order`, `search`, `status`, `status_exclude`, `source`, `source_exclude`, `author`, `title`, `post_id`, `breakout_status`, `breakout_status_exclude`, `archived`, `category_search`, `tag_search`, `date_filter`, `modified_filter`, and `since`. The sync cursor format is `{id}:{modified_gmt}`.
 
 ## Developer reference
 
@@ -335,6 +342,8 @@ Useful query vars for developers on `WP_Query`:
 
 - `rolling_coverage_author_scope` (`all`\|`author`\|`own`\|`editable`) — scope entry results to the current user. The plugin's own entry queries use it to limit what non-editors see: Authors see their own entries plus everyone's published and scheduled ones, and Contributors see only their own, mirroring WordPress meta capabilities.
 - `rolling_coverage_skip_pin_order` (bool) — opt out of pinned-first ordering.
+- `rolling_coverage_summary` (`include`\|`only`) — every entry query leaves the coverage's Summary out unless it sets this; the main query for a single entry finds it, so its permalink redirects to its coverage page.
+- `rolling_coverage_summary_first` (bool) — list the Summary ahead of every other entry, as the entries list does.
 
 ### Cron events
 

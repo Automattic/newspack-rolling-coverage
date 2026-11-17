@@ -237,12 +237,14 @@ When Newspack Ads is active, Rolling Coverage places ads between entries, using 
 
 ## WP_Query variables
 
-The plugin reads two query variables, for developers who run their own `WP_Query` on entries.
+The plugin reads these query variables, for developers who run their own `WP_Query` on entries.
 
 | Variable | Effect |
 | --- | --- |
 | `rolling_coverage_author_scope` | One of `all`, `author`, `own`, or `editable`. `author` returns the current user's entries plus other authors' published ones, `own` only the user's entries, and `editable` the user's entries that they can still edit. `all` applies no restriction. |
 | `rolling_coverage_skip_pin_order` | When `true`, entries are not sorted with pinned ones first. |
+| `rolling_coverage_summary` | `include` lists the coverage's summary with the entries, and `only` lists nothing else. Without it, entry queries leave the summary out, except the main query for a single entry. |
+| `rolling_coverage_summary_first` | When `true`, the summary comes before every other entry. |
 
 ```php
 $entries = new WP_Query( [

@@ -1402,6 +1402,14 @@
 			"content": "<!-- wp:paragraph --><p>The Kettle Arts Center has confirmed Saturday&#039;s final door count of 6,140, the highest for a single day of Open Studios.</p><!-- /wp:paragraph -->",
 			"author": "dokafor",
 			"age": 25491
+		},
+		{
+			"coverage": "live-kettle-river-flood",
+			"title": "What we know",
+			"content": "<!-- wp:list --><ul class=\"wp-block-list\"><!-- wp:list-item --><li>The Kettle River passed flood stage at Bridge Street and is at 19.8 feet.</li><!-- /wp:list-item --><!-- wp:list-item --><li>The Mill Road bridge and River Road are closed.</li><!-- /wp:list-item --><!-- wp:list-item --><li>Shelters are open at Riverbend High School and the Grange Hall.</li><!-- /wp:list-item --><!-- wp:list-item --><li>Officials urge people to stay off flooded roads.</li><!-- /wp:list-item --></ul><!-- /wp:list -->",
+			"author": "dokafor",
+			"age": 1800,
+			"summary": true
 		}
 	],
 	"posts": [

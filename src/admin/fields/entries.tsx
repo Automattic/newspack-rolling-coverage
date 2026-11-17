@@ -3,7 +3,7 @@
  */
 import { Tooltip } from '@wordpress/components';
 import { __, sprintf } from '@wordpress/i18n';
-import { Link, Stack, VisuallyHidden } from '@wordpress/ui';
+import { Badge, Link, Stack, VisuallyHidden } from '@wordpress/ui';
 import { Icon, pinSmall, wordpress } from '@wordpress/icons';
 
 /**
@@ -75,8 +75,19 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 					item.summary ||
 					__( '(no title)', 'newspack-rolling-coverage' );
 				const isFromSlack = getEntrySource( item ) === SOURCE_SLACK;
+				const isPinnedFirst = item.pinned || item.isSummary;
 				let sourceLabel;
-				if ( item.pinned ) {
+				if ( item.isSummary ) {
+					sourceLabel = isFromSlack
+						? __(
+								'Summary, from Slack',
+								'newspack-rolling-coverage'
+							)
+						: __(
+								'Summary, from WordPress',
+								'newspack-rolling-coverage'
+							);
+				} else if ( isPinnedFirst ) {
 					sourceLabel = isFromSlack
 						? __(
 								'Pinned, from Slack',
@@ -93,7 +104,7 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 				}
 
 				let marker;
-				if ( item.pinned ) {
+				if ( isPinnedFirst ) {
 					marker = (
 						<Icon
 							className={
@@ -127,7 +138,19 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 								{ sourceLabel }
 							</VisuallyHidden>
 						</span>
-						{ title }
+						{ item.isSummary ? (
+							<span>
+								{ title }{ ' ' }
+								<Badge intent="informational">
+									{ __(
+										'Summary',
+										'newspack-rolling-coverage'
+									) }
+								</Badge>
+							</span>
+						) : (
+							title
+						) }
 					</Stack>
 				);
 			},

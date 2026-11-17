@@ -10,6 +10,8 @@ import { useCallback, useMemo } from '@wordpress/element';
  */
 import metadata from './block.json';
 import {
+	CARD_RADIUS,
+	RADIUS_MEDIUM,
 	bulletinEntryTemplate,
 	streamEntryTemplate,
 	railEntryTemplate,
@@ -64,6 +66,7 @@ import {
 	pinnedStackGroups,
 	forEntryKind,
 	withoutFeaturedImage,
+	summaryCard,
 } from './template';
 import type { EntryContext, TemplateBlocks, TemplateItem } from './types';
 
@@ -143,6 +146,7 @@ function themeFontSizeSlugs(): string[] {
 export function innerTemplate(): TemplateItem[] {
 	return [
 		feedTemplate( [
+			summaryCard( 3 ),
 			...bulletinEntryTemplate( paletteSlugs() ),
 			loadMoreBlock(),
 		] ),
@@ -158,6 +162,10 @@ export function innerTemplate(): TemplateItem[] {
 export function streamInnerTemplate(): TemplateItem[] {
 	return [
 		feedTemplate( [
+			summaryCard( 4, {
+				radius: CARD_RADIUS,
+				updated: { muted: true },
+			} ),
 			...streamEntryTemplate( paletteSlugs(), themeFontSizeSlugs() ),
 			loadMoreBlock( {
 				layout: { type: 'flex', justifyContent: 'center' },
@@ -176,6 +184,10 @@ export function railInnerTemplate(): TemplateItem[] {
 	return [
 		feedTemplate(
 			[
+				summaryCard( 4, {
+					radius: RADIUS_MEDIUM,
+					updated: { fontWeight: '700' },
+				} ),
 				...railEntryTemplate( paletteSlugs() ),
 				loadMoreBlock( loadMoreTopUp( '40' ) ),
 			],
@@ -193,6 +205,10 @@ export function railInnerTemplate(): TemplateItem[] {
 export function clockInnerTemplate(): TemplateItem[] {
 	return [
 		feedTemplate( [
+			summaryCard( 4, {
+				radius: RADIUS_MEDIUM,
+				updated: { muted: true, fontWeight: '600' },
+			} ),
 			...clockEntryTemplate( paletteSlugs(), themeFontSizeSlugs() ),
 			loadMoreBlock(),
 		] ),
@@ -208,6 +224,7 @@ export function clockInnerTemplate(): TemplateItem[] {
 export function marginInnerTemplate(): TemplateItem[] {
 	return [
 		feedTemplate( [
+			summaryCard( 4 ),
 			...marginEntryTemplate( paletteSlugs() ),
 			loadMoreBlock(),
 		] ),
@@ -224,6 +241,7 @@ export function minuteInnerTemplate(): TemplateItem[] {
 	return [
 		feedTemplate(
 			[
+				summaryCard( 4 ),
 				...minuteEntryTemplate( paletteSlugs() ),
 				loadMoreBlock( loadMoreTopUp( '30' ) ),
 			],
@@ -241,6 +259,10 @@ export function minuteInnerTemplate(): TemplateItem[] {
 export function bylineInnerTemplate(): TemplateItem[] {
 	return [
 		feedTemplate( [
+			summaryCard( 4, {
+				radius: RADIUS_MEDIUM,
+				updated: { muted: true },
+			} ),
 			...bylineEntryTemplate( paletteSlugs() ),
 			loadMoreBlock(),
 		] ),
@@ -280,7 +302,18 @@ export function tickerInnerTemplate(): TemplateItem[] {
 export function splitInnerTemplate(): TemplateItem[] {
 	return [
 		feedTemplate(
-			[ ...splitEntryTemplate( paletteSlugs() ), loadMoreBlock() ],
+			[
+				summaryCard( 4, {
+					style: {
+						spacing: {
+							margin: { bottom: 'var:preset|spacing|50' },
+						},
+					},
+					updated: { fontWeight: '700' },
+				} ),
+				...splitEntryTemplate( paletteSlugs() ),
+				loadMoreBlock(),
+			],
 			SPLIT_FEED_GAP,
 			SPLIT_FEED_STYLE,
 			SPLIT_FEED_LAYOUT,

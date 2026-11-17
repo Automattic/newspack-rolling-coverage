@@ -40,6 +40,7 @@ An entry is a post of type `rolling_cov_entry`.
 - Taxonomies: `rolling_coverage`, `category`, and `post_tag`.
 - Uses the same capabilities as ordinary posts.
 - Pinned entries are kept in the option `rolling_coverage_pinned_entries`, not in post meta.
+- A coverage's summary is an entry with the `_rolling_coverage_summary` meta. Entry queries leave it out unless they ask for it (see the `rolling_coverage_summary` query variable), and the coverage's entry count leaves it out too.
 
 ### Entry post meta
 
@@ -56,6 +57,7 @@ An entry is a post of type `rolling_cov_entry`.
 | `_rolling_coverage_archived_at` | When the entry was archived. Any value means it is archived. |
 | `_rolling_coverage_title_from_source` | Set when the title came from the source message. |
 | `_rolling_coverage_notify_on_publish` | Whether to send a push notification when the entry is published. The plugin reads and clears it. |
+| `_rolling_coverage_summary` | Set on the coverage's summary. Only `POST /coverages/{coverage_id}/entries` with `summary` sets it; REST reports it as `isSummary`. |
 
 The source, Slack, and dedup keys are removed from REST responses outside the `edit` context. Keys that start with an underscore are protected, and the plugin manages them.
 

@@ -111,6 +111,9 @@ import {
 	entryPreviewPlacement,
 	withColumnRule,
 	RULED_FEED_CLASS,
+	isSummaryCard,
+	summaryCardIds,
+	withoutSummaryCard,
 } from './template';
 import {
 	AI_AVAILABLE,
@@ -123,7 +126,7 @@ import {
 } from './config';
 import { COVERAGE_ID_CONTEXT } from '../shared/entry-bindings';
 import metadata from './block.json';
-import { useSampleEntries } from './samples';
+import { useSampleEntries, useSampleSummary } from './samples';
 import EntryBlockPreview from './components/entry-block-preview';
 import LoadingState from './components/loading-state';
 import LayoutPickerModal, {
@@ -138,6 +141,7 @@ import {
 	type BuiltInLayoutSlug,
 } from './layouts';
 import PinnedEntryContext from './pinned-entry-context';
+import SummaryEntryContext from './summary-entry-context';
 import FullStoryEntryContext, {
 	PinnedFullStoryEntryContext,
 } from './full-story-entry-context';
@@ -491,6 +495,14 @@ function chromePreviewStyle(
 	blocks: TemplateBlocks,
 	feedLayout?: Record< string, unknown >
 ): Record< string, string | number > | undefined {
+	if (
+		feedLayout?.type === 'grid' &&
+		blocks.length === 1 &&
+		isSummaryCard( blocks[ 0 ] )
+	) {
+		return { gridColumn: '1 / -1' };
+	}
+
 	const attributes = blocks.length === 1 ? blocks[ 0 ].attributes : null;
 	const layout = (
 		attributes as { style?: { layout?: Record< string, string > } } | null
@@ -985,6 +997,8 @@ export default function Edit( {
 	const [ entryContexts, setEntryContexts ] = useState< EntryContext[] >(
 		[]
 	);
+	const [ summaryContext, setSummaryContext ] =
+		useState< EntryContext | null >( null );
 	const [ hasMoreEntries, setHasMoreEntries ] = useState( false );
 	const [ entriesLoadedFor, setEntriesLoadedFor ] = useState( 0 );
 	const [ coverageLoadedFor, setCoverageLoadedFor ] = useState( 0 );
@@ -1093,6 +1107,20 @@ export default function Edit( {
 		__unstableMarkNextChangeAsNotPersistent,
 		invalidateResolution,
 	] );
+
+	// Split sets its pinned entry beside the others, which needs the wide
+	// width wherever the block sits, so it stays wide.
+	const needsWide =
+		isSynced &&
+		builtInLayoutSlugFor( layoutId ) === 'split' &&
+		align !== 'wide';
+
+	useEffect( () => {
+		if ( needsWide ) {
+			__unstableMarkNextChangeAsNotPersistent();
+			setAttributes( { align: 'wide' } );
+		}
+	}, [ needsWide, setAttributes, __unstableMarkNextChangeAsNotPersistent ] );
 
 	const { layoutRecord, hasResolvedLayout, canEditLayout } = useSelect(
 		( select ) => {
@@ -1265,6 +1293,17 @@ export default function Edit( {
 	const previewContexts = showsSampleContexts
 		? sampleContexts
 		: entryContexts;
+	const sampleSummary = useSampleSummary( showsSamples );
+	// A capped feed leaves the summary card out, as the site does.
+	let summaryPreviewContext: EntryContext | null = null;
+
+	if ( ! isCapped ) {
+		summaryPreviewContext = showsSampleContexts
+			? sampleSummary
+			: summaryContext;
+	}
+
+	const isSummaryHidden = ! summaryPreviewContext;
 	const previewHasMore =
 		! isCapped &&
 		olderEntries !== 'none' &&
@@ -1396,11 +1435,19 @@ export default function Edit( {
 				} }
 			/>
 		) : (
-			<EntryBlockPreview
+			<BlockContextProvider
 				key={ index }
-				blocks={ item }
-				style={ chromePreviewStyle( item, feedLayout ) }
-			/>
+				value={
+					summaryPreviewContext && summaryCardIds( item ).length
+						? summaryPreviewContext
+						: {}
+				}
+			>
+				<EntryBlockPreview
+					blocks={ item }
+					style={ chromePreviewStyle( item, feedLayout ) }
+				/>
+			</BlockContextProvider>
 		);
 	const previewPlacementFor = ( context: EntryContext ) => {
 		if ( context === leadPinContext ) {
@@ -1682,6 +1729,7 @@ export default function Edit( {
 		previewContexts[ 0 ];
 	const hiddenIds = useMemo( () => {
 		const ids = [
+			...( isSummaryHidden ? summaryCardIds( allBlocks ) : [] ),
 			...( isFollowHidden ? followBlockIds( allBlocks ) : [] ),
 			...( isCheckUpdatesHidden
 				? blockIdsOfType( allBlocks, CHECK_UPDATES_BLOCK_NAME )
@@ -1751,6 +1799,7 @@ export default function Edit( {
 		return [ ...ids, ...emptiedGroupIds( allBlocks, ids ) ];
 	}, [
 		allBlocks,
+		isSummaryHidden,
 		isFollowHidden,
 		isCheckUpdatesHidden,
 		isLoadMoreHidden,
@@ -1840,6 +1889,7 @@ export default function Edit( {
 		let blocks = isFollowHidden
 			? withoutFollowButtons( headerBlocks )
 			: headerBlocks;
+		blocks = isSummaryHidden ? withoutSummaryCard( blocks ) : blocks;
 		blocks = isCheckUpdatesHidden
 			? withoutCheckUpdatesButtons( blocks )
 			: blocks;
@@ -1850,6 +1900,7 @@ export default function Edit( {
 		return linkText ? withAllUpdatesText( blocks, linkText ) : blocks;
 	}, [
 		headerBlocks,
+		isSummaryHidden,
 		isFollowHidden,
 		isCheckUpdatesHidden,
 		isLoadMoreHidden,
@@ -1860,6 +1911,7 @@ export default function Edit( {
 		let blocks = isFollowHidden
 			? withoutFollowButtons( footerBlocks )
 			: footerBlocks;
+		blocks = isSummaryHidden ? withoutSummaryCard( blocks ) : blocks;
 		blocks = isCheckUpdatesHidden
 			? withoutCheckUpdatesButtons( blocks )
 			: blocks;
@@ -1870,6 +1922,7 @@ export default function Edit( {
 		return linkText ? withAllUpdatesText( blocks, linkText ) : blocks;
 	}, [
 		footerBlocks,
+		isSummaryHidden,
 		isFollowHidden,
 		isCheckUpdatesHidden,
 		isLoadMoreHidden,
@@ -2042,6 +2095,7 @@ export default function Edit( {
 		let cancelled = false;
 		if ( ! entriesCoverageId ) {
 			setEntryContexts( [] );
+			setSummaryContext( null );
 			setHasMoreEntries( false );
 			setEntriesLoadedFor( 0 );
 			return;
@@ -2067,7 +2121,13 @@ export default function Edit( {
 			isCapped ? perPage : perPage + 1,
 			isCapped
 		)
-			.then( ( fetched ) => {
+			.then( ( fetchedWithSummary ) => {
+				const summary =
+					fetchedWithSummary.find( ( context ) => context.summary ) ??
+					null;
+				const fetched = fetchedWithSummary.filter(
+					( context ) => ! context.summary
+				);
 				const contexts = fetched.slice( 0, perPage );
 
 				receiveBreakoutPreviews( contexts );
@@ -2089,12 +2149,13 @@ export default function Edit( {
 				);
 
 				return Promise.all(
-					contexts.map( ( context ) =>
-						getEntityRecord(
-							'postType',
-							context.postType,
-							context.postId
-						).catch( () => undefined )
+					[ ...contexts, ...( summary ? [ summary ] : [] ) ].map(
+						( context ) =>
+							getEntityRecord(
+								'postType',
+								context.postType,
+								context.postId
+							).catch( () => undefined )
 					)
 				)
 					.then( ( records ) => {
@@ -2121,12 +2182,14 @@ export default function Edit( {
 					.then( () => images )
 					.then( () => ( {
 						contexts,
+						summary,
 						hasMore: fetched.length > perPage,
 					} ) );
 			} )
-			.then( ( { contexts, hasMore } ) => {
+			.then( ( { contexts, summary, hasMore } ) => {
 				if ( ! cancelled ) {
 					setEntryContexts( contexts );
+					setSummaryContext( summary );
 					setHasMoreEntries( hasMore );
 					setEntriesLoadedFor( entriesCoverageId );
 				}
@@ -3453,48 +3516,57 @@ export default function Edit( {
 								</FeedWrappersPreview>
 							) }
 							{ ! isSynced && (
-								<PinnedEntryContext.Provider
-									value={ pinnedContext ?? null }
+								<SummaryEntryContext.Provider
+									value={ summaryPreviewContext }
 								>
-									<FullStoryEntryContext.Provider
-										value={ fullStoryContext ?? null }
+									<PinnedEntryContext.Provider
+										value={ pinnedContext ?? null }
 									>
-										<PinnedFullStoryEntryContext.Provider
-											value={
-												pinnedFullStoryContext ?? null
-											}
+										<FullStoryEntryContext.Provider
+											value={ fullStoryContext ?? null }
 										>
-											<EntryPreviewsAnchorContext.Provider
-												value={ entryPreviewsAnchor }
+											<PinnedFullStoryEntryContext.Provider
+												value={
+													pinnedFullStoryContext ??
+													null
+												}
 											>
-												<EntryPreviewsContext.Provider
-													value={ entryPreviews }
+												<EntryPreviewsAnchorContext.Provider
+													value={
+														entryPreviewsAnchor
+													}
 												>
-													<PinnedPreviewsContext.Provider
-														value={ pinnedPreviews }
+													<EntryPreviewsContext.Provider
+														value={ entryPreviews }
 													>
-														<BlockContextProvider
-															value={ {
-																...layoutContext,
-																...coverageContext,
-															} }
+														<PinnedPreviewsContext.Provider
+															value={
+																pinnedPreviews
+															}
 														>
-															<UntitledEntriesContext.Provider
-																value={
-																	untitledEntries
-																}
+															<BlockContextProvider
+																value={ {
+																	...layoutContext,
+																	...coverageContext,
+																} }
 															>
-																<div
-																	{ ...innerBlocksProps }
-																/>
-															</UntitledEntriesContext.Provider>
-														</BlockContextProvider>
-													</PinnedPreviewsContext.Provider>
-												</EntryPreviewsContext.Provider>
-											</EntryPreviewsAnchorContext.Provider>
-										</PinnedFullStoryEntryContext.Provider>
-									</FullStoryEntryContext.Provider>
-								</PinnedEntryContext.Provider>
+																<UntitledEntriesContext.Provider
+																	value={
+																		untitledEntries
+																	}
+																>
+																	<div
+																		{ ...innerBlocksProps }
+																	/>
+																</UntitledEntriesContext.Provider>
+															</BlockContextProvider>
+														</PinnedPreviewsContext.Provider>
+													</EntryPreviewsContext.Provider>
+												</EntryPreviewsAnchorContext.Provider>
+											</PinnedFullStoryEntryContext.Provider>
+										</FullStoryEntryContext.Provider>
+									</PinnedEntryContext.Provider>
+								</SummaryEntryContext.Provider>
 							) }
 						</>
 					) : (

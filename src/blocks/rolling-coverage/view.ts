@@ -37,6 +37,7 @@ import {
 import { NewEntryMarks } from './new-entry-marks';
 import { carryArrival, openSpace, stopArrivalFade } from './entry-arrival';
 import { idsNewerThan, newIdsInReplace } from './new-entry-ids';
+import { applySummaryCard, SUMMARY_ATTRIBUTE } from './summary-card';
 import {
 	glideScrollTo,
 	holdAnimations,
@@ -57,6 +58,7 @@ import type {
 	PendingEntry,
 	PollEntry,
 	PollResponse,
+	PollSummary,
 	PageResponse,
 } from './types';
 
@@ -3616,6 +3618,10 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 					return 'reloading';
 				}
 
+				if ( data.summary !== undefined ) {
+					applySummary( data.summary );
+				}
+
 				if ( showsEntries ) {
 					if ( data.replace ) {
 						replaceEntries( data.entries );
@@ -3684,6 +3690,26 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 		}
 
 		return outcome;
+	}
+
+	/**
+	 * Shows the Summary a poll brings in the feed's summary card (see
+	 * applySummaryCard()). The card isn't a live region, so a swap is never
+	 * announced, and it waits while focus is inside the card, for a later
+	 * poll, so a reader's place isn't lost.
+	 *
+	 * @param {PollSummary|null} summary The coverage's Summary, or null for none.
+	 */
+	function applySummary( summary: PollSummary | null ): void {
+		const card = ownElement( root, `[${ SUMMARY_ATTRIBUTE }]` );
+
+		if ( ! card || card.contains( card.ownerDocument.activeElement ) ) {
+			return;
+		}
+
+		applySummaryCard( card, summary, ( html ) =>
+			parseElement( sanitizeHtml( html ) )
+		);
 	}
 
 	/**

@@ -30,6 +30,7 @@ class Initializer {
 	 */
 	private static function includes() {
 		Post_Type::init();
+		Summary::init();
 		Taxonomy::init();
 		Placements::init();
 		Newest_Entry::init();

@@ -167,7 +167,10 @@ async function updateCoverageCanonicalUrl(
  * @param {number}  coverageId Coverage term ID.
  * @param {number}  perPage    Maximum number of entries to fetch.
  * @param {boolean} latestOnly Whether the feed is capped, which ignores pinning.
- * @return {Promise<EntryContext[]>} Up to `perPage` entries, newest first.
+ * @return {Promise<EntryContext[]>} Up to `perPage` entries, newest first,
+ *                                   led by the coverage's published Summary,
+ *                                   flagged `summary`, when it has one and the
+ *                                   feed isn't capped.
  */
 async function fetchEntryPreviewContexts(
 	coverageId: number,
@@ -189,6 +192,7 @@ async function fetchEntryPreviewContexts(
 				hidesByline?: boolean;
 				fallbackTitle?: string;
 				breakout?: BreakoutPreview | null;
+				summary?: boolean;
 			} >
 		>( {
 			url: `${ ENTRIES_PREVIEW_REST_BASE }/${ coverageId }/entries-preview?per_page=${ perPage }${
@@ -206,6 +210,7 @@ async function fetchEntryPreviewContexts(
 			hidesByline: Boolean( entry.hidesByline ),
 			fallbackTitle: entry.fallbackTitle ?? '',
 			breakout: entry.breakout ?? null,
+			...( entry.summary ? { summary: true } : {} ),
 		} ) );
 	} catch ( error ) {
 		return [];

@@ -19,6 +19,7 @@ use Newspack_Rolling_Coverage\Layout;
 use Newspack_Rolling_Coverage\Layout_Templates;
 use Newspack_Rolling_Coverage\Post_Type;
 use Newspack_Rolling_Coverage\Slack_Config;
+use Newspack_Rolling_Coverage\Summary;
 use Newspack_Rolling_Coverage\Taxonomy;
 
 defined( 'ABSPATH' ) || exit;
@@ -796,6 +797,10 @@ function newspack_rc_screenshots_seed_entries( $entries, $coverages, $users, $me
 			],
 			$entry['age']
 		);
+		// Flagged before it joins the coverage, whose entry count leaves the Summary out.
+		if ( ! empty( $entry['summary'] ) ) {
+			update_post_meta( $entry_id, Summary::META_KEY, true );
+		}
 		wp_set_object_terms( $entry_id, [ $coverages[ $entry['coverage'] ] ], Taxonomy::TAXONOMY_SLUG );
 
 		if ( ! empty( $entry['image'] ) ) {
@@ -1058,11 +1063,12 @@ function newspack_rc_screenshots_remove( $everything ) {
 
 	$posts = get_posts(
 		[
-			'post_type'   => array_values( get_post_types() ),
-			'post_status' => array_keys( get_post_stati() ),
-			'numberposts' => -1, // phpcs:ignore WordPressVIPMinimum.Performance.NoPaging.posts_per_page_numberposts -- Every marked item, from a command line run.
-			'fields'      => 'ids',
-			'meta_query'  => [ $marked ], // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+			'post_type'        => array_values( get_post_types() ),
+			'post_status'      => array_keys( get_post_stati() ),
+			Summary::QUERY_VAR => 'include',
+			'numberposts'      => -1, // phpcs:ignore WordPressVIPMinimum.Performance.NoPaging.posts_per_page_numberposts -- Every marked item, from a command line run.
+			'fields'           => 'ids',
+			'meta_query'       => [ $marked ], // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
 		]
 	);
 	$posts = array_values(
@@ -1229,11 +1235,12 @@ function newspack_rc_screenshots_remove( $everything ) {
 function newspack_rc_screenshots_has_posts( $user_id ) {
 	return (bool) get_posts(
 		[
-			'author'      => $user_id,
-			'post_type'   => array_values( get_post_types() ),
-			'post_status' => array_keys( get_post_stati() ),
-			'numberposts' => 1,
-			'fields'      => 'ids',
+			'author'           => $user_id,
+			Summary::QUERY_VAR => 'include',
+			'post_type'        => array_values( get_post_types() ),
+			'post_status'      => array_keys( get_post_stati() ),
+			'numberposts'      => 1,
+			'fields'           => 'ids',
 		]
 	);
 }

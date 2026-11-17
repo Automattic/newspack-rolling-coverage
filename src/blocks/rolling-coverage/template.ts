@@ -307,6 +307,36 @@ const BREAKOUT_BOX_CLASS = 'newspack-rolling-coverage-breakout-box';
 const PINNED_STACK_CLASS = 'newspack-rolling-coverage-pinned-stack';
 
 /**
+ * Class of the group that shows the coverage's Summary once, above the
+ * entries, mirroring Rolling_Coverage_Block::SUMMARY_CARD_CLASS.
+ */
+const SUMMARY_CARD_CLASS = 'newspack-rolling-coverage-summary-card';
+
+/**
+ * Class of the summary card's "Updated" line, which style.scss sets in the
+ * font the theme gives a Date block.
+ */
+const SUMMARY_UPDATED_CLASS = 'newspack-rolling-coverage-summary-updated';
+
+/**
+ * The summary card's "Updated" line color where the layout's entry times
+ * carry none of their own: the color the themes give a Date block, the block
+ * theme's Contrast 3 and the classic theme's text color. Written as values
+ * rather than palette slugs, here and below, since the line is a static block
+ * whose saved classes the server can't swap for the theme it renders on.
+ */
+const SUMMARY_UPDATED_COLOR =
+	'var(--wp--preset--color--contrast-3, currentColor)';
+
+/**
+ * The "Updated" line color where the layout's entry times are muted, as
+ * mutedDateColor() picks it: the block theme's Contrast 3, else the classic
+ * theme's Medium Gray.
+ */
+const SUMMARY_UPDATED_MUTED_COLOR =
+	'var(--wp--preset--color--contrast-3, var(--wp--preset--color--medium-gray, currentColor))';
+
+/**
  * Which part of a per-entry template a row builds: the pinned card, the entry
  * group or the Full Story Entry group.
  */
@@ -3476,10 +3506,118 @@ function isAllUpdatesParagraph( block: {
 }
 
 /**
+ * Whether a block is the summary card.
+ *
+ * @param {Object} block            The block.
+ * @param {string} block.name       Block name.
+ * @param {Object} block.attributes Block attributes.
+ * @return {boolean} Whether it's the summary card.
+ */
+function isSummaryCard( block: {
+	name: string;
+	attributes?: Record< string, unknown >;
+} ): boolean {
+	const className = block.attributes?.className;
+
+	return (
+		block.name === 'core/group' &&
+		typeof className === 'string' &&
+		className.split( ' ' ).includes( SUMMARY_CARD_CLASS )
+	);
+}
+
+/**
+ * The summary card: the coverage's Summary once, above the entries, on the
+ * pinned card's quiet background, with the Summary's title at the layout's
+ * entry heading level, its content, and a small line saying when it was last
+ * edited, in the site's time format (the `summaryUpdated` binding). The line
+ * is set like the layout's entry times, in the font the themes give a Date
+ * block, and the card takes the corners of the layout's own boxes. It belongs
+ * to the coverage, not to each entry, and is locked in place like the entry
+ * groups.
+ *
+ * @param {number}  level                        The title's heading level, the layout's
+ *                                               entry titles' level.
+ * @param {Object}  [options]                    How the layout sets the card.
+ * @param {Object}  [options.style]              Style the card adds, such as its margin
+ *                                               in a grid Feed.
+ * @param {string}  [options.radius]             Its corner radius.
+ * @param {Object}  [options.updated]            How the "Updated" line is set,
+ *                                               as the layout's entry times.
+ * @param {boolean} [options.updated.muted]      Whether it's muted.
+ * @param {string}  [options.updated.fontWeight] Its font weight.
+ * @return {TemplateItem} The group.
+ */
+function summaryCard(
+	level: number,
+	{
+		style = {},
+		radius,
+		updated = {},
+	}: {
+		style?: Record< string, unknown >;
+		radius?: string;
+		updated?: { muted?: boolean; fontWeight?: string };
+	} = {}
+): TemplateItem {
+	const { muted, fontWeight } = updated;
+
+	return [
+		'core/group',
+		{
+			className: SUMMARY_CARD_CLASS,
+			lock: LOCKED_IN_PLACE,
+			style: {
+				...style,
+				color: { background: PINNED_BACKGROUND },
+				...( radius ? { border: { radius } } : {} ),
+				spacing: {
+					...( ( style.spacing as object ) ?? {} ),
+					padding: CARD_PADDING,
+					blockGap: 'var:preset|spacing|30',
+				},
+			},
+			metadata: {
+				name: __( 'Summary', 'newspack-rolling-coverage' ),
+			},
+		},
+		[
+			[ 'core/post-title', { level } ],
+			postContent(),
+			[
+				'core/paragraph',
+				{
+					className: SUMMARY_UPDATED_CLASS,
+					fontSize: 'small',
+					style: {
+						color: {
+							text: muted
+								? SUMMARY_UPDATED_MUTED_COLOR
+								: SUMMARY_UPDATED_COLOR,
+						},
+						...( fontWeight ? { typography: { fontWeight } } : {} ),
+					},
+					content: __( 'Updated', 'newspack-rolling-coverage' ),
+					metadata: {
+						name: __( 'Updated', 'newspack-rolling-coverage' ),
+						bindings: {
+							content: {
+								source: ENTRY_BINDINGS_SOURCE,
+								args: { key: 'summaryUpdated' },
+							},
+						},
+					},
+				},
+			],
+		],
+	];
+}
+
+/**
  * Whether a block belongs to the coverage rather than to each entry, so it
  * renders once: the Follow Coverage block, the Coverage Status block, the
  * Update Timer block, a heading bound to the coverage's name, the
- * all-updates paragraph, or a block holding one at any depth, mirroring
+ * all-updates paragraph, the summary card, or a block holding one at any depth, mirroring
  * Entry_Bindings::is_coverage_item(). The Pinned group, the pinned card, the
  * entry group and the Full Story Entry group always belong to each entry,
  * whatever they hold.
@@ -3504,6 +3642,10 @@ function isCoverageItem( block: {
 		isBreakoutEntry( typed )
 	) {
 		return false;
+	}
+
+	if ( isSummaryCard( typed ) ) {
+		return true;
 	}
 
 	return (
@@ -3582,6 +3724,41 @@ function withoutBlocks< T extends { name: string; [ key: string ]: unknown } >(
 			? []
 			: [ { ...block, innerBlocks } ];
 	} );
+}
+
+/**
+ * The blocks without the summary card, at any depth, as the site renders a
+ * capped feed, or a feed whose coverage has no Summary.
+ *
+ * @param {Object[]} blocks The blocks.
+ * @return {Object[]} The blocks without the summary card.
+ */
+function withoutSummaryCard<
+	T extends { name: string; [ key: string ]: unknown },
+>( blocks: T[] ): T[] {
+	return withoutBlocks( blocks, ( block ) =>
+		isSummaryCard( block as { name: string } )
+	);
+}
+
+/**
+ * The client IDs of the summary cards among the blocks, at any depth.
+ *
+ * @param {Object[]} blocks The blocks.
+ * @return {string[]} Client IDs.
+ */
+function summaryCardIds(
+	blocks: { name: string; [ key: string ]: unknown }[]
+): string[] {
+	return blocks.flatMap( ( block ) =>
+		isSummaryCard( block as { name: string } )
+			? [ block.clientId as string ]
+			: summaryCardIds(
+					Array.isArray( block.innerBlocks )
+						? ( block.innerBlocks as typeof blocks )
+						: []
+				)
+	);
 }
 
 /**
@@ -5311,6 +5488,13 @@ export {
 	startsAtInlineStart,
 	withoutLoadMoreButtons,
 	PINNED_STACK_CLASS,
+	SUMMARY_CARD_CLASS,
+	isSummaryCard,
+	summaryCard,
+	CARD_RADIUS,
+	RADIUS_MEDIUM,
+	withoutSummaryCard,
+	summaryCardIds,
 	isPinnedCard,
 	isRegularEntry,
 	isBreakoutEntry,

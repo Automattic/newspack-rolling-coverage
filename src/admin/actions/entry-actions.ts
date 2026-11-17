@@ -308,6 +308,7 @@ function getEntryActions(
 			label: __( 'Create Breakout Post', 'newspack-rolling-coverage' ),
 			isEligible: ( entry: Entry ) =>
 				config.capabilities.canEditEntries &&
+				! entry.isSummary &&
 				! isEntryLocked( entry ) &&
 				! hasBreakout( entry ) &&
 				! hasTrashedBreakout( entry ),
@@ -344,6 +345,7 @@ function getEntryActions(
 			label: __( 'Restore Breakout Post', 'newspack-rolling-coverage' ),
 			isEligible: ( entry: Entry ) =>
 				config.capabilities.canEditEntries &&
+				! entry.isSummary &&
 				! isEntryLocked( entry ) &&
 				hasTrashedBreakout( entry ),
 			callback: async ( items: Entry[] ) => {
@@ -388,6 +390,7 @@ function getEntryActions(
 			),
 			isEligible: ( entry: Entry ) =>
 				config.capabilities.canEditEntries &&
+				! entry.isSummary &&
 				! isEntryLocked( entry ) &&
 				hasTrashedBreakout( entry ),
 			callback: async ( items: Entry[] ) => {
@@ -442,6 +445,7 @@ function getEntryActions(
 			supportsBulk: true,
 			isEligible: ( entry: Entry ) =>
 				config.capabilities.canEditEntries &&
+				! entry.isSummary &&
 				entry.status === 'publish' &&
 				! isEntryArchived( entry ) &&
 				entry.coverageStatus !== 'archived',
@@ -525,6 +529,7 @@ function getEntryActions(
 			label: __( 'Pin', 'newspack-rolling-coverage' ),
 			isEligible: ( entry: Entry ) =>
 				config.capabilities.canEditEntries &&
+				! entry.isSummary &&
 				! entry.pinned &&
 				! isEntryLocked( entry ),
 			callback: async ( items: Entry[] ) => {
@@ -557,6 +562,7 @@ function getEntryActions(
 			label: __( 'Unpin', 'newspack-rolling-coverage' ),
 			isEligible: ( entry: Entry ) =>
 				config.capabilities.canEditEntries &&
+				! entry.isSummary &&
 				Boolean( entry.pinned ) &&
 				! isEntryLocked( entry ),
 			callback: async ( items: Entry[] ) => {

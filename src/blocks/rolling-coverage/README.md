@@ -26,7 +26,7 @@ A layout is how the feed looks: spacing, colors, type, and which parts each entr
 | Minute | Closer together, with each entry reduced to its content. | Sports and other minute-by-minute coverage. Start each entry with the minute: "70' Goal! Kowalski scores from the edge of the box." |
 | Byline | Each entry signed by its author's photo and name. | Coverage with several reporters filing, where who reported each entry matters. |
 | Ticker | A strip with the liveblog's status and name beside the latest headlines, each under its time, and a link to the liveblog page below, with a thin rule between them. The headlines stay on one line, whatever Number of entries is set to. Up to three share the width; more keep a minimum width, and once they don't fit the line scrolls sideways and fades at any edge with more to scroll. In a narrow space, such as a tablet or a column beside a sidebar, the status and name sit above the headlines. In the narrowest spaces, such as a phone, even three headlines scroll. A small gap (0.25em) separates the status and each time from the line below. The Feed's Block spacing sets the space on either side of a rule. Wide width. Hides when the liveblog ends. | The homepage, under the header, to point readers to breaking news. |
-| Split | The full feed at wide width, with every pinned entry in a column beside the entries, one under another. Each pinned entry and each entry is signed by its author's name beside Share, and Load more sits under the entries. | A liveblog page that leads with a pinned summary, such as "What we know", beside the feed. |
+| Split | The full feed at wide width, with every pinned entry in a column beside the entries, one under another. Each pinned entry and each entry is signed by its author's name beside Share, and Load more sits under the entries. | A liveblog page that leads with pinned entries, such as a statement, beside the feed. |
 | Wire | A narrow list of the five latest entries, ending in a link to the liveblog page. | A sidebar or another narrow column. |
 | Digest | A bordered box with the liveblog name, the three latest entries next to their times, and a link to the liveblog page. | A sidebar, or a box inside a related story that links to the main liveblog. |
 | Flash | A full-width bar in the site's accent color with the latest entry, its time, and a link to the liveblog page, side by side at every width. The bar always stays one line. It shows as many entries side by side as the bar has room for, up to three, whatever Number of entries or Show is set to: three in a wide bar, such as the site header on a desktop screen, two in a narrower one, such as on a tablet or in a content column, and one on phones. The rest are hidden. Each entry keeps to one line: its time shows whole, the Full story label takes at most half the entry, and the text after them is cut short to fit. With Show set to Latest, "See all entries" leads to the rest. On small phones (480px and below) it also hides the time. The Live badge takes the theme's page background and text colors, and follows the theme's style variations. Change it under the Coverage Status block's Color settings. Hides when the liveblog ends. | The site header, so a major breaking story shows on every page. |
@@ -159,6 +159,18 @@ An entry pinned in the liveblog stays at the top of the feed with a "Pinned" lab
 
 Feeds set to Latest ignore pinning and show the newest entries only.
 
+### Summary
+
+A liveblog can have a Summary: a short entry, usually a list under a heading like "What we know", that readers see in a box at the very top of the feed, above pinned entries. Add it with **Add Summary** in the liveblog's entries list, and keep it up to date there, with Quick Edit or the entry editor, like any entry.
+
+- The box shows the Summary's title as a heading, its content, and "Updated" with the time it was last edited, in the site's time format (and the date, once it wasn't edited today). It sits on the theme's secondary background color, like a pinned entry in Bulletin.
+- "Updated" is set like the layout's entry times: in the font the theme gives dates, at their size and weight, and muted where they are (Stream, Clock and Byline). The box has rounded corners in the layouts whose boxes do: Stream, like its pinned entry, and Rail, Clock and Byline, like their full story cards.
+- Every full layout has the box: Bulletin, Stream, Rail, Clock, Margin, Minute, Byline and Split, where it spans the whole width above the pinned column. Layouts that show only the latest entries (Ticker, Wire, Digest, Flash and Alert), and any feed set to Show Latest, leave it out.
+- The Summary isn't an update: it never shows in the feed as an entry, never counts as a new entry, gets no "New" label, and sends no push notification.
+- Pages already open show a new or edited Summary at their next check, and drop it when it's trashed or no longer published, without a reload. With no published Summary, nothing shows.
+- In the editor, the block previews the box with the liveblog's Summary, and hides it while there is none.
+- In a custom layout, the box is the group named "Summary", locked in place like the Pinned Entry. Unlock it to move it, for example below the entries, or to remove it. Its blocks are ordinary blocks you can restyle.
+
 ### Share
 
 Selecting Share on an entry opens the device's share sheet with a link to that entry. Where the browser has no share sheet, Share copies the link instead and confirms with "Link copied." A feed placed inside another feed's entry shares its own entries the same way.
@@ -290,7 +302,8 @@ In a story, add or select a Rolling Coverage block, open "Choose a layout" (Choo
 
 Things to know:
 
-- Picking a built-in layout also changes block settings: Ticker, Wire, Digest, Flash, and Alert set Show to Latest and Number of entries; Ticker, Split, and Flash set the alignment; Ticker, Flash, and Alert set When ended to Hide. A custom layout, including a copy of a built-in one, changes none of them, and the block keeps its current values. Set them on the block in the story.
+- Picking a built-in layout also changes block settings: Ticker, Wire, Digest, Flash, and Alert set Show to Latest and Number of entries; Ticker, Split, and Flash set the alignment, and Split stays wide, as its pinned column needs the room; Ticker, Flash, and Alert set When ended to Hide. A custom layout, including a copy of a built-in one, changes none of them, and the block keeps its current values. Set them on the block in the story.
 - Share links to the entry itself and is part of an entry in the built-in layouts. To remove it, delete it. Entries in the built-in layouts have no Read more: once an entry's breakout post is published, the Full Story Entry's card leads to it, with a Read more button in Bulletin's and Margin's (see Entries with a breakout post).
 - New entries show a label only where the layout holds a [New Label](../new-label/README.md) block in each entry, as the built-in layouts do. A new layout starts from Bulletin, which has one in each entry; keep it, or add the block to an entry that lacks it.
 - Follow Coverage is not part of the built-in layouts.
+- The Summary box is the group named "Summary" (see [Summary](#summary)). A layout without it shows no Summary.

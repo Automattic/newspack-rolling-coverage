@@ -96,6 +96,7 @@ Each entry has core's post fields plus:
 | Field | Description |
 | --- | --- |
 | `pinned` | Whether the entry is pinned to the top of its feed. |
+| `isSummary` | Whether the entry is its coverage's summary, which the feed shows in a box above every other entry rather than as an entry. Read-only. |
 | `coverageStatus` | The status of the entry's coverage. |
 | `rolling-coverage` | The term IDs of its coverages. |
 | `meta.rolling_coverage_entry_source` | `wordpress`, or the chat platform the entry came from, such as `slack`. |
@@ -198,7 +199,9 @@ curl -u "newsdesk:abcd efgh ijkl mnop qrst uvwx" \
 
 Starts an empty entry, as an auto-draft already assigned to the coverage, and returns `{ "id": 345 }` with status `201`. The dashboard uses it to open an editor on a new entry. To add an entry with content from another app, use `POST /wp/v2/rolling-coverage-entries` instead.
 
-- **Permission:** the capability to create entries (`edit_posts`).
+With `summary` set to `true`, it starts a new auto-draft of the coverage's summary instead. A coverage has at most one saved summary outside the trash: while it has one, the route answers `409` with the code `rolling_coverage_summary_exists`. Saving an entry through `/wp/v2/rolling-coverage-entries` in a way that would give a coverage two summaries, including moving a summary into another coverage, also answers `409`. Entries can't be made into a summary any other way.
+
+- **Permission:** the capability to create entries (`edit_posts`); `edit_others_posts` with `summary`.
 
 ### `POST /coverages/{coverage_id}/generate-key-takeaways`
 
