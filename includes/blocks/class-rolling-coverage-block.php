@@ -548,6 +548,18 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
+	 * Whether the block shows the built-in Split layout.
+	 *
+	 * @param array $attributes Block attributes.
+	 * @return bool
+	 */
+	private static function is_split_layout( array $attributes ): bool {
+		$layout_id = (int) ( $attributes['layoutId'] ?? 0 );
+
+		return $layout_id > 0 && 'split' === get_post_meta( $layout_id, Layout::SLUG_META_KEY, true );
+	}
+
+	/**
 	 * A Block spacing value as the declarations setting the space between the
 	 * coverage's items, and between a grid's columns when they have their own
 	 * value, or an empty string when neither is set or valid. Each axis is
@@ -1657,6 +1669,11 @@ class Rolling_Coverage_Block {
 		// Ads need their page's own setup, so the view script never swaps such a feed in place.
 		if ( $ads_enabled && Ads::is_placement_enabled() ) {
 			$wrapper_data['data-ads'] = '1';
+		}
+
+		// Split sets its pinned entry beside the others, which needs the wide width wherever the block sits.
+		if ( empty( $attributes['align'] ) && self::is_split_layout( $attributes ) ) {
+			$wrapper_data['class'] = 'alignwide';
 		}
 
 		$wrapper_attributes = get_block_wrapper_attributes( $wrapper_data );

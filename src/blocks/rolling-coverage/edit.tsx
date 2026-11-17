@@ -1108,6 +1108,20 @@ export default function Edit( {
 		invalidateResolution,
 	] );
 
+	// Split sets its pinned entry beside the others, which needs the wide
+	// width wherever the block sits, so it stays wide.
+	const needsWide =
+		isSynced &&
+		builtInLayoutSlugFor( layoutId ) === 'split' &&
+		align !== 'wide';
+
+	useEffect( () => {
+		if ( needsWide ) {
+			__unstableMarkNextChangeAsNotPersistent();
+			setAttributes( { align: 'wide' } );
+		}
+	}, [ needsWide, setAttributes, __unstableMarkNextChangeAsNotPersistent ] );
+
 	const { layoutRecord, hasResolvedLayout, canEditLayout } = useSelect(
 		( select ) => {
 			if ( ! isSynced ) {

@@ -302,7 +302,7 @@ In a story, add or select a Rolling Coverage block, open "Choose a layout" (Choo
 
 Things to know:
 
-- Picking a built-in layout also changes block settings: Ticker, Wire, Digest, Flash, and Alert set Show to Latest and Number of entries; Ticker, Split, and Flash set the alignment; Ticker, Flash, and Alert set When ended to Hide. A custom layout, including a copy of a built-in one, changes none of them, and the block keeps its current values. Set them on the block in the story.
+- Picking a built-in layout also changes block settings: Ticker, Wire, Digest, Flash, and Alert set Show to Latest and Number of entries; Ticker, Split, and Flash set the alignment, and Split stays wide, as its pinned column needs the room; Ticker, Flash, and Alert set When ended to Hide. A custom layout, including a copy of a built-in one, changes none of them, and the block keeps its current values. Set them on the block in the story.
 - Share links to the entry itself and is part of an entry in the built-in layouts. To remove it, delete it. Entries in the built-in layouts have no Read more: once an entry's breakout post is published, the Full Story Entry's card leads to it, with a Read more button in Bulletin's and Margin's (see Entries with a breakout post).
 - New entries show a label only where the layout holds a [New Label](../new-label/README.md) block in each entry, as the built-in layouts do. A new layout starts from Bulletin, which has one in each entry; keep it, or add the block to an entry that lacks it.
 - Follow Coverage is not part of the built-in layouts.
