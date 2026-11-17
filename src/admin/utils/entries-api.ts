@@ -34,8 +34,8 @@ const SYNC_INTERVAL_MS = 10000;
 /**
  * Starts a new entry in a coverage for Quick Edit to open: an empty
  * auto-draft, which the first save turns into a draft or publishes. With
- * `isSummary`, it starts the coverage's Summary instead, titled "What we
- * know", or hands back the unsaved one left behind.
+ * `isSummary`, it starts the coverage's Summary instead, or hands back the
+ * unsaved one left behind.
  *
  * @param {string}  restNamespace - REST namespace URL (from config.restBaseUrls.restNamespace).
  * @param {number}  coverageId    - The coverage term ID the entry is added to.

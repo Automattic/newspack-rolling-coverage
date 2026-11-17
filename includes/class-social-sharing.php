@@ -167,7 +167,8 @@ class Social_Sharing {
 			return;
 		}
 
-		$redirect_url = self::get_entry_deep_link( $entry, $canonical_url );
+		// The Summary shows above the feed, not in it, so it has no entry to jump to.
+		$redirect_url = Summary::is_summary( $entry->ID ) ? $canonical_url : self::get_entry_deep_link( $entry, $canonical_url );
 
 		/**
 		 * Filters the URL an entry permalink redirects to.

@@ -211,8 +211,8 @@ class Summary {
 	}
 
 	/**
-	 * Start a coverage's Summary for Quick Edit to open: an auto-draft flagged
-	 * as the Summary, titled "What we know". An auto-draft one already in the
+	 * Start a coverage's Summary for Quick Edit to open: an empty auto-draft
+	 * flagged as the Summary. An auto-draft one already in the
 	 * coverage is handed back instead, so a cancelled start isn't a second
 	 * Summary; any other refuses.
 	 *
@@ -235,7 +235,7 @@ class Summary {
 				[
 					'post_type'    => Post_Type::CPT_SLUG,
 					'post_status'  => 'auto-draft',
-					'post_title'   => __( 'What we know', 'newspack-rolling-coverage' ),
+					'post_title'   => '',
 					'post_content' => '',
 					'post_author'  => get_current_user_id(),
 					'meta_input'   => [ self::META_KEY => true ],
@@ -286,7 +286,8 @@ class Summary {
 
 	/**
 	 * Leave the Summary out of every entry query, unless it asks for it with
-	 * QUERY_VAR. This runs for get_posts() too, which skips the SQL filters.
+	 * QUERY_VAR or is the main query for one entry. This runs for get_posts()
+	 * too, which skips the SQL filters.
 	 *
 	 * @param WP_Query $query The query about to run.
 	 */
@@ -299,7 +300,8 @@ class Summary {
 
 		$mode = $query->get( self::QUERY_VAR );
 
-		if ( 'include' === $mode ) {
+		// The Summary's own permalink still resolves, so it can redirect to its coverage page and preview.
+		if ( 'include' === $mode || ( ! $mode && $query->is_main_query() && $query->is_singular() ) ) {
 			return;
 		}
 
@@ -310,8 +312,7 @@ class Summary {
 
 		$meta_query = $query->get( 'meta_query' );
 
-		// The main query too: the Summary has no page of its own.
-		$query->set( // phpcs:ignore WordPressVIPMinimum.Hooks.PreGetPosts.PreGetPosts
+		$query->set( // phpcs:ignore WordPressVIPMinimum.Hooks.PreGetPosts.PreGetPosts -- A main query for entries lists them, and leaves the Summary out like any other.
 			'meta_query',
 			empty( $meta_query ) || ! is_array( $meta_query )
 				? [ $clause ]

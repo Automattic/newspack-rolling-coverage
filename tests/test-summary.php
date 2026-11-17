@@ -81,8 +81,8 @@ class Test_Summary extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * An Editor starts the Summary as an auto-draft titled "What we know",
-	 * gets the same one back while it is unsaved, and a 409 once it is saved.
+	 * An Editor starts the Summary as an auto-draft, gets the same one back
+	 * while it is unsaved, and a 409 once it is saved.
 	 */
 	public function test_create_route_starts_one_summary_per_coverage() {
 		self::log_in_as( 'editor' );
@@ -94,7 +94,6 @@ class Test_Summary extends Rolling_Coverage_TestCase {
 		$summary_id = $first->get_data()['id'];
 		$this->assertTrue( Summary::is_summary( $summary_id ) );
 		$this->assertSame( 'auto-draft', get_post_status( $summary_id ) );
-		$this->assertSame( 'What we know', get_post( $summary_id )->post_title );
 
 		$again = self::dispatch( 'POST', "/coverages/{$coverage_id}/entries", [ 'summary' => true ] );
 		$this->assertSame( $summary_id, $again->get_data()['id'], 'An unsaved Summary should be handed back.' );
@@ -179,13 +178,26 @@ class Test_Summary extends Rolling_Coverage_TestCase {
 		$base        = [
 			'post_type'      => Post_Type::CPT_SLUG,
 			'fields'         => 'ids',
-			'posts_per_page' => -1,
+			'posts_per_page' => 10,
 		];
 
 		$this->assertSame( [ $entry_id ], get_posts( $base ) );
 		$this->assertSame( [ $summary_id ], get_posts( array_merge( $base, [ Summary::QUERY_VAR => 'only' ] ) ) );
 		$this->assertEqualsCanonicalizing( [ $entry_id, $summary_id ], get_posts( array_merge( $base, [ Summary::QUERY_VAR => 'include' ] ) ) );
 		$this->assertSame( $summary_id, Summary::get_published( $coverage_id )->ID );
+	}
+
+	/**
+	 * The Summary's own permalink still finds it, so it can send readers on
+	 * to its coverage page.
+	 */
+	public function test_summary_permalink_still_resolves() {
+		$summary_id = self::create_summary( self::create_coverage() );
+
+		$this->go_to( get_permalink( $summary_id ) );
+
+		$this->assertTrue( is_singular( Post_Type::CPT_SLUG ) );
+		$this->assertSame( $summary_id, get_queried_object_id() );
 	}
 
 	/**
@@ -305,7 +317,14 @@ class Test_Summary extends Rolling_Coverage_TestCase {
 		$this->assertStringContainsString( 'data-rc-summary="' . $summary_id . '"', $poll['summary']['html'] );
 		$this->assertNotContains( $summary_id, wp_list_pluck( $poll['entries'], 'id' ), 'The Summary is never a new entry.' );
 
-		$shared = self::dispatch( 'GET', "/coverages/{$coverage_id}/entries", [ 'template_key' => $params['template_key'], 'recent' => 1 ] )->get_data();
+		$shared = self::dispatch(
+			'GET',
+			"/coverages/{$coverage_id}/entries",
+			[
+				'template_key' => $params['template_key'],
+				'recent'       => 1,
+			] 
+		)->get_data();
 		$this->assertSame( $summary_id, $shared['summary']['id'] );
 	}
 
