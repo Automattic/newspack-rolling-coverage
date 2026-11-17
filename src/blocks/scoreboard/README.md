@@ -42,7 +42,7 @@ Only editors and administrators, who can edit liveblogs, can change the score. O
 
 The block is built from paragraphs inside a group, so each part has its own settings. Select a team name, a score, the dash or the status line to change its size, weight, color or alignment. Screen readers skip the dash, and read the row as the team names and scores. Select the Scoreboard block itself to set a background, text color, border, padding or margin for the whole scoreboard.
 
-New blocks take their look from the theme: the team names and scores in the font the theme uses for headings, bold, with the scores largest and a slightly smaller dash between them. The dash and the small status line take the theme's muted text color. On a phone, long team names wrap onto a second line within their half of the row.
+New blocks take their look from the theme: the team names and scores in the font the theme uses for headings, bold, with the scores largest and a slightly smaller dash between them. The dash keeps the text color, and the small status line takes the theme's muted text color. On a phone, long team names wrap onto a second line within their half of the row.
 
 ## In the editor
 

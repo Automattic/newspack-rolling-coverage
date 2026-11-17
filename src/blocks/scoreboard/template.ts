@@ -136,7 +136,6 @@ function scoreboardTemplate( {
 			className: `${ font.className } ${ DASH_CLASS }`,
 			content: '–',
 			fontSize: isBlockScale ? 'x-large' : 'large',
-			...mutedColor,
 			style: { typography: { lineHeight: '1' } },
 			metadata: { name: __( 'Dash', 'newspack-rolling-coverage' ) },
 		},

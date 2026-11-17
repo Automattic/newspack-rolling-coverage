@@ -83,8 +83,8 @@ describe( 'scoreboardTemplate', () => {
 			className: `use-header-font ${ DASH_CLASS }`,
 			fontFamily: 'inter',
 			fontSize: 'x-large',
-			textColor: 'contrast-3',
 		} );
+		expect( dash[ 1 ] ).not.toHaveProperty( 'textColor' );
 		expect( dash[ 1 ].metadata ).not.toHaveProperty( 'bindings' );
 		expect( status[ 1 ].textColor ).toBe( 'contrast-3' );
 		expect( row[ 1 ].style.spacing.blockGap ).toBe(
@@ -105,17 +105,16 @@ describe( 'scoreboardTemplate', () => {
 		expect( names[ 0 ][ 1 ].className ).toBe( 'use-header-font' );
 		expect( scores[ 0 ][ 1 ].fontSize ).toBe( 'huge' );
 		expect( dash[ 1 ].fontSize ).toBe( 'large' );
-		expect( dash[ 1 ].textColor ).toBe( 'medium-gray' );
+		expect( dash[ 1 ] ).not.toHaveProperty( 'textColor' );
 		expect( status[ 1 ].fontSize ).toBe( 'small' );
 		expect( status[ 1 ].textColor ).toBe( 'medium-gray' );
 	} );
 
-	it( 'leaves the dash and status colors alone without a muted preset', () => {
-		const { dash, status } = parts(
+	it( 'leaves the status color alone without a muted preset', () => {
+		const { status } = parts(
 			scoreboardTemplate( { sizes: BLOCK_SIZES, colors: [] } ) as Item[]
 		);
 
-		expect( dash[ 1 ] ).not.toHaveProperty( 'textColor' );
 		expect( status[ 1 ] ).not.toHaveProperty( 'textColor' );
 	} );
 } );
