@@ -57,7 +57,7 @@ The score updates on open pages without a reload:
 
 When the score changes, screen readers hear the new score, such as "Riverbend FC 3, Toledo Beacon 1". A change to the status line or the team names isn't announced. Nothing on the scoreboard moves or animates.
 
-On Lite Site's text-only pages, the scoreboard shows the score from when the page was saved.
+On Lite Site's text-only pages, the scoreboard shows the score from when the page was saved for Lite Site.
 
 ## Limits
 
