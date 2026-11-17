@@ -34,6 +34,7 @@ class Initializer {
 		Taxonomy::init();
 		Placements::init();
 		Newest_Entry::init();
+		Score::init();
 		Slack::init();
 		Breakout::init();
 		Social_Sharing::init();
@@ -63,6 +64,7 @@ class Initializer {
 		New_Label_Block::init();
 		Coverage_Status_Block::init();
 		Update_Timer_Block::init();
+		Scoreboard_Block::init();
 		Push_Notifications::init();
 
 		// Admin interface (only load in admin context).

@@ -15,6 +15,7 @@ use Newspack_Rolling_Coverage\Lite_Feed;
 use Newspack_Rolling_Coverage\Post_Type;
 use Newspack_Rolling_Coverage\Push_Notifications;
 use Newspack_Rolling_Coverage\Rolling_Coverage_Block;
+use Newspack_Rolling_Coverage\Score;
 use Newspack_Rolling_Coverage\Taxonomy;
 
 /**
@@ -88,6 +89,7 @@ abstract class Rolling_Coverage_TestCase extends WP_UnitTestCase {
 		Breakout::register_meta();
 		Breakout_Label::register_meta();
 		Push_Notifications::register_meta();
+		Score::register_meta();
 	}
 
 	/**

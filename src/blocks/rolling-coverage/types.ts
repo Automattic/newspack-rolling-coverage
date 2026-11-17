@@ -7,6 +7,7 @@
  */
 import type { EVENTS } from './analytics';
 import type { BuiltInLayoutSlug } from './layouts';
+import type { Score } from '../shared/score';
 
 /**
  * A coverage term, as shown in the editor's coverage combobox.
@@ -181,6 +182,7 @@ interface PollResponse {
 	minPollInterval: number;
 	status?: string;
 	newestEntry?: string | null;
+	score?: Score | null;
 	latestBreakoutUrl?: string | null;
 	summary?: PollSummary | null;
 }
@@ -218,6 +220,7 @@ interface SharedPollResponse {
 	minPollInterval: number;
 	status?: string;
 	newestEntry?: string | null;
+	score?: Score | null;
 	latestBreakoutUrl?: string | null;
 	summary?: PollSummary | null;
 }

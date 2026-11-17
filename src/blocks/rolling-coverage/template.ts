@@ -416,6 +416,12 @@ const STATUS_BLOCK_NAME = 'newspack-rolling-coverage/coverage-status';
  */
 const UPDATE_TIMER_BLOCK_NAME = 'newspack-rolling-coverage/update-timer';
 
+/**
+ * The Scoreboard block, which shows the coverage's score once when it sits
+ * among the layout's coverage-level blocks.
+ */
+const SCOREBOARD_BLOCK_NAME = 'newspack-rolling-coverage/scoreboard';
+
 const ACCENT =
 	'var(--wp--preset--color--accent, var(--newspack-theme-color-primary))';
 const READABLE_ACCENT =
@@ -3616,11 +3622,11 @@ function summaryCard(
 /**
  * Whether a block belongs to the coverage rather than to each entry, so it
  * renders once: the Follow Coverage block, the Coverage Status block, the
- * Update Timer block, a heading bound to the coverage's name, the
- * all-updates paragraph, the summary card, or a block holding one at any depth, mirroring
- * Entry_Bindings::is_coverage_item(). The Pinned group, the pinned card, the
- * entry group and the Full Story Entry group always belong to each entry,
- * whatever they hold.
+ * Update Timer block, the Scoreboard block, a heading bound to the
+ * coverage's name, the all-updates paragraph, the summary card, or a block
+ * holding one at any depth, mirroring Entry_Bindings::is_coverage_item(). The
+ * Pinned group, the pinned card, the entry group and the Full Story Entry
+ * group always belong to each entry, whatever they hold.
  *
  * @param {Object} block      The block.
  * @param {string} block.name Block name.
@@ -3654,6 +3660,7 @@ function isCoverageItem( block: {
 		typed.name === LOAD_MORE_BLOCK_NAME ||
 		block.name === STATUS_BLOCK_NAME ||
 		typed.name === UPDATE_TIMER_BLOCK_NAME ||
+		typed.name === SCOREBOARD_BLOCK_NAME ||
 		isCoverageNameHeading( typed ) ||
 		isAllUpdatesParagraph( typed ) ||
 		( Array.isArray( block.innerBlocks ) &&
@@ -5454,6 +5461,7 @@ export {
 	loadMoreTopUp,
 	STATUS_BLOCK_NAME,
 	UPDATE_TIMER_BLOCK_NAME,
+	SCOREBOARD_BLOCK_NAME,
 	holdsBlockType,
 	blockIdsOfType,
 	withoutCheckUpdatesButtons,

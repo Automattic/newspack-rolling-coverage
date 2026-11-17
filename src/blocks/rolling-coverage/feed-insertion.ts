@@ -13,6 +13,7 @@ import {
 	FOLLOW_BLOCK_NAME,
 	LOAD_MORE_BLOCK_NAME,
 	UPDATE_TIMER_BLOCK_NAME,
+	SCOREBOARD_BLOCK_NAME,
 } from './layout';
 import {
 	STATUS_BLOCK_NAME,
@@ -25,10 +26,10 @@ import {
 
 /**
  * Limits the Feed group to the layout's block types, and keeps the Follow
- * Coverage, Check for Updates and Update Timer blocks, which render once at
- * the coverage level, in the Feed or in a coverage-level group inside it,
- * such as a layout's footer, where Rolling_Coverage_Block::layout_items()
- * reads it. Inside an entry or the pinned card, the site would render it in
+ * Coverage, Check for Updates, Update Timer and Scoreboard blocks, which
+ * render once at the coverage level, in the Feed or in a coverage-level
+ * group inside it, such as a layout's footer, where
+ * Rolling_Coverage_Block::layout_items() reads it. Inside an entry or the pinned card, the site would render it in
  * every entry or leave it out. The groups wrapping the Feed take no coverage
  * status either: the site renders them outside the coverage, so only the Feed
  * and its coverage-level groups can hold it.
@@ -83,6 +84,7 @@ function canInsertIntoFeed(
 			CHECK_UPDATES_BLOCK_NAME,
 			LOAD_MORE_BLOCK_NAME,
 			UPDATE_TIMER_BLOCK_NAME,
+			SCOREBOARD_BLOCK_NAME,
 		].includes( blockType.name ) ||
 		! rootClientId
 	) {

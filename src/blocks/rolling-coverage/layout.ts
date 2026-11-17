@@ -45,6 +45,7 @@ import {
 	loadMoreTopUp,
 	STATUS_BLOCK_NAME,
 	UPDATE_TIMER_BLOCK_NAME,
+	SCOREBOARD_BLOCK_NAME,
 	feedTemplate,
 	layoutParts,
 	withoutNewLabel,
@@ -77,6 +78,7 @@ export {
 	CHECK_UPDATES_BLOCK_NAME,
 	LOAD_MORE_BLOCK_NAME,
 	UPDATE_TIMER_BLOCK_NAME,
+	SCOREBOARD_BLOCK_NAME,
 };
 
 type PaletteColor = { slug: string };
@@ -431,6 +433,7 @@ export const ALL_ALLOWED_BLOCKS = [
 	LOAD_MORE_BLOCK_NAME,
 	STATUS_BLOCK_NAME,
 	UPDATE_TIMER_BLOCK_NAME,
+	SCOREBOARD_BLOCK_NAME,
 ];
 
 /**

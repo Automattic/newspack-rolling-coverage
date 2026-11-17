@@ -36,7 +36,7 @@ How each feature works is documented next to its code; this section says what ea
 
 ### Editorial workflow
 
-The Rolling Coverage admin menu holds All Liveblogs (the coverages list, each coverage's entries list and Quick Edit), Slack Connection, and Settings. All Rolling Coverage settings are on one page, Rolling Coverage > Settings (`rolling-coverage-settings`), with General, Slack and AI tabs; each tab shows only to users with its capability, and the menu item to anyone who can open one. The entries list picks up changes as they happen and offers row and bulk actions, among them Reassign, pinning, and restoring entries from its "Trashed" status filter. See [`src/admin/DEVELOPMENT.md`](../src/admin/DEVELOPMENT.md).
+The Rolling Coverage admin menu holds All Liveblogs (the coverages list, each coverage's entries list and Quick Edit), Slack Connection, and Settings. All Rolling Coverage settings are on one page, Rolling Coverage > Settings (`rolling-coverage-settings`), with General, Slack and AI tabs; each tab shows only to users with its capability, and the menu item to anyone who can open one. The entries list picks up changes as they happen and offers row and bulk actions, among them Reassign, pinning, and restoring entries from its "Trashed" status filter. Above it, editors set a match's score (Add Score), which the Scoreboard block shows. See [`src/admin/DEVELOPMENT.md`](../src/admin/DEVELOPMENT.md).
 
 ### Summary
 
@@ -44,7 +44,7 @@ Each coverage can hold one Summary: an entry flagged with `_rolling_coverage_sum
 
 ### Blocks
 
-Nine blocks ship with the plugin (namespace `newspack-rolling-coverage`). Each block's attributes are in its `block.json`.
+Ten blocks ship with the plugin (namespace `newspack-rolling-coverage`). Each block's attributes are in its `block.json`.
 
 | Block | Name | Purpose | Docs |
 | :--- | :--- | :--- | :--- |
@@ -55,6 +55,7 @@ Nine blocks ship with the plugin (namespace `newspack-rolling-coverage`). Each b
 | Coverage Status | `coverage-status` | Shows whether a coverage is Live, Paused, or Ended. | [README](../src/blocks/coverage-status/README.md), [DEVELOPMENT](../src/blocks/coverage-status/DEVELOPMENT.md) |
 | Check for Updates | `check-updates` | A button readers press to load new entries. A feed whose layout holds it stops checking for new entries on its own. | [README](../src/blocks/check-updates/README.md), [DEVELOPMENT](../src/blocks/check-updates/DEVELOPMENT.md) |
 | Update Timer | `update-timer` | Shows readers when the feed next checks for new entries, and what each check found. | [README](../src/blocks/update-timer/README.md), [DEVELOPMENT](../src/blocks/update-timer/DEVELOPMENT.md) |
+| Scoreboard | `scoreboard` | Shows a coverage's score, two teams and a status line, and keeps it current on open pages. Built from paragraphs bound to the `newspack-rolling-coverage/score` source. | [README](../src/blocks/scoreboard/README.md), [DEVELOPMENT](../src/blocks/scoreboard/DEVELOPMENT.md) |
 | Load More | `load-more` | The button that loads older entries, shown when the feed's Older entries setting is "Load more" button. | [README](../src/blocks/load-more/README.md), [DEVELOPMENT](../src/blocks/load-more/DEVELOPMENT.md) |
 | New Label | `new-label` | Marks an entry that arrives while the reader has the page open, until they've seen it. | [README](../src/blocks/new-label/README.md), [DEVELOPMENT](../src/blocks/new-label/DEVELOPMENT.md) |
 
@@ -135,6 +136,7 @@ includes/
   class-archive-mode.php         Archive/lock rules and the entry archive endpoint
   class-placements.php           Finds and stores every published place the plugin's blocks show a coverage
   class-newest-entry.php         Keeps each coverage's newest-entry time in term meta
+  class-score.php                A coverage's score: term meta and the public score route
   class-poll-cursor.php          Poll cursors: which of a coverage's changes a page already holds
   class-breakout.php             Breakout post creation, linking, status sync
   class-social-sharing.php       Canonical redirects, share URLs, deep-link query vars
@@ -149,7 +151,7 @@ includes/
     class-ai-settings.php        Prompt settings + REST route
     class-abilities.php          WordPress Abilities API registration
     class-key-takeaways-feature.php  AI plugin per-feature model config
-  blocks/                        Server render callbacks for the nine blocks, entry bindings, shared layouts and their server copies (`layouts/`), breakout cards, status labels, entry name, Jump to Latest and Full story label settings, Lite Site feed support
+  blocks/                        Server render callbacks for the ten blocks, entry bindings, shared layouts and their server copies (`layouts/`), breakout cards, status labels, entry name, Jump to Latest and Full story label settings, Lite Site feed support
   slack/                         Slack config, API client, content processor, media importer, author resolver, ingestion service, verifier, webhook controller, monitor
   sources/
     class-entry-ingestion-service.php  Generic ingestion + dedup/mutex
@@ -177,7 +179,8 @@ All PHP classes live under the `Newspack_Rolling_Coverage` namespace and are loa
 
 - REST base `rolling-coverage`, non-hierarchical, not publicly queryable or shown in menus.
 - The term description is an internal note: REST responses outside the `edit` context leave it out (`Taxonomy::filter_rest_response()`).
-- Term meta: `rolling_coverage_status`, `rolling_coverage_status_before_trash`, `rolling_coverage_canonical_url`, `created_at`, `modified_at`, `rolling_coverage_end_time`, `rolling_coverage_last_modified`, `rolling_coverage_slack_channel_id`, `rolling_coverage_slack_channel_name`, `rolling_coverage_source`, `rolling_coverage_source_ref`, `rolling_coverage_ads_disabled`, `rolling_coverage_template_hashes`, `rolling_coverage_newest_entry`, `rolling_coverage_change_marker`.
+- Term meta: `rolling_coverage_status`, `rolling_coverage_status_before_trash`, `rolling_coverage_canonical_url`, `created_at`, `modified_at`, `rolling_coverage_end_time`, `rolling_coverage_last_modified`, `rolling_coverage_slack_channel_id`, `rolling_coverage_slack_channel_name`, `rolling_coverage_source`, `rolling_coverage_source_ref`, `rolling_coverage_ads_disabled`, `rolling_coverage_template_hashes`, `rolling_coverage_newest_entry`, `rolling_coverage_change_marker`, `rolling_coverage_score`.
+- `rolling_coverage_score` is an object: `teams`, two of `{ name, score }` (a name of 1 to 40 characters, a whole score from 0 to 999), and `status`, up to 40 characters. Absent means the coverage has no score. Anyone who can edit the coverage can write it through the coverages route; reading it is public. See the Scoreboard block's [DEVELOPMENT.md](../src/blocks/scoreboard/DEVELOPMENT.md#the-score).
 
 ### Entry post meta
 
@@ -229,6 +232,7 @@ Namespace: **`rolling-coverage/v1`** (constant `NEWSPACK_ROLLING_COVERAGE_REST_N
 | GET | `/coverages/{term_id}/entries-view` | `edit_posts` | Admin entries DataViews; page mode, or sync mode when `since` is passed. |
 | GET | `/coverages/{term_id}/entries` | public | Frontend poll/load-more feed. Polls of a feed whose layout shows the summary card carry `summary` (`{ id, modified, updated, html }`, or null). |
 | GET | `/coverages/{term_id}/entries-preview` | `edit_posts` | Entry IDs for editor previews, led by the published Summary (`summary: true`) unless `latest_only`. |
+| GET | `/coverages/{term_id}/score` | public | The coverage's score (or null), status and the minimum poll interval, cached like a poll reply, for pages with a Scoreboard block and no feed of the coverage. |
 | POST | `/coverages/{coverage_id}/entries` | `create_posts` on the entry type; `edit_others_posts` with `summary` | Start a new entry in the coverage, for Quick Edit. With `summary`, start a new auto-draft of the coverage's Summary; 409 (`rolling_coverage_summary_exists`) while it has a saved one outside the trash. |
 | POST | `/coverages/{coverage_id}/generate-key-takeaways` | `edit_posts` | AI summary generation. |
 | POST | `/coverages/{coverage_id}/trash` | `manage_categories` | Soft-delete a coverage. |
@@ -358,5 +362,5 @@ Useful query vars for developers on `WP_Query`:
 | `edit_posts` | Access All Liveblogs, view/author entries, generate takeaways, view trashed entries. |
 | `publish_posts` | Publish own entries. |
 | `edit_others_posts` / Editor+ | View and manage all entries, pin, archive, breakout, change entry authors, and edit status labels and reader-facing labels (the Settings page's General tab). |
-| `manage_categories` | Create/edit/trash/restore/delete coverages. |
+| `manage_categories` | Create/edit/trash/restore/delete coverages, and set, change or remove a coverage's score. |
 | `manage_options` | Slack connection and monitor, the Settings page's Slack and AI tabs, and admin-UI-only Slack term meta writes. |

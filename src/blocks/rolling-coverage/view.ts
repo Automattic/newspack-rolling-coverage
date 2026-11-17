@@ -3566,6 +3566,7 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 								coverageId: Number( coverageId ),
 								status: data.status,
 								newestEntry: data.newestEntry ?? null,
+								score: data.score,
 							},
 						} )
 					);

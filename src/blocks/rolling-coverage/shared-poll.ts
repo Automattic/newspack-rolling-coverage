@@ -211,6 +211,7 @@ export function readSharedReply(
 		minPollInterval: reply.minPollInterval,
 		status: reply.status,
 		newestEntry: reply.newestEntry,
+		score: reply.score,
 		latestBreakoutUrl: reply.latestBreakoutUrl,
 		...( reply.summary !== undefined ? { summary: reply.summary } : {} ),
 	};
