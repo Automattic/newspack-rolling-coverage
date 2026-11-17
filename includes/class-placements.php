@@ -1409,8 +1409,7 @@ class Placements {
 	}
 
 	/**
-	 * The first coverage among a list of feeds that can be followed, as an
-	 * Automatic block picks it: from the full feeds, then the capped ones.
+	 * The first coverage in a list of feeds that can be followed.
 	 *
 	 * @param int[] $feeds Coverage IDs of the feeds, in page order.
 	 * @return int Coverage term ID, or 0.

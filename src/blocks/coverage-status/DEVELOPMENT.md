@@ -23,7 +23,7 @@ Text color, margin and block gap come from block supports. The wrapper is a flex
 2. **Custom** (`coverageId > 0`), while that coverage exists and isn't trashed (`Page_Coverages::is_followable()`). A chosen coverage that is gone falls back to Automatic.
 3. **Automatic** (`coverageId` 0): the first full (uncapped) Rolling Coverage block in the post being viewed, else, for a breakout post, its source entry's coverage (`breakout_coverage_id()`), else the first capped one (`latestOnly`), including feeds inside synced patterns (`feed_coverage_ids()`, then `breakout_coverage_id()`, then `capped_feed_coverage_ids()`). A breakout post that holds a capped preview of another liveblog keeps the liveblog it was broken out from. Automatic resolves only on single views (`page_id()`) and never for a password-protected post.
 
-With no coverage, the block renders nothing. A capped feed only previews a coverage, so it counts for Automatic only when the post has no full feed. `Placements::scan()` and `useBlockCoverage()` in `src/blocks/shared/block-coverage.ts` apply the same order.
+With no coverage, the block renders nothing. A capped feed, which only previews a coverage, counts for Automatic last: after the full feeds and, on a breakout post, the liveblog it was broken out from. `Placements::build()` and `useBlockCoverage()` in `src/blocks/shared/block-coverage.ts` apply the same order.
 
 The editor mirrors these rules in `useBlockCoverage()` (`src/blocks/shared/block-coverage.ts`). Inside a Rolling Coverage block, `edit.tsx` of that block provides the coverage through `BlockContextProvider`.
 

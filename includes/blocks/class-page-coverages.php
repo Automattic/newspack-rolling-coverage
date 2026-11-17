@@ -29,9 +29,8 @@ class Page_Coverages {
 	/**
 	 * Coverage IDs of the Rolling Coverage blocks in a post, in page order,
 	 * including those in synced patterns, without missing or trashed ones.
-	 * Full feeds and capped ones (Show set to Latest) are listed apart: a
-	 * capped block only previews a coverage, so the page is about one only
-	 * when it holds no full feed.
+	 * Full feeds and capped ones (Show set to Latest) are listed apart, as
+	 * a capped block only previews a coverage and ranks after the full feeds.
 	 *
 	 * @param int $post_id Post ID.
 	 * @return array{full: int[], capped: int[]}

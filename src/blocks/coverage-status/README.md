@@ -20,7 +20,7 @@ The Liveblog panel is at the top of the block's settings. It appears only when t
 | Automatic | "Shows the liveblog on this page, or a breakout post’s liveblog." Uses the first Rolling Coverage block in this post or page's content that shows every entry, else, on a breakout post, the liveblog the post came from, else the first one that shows only the latest entries, not one placed in the site's template. |
 | Custom | "Always shows this liveblog." Pick the liveblog from the list. |
 
-Automatic works on single posts and pages only, not on archives or password-protected posts. A block that shows only the latest entries counts only when the page has no feed that shows every entry. With no liveblog to show, the block shows nothing on the site.
+Automatic works on single posts and pages only, not on archives or password-protected posts. Automatic uses the first feed that shows every entry; on a story broken out from a liveblog, that liveblog next; otherwise the first feed that shows only the latest entries. With no liveblog to show, the block shows nothing on the site.
 
 If a liveblog you chose is deleted, the block falls back to the page's liveblog. The editor shows a notice.
 
