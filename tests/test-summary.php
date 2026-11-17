@@ -81,26 +81,30 @@ class Test_Summary extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * An Editor starts the Summary as an auto-draft, gets the same one back
-	 * while it is unsaved, and a 409 once it is saved.
+	 * Each Add Summary starts a fresh auto-draft of the user's own, until a
+	 * Summary is saved; then the route answers 409.
 	 */
-	public function test_create_route_starts_one_summary_per_coverage() {
-		self::log_in_as( 'editor' );
+	public function test_create_route_starts_a_fresh_summary_until_one_is_saved() {
+		$editor_id   = self::log_in_as( 'editor' );
 		$coverage_id = self::create_coverage();
 
 		$first = self::dispatch( 'POST', "/coverages/{$coverage_id}/entries", [ 'summary' => true ] );
 		$this->assertSame( 201, $first->get_status() );
 
-		$summary_id = $first->get_data()['id'];
-		$this->assertTrue( Summary::is_summary( $summary_id ) );
-		$this->assertSame( 'auto-draft', get_post_status( $summary_id ) );
+		$first_id = $first->get_data()['id'];
+		$this->assertTrue( Summary::is_summary( $first_id ) );
+		$this->assertSame( 'auto-draft', get_post_status( $first_id ) );
 
-		$again = self::dispatch( 'POST', "/coverages/{$coverage_id}/entries", [ 'summary' => true ] );
-		$this->assertSame( $summary_id, $again->get_data()['id'], 'An unsaved Summary should be handed back.' );
+		$other_editor = self::log_in_as( 'editor' );
+		$second       = self::dispatch( 'POST', "/coverages/{$coverage_id}/entries", [ 'summary' => true ] );
+		$second_id    = $second->get_data()['id'];
+		$this->assertNotSame( $first_id, $second_id, 'Another start should get an auto-draft of its own.' );
+		$this->assertSame( $other_editor, (int) get_post( $second_id )->post_author );
+		$this->assertSame( $editor_id, (int) get_post( $first_id )->post_author );
 
 		wp_update_post(
 			[
-				'ID'          => $summary_id,
+				'ID'          => $first_id,
 				'post_status' => 'publish',
 			]
 		);
@@ -112,6 +116,25 @@ class Test_Summary extends Rolling_Coverage_TestCase {
 		$entry = self::dispatch( 'POST', "/coverages/{$coverage_id}/entries" );
 		$this->assertSame( 201, $entry->get_status() );
 		$this->assertFalse( Summary::is_summary( $entry->get_data()['id'] ), 'A plain new entry is not a Summary.' );
+	}
+
+	/**
+	 * A stray auto-draft newer than the saved Summary doesn't hide it from the
+	 * check that refuses a second one.
+	 */
+	public function test_a_newer_auto_draft_does_not_hide_the_saved_summary() {
+		self::log_in_as( 'editor' );
+		$coverage_id = self::create_coverage();
+		$saved_id    = self::create_summary( $coverage_id );
+		$second_id   = self::create_summary( $coverage_id, [ 'post_status' => 'draft' ] );
+		self::set_entry_modified( $saved_id, '2026-01-01 08:00:00' );
+		self::set_entry_modified( $second_id, '2026-01-01 09:00:00' );
+		self::create_summary( $coverage_id, [ 'post_status' => 'auto-draft' ] );
+
+		$request = new WP_REST_Request( 'POST', '/wp/v2/' . Post_Type::REST_BASE . '/' . $second_id );
+		$request->set_param( 'status', 'publish' );
+
+		$this->assertSame( 409, rest_get_server()->dispatch( $request )->get_status() );
 	}
 
 	/**

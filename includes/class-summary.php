@@ -141,16 +141,16 @@ class Summary {
 	}
 
 	/**
-	 * The coverage's Summary outside the trash, other than `$except_id`: the
-	 * one a new or restored Summary would collide with. Auto-drafts count, so
-	 * Add Summary reopens one left behind rather than starting another.
+	 * The coverage's saved Summary outside the trash, other than `$except_id`:
+	 * the one a new or restored Summary would collide with. Auto-drafts, which
+	 * Add Summary starts and Cancel deletes, don't count until they are saved.
 	 *
 	 * @param int $coverage_id Coverage term ID.
 	 * @param int $except_id   The entry being saved, which doesn't collide with itself.
 	 * @return WP_Post|null
 	 */
 	public static function get_current( int $coverage_id, int $except_id = 0 ): ?WP_Post {
-		return self::get_summary( $coverage_id, [ 'publish', 'future', 'draft', 'pending', 'private', 'auto-draft' ], $except_id );
+		return self::get_summary( $coverage_id, [ 'publish', 'future', 'draft', 'pending', 'private' ], $except_id );
 	}
 
 	/**
@@ -200,65 +200,12 @@ class Summary {
 	 */
 	public static function collides( int $entry_id ): bool {
 		foreach ( self::coverage_ids( $entry_id ) as $coverage_id ) {
-			$other = self::get_current( $coverage_id, $entry_id );
-
-			if ( $other && 'auto-draft' !== $other->post_status ) {
+			if ( self::get_current( $coverage_id, $entry_id ) ) {
 				return true;
 			}
 		}
 
 		return false;
-	}
-
-	/**
-	 * Start a coverage's Summary for Quick Edit to open: an empty auto-draft
-	 * flagged as the Summary. An auto-draft one already in the
-	 * coverage is handed back instead, so a cancelled start isn't a second
-	 * Summary; any other refuses.
-	 *
-	 * @param int $coverage_id Coverage term ID.
-	 * @return int|WP_Error The Summary's ID, or why there is none.
-	 */
-	public static function start( int $coverage_id ) {
-		$current = self::get_current( $coverage_id );
-
-		if ( $current ) {
-			return 'auto-draft' === $current->post_status ? $current->ID : self::exists_error();
-		}
-
-		// The auto-draft starts with no content, which wp_insert_post() refuses by default.
-		$allow_empty = static fn() => false;
-
-		add_filter( 'wp_insert_post_empty_content', $allow_empty );
-		try {
-			$summary_id = wp_insert_post(
-				[
-					'post_type'    => Post_Type::CPT_SLUG,
-					'post_status'  => 'auto-draft',
-					'post_title'   => '',
-					'post_content' => '',
-					'post_author'  => get_current_user_id(),
-					'meta_input'   => [ self::META_KEY => true ],
-				],
-				true
-			);
-		} finally {
-			remove_filter( 'wp_insert_post_empty_content', $allow_empty );
-		}
-
-		if ( is_wp_error( $summary_id ) ) {
-			return $summary_id;
-		}
-
-		$assigned = wp_set_object_terms( $summary_id, [ $coverage_id ], Taxonomy::TAXONOMY_SLUG );
-
-		if ( is_wp_error( $assigned ) ) {
-			wp_delete_post( $summary_id, true );
-
-			return $assigned;
-		}
-
-		return $summary_id;
 	}
 
 	/**

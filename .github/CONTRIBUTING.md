@@ -229,7 +229,7 @@ Namespace: **`rolling-coverage/v1`** (constant `NEWSPACK_ROLLING_COVERAGE_REST_N
 | GET | `/coverages/{term_id}/entries-view` | `edit_posts` | Admin entries DataViews; page mode, or sync mode when `since` is passed. |
 | GET | `/coverages/{term_id}/entries` | public | Frontend poll/load-more feed. Polls of a feed whose layout shows the summary card carry `summary` (`{ id, modified, html }`, or null). |
 | GET | `/coverages/{term_id}/entries-preview` | `edit_posts` | Entry IDs for editor previews, led by the published Summary (`summary: true`) unless `latest_only`. |
-| POST | `/coverages/{coverage_id}/entries` | `create_posts` on the entry type; `edit_others_posts` with `summary` | Start a new entry in the coverage, for Quick Edit. With `summary`, start the coverage's Summary, or get back its unsaved one; 409 (`rolling_coverage_summary_exists`) while it has one outside the trash. |
+| POST | `/coverages/{coverage_id}/entries` | `create_posts` on the entry type; `edit_others_posts` with `summary` | Start a new entry in the coverage, for Quick Edit. With `summary`, start a new auto-draft of the coverage's Summary; 409 (`rolling_coverage_summary_exists`) while it has a saved one outside the trash. |
 | POST | `/coverages/{coverage_id}/generate-key-takeaways` | `edit_posts` | AI summary generation. |
 | POST | `/coverages/{coverage_id}/trash` | `manage_categories` | Soft-delete a coverage. |
 | POST | `/coverages/{coverage_id}/restore` | `manage_categories` | Restore a trashed coverage to the status it had. |

@@ -972,10 +972,12 @@ class Post_Type {
 	 * scheduled here as `post-new.php` schedules it, deletes it after a week
 	 * if it is never saved.
 	 *
-	 * With `summary`, it starts the coverage's Summary instead (see
-	 * Summary::start()), which takes Editors and above, as pinning does. A
-	 * coverage holds one Summary outside the trash, so this answers 409 while
-	 * it has one, and hands back an unsaved Summary left behind.
+	 * With `summary`, it starts an auto-draft of the coverage's Summary
+	 * instead, which takes Editors and above, as pinning does. Each start is a
+	 * fresh auto-draft of the user's own, so a Cancel never deletes what
+	 * someone else is writing. A coverage holds one saved Summary outside the
+	 * trash, so this answers 409 while it has one; a second auto-draft saved
+	 * later meets Summary::check_rest_save() instead.
 	 *
 	 * @param WP_REST_Request $request Request object.
 	 * @return WP_REST_Response|WP_Error The new entry's ID, or why none was made.
@@ -1009,20 +1011,33 @@ class Post_Type {
 			);
 		}
 
-		if ( $is_summary ) {
-			$summary_id = Summary::start( $coverage_id );
-
-			if ( is_wp_error( $summary_id ) ) {
-				return $summary_id;
-			}
-
-			if ( ! wp_next_scheduled( 'wp_scheduled_auto_draft_delete' ) ) {
-				wp_schedule_event( time(), 'daily', 'wp_scheduled_auto_draft_delete' );
-			}
-
-			return new WP_REST_Response( [ 'id' => $summary_id ], 201 );
+		if ( $is_summary && Summary::get_current( $coverage_id ) ) {
+			return Summary::exists_error();
 		}
 
+		$entry_id = self::insert_auto_draft( $coverage_id, $is_summary ? [ Summary::META_KEY => true ] : [] );
+
+		if ( is_wp_error( $entry_id ) ) {
+			return $entry_id;
+		}
+
+		if ( ! wp_next_scheduled( 'wp_scheduled_auto_draft_delete' ) ) {
+			wp_schedule_event( time(), 'daily', 'wp_scheduled_auto_draft_delete' );
+		}
+
+		return new WP_REST_Response( [ 'id' => $entry_id ], 201 );
+	}
+
+	/**
+	 * Inserts an empty auto-draft entry credited to the current user and
+	 * assigned to a coverage, for the editor to open before anything is saved.
+	 * The entry is deleted again when the coverage can't be assigned.
+	 *
+	 * @param int   $coverage_id Coverage term ID.
+	 * @param array $meta_input  Post meta to store with it, such as the Summary flag.
+	 * @return int|WP_Error The entry's ID, or why it wasn't made.
+	 */
+	private static function insert_auto_draft( int $coverage_id, array $meta_input = [] ) {
 		// The auto-draft starts with nothing in it, which wp_insert_post() refuses by default.
 		$allow_empty = static fn() => false;
 
@@ -1035,6 +1050,7 @@ class Post_Type {
 					'post_title'   => '',
 					'post_content' => '',
 					'post_author'  => get_current_user_id(),
+					'meta_input'   => $meta_input,
 				],
 				true
 			);
@@ -1054,11 +1070,7 @@ class Post_Type {
 			return $assigned;
 		}
 
-		if ( ! wp_next_scheduled( 'wp_scheduled_auto_draft_delete' ) ) {
-			wp_schedule_event( time(), 'daily', 'wp_scheduled_auto_draft_delete' );
-		}
-
-		return new WP_REST_Response( [ 'id' => $entry_id ], 201 );
+		return $entry_id;
 	}
 
 	/**
@@ -1906,7 +1918,7 @@ class Post_Type {
 	 * @return int The Summary's ID, 0 for none.
 	 */
 	private static function summary_id( int $term_id ): int {
-		$summary = Summary::get_summary( $term_id, [ 'publish', 'future', 'draft', 'pending', 'private' ] );
+		$summary = Summary::get_current( $term_id );
 
 		return $summary ? $summary->ID : 0;
 	}
