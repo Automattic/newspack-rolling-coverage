@@ -149,6 +149,224 @@ class Page_Patterns {
 	}
 
 	/**
+	 * A Scoreboard block with its parts bound to the score, set as the
+	 * block's own template sets them (`src/blocks/scoreboard/template.ts`):
+	 * team names and scores bold in the headings' font, the status line small
+	 * and muted. It has no `coverageId`, so it shows the page's liveblog.
+	 *
+	 * @param array $options {
+	 *     How the scoreboard is set out.
+	 *
+	 *     @type bool     $stacked     One row per team, its name then its score, instead of one line with the scores in the middle.
+	 *     @type string[] $name_size   Font size slugs for the team names: the first one the theme has.
+	 *     @type string[] $score_size  Font size slugs for the scores.
+	 *     @type string[] $status_size Font size slugs for the status line.
+	 *     @type string   $gap         Spacing preset slug between a row's parts.
+	 *     @type array    $attributes  The Scoreboard block's own settings, such as a background.
+	 * }
+	 * @return string Block markup.
+	 */
+	public static function scoreboard( array $options ): string {
+		$options += [
+			'stacked'     => false,
+			'name_size'   => [ 'large', 'normal' ],
+			'score_size'  => [ 'xx-large', 'huge' ],
+			'status_size' => [ 'x-small', 'small' ],
+			'gap'         => '40',
+			'attributes'  => [],
+		];
+
+		$sizes  = self::font_size_slugs();
+		$size   = static fn( array $slugs ) => current( array_intersect( $slugs, $sizes ) );
+		$font   = array_filter(
+			[
+				'className'  => 'use-header-font',
+				'fontFamily' => self::heading_font(),
+			]
+		);
+		$name   = static fn( string $align ) => $font + [
+			'fontSize' => $size( $options['name_size'] ),
+			'style'    => [
+				'layout'     => [
+					'selfStretch' => 'fill',
+					'flexSize'    => null,
+				],
+				'typography' => [
+					'fontWeight' => '700',
+					'lineHeight' => '1.2',
+					'textAlign'  => $align,
+				],
+			],
+		];
+		$score  = $font + [
+			'fontSize' => $size( $options['score_size'] ),
+			'style'    => [
+				'typography' => [
+					'fontWeight' => '700',
+					'lineHeight' => '1',
+				],
+			],
+		];
+		$muted  = current( array_intersect( Layout_Templates::MUTED_TEXT_COLORS, self::color_slugs() ) );
+		$status = self::score_part(
+			'status',
+			__( 'Status Line', 'newspack-rolling-coverage' ),
+			[
+				'fontSize'  => $size( $options['status_size'] ),
+				'textColor' => $muted,
+				'style'     => [ 'typography' => [ 'textAlign' => $options['stacked'] ? 'left' : 'center' ] ],
+			]
+		);
+		$row    = static fn( string $label, array $parts ) => self::group(
+			[
+				'metadata' => [ 'name' => $label ],
+				'style'    => [ 'spacing' => [ 'blockGap' => 'var:preset|spacing|' . $options['gap'] ] ],
+				'layout'   => [
+					'type'              => 'flex',
+					'flexWrap'          => 'nowrap',
+					'justifyContent'    => $options['stacked'] ? 'space-between' : 'center',
+					'verticalAlignment' => 'center',
+				],
+			],
+			$parts
+		);
+
+		$team1_name  = self::score_part( 'team1Name', __( 'First Team', 'newspack-rolling-coverage' ), $name( $options['stacked'] ? 'left' : 'right' ) );
+		$team1_score = self::score_part( 'team1Score', __( 'First Team Score', 'newspack-rolling-coverage' ), $score );
+		$team2_score = self::score_part( 'team2Score', __( 'Second Team Score', 'newspack-rolling-coverage' ), $score );
+		$team2_name  = self::score_part( 'team2Name', __( 'Second Team', 'newspack-rolling-coverage' ), $name( 'left' ) );
+
+		$blocks = $options['stacked']
+			? [
+				$row( __( 'First Team Row', 'newspack-rolling-coverage' ), [ $team1_name, $team1_score ] ),
+				$row( __( 'Second Team Row', 'newspack-rolling-coverage' ), [ $team2_name, $team2_score ] ),
+				$status,
+			]
+			: [
+				$row( __( 'Score', 'newspack-rolling-coverage' ), [ $team1_name, $team1_score, $team2_score, $team2_name ] ),
+				$status,
+			];
+
+		return serialize_block(
+			[
+				'blockName'    => Scoreboard_Block::BLOCK_NAME,
+				'attrs'        => $options['attributes'],
+				'innerBlocks'  => $blocks,
+				'innerHTML'    => '',
+				'innerContent' => array_fill( 0, count( $blocks ), null ),
+			]
+		);
+	}
+
+	/**
+	 * A paragraph bound to one part of the score, with the markup core saves
+	 * for its settings.
+	 *
+	 * @param string $key        One of Scoreboard_Block::KEYS.
+	 * @param string $label      Its name in List View.
+	 * @param array  $attributes Its settings; empty ones are left out.
+	 * @return array Parsed block.
+	 */
+	private static function score_part( string $key, string $label, array $attributes ): array {
+		$attributes = array_filter( $attributes );
+		$typography = $attributes['style']['typography'] ?? [];
+		$classes    = array_filter(
+			[
+				isset( $typography['textAlign'] ) ? 'has-text-align-' . $typography['textAlign'] : '',
+				$attributes['className'] ?? '',
+				isset( $attributes['textColor'] ) ? 'has-' . $attributes['textColor'] . '-color has-text-color' : '',
+				isset( $attributes['fontFamily'] ) ? 'has-' . $attributes['fontFamily'] . '-font-family' : '',
+				isset( $attributes['fontSize'] ) ? 'has-' . $attributes['fontSize'] . '-font-size' : '',
+			]
+		);
+		$styles     = array_filter(
+			[
+				isset( $typography['fontWeight'] ) ? 'font-weight:' . $typography['fontWeight'] : '',
+				isset( $typography['lineHeight'] ) ? 'line-height:' . $typography['lineHeight'] : '',
+			]
+		);
+		$html       = '<p' . ( $classes ? ' class="' . esc_attr( implode( ' ', $classes ) ) . '"' : '' )
+			. ( $styles ? ' style="' . esc_attr( implode( ';', $styles ) ) . '"' : '' ) . '></p>';
+
+		return [
+			'blockName'    => 'core/paragraph',
+			'attrs'        => [
+				'metadata' => [
+					'name'     => $label,
+					'bindings' => [
+						'content' => [
+							'source' => Scoreboard_Block::SOURCE_NAME,
+							'args'   => [ 'key' => $key ],
+						],
+					],
+				],
+			] + $attributes,
+			'innerBlocks'  => [],
+			'innerHTML'    => $html,
+			'innerContent' => [ $html ],
+		];
+	}
+
+	/**
+	 * A group around blocks, with the markup core saves for it.
+	 *
+	 * @param array   $attributes The group's settings.
+	 * @param array[] $blocks     Parsed blocks.
+	 * @return array Parsed block.
+	 */
+	private static function group( array $attributes, array $blocks ): array {
+		$between = array_fill( 0, count( $blocks ), null );
+
+		return [
+			'blockName'    => 'core/group',
+			'attrs'        => $attributes,
+			'innerBlocks'  => $blocks,
+			'innerHTML'    => '<div class="wp-block-group"></div>',
+			'innerContent' => array_merge( [ '<div class="wp-block-group">' ], $between, [ '</div>' ] ),
+		];
+	}
+
+	/**
+	 * The font family preset headings use: the one the site's styles give
+	 * headings, else body text, when it is a preset, as `headingFontFamily()`
+	 * picks it in the editor.
+	 *
+	 * @return string The preset's slug, or empty without one.
+	 */
+	private static function heading_font(): string {
+		$families = [];
+
+		foreach ( (array) wp_get_global_settings( [ 'typography', 'fontFamilies' ] ) as $origin ) {
+			$families = array_merge( $families, array_column( is_array( $origin ) ? $origin : [], 'slug' ) );
+		}
+
+		foreach ( [ [ 'elements', 'heading', 'typography', 'fontFamily' ], [ 'typography', 'fontFamily' ] ] as $path ) {
+			$value = wp_get_global_styles( $path );
+
+			if ( is_string( $value ) && preg_match( '/font-family(?:--|\|)([a-z0-9-]+)/', $value, $match ) && in_array( $match[1], $families, true ) ) {
+				return $match[1];
+			}
+		}
+
+		return '';
+	}
+
+	/**
+	 * The slugs of the site's palette colors.
+	 *
+	 * @return string[]
+	 */
+	private static function color_slugs(): array {
+		$slugs = [];
+
+		foreach ( (array) wp_get_global_settings( [ 'color', 'palette' ] ) as $origin ) {
+			$slugs = array_merge( $slugs, array_column( is_array( $origin ) ? $origin : [], 'slug' ) );
+		}
+
+		return $slugs;
+	}
+
+	/**
 	 * What the inserter shows for each pattern.
 	 *
 	 * @return array<string, array>
@@ -171,6 +389,18 @@ class Page_Patterns {
 				'title'         => __( 'Live page with side column', 'newspack-rolling-coverage' ),
 				'description'   => __( 'Entries beside a column with the status badge, a Follow button and the update timer.', 'newspack-rolling-coverage' ),
 				'keywords'      => [ 'liveblog', 'live', 'sidebar', 'columns', 'follow', 'timer' ],
+				'viewportWidth' => 1200,
+			],
+			'match-side'             => [
+				'title'         => __( 'Match: scoreboard beside the feed', 'newspack-rolling-coverage' ),
+				'description'   => __( 'The score and the line-ups in a column beside the Clock layout.', 'newspack-rolling-coverage' ),
+				'keywords'      => [ 'liveblog', 'match', 'score', 'scoreboard', 'sport', 'line-ups' ],
+				'viewportWidth' => 1200,
+			],
+			'match-centered'         => [
+				'title'         => __( 'Match: centered scoreline', 'newspack-rolling-coverage' ),
+				'description'   => __( 'A large score centered above the status badge and the Clock layout.', 'newspack-rolling-coverage' ),
+				'keywords'      => [ 'liveblog', 'match', 'score', 'scoreboard', 'sport', 'centered' ],
 				'viewportWidth' => 1200,
 			],
 			'breaking-news'          => [

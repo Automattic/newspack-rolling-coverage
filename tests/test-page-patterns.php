@@ -8,6 +8,7 @@
 use Newspack_Rolling_Coverage\Layout_Templates;
 use Newspack_Rolling_Coverage\Page_Patterns;
 use Newspack_Rolling_Coverage\Rolling_Coverage_Block;
+use Newspack_Rolling_Coverage\Scoreboard_Block;
 
 /**
  * The patterns register in their own category, hold their layouts as inner
@@ -19,6 +20,8 @@ class Test_Page_Patterns extends Rolling_Coverage_TestCase {
 		'live-page',
 		'live-page-latest-first',
 		'live-page-side-column',
+		'match-side',
+		'match-centered',
 		'breaking-news',
 		'follow-page',
 		'follow-band',
@@ -188,7 +191,8 @@ class Test_Page_Patterns extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Status and Follow blocks have no liveblog of their own.
+	 * Status, Follow, Update Timer and Scoreboard blocks have no liveblog of
+	 * their own.
 	 *
 	 * @dataProvider slugs
 	 *
@@ -197,7 +201,7 @@ class Test_Page_Patterns extends Rolling_Coverage_TestCase {
 	public function test_status_and_follow_blocks_follow_the_page_or_wait_for_a_pick( string $slug ) {
 		$content = self::pattern( $slug )['content'];
 
-		$this->assertDoesNotMatchRegularExpression( '/wp:newspack-rolling-coverage\/(coverage-status|coverage-follow|update-timer) \{[^}]*"coverageId"/', $content );
+		$this->assertDoesNotMatchRegularExpression( '/wp:newspack-rolling-coverage\/(coverage-status|coverage-follow|update-timer|scoreboard) \{[^}]*"coverageId"/', $content );
 	}
 
 	/**
@@ -278,5 +282,162 @@ class Test_Page_Patterns extends Rolling_Coverage_TestCase {
 
 		$this->assertStringContainsString( '"fontSize":"xx-large"', $json );
 		$this->assertStringContainsString( 'post-content', $json );
+	}
+
+	/**
+	 * Every block of a name in parsed blocks, nested ones included.
+	 *
+	 * @param array[] $blocks Parsed blocks.
+	 * @param string  $name   Block name.
+	 * @return array[]
+	 */
+	private static function find( array $blocks, string $name ): array {
+		$found = [];
+
+		foreach ( $blocks as $block ) {
+			if ( $name === $block['blockName'] ) {
+				$found[] = $block;
+			}
+
+			$found = array_merge( $found, self::find( $block['innerBlocks'], $name ) );
+		}
+
+		return $found;
+	}
+
+	/**
+	 * The score keys a scoreboard's paragraphs are bound to, in order.
+	 *
+	 * @param array $scoreboard Parsed Scoreboard block.
+	 * @return string[]
+	 */
+	private static function bound_keys( array $scoreboard ): array {
+		return array_map(
+			static function ( $paragraph ) {
+				$binding = $paragraph['attrs']['metadata']['bindings']['content'];
+
+				return Scoreboard_Block::SOURCE_NAME === $binding['source'] ? $binding['args']['key'] : '';
+			},
+			self::find( $scoreboard['innerBlocks'], 'core/paragraph' )
+		);
+	}
+
+	/**
+	 * The Match patterns show the page's score above or beside a Clock feed.
+	 */
+	public function test_match_patterns_show_the_score_and_a_clock_feed() {
+		$clock = serialize_blocks( Layout_Templates::get_blocks( 'clock' ) );
+
+		foreach ( [ 'match-side', 'match-centered' ] as $slug ) {
+			$blocks      = parse_blocks( self::pattern( $slug )['content'] );
+			$scoreboards = self::find( $blocks, Scoreboard_Block::BLOCK_NAME );
+			$feeds       = self::feeds( $blocks );
+
+			$this->assertCount( 1, $scoreboards, $slug );
+			$this->assertArrayNotHasKey( 'coverageId', $scoreboards[0]['attrs'], $slug );
+			$this->assertCount( 1, $feeds, $slug );
+			$this->assertSame( $clock, serialize_blocks( $feeds[0]['innerBlocks'] ), $slug );
+			$this->assertCount( 1, self::find( $blocks, 'newspack-rolling-coverage/coverage-status' ), $slug );
+		}
+	}
+
+	/**
+	 * Beside the feed, the scoreboard and line-ups are in the first column,
+	 * so they stack above the feed on phones, with a row for each team.
+	 */
+	public function test_match_side_column_comes_first() {
+		$columns = parse_blocks( self::pattern( 'match-side' )['content'] )[0]['innerBlocks'];
+
+		$this->assertSame( '33.33%', $columns[0]['attrs']['width'] );
+		$this->assertSame( Scoreboard_Block::BLOCK_NAME, $columns[0]['innerBlocks'][0]['blockName'] );
+		$this->assertCount( 3, self::find( $columns[0]['innerBlocks'], 'core/heading' ) );
+		$this->assertCount( 2, self::find( $columns[0]['innerBlocks'], 'core/list' ) );
+		$this->assertEmpty( self::feeds( $columns[0]['innerBlocks'] ) );
+		$this->assertCount( 1, self::feeds( $columns[1]['innerBlocks'] ) );
+		$this->assertSame( [ 'team1Name', 'team1Score', 'team2Name', 'team2Score', 'status' ], self::bound_keys( $columns[0]['innerBlocks'][0] ) );
+	}
+
+	/**
+	 * The centered scoreline leads the page, with the scores in the middle
+	 * of one line.
+	 */
+	public function test_match_centered_leads_with_the_score() {
+		$blocks = parse_blocks( self::pattern( 'match-centered' )['content'] );
+		$blocks = array_values( array_filter( $blocks, static fn( $block ) => ! empty( $block['blockName'] ) ) );
+
+		$this->assertSame( Scoreboard_Block::BLOCK_NAME, $blocks[0]['blockName'] );
+		$this->assertSame( 'newspack-rolling-coverage/coverage-status', $blocks[1]['blockName'] );
+		$this->assertSame( 'center', $blocks[1]['attrs']['layout']['justifyContent'] );
+		$this->assertSame( Rolling_Coverage_Block::BLOCK_NAME, $blocks[2]['blockName'] );
+		$this->assertSame( [ 'team1Name', 'team1Score', 'team2Score', 'team2Name', 'status' ], self::bound_keys( $blocks[0] ) );
+	}
+
+	/**
+	 * The scoreboards take the theme's sizes and heading font as presets,
+	 * with the markup core saves for those settings.
+	 */
+	public function test_scoreboard_uses_the_theme_presets() {
+		add_filter(
+			'wp_theme_json_data_theme',
+			static fn( $data ) => $data->update_with(
+				[
+					'version'  => WP_Theme_JSON::LATEST_SCHEMA,
+					'settings' => [
+						'color'      => [
+							'palette' => [
+								[
+									'slug'  => 'contrast-3',
+									'name'  => 'Contrast 3',
+									'color' => '#6c6c6c',
+								],
+							],
+						],
+						'typography' => [
+							'fontFamilies'     => [
+								[
+									'slug'       => 'display',
+									'name'       => 'Display',
+									'fontFamily' => 'Georgia, serif',
+								],
+							],
+							'defaultFontSizes' => false,
+							'fontSizes'        => [
+								[
+									'slug' => 'x-small',
+									'name' => 'x-small',
+									'size' => '0.875rem',
+								],
+								[
+									'slug' => 'x-large',
+									'name' => 'x-large',
+									'size' => '2rem',
+								],
+								[
+									'slug' => 'xxxxx-large',
+									'name' => 'xxxxx-large',
+									'size' => '5rem',
+								],
+							],
+						],
+					],
+					'styles'   => [
+						'elements' => [
+							'heading' => [ 'typography' => [ 'fontFamily' => 'var(--wp--preset--font-family--display)' ] ],
+						],
+					],
+				]
+			)
+		);
+		wp_clean_theme_json_cache();
+
+		$scoreboard = self::find( parse_blocks( self::pattern( 'match-centered' )['content'] ), Scoreboard_Block::BLOCK_NAME )[0];
+		$parts      = self::find( $scoreboard['innerBlocks'], 'core/paragraph' );
+
+		$this->assertSame( 'x-large', $parts[0]['attrs']['fontSize'] );
+		$this->assertSame( 'display', $parts[0]['attrs']['fontFamily'] );
+		$this->assertSame( 'xxxxx-large', $parts[1]['attrs']['fontSize'] );
+		$this->assertSame( 'contrast-3', $parts[4]['attrs']['textColor'] );
+		$this->assertArrayNotHasKey( 'fontSize', $parts[4]['attrs'] );
+		$this->assertSame( '<p class="has-text-align-right use-header-font has-display-font-family has-x-large-font-size" style="font-weight:700;line-height:1.2"></p>', $parts[0]['innerHTML'] );
 	}
 }
