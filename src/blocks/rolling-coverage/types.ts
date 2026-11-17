@@ -136,6 +136,7 @@ interface EntryContext {
 	hidesByline?: boolean;
 	fallbackTitle?: string;
 	breakout?: BreakoutPreview | null;
+	summary?: boolean;
 }
 
 /**
@@ -151,7 +152,19 @@ interface PollEntry {
 }
 
 /**
+ * The coverage's Summary in a poll reply, for the summary card: its ID, last
+ * edit and rendered card.
+ */
+interface PollSummary {
+	id: number;
+	modified: string;
+	html: string;
+}
+
+/**
  * REST response containing newly-published, edited or removed entries.
+ * A feed whose layout shows the summary card also gets the coverage's
+ * Summary as `summary`, null while it has none.
  * With `replace`, sent only to a capped feed, the entries are the removals,
  * then the feed's newest entries, whole and in order. With `staleTemplate`,
  * the server no longer stores the page's template, so it sends no entries
@@ -168,6 +181,7 @@ interface PollResponse {
 	status?: string;
 	newestEntry?: string | null;
 	latestBreakoutUrl?: string | null;
+	summary?: PollSummary | null;
 }
 
 /**
@@ -204,6 +218,7 @@ interface SharedPollResponse {
 	status?: string;
 	newestEntry?: string | null;
 	latestBreakoutUrl?: string | null;
+	summary?: PollSummary | null;
 }
 
 /**
@@ -275,6 +290,7 @@ export type {
 	EntryContext,
 	PollEntry,
 	PollResponse,
+	PollSummary,
 	SharedPollChange,
 	SharedPollResponse,
 	AdSlot,

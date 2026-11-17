@@ -2,7 +2,8 @@
  * WordPress dependencies
  */
 import { registerBlockBindingsSource } from '@wordpress/blocks';
-import { __ } from '@wordpress/i18n';
+import { dateI18n, getSettings } from '@wordpress/date';
+import { __, _x, sprintf } from '@wordpress/i18n';
 
 const ENTRY_BINDINGS_SOURCE = 'newspack-rolling-coverage/entry';
 const COVERAGE_ID_CONTEXT = 'newspack-rolling-coverage/coverageId';
@@ -18,8 +19,8 @@ interface BindingsArgs {
 			kind: string,
 			name: string,
 			id: number,
-			query: Record< string, string >
-		) => { name?: string } | undefined;
+			query?: Record< string, string >
+		) => { name?: string; modified?: string } | undefined;
 	};
 }
 
@@ -37,14 +38,50 @@ function breakoutLabel(): string {
 }
 
 /**
+ * When an entry was last edited, as the summary card's "Updated" line reads,
+ * mirroring Entry_Bindings::updated_text(): the time in the site's time
+ * format, with the date when it wasn't today.
+ *
+ * @param {string} modified The entry's last edit, in the site's timezone.
+ * @return {string} The line, or an empty string without a date.
+ */
+function updatedText( modified: string | undefined ): string {
+	if ( ! modified ) {
+		return '';
+	}
+
+	const { formats } = getSettings();
+	let time = dateI18n( formats.time, modified, undefined );
+
+	if (
+		dateI18n( 'Y-m-d', modified, undefined ) !==
+		dateI18n( 'Y-m-d', new Date(), undefined )
+	) {
+		time = sprintf(
+			/* translators: 1: a date in the site's date format, 2: a time in the site's time format. */
+			_x( '%1$s, %2$s', 'date and time', 'newspack-rolling-coverage' ),
+			dateI18n( formats.date, modified, undefined ),
+			time
+		);
+	}
+
+	return sprintf(
+		/* translators: %s: when the liveblog's summary was last edited, such as "3:42 pm". */
+		__( 'Updated %s', 'newspack-rolling-coverage' ),
+		time
+	);
+}
+
+/**
  * Mirrors Entry_Bindings::get_value() in the editor. Entry values are
  * resolved per entry on the server, so the editor leaves them empty; only the
- * coverage's name is read, from the coverage in context, and the Full story
- * label shows the site's own.
+ * coverage's name is read, from the coverage in context, the Full story
+ * label shows the site's own, and the summary card's "Updated" line reads the
+ * entry in context.
  */
 registerBlockBindingsSource( {
 	name: ENTRY_BINDINGS_SOURCE,
-	usesContext: [ COVERAGE_ID_CONTEXT ],
+	usesContext: [ COVERAGE_ID_CONTEXT, 'postId', 'postType' ],
 	getValues( { bindings, context, select }: BindingsArgs ) {
 		const coverageId = Number( context?.[ COVERAGE_ID_CONTEXT ] ) || 0;
 
@@ -52,6 +89,25 @@ registerBlockBindingsSource( {
 			Object.entries( bindings ).map( ( [ attribute, binding ] ) => {
 				if ( binding?.args?.key === 'breakoutLabel' ) {
 					return [ attribute, breakoutLabel() ];
+				}
+
+				if ( binding?.args?.key === 'summaryUpdated' ) {
+					const postId = Number( context?.postId );
+					const postType = context?.postType;
+					const entry =
+						postId && typeof postType === 'string'
+							? select( 'core' ).getEntityRecord(
+									'postType',
+									postType,
+									postId
+								)
+							: undefined;
+
+					return [
+						attribute,
+						updatedText( entry?.modified ) ||
+							__( 'Updated', 'newspack-rolling-coverage' ),
+					];
 				}
 
 				if ( binding?.args?.key !== 'coverageName' || ! coverageId ) {

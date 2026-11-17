@@ -212,6 +212,7 @@ export function readSharedReply(
 		status: reply.status,
 		newestEntry: reply.newestEntry,
 		latestBreakoutUrl: reply.latestBreakoutUrl,
+		...( reply.summary !== undefined ? { summary: reply.summary } : {} ),
 	};
 
 	if ( reply.staleTemplate ) {

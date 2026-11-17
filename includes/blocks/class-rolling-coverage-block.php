@@ -115,6 +115,21 @@ class Rolling_Coverage_Block {
 	const PINNED_STACK_CLASS = 'newspack-rolling-coverage-pinned-stack';
 
 	/**
+	 * Class of the summary card, the group showing the coverage's Summary
+	 * once, above the entries in the built-in layouts. It belongs to the
+	 * coverage rather than to each entry (see Entry_Bindings::is_coverage_item()),
+	 * and renders with the Summary as its post (see render_summary_card()).
+	 */
+	const SUMMARY_CARD_CLASS = 'newspack-rolling-coverage-summary-card';
+
+	/**
+	 * Attribute naming the Summary a summary card shows, 0 on the empty
+	 * placeholder a feed holds while there is none, so the view script can
+	 * swap in the Summary a poll brings.
+	 */
+	const SUMMARY_ATTRIBUTE = 'data-rc-summary';
+
+	/**
 	 * Class of the layout's Feed group, which holds everything the coverage
 	 * shows.
 	 */
@@ -237,6 +252,15 @@ class Rolling_Coverage_Block {
 	 * @var string
 	 */
 	private static $all_updates_link_text = '';
+
+	/**
+	 * The stored summary card a poll reply carries the Summary in (see
+	 * poll_response()), set while get_entries() answers a feed that shows
+	 * one; null otherwise.
+	 *
+	 * @var array|null
+	 */
+	private static $poll_summary_card = null;
 
 	/**
 	 * Initialize hooks.
@@ -1369,7 +1393,9 @@ class Rolling_Coverage_Block {
 		$feed         = self::feed_group( $block );
 		$feed_layout  = (array) ( $feed['attrs']['layout'] ?? [] );
 		$template     = self::with_layout_avatars_marked( self::with_author_settings( self::get_entry_template( $block ), $attributes ) );
-		$template_key = self::persist_block_config( $coverage_id, $template, $ads_enabled_attr, $ads_interval, $latest_count, $feed_layout );
+		$layout_parts = self::layout_parts( $block );
+		$summary_card = $is_capped ? null : self::summary_card( array_merge( $layout_parts['header'], $layout_parts['footer'] ) );
+		$template_key = self::persist_block_config( $coverage_id, $template, $ads_enabled_attr, $ads_interval, $latest_count, $feed_layout, $summary_card );
 		$unplaced     = 'grid' === ( $feed_layout['type'] ?? '' ) ? self::without_grid_placements( $template ) : $template;
 		$column_rules = $is_capped ? [] : self::column_rules( $template, $feed_layout );
 
@@ -1538,7 +1564,6 @@ class Rolling_Coverage_Block {
 			$entries_html = self::render_pinned_stack( $stack, $feed_layout, $stack_html ) . $entries_html;
 		}
 
-		$layout_parts      = self::layout_parts( $block );
 		$checks_on_request = self::checks_on_request( $attributes, $layout_parts, $status );
 		$holds_load_more   = self::holds_block(
 			array_merge( $layout_parts['header'], $layout_parts['footer'] ),
@@ -1639,11 +1664,11 @@ class Rolling_Coverage_Block {
 				'%5$s%3$s%8$s%4$s<div class="%1$s-entries">%2$s</div>%9$s%7$s%6$s',
 				self::MARKUP_PREFIX,
 				$entries_html,
-				self::render_coverage_blocks( $layout_parts['header'], $coverage_id, $status, $all_updates_url, $feed_layout, $checks_on_request, $all_updates_link_text, 'button' === $older_entries, $template ),
+				self::render_coverage_blocks( $layout_parts['header'], $coverage_id, $status, $all_updates_url, $feed_layout, $checks_on_request, $all_updates_link_text, 'button' === $older_entries, $template, ! $is_capped ),
 				$is_capped ? '' : self::render_new_entries_control( (bool) $shared_entry, $shared_entry ? self::count_newer_entries( $coverage_id, $shared_entry ) : 0 ),
 				Taxonomy::STATUS_ARCHIVED === $status ? self::render_archived_notice( $attributes, $coverage_id ) : '',
 				'scroll' === $older_entries ? sprintf( '<div class="%s-sentinel" aria-hidden="true"></div>', self::MARKUP_PREFIX ) : '',
-				self::render_coverage_blocks( $layout_parts['footer'], $coverage_id, $status, $all_updates_url, $feed_layout, $checks_on_request, $all_updates_link_text, 'button' === $older_entries, $template ),
+				self::render_coverage_blocks( $layout_parts['footer'], $coverage_id, $status, $all_updates_url, $feed_layout, $checks_on_request, $all_updates_link_text, 'button' === $older_entries, $template, ! $is_capped ),
 				// A capped feed can sit on every page, where announcing each new entry would be noise.
 				$is_capped ? '' : sprintf( '<div class="%s-status" role="status" aria-live="polite"></div>', self::MARKUP_PREFIX ),
 				'button' === $older_entries && ! $holds_load_more ? self::with_load_more_inset( self::place_beside_entries( self::render_load_more_button(), $template, $feed_layout ), $template ) : ''
@@ -3077,9 +3102,10 @@ class Rolling_Coverage_Block {
 	 * @param string  $all_updates_link_text The block's own text for the all-updates link; empty keeps the layout's.
 	 * @param bool    $loads_on_request Whether the feed loads older entries when a reader presses a button.
 	 * @param array[] $template        Parsed template blocks, for the Load More block's placement and inset.
+	 * @param bool    $shows_summary   Whether the summary card shows the Summary; a capped feed leaves it out.
 	 * @return string Rendered HTML, or an empty string.
 	 */
-	private static function render_coverage_blocks( array $blocks, int $coverage_id, string $status, string $all_updates_url = '', array $parent_layout = [], bool $checks_on_request = false, string $all_updates_link_text = '', bool $loads_on_request = false, array $template = [] ): string {
+	private static function render_coverage_blocks( array $blocks, int $coverage_id, string $status, string $all_updates_url = '', array $parent_layout = [], bool $checks_on_request = false, string $all_updates_link_text = '', bool $loads_on_request = false, array $template = [], bool $shows_summary = false ): string {
 		if ( ! $blocks ) {
 			return '';
 		}
@@ -3091,10 +3117,29 @@ class Rolling_Coverage_Block {
 		// filled, which the blocks' own guards can't do.
 		$can_follow = ! Lite_Feed::is_lite_render() && Coverage_Follow_Block::should_render( $status );
 		$hide_timer = $checks_on_request || Lite_Feed::is_lite_render();
+		$summary    = $shows_summary && self::summary_card( $blocks ) ? Summary::get_published( $coverage_id ) : null;
 
 		$blocks = self::map_template_blocks(
 			$blocks,
-			static function ( array $block, array $original ) use ( $all_updates_url, $can_follow, $checks_on_request, $hide_timer, $loads_on_request ) {
+			static function ( array $block, array $original ) use ( $all_updates_url, $can_follow, $checks_on_request, $hide_timer, $loads_on_request, $shows_summary, $summary, $coverage_id, $status, $parent_layout ) {
+				if ( self::is_summary_card( $block ) ) {
+					if ( ! $shows_summary ) {
+						return [];
+					}
+
+					$html = self::render_summary_card( $block, $summary, $coverage_id, $status, $parent_layout );
+
+					return [
+						[
+							'blockName'    => null,
+							'attrs'        => [],
+							'innerBlocks'  => [],
+							'innerHTML'    => $html,
+							'innerContent' => [ $html ],
+						],
+					];
+				}
+
 				if (
 					( '' === $all_updates_url && Entry_Bindings::is_all_updates_paragraph( $block ) ) ||
 					( ! $can_follow && Coverage_Follow_Block::BLOCK_NAME === ( $block['blockName'] ?? '' ) ) ||
@@ -3974,6 +4019,125 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
+	 * Whether a parsed block is the summary card.
+	 *
+	 * @param array $block Parsed block.
+	 * @return bool
+	 */
+	public static function is_summary_card( array $block ): bool {
+		return 'core/group' === ( $block['blockName'] ?? '' ) &&
+			in_array( self::SUMMARY_CARD_CLASS, explode( ' ', (string) ( $block['attrs']['className'] ?? '' ) ), true );
+	}
+
+	/**
+	 * The first summary card among parsed blocks, at any depth.
+	 *
+	 * @param array[] $blocks Parsed blocks.
+	 * @return array|null The card, or null when they hold none.
+	 */
+	private static function summary_card( array $blocks ): ?array {
+		foreach ( $blocks as $block ) {
+			if ( ! is_array( $block ) ) {
+				continue;
+			}
+
+			if ( self::is_summary_card( $block ) ) {
+				return $block;
+			}
+
+			$card = self::summary_card( $block['innerBlocks'] ?? [] );
+
+			if ( $card ) {
+				return $card;
+			}
+		}
+
+		return null;
+	}
+
+	/**
+	 * Renders the summary card with the coverage's Summary as its post, as an
+	 * entry renders, so its Post Title, Post Content and bound "Updated" line
+	 * show the Summary. The card carries SUMMARY_ATTRIBUTE and the Summary's
+	 * last edit, which the view script compares with each poll's. Without a
+	 * Summary it renders an empty, hidden placeholder in its place, for a
+	 * Summary a poll brings to take.
+	 *
+	 * @param array        $card          Parsed summary card.
+	 * @param WP_Post|null $summary       The published Summary, or null.
+	 * @param int          $coverage_id   Coverage term ID.
+	 * @param string       $status        Coverage status.
+	 * @param array        $parent_layout The Feed group's layout.
+	 * @return string
+	 */
+	public static function render_summary_card( array $card, ?WP_Post $summary, int $coverage_id, string $status, array $parent_layout = [] ): string {
+		if ( ! $summary ) {
+			return sprintf( '<div class="%s" %s="0" hidden></div>', esc_attr( self::SUMMARY_CARD_CLASS ), self::SUMMARY_ATTRIBUTE );
+		}
+
+		global $post;
+
+		$previous_post = $post;
+		$post          = $summary; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+		self::setup_entry_postdata( $summary );
+
+		try {
+			$html = self::render_as_entry(
+				fn() => ( new WP_Block(
+					$parent_layout ? array_merge( $card, [ 'parentLayout' => $parent_layout ] ) : $card,
+					[
+						'postId'   => $summary->ID,
+						'postType' => $summary->post_type,
+						Entry_Bindings::COVERAGE_ID_CONTEXT => $coverage_id,
+						Entry_Bindings::COVERAGE_STATUS_CONTEXT => $status,
+					]
+				) )->render()
+			);
+		} finally {
+			$post = $previous_post; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+			setup_postdata( $previous_post );
+		}
+
+		$card_html = new WP_HTML_Tag_Processor( $html );
+
+		if ( ! $card_html->next_tag() ) {
+			return $html;
+		}
+
+		$card_html->set_attribute( self::SUMMARY_ATTRIBUTE, (string) $summary->ID );
+		$card_html->set_attribute( 'data-modified-gmt', self::post_modified_gmt( $summary ) );
+
+		return $card_html->get_updated_html();
+	}
+
+	/**
+	 * The coverage's Summary for a poll reply: its ID, last edit and summary
+	 * card, or null while the coverage has no published Summary.
+	 *
+	 * @param int    $coverage_id Coverage term ID.
+	 * @param array  $stored      The stored summary card and the Feed's layout (see persist_block_config()).
+	 * @param string $status      Coverage status.
+	 * @return array{id: int, modified: string, html: string}|null
+	 */
+	private static function summary_reply( int $coverage_id, array $stored, string $status ): ?array {
+		$summary = Summary::get_published( $coverage_id );
+
+		if ( ! $summary ) {
+			return null;
+		}
+
+		$html = self::render_summary_card( $stored['block'], $summary, $coverage_id, $status, is_array( $stored['parentLayout'] ?? null ) ? $stored['parentLayout'] : [] );
+
+		wp_reset_postdata();
+
+		return [
+			'id'       => $summary->ID,
+			'modified' => self::post_modified_gmt( $summary ),
+			'html'     => $html,
+		];
+	}
+
+	/**
 	 * The template's Pinned group, among its top-level blocks.
 	 *
 	 * @param array[] $template Parsed template blocks.
@@ -4176,9 +4340,10 @@ class Rolling_Coverage_Block {
 	 * @param int   $ads_interval Show an ad after every N entries.
 	 * @param int   $latest_count How many entries a capped feed shows; 0 when not capped.
 	 * @param array $feed_layout  The Feed group's layout.
+	 * @param array $summary_card The layout's summary card, for polls to show the Summary in; null for none.
 	 * @return string Hash key identifying this config.
 	 */
-	private static function persist_block_config( int $coverage_id, array $template, bool $ads_enabled, int $ads_interval, int $latest_count = 0, array $feed_layout = [] ): string {
+	private static function persist_block_config( int $coverage_id, array $template, bool $ads_enabled, int $ads_interval, int $latest_count = 0, array $feed_layout = [], ?array $summary_card = null ): string {
 		$config = [
 			'template'    => $template,
 			'adsEnabled'  => $ads_enabled,
@@ -4192,6 +4357,13 @@ class Rolling_Coverage_Block {
 
 		if ( 'grid' === ( $feed_layout['type'] ?? '' ) ) {
 			$config['feedLayout'] = $feed_layout;
+		}
+
+		if ( $summary_card ) {
+			$config['summaryCard'] = [
+				'block'        => $summary_card,
+				'parentLayout' => $feed_layout,
+			];
 		}
 
 		$hash       = substr( md5( wp_json_encode( $config ) ), 0, 12 );
@@ -4235,7 +4407,7 @@ class Rolling_Coverage_Block {
 	 *
 	 * @param int    $coverage_id  Coverage term ID.
 	 * @param string $template_key Hash returned by persist_block_config().
-	 * @return array{template: array[], adsEnabled: bool, adsInterval: int, latestOnly?: bool, latestCount?: int, feedLayout?: array}|null Null when the key names no config stored for the coverage, pruned or never stored.
+	 * @return array{template: array[], adsEnabled: bool, adsInterval: int, latestOnly?: bool, latestCount?: int, feedLayout?: array, summaryCard?: array}|null Null when the key names no config stored for the coverage, pruned or never stored.
 	 */
 	private static function load_block_config( int $coverage_id, string $template_key ): ?array {
 		$defaults = [
@@ -4887,7 +5059,9 @@ class Rolling_Coverage_Block {
 	 * coverage's current published entries, newest first, for the block
 	 * editor's per-entry template preview. `per_page` goes one past the
 	 * largest page, so the editor can ask for a page and one more entry to
-	 * tell whether more would load.
+	 * tell whether more would load. Unless `latest_only` is set, the
+	 * coverage's published Summary leads the list as `{ id, type, summary:
+	 * true }`, outside `per_page`, for the summary card's preview.
 	 *
 	 * @param WP_REST_Request $request Request object.
 	 * @return WP_REST_Response|WP_Error
@@ -4936,6 +5110,18 @@ class Rolling_Coverage_Block {
 		self::prime_breakout_posts( array_filter( array_map( 'get_post', $query->posts ) ) );
 
 		$entries = array_map( fn( $id ) => self::map_entry_preview( $id, $latest_only ), $query->posts );
+		$summary = $latest_only ? null : Summary::get_published( $term_id );
+
+		if ( $summary ) {
+			array_unshift(
+				$entries,
+				[
+					'id'      => $summary->ID,
+					'type'    => Post_Type::CPT_SLUG,
+					'summary' => true,
+				]
+			);
+		}
 
 		return new WP_REST_Response( $entries );
 	}
@@ -5149,6 +5335,8 @@ class Rolling_Coverage_Block {
 
 		// Lite entries don't use the template.
 		$is_stale_template = null === $stored_config && ! $is_lite;
+
+		self::$poll_summary_card = ! $is_capped && ! $is_stale_template && is_array( $config['summaryCard']['block'] ?? null ) ? $config['summaryCard'] : null;
 
 		// Forward/polling branch: the changes the page is missing, newest first.
 		if ( $cursor ) {
@@ -5750,7 +5938,10 @@ class Rolling_Coverage_Block {
 	 * It also carries the coverage's status and newest entry date for the
 	 * Coverage Status block. Once the coverage has ended, it carries the
 	 * latest breakout post's URL too, or null, for the ended notice of a page
-	 * rendered before then, which links to it.
+	 * rendered before then, which links to it. For a feed whose layout shows
+	 * the summary card, it carries the coverage's Summary as `summary`, or null
+	 * while it has none, so open pages show a new, edited or removed Summary
+	 * (see summary_reply()).
 	 *
 	 * @param array $data        Poll response body.
 	 * @param int   $coverage_id Coverage term ID.
@@ -5764,6 +5955,10 @@ class Rolling_Coverage_Block {
 
 		if ( Taxonomy::STATUS_ARCHIVED === $data['status'] ) {
 			$data['latestBreakoutUrl'] = self::latest_breakout_url( $coverage_id );
+		}
+
+		if ( null !== self::$poll_summary_card && empty( $data['staleTemplate'] ) ) {
+			$data['summary'] = self::summary_reply( $coverage_id, self::$poll_summary_card, $data['status'] );
 		}
 
 		$response = new WP_REST_Response( $data );

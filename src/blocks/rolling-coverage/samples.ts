@@ -189,6 +189,34 @@ function getSamples(): Sample[] {
 	];
 }
 
+/**
+ * The sample coverage's Summary, which the summary card previews: a short
+ * list of what readers need to know.
+ */
+const SAMPLE_SUMMARY_ID = -150;
+
+/**
+ * The sample Summary's points.
+ *
+ * @return {string[]} The points.
+ */
+function getSummaryPoints(): string[] {
+	return [
+		__(
+			'Riverbend beat Fresno Verde 2–1 at DS Stadium.',
+			'newspack-rolling-coverage'
+		),
+		__(
+			'Bree Kowalski scored both goals from set pieces.',
+			'newspack-rolling-coverage'
+		),
+		__(
+			'Riverbend stay top of the table on goal difference.',
+			'newspack-rolling-coverage'
+		),
+	];
+}
+
 let isLoaded = false;
 
 /**
@@ -308,6 +336,45 @@ function loadSampleRecords(): void {
 		};
 	} );
 
+	const items = getSummaryPoints().map( ( point ) => escapeHTML( point ) );
+	const summaryTime = formatDate(
+		'Y-m-d\\TH:i:s',
+		now - 5 * 60000,
+		undefined
+	);
+
+	records.push( {
+		id: SAMPLE_SUMMARY_ID,
+		type: ENTRY_POST_TYPE,
+		status: 'publish',
+		date: summaryTime,
+		date_gmt: new Date( now - 5 * 60000 ).toISOString().slice( 0, 19 ),
+		modified: summaryTime,
+		title: {
+			raw: __( 'What we know', 'newspack-rolling-coverage' ),
+			rendered: escapeHTML(
+				__( 'What we know', 'newspack-rolling-coverage' )
+			),
+		},
+		content: {
+			raw: `<!-- wp:list --><ul class="wp-block-list">${ items
+				.map(
+					( item ) =>
+						`<!-- wp:list-item --><li>${ item }</li><!-- /wp:list-item -->`
+				)
+				.join( '' ) }</ul><!-- /wp:list -->`,
+			rendered: `<ul>${ items
+				.map( ( item ) => `<li>${ item }</li>` )
+				.join( '' ) }</ul>`,
+			protected: false,
+		},
+		excerpt: { raw: '', rendered: '', protected: false },
+		author: -900,
+		featured_media: 0,
+		link: '#',
+		meta: {},
+	} );
+
 	core.receiveEntityRecords( 'postType', ENTRY_POST_TYPE, records );
 	receiveBreakoutPreviews(
 		getSamples().map( ( sample ) => ( {
@@ -378,4 +445,33 @@ export function useSampleEntries(
 	}, [ enabled, hasPinnedGroup ] );
 
 	return contexts;
+}
+
+/**
+ * The sample Summary's block context, for the summary card's preview,
+ * loading the sample records the first time. Null until they are in the data
+ * store, or when the block isn't previewing samples.
+ *
+ * @param {boolean} enabled Whether the block is previewing samples.
+ * @return {EntryContext|null} The sample Summary's context.
+ */
+export function useSampleSummary( enabled: boolean ): EntryContext | null {
+	const [ context, setContext ] = useState< EntryContext | null >( null );
+
+	useEffect( () => {
+		if ( ! enabled ) {
+			setContext( null );
+			return;
+		}
+
+		loadSampleRecords();
+		setContext( {
+			postId: SAMPLE_SUMMARY_ID,
+			postType: ENTRY_POST_TYPE,
+			queryId: 0,
+			summary: true,
+		} );
+	}, [ enabled ] );
+
+	return context;
 }

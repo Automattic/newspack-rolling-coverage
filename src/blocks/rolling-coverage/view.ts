@@ -57,6 +57,7 @@ import type {
 	PendingEntry,
 	PollEntry,
 	PollResponse,
+	PollSummary,
 	PageResponse,
 } from './types';
 
@@ -81,6 +82,10 @@ type PollOutcome = 'ok' | 'failed' | 'reloading' | 'skipped';
 type Takedown = 'shown' | 'counted' | 'off-page';
 
 const PINNED_STACK = '.newspack-rolling-coverage-pinned-stack';
+
+// The summary card, or the empty placeholder a feed holds while there is no
+// Summary, mirroring Rolling_Coverage_Block::SUMMARY_ATTRIBUTE.
+const SUMMARY_ATTRIBUTE = 'data-rc-summary';
 
 const STICKY_CARD_SELECTOR = `:is(.newspack-rolling-coverage-pinned-card, ${ PINNED_STACK }).is-position-sticky`;
 
@@ -3616,6 +3621,10 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 					return 'reloading';
 				}
 
+				if ( data.summary !== undefined ) {
+					applySummary( data.summary );
+				}
+
 				if ( showsEntries ) {
 					if ( data.replace ) {
 						replaceEntries( data.entries );
@@ -3684,6 +3693,51 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 		}
 
 		return outcome;
+	}
+
+	/**
+	 * Shows the Summary a poll brings in the feed's summary card: a new one in
+	 * place of the empty placeholder, an edit in place of the card, or the
+	 * placeholder in place of a Summary taken down. The card isn't a live
+	 * region, so a swap is never announced, and it waits while focus is inside
+	 * the card, for a later poll, so a reader's place isn't lost.
+	 *
+	 * @param {PollSummary|null} summary The coverage's Summary, or null for none.
+	 */
+	function applySummary( summary: PollSummary | null ): void {
+		const card = ownElement( root, `[${ SUMMARY_ATTRIBUTE }]` );
+
+		if ( ! card || card.contains( card.ownerDocument.activeElement ) ) {
+			return;
+		}
+
+		const shownId = card.getAttribute( SUMMARY_ATTRIBUTE ) ?? '0';
+
+		if ( ! summary ) {
+			if ( shownId === '0' ) {
+				return;
+			}
+
+			const placeholder = document.createElement( 'div' );
+			placeholder.className = 'newspack-rolling-coverage-summary-card';
+			placeholder.setAttribute( SUMMARY_ATTRIBUTE, '0' );
+			placeholder.hidden = true;
+			card.replaceWith( placeholder );
+			return;
+		}
+
+		if (
+			shownId === String( summary.id ) &&
+			card.dataset.modifiedGmt === summary.modified
+		) {
+			return;
+		}
+
+		const next = parseElement( sanitizeHtml( summary.html ) );
+
+		if ( next?.hasAttribute( SUMMARY_ATTRIBUTE ) ) {
+			card.replaceWith( next );
+		}
 	}
 
 	/**

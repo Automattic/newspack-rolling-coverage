@@ -173,9 +173,49 @@ class Entry_Bindings {
 
 			case 'breakoutLabel':
 				return null !== Breakout::get_published_breakout_url( $entry_id ) ? esc_html( Breakout_Label::for_post( Breakout::get_existing_breakout_id( $entry_id ) ) ) : null;
+
+			case 'summaryUpdated':
+				return esc_html( self::updated_text( get_post( $entry_id ) ) );
 		}
 
 		return null;
+	}
+
+	/**
+	 * When an entry was last edited, as the summary card's "Updated" line
+	 * reads: the time in the site's time format, with the date in the site's
+	 * date format when it wasn't today in the site's timezone.
+	 *
+	 * @param WP_Post|null $entry Entry post.
+	 * @return string
+	 */
+	public static function updated_text( ?WP_Post $entry ): string {
+		if ( ! $entry ) {
+			return '';
+		}
+
+		$timestamp = strtotime( $entry->post_modified_gmt . ' UTC' );
+
+		if ( false === $timestamp ) {
+			return '';
+		}
+
+		$time = wp_date( (string) get_option( 'time_format' ), $timestamp );
+
+		if ( wp_date( 'Y-m-d', $timestamp ) !== wp_date( 'Y-m-d' ) ) {
+			$time = sprintf(
+				/* translators: 1: a date in the site's date format, 2: a time in the site's time format. */
+				_x( '%1$s, %2$s', 'date and time', 'newspack-rolling-coverage' ),
+				wp_date( (string) get_option( 'date_format' ), $timestamp ),
+				$time
+			);
+		}
+
+		return sprintf(
+			/* translators: %s: when the liveblog's summary was last edited, such as "3:42 pm". */
+			__( 'Updated %s', 'newspack-rolling-coverage' ),
+			$time
+		);
 	}
 
 	/**
@@ -1499,7 +1539,7 @@ class Entry_Bindings {
 	 * entry, so it renders once: the Follow Coverage block, the Check for
 	 * Updates block, the Load More block, the Coverage Status block, the
 	 * Update Timer block, a heading bound to the coverage's name, the
-	 * all-updates paragraph, or a block holding one at any depth. The pinned card, the entry group and
+	 * all-updates paragraph, the summary card, or a block holding one at any depth. The pinned card, the entry group and
 	 * the Full Story Entry group always belong to each entry, whatever they
 	 * hold.
 	 *
@@ -1509,6 +1549,10 @@ class Entry_Bindings {
 	public static function is_coverage_item( array $parsed_block ): bool {
 		if ( Rolling_Coverage_Block::is_entry_group( $parsed_block ) ) {
 			return false;
+		}
+
+		if ( Rolling_Coverage_Block::is_summary_card( $parsed_block ) ) {
+			return true;
 		}
 
 		if (
