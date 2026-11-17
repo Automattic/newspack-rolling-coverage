@@ -187,7 +187,7 @@ Tests: `tests/test-entry-details.php` and `tests/test-entry-author.php`. The ent
 
 ### Score
 
-A coverage can have a score, which the [Scoreboard block](../blocks/scoreboard/DEVELOPMENT.md) shows. `useScorePanel()` (`score-panel.tsx`) gives `EntryView` two things: the header's Add Score button, and the row above the list.
+A coverage can have a score, which the [Scoreboard block](../blocks/scoreboard/DEVELOPMENT.md) shows. `useScorePanel()` (`score-panel.tsx`) gives `EntryView` two things: the header's Add Score button, and `ScorePanel`, the row above the list with its modals. `ScorePanel` is keyed by the coverage ID, so moving to another liveblog's entries (Back and Forward keep `EntryView` mounted) starts it afresh: an open modal closes, and a save still out finishes against the liveblog it started on and never touches the next one's row or context.
 
 - **Add Score** shows while the coverage has no score, to users with `canManageTerms`, except on a trashed coverage. It opens a modal with First team and Second team, both required, and saves both teams at 0 with an empty status.
 - **The row** shows once the coverage has a score: a `NumberControl` for each team, labeled with the team's name, with + and − buttons (`spinControls="custom"`) from 0 to 999, a Status field, and a menu with Edit Teams (the same modal) and Remove Score (a confirmation, then `null`). A number saves on each change; Status saves on Enter or blur.

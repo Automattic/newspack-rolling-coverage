@@ -141,55 +141,84 @@ function TeamsModal( {
 }
 
 /**
- * The score of the liveblog whose entries are listed: an Add Score button
- * for the header while it has none, and once it has one, a row above the
- * list with a stepper for each team's score and the status line. Each
- * change saves at once through the coverages route and shows straight
- * away; a failed save puts back the last saved score and says why.
+ * The score as text, for users who can't change it.
  *
- * Users who can't edit the liveblog see the score as text, and no button.
- *
- * @param {Coverage|null} coverage   The listed coverage.
- * @param {Function}      setContext Sets the admin context, whose copy of the coverage takes each saved score.
- * @return {Object} The header button and the panel, either of which can be null.
+ * @param {Object} props       Props.
+ * @param {Score}  props.score The score.
  */
-function useScorePanel(
-	coverage: Coverage | null,
-	setContext: ContextExports[ 1 ]
-): { addButton: JSX.Element | null; panel: JSX.Element | null } {
+function ScoreText( { score }: { score: Score } ) {
+	return (
+		<div className="newspack-rolling-coverage-score">
+			<Text>
+				{ score.status
+					? sprintf(
+							/* translators: 1: The first team's name. 2: Its score. 3: The second team's name. 4: Its score. 5: The status line, such as "Second half". */
+							__(
+								'Score: %1$s %2$d, %3$s %4$d (%5$s)',
+								'newspack-rolling-coverage'
+							),
+							score.teams[ 0 ].name,
+							score.teams[ 0 ].score,
+							score.teams[ 1 ].name,
+							score.teams[ 1 ].score,
+							score.status
+						)
+					: sprintf(
+							/* translators: 1: The first team's name. 2: Its score. 3: The second team's name. 4: Its score. */
+							__(
+								'Score: %1$s %2$d, %3$s %4$d',
+								'newspack-rolling-coverage'
+							),
+							score.teams[ 0 ].name,
+							score.teams[ 0 ].score,
+							score.teams[ 1 ].name,
+							score.teams[ 1 ].score
+						) }
+			</Text>
+		</div>
+	);
+}
+
+/**
+ * One liveblog's score: the row above its entries list, and the Add Score
+ * and Edit Teams modals. It is mounted per liveblog (keyed by its ID), so
+ * nothing it holds, a modal, a pending save or the score shown, carries
+ * over to another liveblog, and a save it started only ever writes to and
+ * reports on its own liveblog.
+ *
+ * @param {Object}   props            Props.
+ * @param {Coverage} props.coverage   The listed coverage.
+ * @param {boolean}  props.canEdit    Whether the user can change the score.
+ * @param {boolean}  props.isAdding   Whether Add Score was chosen in the header.
+ * @param {Function} props.onAddClose Closes the Add Score modal.
+ * @param {Function} props.onSaved    Called with the coverage ID and each saved score.
+ */
+function ScorePanel( {
+	coverage,
+	canEdit,
+	isAdding,
+	onAddClose,
+	onSaved,
+}: {
+	coverage: Coverage;
+	canEdit: boolean;
+	isAdding: boolean;
+	onAddClose: () => void;
+	onSaved: ( coverageId: number, score: Score | null ) => void;
+} ) {
 	const config = useAdminContext();
-	const canEdit = config.capabilities.canManageTerms;
-	const stored = coverage?.meta?.[ SCORE_META_KEY ];
+	const coverageId = coverage.id;
+	const stored = coverage.meta?.[ SCORE_META_KEY ];
 	const saved = isScore( stored ) ? stored : null;
-	const coverageId = coverage?.id ?? 0;
-	const isTrashed = coverage?.meta?.rolling_coverage_status === 'trash';
+	const isTrashed = coverage.meta?.rolling_coverage_status === 'trash';
 
 	const [ score, setScore ] = useState< Score | null >( saved );
 	const [ status, setStatus ] = useState( saved?.status ?? '' );
-	const [ modal, setModal ] = useState< 'add' | 'teams' | null >( null );
+	const [ isEditingTeams, setIsEditingTeams ] = useState( false );
 	const confirmed = useRef< Score | null >( saved );
 	const pending = useRef< { score: Score | null } | null >( null );
 	const isSaving = useRef( false );
 	const { requestConfirm, dialog } = useConfirmDialog();
-
-	const onSaved = useCallback(
-		( id: number, next: Score | null ) =>
-			setContext( ( prev ) =>
-				prev.selectedCoverage?.id === id
-					? {
-							...prev,
-							selectedCoverage: {
-								...prev.selectedCoverage,
-								meta: {
-									...prev.selectedCoverage.meta,
-									[ SCORE_META_KEY ]: next,
-								},
-							},
-						}
-					: prev
-			),
-		[ setContext ]
-	);
 
 	const savedKey = JSON.stringify( saved );
 
@@ -198,14 +227,12 @@ function useScorePanel(
 			return;
 		}
 
-		const next = savedKey
-			? ( JSON.parse( savedKey ) as Score | null )
-			: null;
+		const next = JSON.parse( savedKey ) as Score | null;
 
 		confirmed.current = next;
 		setScore( next );
 		setStatus( next?.status ?? '' );
-	}, [ coverageId, savedKey ] );
+	}, [ savedKey ] );
 
 	/**
 	 * Saves the newest score asked for, one request at a time. Steps taken
@@ -300,124 +327,12 @@ function useScorePanel(
 		save( { ...score, status: next } );
 	};
 
-	const addButton = useMemo(
-		() =>
-			canEdit && ! saved && coverage && ! isTrashed ? (
-				<Button variant="tertiary" onClick={ () => setModal( 'add' ) }>
-					{ __( 'Add Score', 'newspack-rolling-coverage' ) }
-				</Button>
-			) : null,
-		[ canEdit, saved, coverage, isTrashed ]
-	);
+	let body: JSX.Element | null = null;
 
-	const modals = (
-		<>
-			{ modal === 'add' && (
-				<TeamsModal
-					title={ __( 'Add Score', 'newspack-rolling-coverage' ) }
-					submitLabel={ __(
-						'Add Score',
-						'newspack-rolling-coverage'
-					) }
-					names={ [ '', '' ] }
-					onSubmit={ async ( [ first, second ] ) => {
-						const ok = await save( {
-							teams: [
-								{ name: first, score: 0 },
-								{ name: second, score: 0 },
-							],
-							status: '',
-						} );
-
-						if ( ok ) {
-							notifySuccess(
-								__(
-									'Score added.',
-									'newspack-rolling-coverage'
-								)
-							);
-						}
-
-						return ok;
-					} }
-					onClose={ () => setModal( null ) }
-				/>
-			) }
-			{ modal === 'teams' && score && (
-				<TeamsModal
-					title={ __( 'Edit Teams', 'newspack-rolling-coverage' ) }
-					submitLabel={ __( 'Save', 'newspack-rolling-coverage' ) }
-					names={ [ score.teams[ 0 ].name, score.teams[ 1 ].name ] }
-					onSubmit={ async ( [ first, second ] ) => {
-						const ok = await save( {
-							...score,
-							teams: [
-								{ ...score.teams[ 0 ], name: first },
-								{ ...score.teams[ 1 ], name: second },
-							],
-						} );
-
-						if ( ok ) {
-							notifySuccess(
-								__(
-									'Changes saved.',
-									'newspack-rolling-coverage'
-								)
-							);
-						}
-
-						return ok;
-					} }
-					onClose={ () => setModal( null ) }
-				/>
-			) }
-			{ dialog }
-		</>
-	);
-
-	if ( ! score ) {
-		return { addButton, panel: modal ? modals : null };
-	}
-
-	if ( ! canEdit || isTrashed ) {
-		return {
-			addButton: null,
-			panel: (
-				<div className="newspack-rolling-coverage-score">
-					<Text>
-						{ score.status
-							? sprintf(
-									/* translators: 1: The first team's name. 2: Its score. 3: The second team's name. 4: Its score. 5: The status line, such as "Second half". */
-									__(
-										'Score: %1$s %2$d, %3$s %4$d (%5$s)',
-										'newspack-rolling-coverage'
-									),
-									score.teams[ 0 ].name,
-									score.teams[ 0 ].score,
-									score.teams[ 1 ].name,
-									score.teams[ 1 ].score,
-									score.status
-								)
-							: sprintf(
-									/* translators: 1: The first team's name. 2: Its score. 3: The second team's name. 4: Its score. */
-									__(
-										'Score: %1$s %2$d, %3$s %4$d',
-										'newspack-rolling-coverage'
-									),
-									score.teams[ 0 ].name,
-									score.teams[ 0 ].score,
-									score.teams[ 1 ].name,
-									score.teams[ 1 ].score
-								) }
-					</Text>
-				</div>
-			),
-		};
-	}
-
-	return {
-		addButton: null,
-		panel: (
+	if ( score && ( ! canEdit || isTrashed ) ) {
+		body = <ScoreText score={ score } />;
+	} else if ( score ) {
+		body = (
 			<div
 				className="newspack-rolling-coverage-score"
 				role="group"
@@ -476,7 +391,7 @@ function useScorePanel(
 									'Edit Teams',
 									'newspack-rolling-coverage'
 								),
-								onClick: () => setModal( 'teams' ),
+								onClick: () => setIsEditingTeams( true ),
 							},
 							{
 								title: __(
@@ -512,9 +427,142 @@ function useScorePanel(
 						] }
 					/>
 				</Stack>
-				{ modals }
 			</div>
-		),
+		);
+	}
+
+	return (
+		<>
+			{ body }
+			{ isAdding && (
+				<TeamsModal
+					title={ __( 'Add Score', 'newspack-rolling-coverage' ) }
+					submitLabel={ __(
+						'Add Score',
+						'newspack-rolling-coverage'
+					) }
+					names={ [ '', '' ] }
+					onSubmit={ async ( [ first, second ] ) => {
+						const ok = await save( {
+							teams: [
+								{ name: first, score: 0 },
+								{ name: second, score: 0 },
+							],
+							status: '',
+						} );
+
+						if ( ok ) {
+							notifySuccess(
+								__(
+									'Score added.',
+									'newspack-rolling-coverage'
+								)
+							);
+						}
+
+						return ok;
+					} }
+					onClose={ onAddClose }
+				/>
+			) }
+			{ isEditingTeams && score && (
+				<TeamsModal
+					title={ __( 'Edit Teams', 'newspack-rolling-coverage' ) }
+					submitLabel={ __( 'Save', 'newspack-rolling-coverage' ) }
+					names={ [ score.teams[ 0 ].name, score.teams[ 1 ].name ] }
+					onSubmit={ async ( [ first, second ] ) => {
+						const ok = await save( {
+							...score,
+							teams: [
+								{ ...score.teams[ 0 ], name: first },
+								{ ...score.teams[ 1 ], name: second },
+							],
+						} );
+
+						if ( ok ) {
+							notifySuccess(
+								__(
+									'Changes saved.',
+									'newspack-rolling-coverage'
+								)
+							);
+						}
+
+						return ok;
+					} }
+					onClose={ () => setIsEditingTeams( false ) }
+				/>
+			) }
+			{ dialog }
+		</>
+	);
+}
+
+/**
+ * The score of the liveblog whose entries are listed: an Add Score button
+ * for the header while it has none, and the liveblog's score panel (see
+ * ScorePanel) for above the list.
+ *
+ * @param {Coverage|null} coverage   The listed coverage.
+ * @param {Function}      setContext Sets the admin context, whose copy of the coverage takes each saved score.
+ * @return {Object} The header button and the panel, either of which can be null.
+ */
+function useScorePanel(
+	coverage: Coverage | null,
+	setContext: ContextExports[ 1 ]
+): { addButton: JSX.Element | null; panel: JSX.Element | null } {
+	const config = useAdminContext();
+	const canEdit = config.capabilities.canManageTerms;
+	const coverageId = coverage?.id ?? 0;
+	const hasScore = isScore( coverage?.meta?.[ SCORE_META_KEY ] );
+	const isTrashed = coverage?.meta?.rolling_coverage_status === 'trash';
+	const [ addingFor, setAddingFor ] = useState< number | null >( null );
+
+	const onSaved = useCallback(
+		( id: number, next: Score | null ) =>
+			setContext( ( prev ) =>
+				prev.selectedCoverage?.id === id
+					? {
+							...prev,
+							selectedCoverage: {
+								...prev.selectedCoverage,
+								meta: {
+									...prev.selectedCoverage.meta,
+									[ SCORE_META_KEY ]: next,
+								},
+							},
+						}
+					: prev
+			),
+		[ setContext ]
+	);
+	const onAddClose = useCallback( () => setAddingFor( null ), [] );
+
+	const addButton = useMemo(
+		() =>
+			canEdit && coverageId && ! hasScore && ! isTrashed ? (
+				<Button
+					variant="tertiary"
+					onClick={ () => setAddingFor( coverageId ) }
+				>
+					{ __( 'Add Score', 'newspack-rolling-coverage' ) }
+				</Button>
+			) : null,
+		[ canEdit, coverageId, hasScore, isTrashed ]
+	);
+
+	return {
+		addButton,
+		panel: coverage ? (
+			<ScorePanel
+				key={ coverage.id }
+				coverage={ coverage }
+				canEdit={ canEdit }
+				isAdding={ addingFor === coverage.id }
+				onAddClose={ onAddClose }
+				onSaved={ onSaved }
+			/>
+		) : null,
 	};
 }
 
