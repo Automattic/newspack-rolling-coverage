@@ -87,6 +87,9 @@ const HIDE = `
 #wp-admin-bar-woocommerce-site-visibility-badge,
 #wp-admin-bar-wpseo-menu { display: none !important; }`;
 
+const PLACEHOLDER_HOST = 'yourgroovydomain.com';
+const SWAP_PASSES = 5;
+
 const USAGE = `Usage: npm run shot -- <section>/<name>-<n> --site <url> [options]
 
   <section>/<name>-<n>   Where the image goes, e.g. blocks/rolling-coverage-2
@@ -566,6 +569,247 @@ async function nextFrames( page ) {
 	);
 }
 
+function escapeRegExp( text ) {
+	return text.replace( /[.*+?^${}()|[\]\\]/g, '\\$&' );
+}
+
+// Pages print WordPress's own home and site addresses, which can differ from
+// --site behind a proxy, a port mapping or a www redirect.
+async function siteAddresses( page, site ) {
+	const index = await page
+		.evaluate(
+			( url ) => fetch( url ).then( ( response ) => response.json() ),
+			new URL( '?rest_route=/', site ).href
+		)
+		.catch( () => null );
+	if ( ! index ) {
+		console.warn(
+			"shot: couldn't read the site's addresses from its REST API, so only the --site address is hidden."
+		);
+	}
+	const addresses = [ site ];
+	[ index?.home, index?.url ].forEach( ( value ) => {
+		const url = URL.canParse( value ) && new URL( value );
+		if ( url && [ 'http:', 'https:' ].includes( url.protocol ) ) {
+			addresses.push( url );
+		}
+	} );
+	return addresses;
+}
+
+// Full addresses swap before origins and hosts, longest first, so a site in a
+// folder loses its folder and a www host swaps before the bare one. A
+// single-label host such as localhost swaps only with its scheme or port, where
+// it can't be an ordinary word.
+function addressSwaps( addresses ) {
+	const origin = `https://${ PLACEHOLDER_HOST }`;
+	const scheme = 'https?://';
+	const hostStart = '(?<![A-Za-z0-9-])';
+	const hostEnd = '(?![A-Za-z0-9-]|\\.[A-Za-z0-9])';
+	const pathEnd = '(?![A-Za-z0-9_~%-]|\\.[A-Za-z0-9])';
+	const groups = [ [], [], [], [] ];
+	for ( const url of addresses ) {
+		if ( url.hostname === PLACEHOLDER_HOST ) {
+			continue;
+		}
+		const path = url.pathname.replace( /\/+$/, '' );
+		const named = [
+			url.port && url.host,
+			url.hostname.includes( '.' ) && url.hostname,
+		].filter( Boolean );
+		if ( path ) {
+			groups[ 0 ].push( {
+				source: `${ scheme }${ escapeRegExp( url.host + path ) }${ pathEnd }`,
+				to: origin,
+			} );
+			named.forEach( ( host ) =>
+				groups[ 1 ].push( {
+					source: `${ hostStart }${ escapeRegExp( host + path ) }${ pathEnd }`,
+					to: PLACEHOLDER_HOST,
+				} )
+			);
+		}
+		groups[ 2 ].push( {
+			source: `${ scheme }${ escapeRegExp( url.host ) }${ hostEnd }`,
+			to: origin,
+		} );
+		named.forEach( ( host ) =>
+			groups[ 3 ].push( {
+				source: `${ hostStart }${ escapeRegExp( host ) }${ hostEnd }`,
+				to: PLACEHOLDER_HOST,
+			} )
+		);
+	}
+	return groups.flatMap( ( group ) =>
+		group
+			.filter(
+				( swap, index ) =>
+					group.findIndex( ( other ) => other.source === swap.source ) ===
+					index
+			)
+			.sort( ( a, b ) => b.source.length - a.source.length )
+	);
+}
+
+function swapSiteAddress( swaps ) {
+	const patterns = swaps.map( ( { source, to } ) => [
+		new RegExp( source, 'g' ),
+		to,
+	] );
+	const swap = ( text ) =>
+		patterns.reduce(
+			( result, [ pattern, to ] ) => result.replace( pattern, to ),
+			text
+		);
+	let swapped = 0;
+	const update = ( before, write ) => {
+		const after = before ? swap( before ) : before;
+		if ( after !== before ) {
+			write( after );
+			swapped++;
+		}
+	};
+	document.querySelectorAll( 'input, textarea' ).forEach( ( field ) =>
+		update( field.value, ( after ) => ( field.value = after ) )
+	);
+	document
+		.querySelectorAll( '[placeholder]' )
+		.forEach( ( element ) =>
+			update( element.getAttribute( 'placeholder' ), ( after ) =>
+				element.setAttribute( 'placeholder', after )
+			)
+		);
+	const skip = [ 'SCRIPT', 'STYLE', 'NOSCRIPT', 'TEMPLATE', 'TEXTAREA' ];
+	const walker = document.createTreeWalker(
+		document.documentElement,
+		NodeFilter.SHOW_TEXT,
+		{
+			acceptNode: ( node ) =>
+				skip.includes( node.parentNode?.nodeName.toUpperCase() )
+					? NodeFilter.FILTER_REJECT
+					: NodeFilter.FILTER_ACCEPT,
+		}
+	);
+	for ( let node = walker.nextNode(); node; node = walker.nextNode() ) {
+		update( node.nodeValue, ( after ) => ( node.nodeValue = after ) );
+	}
+	return swapped;
+}
+
+// Runs only once the steps are done, so nothing a step types or saves carries
+// the placeholder, and again until a pass finds nothing, in case the page
+// re-rendered the address in between.
+async function hideSiteAddress( page, swaps ) {
+	if ( ! swaps.length ) {
+		return;
+	}
+	for ( let pass = 0; pass < SWAP_PASSES; pass++ ) {
+		let swapped = 0;
+		for ( const frame of page.frames() ) {
+			swapped += await frame
+				.evaluate( swapSiteAddress, swaps )
+				.catch( ( error ) => {
+					if ( frame === page.mainFrame() ) {
+						fail(
+							`couldn't hide the site's address, so nothing was saved: ${
+								error.message.split( '\n' )[ 0 ]
+							}`
+						);
+					}
+					return 0;
+				} );
+		}
+		if ( ! swapped ) {
+			return;
+		}
+		await nextFrames( page );
+	}
+	fail(
+		`the page kept showing the site's address after ${ SWAP_PASSES } passes, so nothing was saved.`
+	);
+}
+
+// A video can't swap once before each frame the browser sends, so while it
+// records, every document swaps on each mutation and each animation frame.
+// A focused field shows its real value, so a step types into the real address,
+// and a form posts the real address.
+function keepSiteAddressHidden( swap, swaps ) {
+	if ( window.__shotAddressHidden ) {
+		return;
+	}
+	window.__shotAddressHidden = true;
+	const shown = new WeakMap();
+	const run = () => {
+		if ( ! document.documentElement ) {
+			return;
+		}
+		const fields = [ ...document.querySelectorAll( 'input, textarea' ) ];
+		const before = fields.map( ( field ) => field.value );
+		swap( swaps );
+		fields.forEach( ( field, index ) => {
+			if ( field.value === before[ index ] ) {
+				return;
+			}
+			if ( field === field.ownerDocument.activeElement ) {
+				field.value = before[ index ];
+			} else {
+				shown.set( field, {
+					real: before[ index ],
+					shown: field.value,
+				} );
+			}
+		} );
+	};
+	document.addEventListener(
+		'focusin',
+		( { target } ) => {
+			const swapped = shown.get( target );
+			if ( swapped && target.value === swapped.shown ) {
+				target.value = swapped.real;
+			}
+		},
+		true
+	);
+	document.addEventListener(
+		'formdata',
+		( { target, formData } ) => {
+			for ( const field of target.elements ) {
+				const swapped = shown.get( field );
+				if ( field.name && swapped && field.value === swapped.shown ) {
+					formData.set( field.name, swapped.real );
+				}
+			}
+		},
+		true
+	);
+	new MutationObserver( run ).observe( document, {
+		subtree: true,
+		childList: true,
+		characterData: true,
+		attributes: true,
+		attributeFilter: [ 'placeholder' ],
+	} );
+	const everyFrame = () => {
+		run();
+		requestAnimationFrame( everyFrame );
+	};
+	everyFrame();
+}
+
+async function keepSiteAddressHiddenWhileRecording( page, swaps ) {
+	if ( ! swaps.length ) {
+		return;
+	}
+	const script = `(${ keepSiteAddressHidden })(${ swapSiteAddress }, ${ JSON.stringify(
+		swaps
+	) })`;
+	await page.context().addInitScript( { content: script } );
+	for ( const frame of page.frames() ) {
+		await frame.evaluate( script ).catch( () => {} );
+	}
+	await hideSiteAddress( page, swaps );
+}
+
 async function closeGuides( page ) {
 	const close = page.locator(
 		'.components-guide button[aria-label="Close"], .newspack-lightbox__close'
@@ -765,7 +1009,8 @@ async function waitFor( page, selector ) {
 		);
 }
 
-async function startRecording( page ) {
+async function startRecording( page, swaps ) {
+	await keepSiteAddressHiddenWhileRecording( page, swaps );
 	const session = await page.context().newCDPSession( page );
 	const frames = [];
 	const start = Date.now() / 1000;
@@ -877,9 +1122,9 @@ async function saveVideo( { frames, start, end }, out, poster ) {
 	}
 }
 
-async function runStep( page, step, video ) {
+async function runStep( page, step, video, swaps ) {
 	if ( 'record' === step.action ) {
-		video.recording = await startRecording( page );
+		video.recording = await startRecording( page, swaps );
 		return;
 	}
 	if ( 'run' === step.action ) {
@@ -1018,16 +1263,19 @@ async function main() {
 		);
 		await goto( page, options.target.href );
 		await settle( page );
+		const swaps = addressSwaps(
+			await siteAddresses( page, options.site )
+		);
 		await closeGuides( page );
 		const video = { recording: null };
 		if (
 			options.video &&
 			! options.steps.some( ( step ) => 'record' === step.action )
 		) {
-			video.recording = await startRecording( page );
+			video.recording = await startRecording( page, swaps );
 		}
 		for ( const step of options.steps ) {
-			await runStep( page, step, video );
+			await runStep( page, step, video, swaps );
 		}
 		if ( options.video ) {
 			if ( ! video.recording ) {
@@ -1061,6 +1309,7 @@ async function main() {
 			);
 			clearInterval( watcher );
 		}
+		await hideSiteAddress( page, swaps );
 
 		let box = null;
 		if ( options.spotlight.length ) {
@@ -1125,6 +1374,7 @@ async function main() {
 			};
 		}
 
+		await hideSiteAddress( page, swaps );
 		const png = await page.screenshot( { type: 'png' } );
 		mkdirSync( dirname( options.out ), { recursive: true } );
 		const isPng = '.png' === extname( options.out ).toLowerCase();
