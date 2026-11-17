@@ -9,6 +9,7 @@
 .newspack-rolling-coverage-score {
 	background-color: var(--wpds-color-background-surface-neutral-weak, #f4f4f4);
 	border-block-end: var(--wpds-border-width-xs, #{wp-vars.$border-width}) solid var(--wpds-color-stroke-surface-neutral-weak, #{wp-colors.$gray-100});
+	margin-block-end: wp-vars.$grid-unit-40;
 	padding: var(--wpds-dimension-padding-lg, #{wp-vars.$grid-unit-20}) var(--wpds-dimension-padding-2xl, #{wp-vars.$grid-unit-30});
 
 	@media (min-width: #{wp-breakpoints.$break-small}) {
