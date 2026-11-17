@@ -486,6 +486,17 @@ class Test_Placements extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * An Automatic block beside only a capped feed shows that feed's
+	 * coverage, so the page lists it.
+	 */
+	public function test_automatic_blocks_beside_a_capped_feed_tag_the_page() {
+		$coverage_id = self::create_coverage();
+		$page_id     = self::publish( self::status() . self::follow() . self::feed( $coverage_id, [ 'latestOnly' => true ] ) );
+
+		$this->assertSame( [ 'post:' . $page_id => [ 'Rolling Coverage (Bulletin, latest 5)', 'Coverage Status', 'Follow Coverage' ] ], self::blocks( $coverage_id ) );
+	}
+
+	/**
 	 * Block widgets make their widget area a place, opened in the Widgets
 	 * screen; inactive widgets don't count.
 	 */

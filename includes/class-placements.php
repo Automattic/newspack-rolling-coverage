@@ -1169,6 +1169,7 @@ class Placements {
 
 				if ( $found['automatic'] ) {
 					$coverage_id = self::first_feed( $found['feeds'] );
+					$coverage_id = $coverage_id ? $coverage_id : self::first_feed( $found['capped'] );
 					$coverage_id = $coverage_id ? $coverage_id : Page_Coverages::breakout_coverage_id( $post_id );
 
 					if ( $coverage_id ) {
@@ -1408,8 +1409,8 @@ class Placements {
 	}
 
 	/**
-	 * The first coverage among a post's uncapped feeds that can be followed,
-	 * as an Automatic block picks it.
+	 * The first coverage among a list of feeds that can be followed, as an
+	 * Automatic block picks it: from the full feeds, then the capped ones.
 	 *
 	 * @param int[] $feeds Coverage IDs of the feeds, in page order.
 	 * @return int Coverage term ID, or 0.
@@ -1624,7 +1625,7 @@ class Placements {
 	 * Scans block content for what it shows.
 	 *
 	 * @param string $content Block content.
-	 * @return array{coverages: array<int,array<string,true>>, automatic: array<string,true>, refs: array<int,true>, parts: array<string,true>, feeds: int[]}
+	 * @return array{coverages: array<int,array<string,true>>, automatic: array<string,true>, refs: array<int,true>, parts: array<string,true>, feeds: int[], capped: int[]}
 	 */
 	private static function scan( string $content ): array {
 		$found = [
@@ -1633,6 +1634,7 @@ class Placements {
 			'refs'      => [],
 			'parts'     => [],
 			'feeds'     => [],
+			'capped'    => [],
 		];
 
 		self::walk( parse_blocks( $content ), $found, false, [] );
@@ -1643,8 +1645,8 @@ class Placements {
 	/**
 	 * Walks parsed blocks, recording the coverages the place's own blocks
 	 * show, its Automatic Status and Follow Coverage blocks, the synced
-	 * patterns it uses, the template parts it holds, and its uncapped feeds
-	 * in page order, patterns included, for Automatic blocks to pick from.
+	 * patterns it uses, the template parts it holds, and its full and capped
+	 * feeds in page order, patterns included, for Automatic blocks to pick from.
 	 *
 	 * Blocks inside a Rolling Coverage block are part of its layout and show
 	 * its coverage, so the walk doesn't go into one. A synced pattern is a
@@ -1671,8 +1673,8 @@ class Placements {
 					self::add_tags( $found['coverages'], $coverage_id, [ $tag ] );
 				}
 
-				if ( $coverage_id > 0 && empty( $attrs['latestOnly'] ) ) {
-					$found['feeds'][] = $coverage_id;
+				if ( $coverage_id > 0 ) {
+					$found[ empty( $attrs['latestOnly'] ) ? 'feeds' : 'capped' ][] = $coverage_id;
 				}
 
 				continue;

@@ -120,17 +120,37 @@ class Test_Coverage_Status_Block extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * A capped feed only previews a coverage, so the status follows the
-	 * page's full feed even when the capped one comes first, and an article
-	 * holding only a capped feed shows no status.
+	 * A full feed decides the page's coverage even when a capped one comes
+	 * first.
 	 */
-	public function test_does_not_follow_capped_feeds() {
+	public function test_a_full_feed_wins_over_a_capped_one() {
 		$related = self::create_coverage();
 		$own     = self::create_coverage();
 		$capped  = '<!-- wp:newspack-rolling-coverage/rolling-coverage {"coverageId":' . $related . ',"latestOnly":true} /-->';
 
 		$this->assertStringContainsString( 'data-coverage-id="' . $own . '"', $this->render( [], self::page( $capped . self::feed( $own ) ) ) );
-		$this->assertSame( '', $this->render( [], self::page( $capped ) ) );
+		$this->assertStringContainsString( 'data-coverage-id="' . $own . '"', $this->render( [], self::page( self::feed( $own ) . $capped ) ) );
+	}
+
+	/**
+	 * A page whose only feed is a capped one follows that feed's coverage,
+	 * the first of them when there are several.
+	 */
+	public function test_a_capped_feed_is_used_when_it_is_the_only_feed() {
+		$first  = self::create_coverage();
+		$second = self::create_coverage();
+		$capped = static fn( int $id ) => '<!-- wp:newspack-rolling-coverage/rolling-coverage {"coverageId":' . $id . ',"latestOnly":true} /-->';
+
+		$this->assertStringContainsString( 'data-coverage-id="' . $first . '"', $this->render( [], self::page( $capped( $first ) . $capped( $second ) ) ) );
+	}
+
+	/**
+	 * A page with no feed, or whose capped feed has no coverage yet, shows no
+	 * status.
+	 */
+	public function test_a_page_without_a_feed_shows_no_status() {
+		$this->assertSame( '', $this->render( [], self::page( '<!-- wp:paragraph --><p>Text</p><!-- /wp:paragraph -->' ) ) );
+		$this->assertSame( '', $this->render( [], self::page( '<!-- wp:newspack-rolling-coverage/rolling-coverage {"latestOnly":true} /-->' ) ) );
 	}
 
 	/**
