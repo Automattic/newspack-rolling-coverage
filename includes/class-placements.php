@@ -1169,8 +1169,8 @@ class Placements {
 
 				if ( $found['automatic'] ) {
 					$coverage_id = self::first_feed( $found['feeds'] );
-					$coverage_id = $coverage_id ? $coverage_id : self::first_feed( $found['capped'] );
 					$coverage_id = $coverage_id ? $coverage_id : Page_Coverages::breakout_coverage_id( $post_id );
+					$coverage_id = $coverage_id ? $coverage_id : self::first_feed( $found['capped'] );
 
 					if ( $coverage_id ) {
 						self::add_tags( $found['coverages'], $coverage_id, array_keys( $found['automatic'] ) );
