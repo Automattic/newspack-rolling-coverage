@@ -145,6 +145,24 @@ class Test_Coverage_Status_Block extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * A breakout post that holds a capped preview of another liveblog keeps
+	 * the liveblog it was broken out from, so a Follow button never
+	 * subscribes readers to the wrong story.
+	 */
+	public function test_a_breakout_posts_source_wins_over_a_capped_feed() {
+		$source   = self::create_coverage();
+		$preview  = self::create_coverage();
+		$entry_id = self::create_entry();
+		wp_set_object_terms( $entry_id, [ $source ], Taxonomy::TAXONOMY_SLUG );
+		$capped = '<!-- wp:newspack-rolling-coverage/rolling-coverage {"coverageId":' . $preview . ',"latestOnly":true} /-->';
+
+		$html = $this->render( [], self::breakout_post( $entry_id, [ 'post_content' => $capped ] ) );
+
+		$this->assertStringContainsString( 'data-coverage-id="' . $source . '"', $html );
+		$this->assertStringNotContainsString( 'data-coverage-id="' . $preview . '"', $html );
+	}
+
+	/**
 	 * A page with no feed, or whose capped feed has no coverage yet, shows no
 	 * status.
 	 */

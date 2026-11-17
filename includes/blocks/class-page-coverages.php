@@ -99,8 +99,8 @@ class Page_Coverages {
 	 * The coverage a block outside a feed's entries is about. Inside a
 	 * Rolling Coverage block it is always that block's. Elsewhere a chosen
 	 * coverage wins while it can be followed; otherwise it is the page's
-	 * automatic one: the first full feed on the page, else the first capped
-	 * one, else a breakout post's source coverage.
+	 * automatic one: the first full feed on the page, else a breakout post's
+	 * source coverage, else the first capped feed.
 	 *
 	 * @param WP_Block $block  Block instance.
 	 * @param int      $chosen The block's chosen coverage ID; 0 for Automatic.
@@ -117,7 +117,15 @@ class Page_Coverages {
 
 		$post_id = self::page_id( $block );
 
-		return self::feed_coverage_ids( $post_id )[0] ?? self::capped_feed_coverage_ids( $post_id )[0] ?? self::breakout_coverage_id( $post_id );
+		$full = self::feed_coverage_ids( $post_id )[0] ?? 0;
+
+		if ( $full ) {
+			return $full;
+		}
+
+		$source = self::breakout_coverage_id( $post_id );
+
+		return $source ? $source : ( self::capped_feed_coverage_ids( $post_id )[0] ?? 0 );
 	}
 
 	/**
