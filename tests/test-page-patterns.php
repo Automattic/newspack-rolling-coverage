@@ -1,0 +1,201 @@
+<?php
+/**
+ * Tests for the page patterns in the "Rolling Coverage pages" category.
+ *
+ * @package Newspack_Rolling_Coverage
+ */
+
+use Newspack_Rolling_Coverage\Layout_Templates;
+use Newspack_Rolling_Coverage\Page_Patterns;
+use Newspack_Rolling_Coverage\Rolling_Coverage_Block;
+
+/**
+ * The patterns register in their own category, hold their layouts as inner
+ * blocks and stay out of the new-page pattern window.
+ */
+class Test_Page_Patterns extends Rolling_Coverage_TestCase {
+
+	const SLUGS = [
+		'live-page',
+		'live-page-latest-first',
+		'live-page-side-column',
+		'breaking-news',
+		'follow-page',
+		'follow-band',
+		'every-live-story',
+	];
+
+	/**
+	 * Registers the patterns again, as they are on a fresh request.
+	 */
+	public function set_up() {
+		parent::set_up();
+		self::unregister_all();
+		Page_Patterns::register();
+	}
+
+	/**
+	 * Leaves the registry as the test found it.
+	 */
+	public function tear_down() {
+		self::unregister_all();
+		parent::tear_down();
+	}
+
+	/**
+	 * Removes the category and the patterns.
+	 */
+	private static function unregister_all(): void {
+		foreach ( self::SLUGS as $slug ) {
+			if ( WP_Block_Patterns_Registry::get_instance()->is_registered( 'newspack-rolling-coverage/' . $slug ) ) {
+				unregister_block_pattern( 'newspack-rolling-coverage/' . $slug );
+			}
+		}
+
+		if ( WP_Block_Pattern_Categories_Registry::get_instance()->is_registered( Page_Patterns::CATEGORY ) ) {
+			unregister_block_pattern_category( Page_Patterns::CATEGORY );
+		}
+	}
+
+	/**
+	 * A registered pattern, with its content read.
+	 *
+	 * @param string $slug Pattern slug.
+	 * @return array
+	 */
+	private static function pattern( string $slug ): array {
+		return WP_Block_Patterns_Registry::get_instance()->get_registered( 'newspack-rolling-coverage/' . $slug );
+	}
+
+	/**
+	 * The patterns' slugs.
+	 *
+	 * @return array[]
+	 */
+	public function slugs(): array {
+		return array_map( static fn( $slug ) => [ $slug ], array_combine( self::SLUGS, self::SLUGS ) );
+	}
+
+	/**
+	 * Every Rolling Coverage block in markup, nested ones included.
+	 *
+	 * @param array[] $blocks Parsed blocks.
+	 * @return array[]
+	 */
+	private static function feeds( array $blocks ): array {
+		$found = [];
+
+		foreach ( $blocks as $block ) {
+			if ( Rolling_Coverage_Block::BLOCK_NAME === $block['blockName'] ) {
+				$found[] = $block;
+			}
+
+			$found = array_merge( $found, self::feeds( $block['innerBlocks'] ) );
+		}
+
+		return $found;
+	}
+
+	/**
+	 * The category exists and is not the layout category.
+	 */
+	public function test_registers_the_category() {
+		$category = WP_Block_Pattern_Categories_Registry::get_instance()->get_registered( 'rolling-coverage-pages' );
+
+		$this->assertSame( 'Rolling Coverage pages', $category['label'] );
+		$this->assertNotSame( \Newspack_Rolling_Coverage\Layout::PATTERN_CATEGORY, Page_Patterns::CATEGORY );
+	}
+
+	/**
+	 * Each pattern is in the category and out of the new-page window.
+	 *
+	 * @dataProvider slugs
+	 *
+	 * @param string $slug Pattern slug.
+	 */
+	public function test_pattern_is_registered_for_the_inserter_only( string $slug ) {
+		$pattern = self::pattern( $slug );
+
+		$this->assertSame( [ 'rolling-coverage-pages' ], $pattern['categories'] );
+		$this->assertNotEmpty( $pattern['title'] );
+		$this->assertNotEmpty( $pattern['description'] );
+		$this->assertNotEmpty( $pattern['keywords'] );
+		$this->assertNotEmpty( $pattern['viewportWidth'] );
+		$this->assertArrayNotHasKey( 'blockTypes', $pattern );
+		$this->assertArrayNotHasKey( 'templateTypes', $pattern );
+		$this->assertStringNotContainsString( 'core/post-content', wp_json_encode( $pattern ) );
+	}
+
+	/**
+	 * Every Rolling Coverage block in a pattern holds its layout and no
+	 * liveblog or shared layout. The list of liveblogs has no feed.
+	 *
+	 * @dataProvider slugs
+	 *
+	 * @param string $slug Pattern slug.
+	 */
+	public function test_feeds_hold_a_layout_and_no_coverage( string $slug ) {
+		$feeds = self::feeds( parse_blocks( self::pattern( $slug )['content'] ) );
+
+		if ( 'every-live-story' === $slug ) {
+			$this->assertEmpty( $feeds );
+		} else {
+			$this->assertNotEmpty( $feeds );
+		}
+
+		foreach ( $feeds as $feed ) {
+			$this->assertNotEmpty( $feed['innerBlocks'] );
+			$this->assertArrayNotHasKey( 'coverageId', $feed['attrs'] );
+			$this->assertArrayNotHasKey( 'layoutId', $feed['attrs'] );
+		}
+
+		$this->assertStringNotContainsString( '{{', self::pattern( $slug )['content'] );
+	}
+
+	/**
+	 * The pattern's layout is the built-in template, filled in for the site.
+	 */
+	public function test_embedded_layout_matches_the_built_in_template() {
+		$expected = serialize_blocks( Layout_Templates::get_blocks( 'clock' ) );
+		$feed     = self::feeds( parse_blocks( self::pattern( 'live-page' )['content'] ) )[0];
+
+		$this->assertSame( $expected, serialize_blocks( $feed['innerBlocks'] ) );
+		$this->assertFalse( $feed['attrs']['showAvatar'] );
+	}
+
+	/**
+	 * The blocks each pattern is made of, and the settings picking its layout
+	 * would have made.
+	 */
+	public function test_patterns_use_the_expected_layouts_and_settings() {
+		$latest = self::feeds( parse_blocks( self::pattern( 'live-page-latest-first' )['content'] ) );
+
+		$this->assertCount( 2, $latest );
+		$this->assertTrue( $latest[0]['attrs']['latestOnly'] );
+		$this->assertSame( 1, $latest[0]['attrs']['latestCount'] );
+		$this->assertSame( serialize_blocks( Layout_Templates::get_blocks( 'stream' ) ), serialize_blocks( $latest[1]['innerBlocks'] ) );
+
+		$flash = self::feeds( parse_blocks( self::pattern( 'breaking-news' )['content'] ) )[0];
+
+		$this->assertTrue( $flash['attrs']['hideWhenEnded'] );
+		$this->assertSame( serialize_blocks( Layout_Templates::get_blocks( 'flash' ) ), serialize_blocks( $flash['innerBlocks'] ) );
+
+		$wire = self::feeds( parse_blocks( self::pattern( 'follow-band' )['content'] ) )[0];
+
+		$this->assertSame( 5, $wire['attrs']['latestCount'] );
+		$this->assertSame( serialize_blocks( Layout_Templates::get_blocks( 'wire' ) ), serialize_blocks( $wire['innerBlocks'] ) );
+	}
+
+	/**
+	 * Status and Follow blocks have no liveblog of their own.
+	 *
+	 * @dataProvider slugs
+	 *
+	 * @param string $slug Pattern slug.
+	 */
+	public function test_status_and_follow_blocks_follow_the_page_or_wait_for_a_pick( string $slug ) {
+		$content = self::pattern( $slug )['content'];
+
+		$this->assertDoesNotMatchRegularExpression( '/wp:newspack-rolling-coverage\/(coverage-status|coverage-follow|update-timer) \{[^}]*"coverageId"/', $content );
+	}
+}
