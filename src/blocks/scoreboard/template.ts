@@ -94,8 +94,9 @@ function part(
  * Every choice is a block setting from the theme's presets. Names and scores
  * take the headings' font family and are bold; a block theme scale (Large,
  * XX-Large) gives them its fluid sizes, the classic Newspack Theme's scale
- * Normal and Huge. The dash is a size down from the scores, and it and the
- * status line, which is small, take the muted color the layouts' dates use.
+ * Normal and Huge. The dash is a size down from the scores in the text color,
+ * and the status line, which is small, takes the muted color the layouts'
+ * dates use.
  * Long names wrap within their half of the row.
  *
  * @param {Object}   tokens             The theme's presets.
