@@ -226,6 +226,7 @@ function ScorePanel( {
 	const confirmed = useRef< Score | null >( saved );
 	const pending = useRef< PendingSave | null >( null );
 	const isSaving = useRef( false );
+	const isStatusEdited = useRef( false );
 	const { requestConfirm, dialog } = useConfirmDialog();
 
 	const savedKey = JSON.stringify( saved );
@@ -239,7 +240,10 @@ function ScorePanel( {
 
 		confirmed.current = next;
 		setScore( next );
-		setStatus( next?.status ?? '' );
+
+		if ( ! isStatusEdited.current ) {
+			setStatus( next?.status ?? '' );
+		}
 	}, [ savedKey ] );
 
 	/**
@@ -279,7 +283,10 @@ function ScorePanel( {
 				}
 
 				setScore( confirmed.current );
-				setStatus( confirmed.current?.status ?? '' );
+
+				if ( ! isStatusEdited.current ) {
+					setStatus( confirmed.current?.status ?? '' );
+				}
 				notifyError(
 					sprintf(
 						/* translators: %s: Why the score couldn't be saved. */
@@ -335,6 +342,8 @@ function ScorePanel( {
 	const saveStatus = () => {
 		const next = status.trim();
 
+		isStatusEdited.current = false;
+
 		if ( ! score || next === score.status ) {
 			return;
 		}
@@ -385,7 +394,10 @@ function ScorePanel( {
 							) }
 							value={ status }
 							maxLength={ MAX_TEXT_LENGTH }
-							onChange={ setStatus }
+							onChange={ ( value ) => {
+								isStatusEdited.current = true;
+								setStatus( value );
+							} }
 							onBlur={ saveStatus }
 							onKeyDown={ ( event ) => {
 								if ( event.key === 'Enter' ) {

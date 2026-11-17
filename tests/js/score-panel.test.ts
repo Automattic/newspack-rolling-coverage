@@ -180,4 +180,28 @@ describe( 'useScorePanel', () => {
 			[ 'Riverbend FC', 'Toledo Beacon FC' ],
 		] );
 	} );
+
+	it( 'keeps the status being typed when a step saves', async () => {
+		const setContext = jest.fn( ( update ) => update );
+		const { rerender } = render(
+			createElement( Screen, { coverage: A, setContext } )
+		);
+
+		fireEvent.change( screen.getByLabelText( 'Status' ), {
+			target: { value: 'Second ha' },
+		} );
+		await act( async () => {
+			fireEvent.click(
+				screen.getAllByRole( 'button', { name: 'Increment' } )[ 0 ]
+			);
+		} );
+
+		const saved = coverage( 1, 'Riverbend FC', 'Toledo Beacon' );
+		(
+			saved.meta.rolling_coverage_score as { teams: { score: number }[] }
+		 ).teams[ 0 ].score = 2;
+		rerender( createElement( Screen, { coverage: saved, setContext } ) );
+
+		expect( screen.getByLabelText( 'Status' ) ).toHaveValue( 'Second ha' );
+	} );
 } );
