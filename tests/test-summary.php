@@ -325,7 +325,7 @@ class Test_Summary extends Rolling_Coverage_TestCase {
 		$this->assertStringContainsString( 'data-rc-summary="' . $summary_id . '"', $html );
 		$this->assertStringContainsString( '<h3 class="wp-block-post-title">What we know</h3>', $html );
 		$this->assertStringContainsString( 'River at 19.8 feet', $html );
-		$this->assertStringContainsString( 'Updated ', $html );
+		$this->assertMatchesRegularExpression( '#Updated <time datetime="\d{4}-\d{2}-\d{2}T[^"]+">[^<]+</time>#', $html );
 		$this->assertStringContainsString( 'data-entry-id="' . $entry_id . '"', $html );
 		$this->assertStringNotContainsString( 'data-entry-id="' . $summary_id . '"', $html );
 	}

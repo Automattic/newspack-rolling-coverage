@@ -175,7 +175,7 @@ class Entry_Bindings {
 				return null !== Breakout::get_published_breakout_url( $entry_id ) ? esc_html( Breakout_Label::for_post( Breakout::get_existing_breakout_id( $entry_id ) ) ) : null;
 
 			case 'summaryUpdated':
-				return esc_html( self::updated_text( get_post( $entry_id ) ) );
+				return self::updated_text( get_post( $entry_id ), true );
 		}
 
 		return null;
@@ -184,12 +184,14 @@ class Entry_Bindings {
 	/**
 	 * When an entry was last edited, as the summary card's "Updated" line
 	 * reads: the time in the site's time format, with the date in the site's
-	 * date format when it wasn't today in the site's timezone.
+	 * date format when it wasn't today in the site's timezone. As markup, the
+	 * time is a `<time>` element carrying the edit's ISO 8601 date.
 	 *
-	 * @param WP_Post|null $entry Entry post.
+	 * @param WP_Post|null $entry     Entry post.
+	 * @param bool         $as_markup Whether to return escaped HTML with a `<time>` element, rather than plain text.
 	 * @return string
 	 */
-	public static function updated_text( ?WP_Post $entry ): string {
+	public static function updated_text( ?WP_Post $entry, bool $as_markup = false ): string {
 		if ( ! $entry ) {
 			return '';
 		}
@@ -211,9 +213,13 @@ class Entry_Bindings {
 			);
 		}
 
+		if ( $as_markup ) {
+			$time = sprintf( '<time datetime="%s">%s</time>', esc_attr( gmdate( 'c', $timestamp ) ), esc_html( $time ) );
+		}
+
 		return sprintf(
 			/* translators: %s: when the liveblog's summary was last edited, such as "3:42 pm". */
-			__( 'Updated %s', 'newspack-rolling-coverage' ),
+			$as_markup ? esc_html__( 'Updated %s', 'newspack-rolling-coverage' ) : __( 'Updated %s', 'newspack-rolling-coverage' ),
 			$time
 		);
 	}

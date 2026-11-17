@@ -3697,8 +3697,9 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 
 	/**
 	 * Shows the Summary a poll brings in the feed's summary card: a new one in
-	 * place of the empty placeholder, an edit in place of the card, or the
-	 * placeholder in place of a Summary taken down. The card isn't a live
+	 * place of the empty placeholder, an edit in place of the card, the card
+	 * again when its "Updated" line now reads differently (the edit is no
+	 * longer today's), or the placeholder in place of a Summary taken down. The card isn't a live
 	 * region, so a swap is never announced, and it waits while focus is inside
 	 * the card, for a later poll, so a reader's place isn't lost.
 	 *
@@ -3726,18 +3727,22 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 			return;
 		}
 
+		const next = parseElement( sanitizeHtml( summary.html ) );
+
+		if ( ! next?.hasAttribute( SUMMARY_ATTRIBUTE ) ) {
+			return;
+		}
+
+		// The "Updated" line reads differently once the day of the edit has passed.
 		if (
 			shownId === String( summary.id ) &&
-			card.dataset.modifiedGmt === summary.modified
+			card.dataset.modifiedGmt === summary.modified &&
+			card.textContent === next.textContent
 		) {
 			return;
 		}
 
-		const next = parseElement( sanitizeHtml( summary.html ) );
-
-		if ( next?.hasAttribute( SUMMARY_ATTRIBUTE ) ) {
-			card.replaceWith( next );
-		}
+		card.replaceWith( next );
 	}
 
 	/**
