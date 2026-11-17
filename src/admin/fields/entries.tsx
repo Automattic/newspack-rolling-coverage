@@ -128,11 +128,18 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 								{ sourceLabel }
 							</VisuallyHidden>
 						</span>
-						{ title }
-						{ item.isSummary && (
-							<Badge intent="informational">
-								{ __( 'Summary', 'newspack-rolling-coverage' ) }
-							</Badge>
+						{ item.isSummary ? (
+							<span>
+								{ title }{ ' ' }
+								<Badge intent="informational">
+									{ __(
+										'Summary',
+										'newspack-rolling-coverage'
+									) }
+								</Badge>
+							</span>
+						) : (
+							title
 						) }
 					</Stack>
 				);
