@@ -420,6 +420,48 @@ class Test_Summary extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * A renamed coverage, another host page or a new time format renders
+	 * the card again.
+	 */
+	public function test_polls_render_the_card_again_for_what_it_shows() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id );
+		self::create_summary( $coverage_id );
+		$host_id = self::factory()->post->create();
+		$html    = self::render( $coverage_id );
+		$params  = [
+			'template_key' => self::wrapper_attribute( $html, 'data-template-key' ),
+			'recent'       => 1,
+			'host_post_id' => $host_id,
+		];
+		$renders = 0;
+		$count   = static function ( $content ) use ( &$renders ) {
+			++$renders;
+			return $content;
+		};
+		$poll    = static fn() => self::dispatch( 'GET', "/coverages/{$coverage_id}/entries", $params );
+
+		add_filter( 'render_block_core/post-content', $count );
+		$poll();
+		$poll();
+		$this->assertSame( 1, $renders );
+
+		wp_update_term( $coverage_id, Taxonomy::TAXONOMY_SLUG, [ 'name' => 'Renamed liveblog' ] );
+		$poll();
+		$this->assertSame( 2, $renders, 'A renamed coverage renders the card again.' );
+
+		$params['host_post_id'] = self::factory()->post->create();
+		$poll  = static fn() => self::dispatch( 'GET', "/coverages/{$coverage_id}/entries", $params );
+		$terms = wp_cache_get_last_changed( 'terms' );
+		$posts = wp_cache_get_last_changed( 'posts' );
+		$poll();
+		remove_filter( 'render_block_core/post-content', $count );
+
+		$this->assertSame( [ $terms, $posts ], [ wp_cache_get_last_changed( 'terms' ), wp_cache_get_last_changed( 'posts' ) ], 'Nothing else changed between the polls.' );
+		$this->assertSame( 3, $renders, 'Another host page renders the card again.' );
+	}
+
+	/**
 	 * The "Updated" line gives the time alone on the day of the edit, and the
 	 * date with it after that.
 	 */

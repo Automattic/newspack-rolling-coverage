@@ -4130,7 +4130,9 @@ class Rolling_Coverage_Block {
 	 * card, or null while the coverage has no published Summary. Every poll
 	 * URL asks for it, so the rendered card is kept in the object cache
 	 * (SUMMARY_CACHE_GROUP) until the Summary, the stored card, the coverage's
-	 * status or the "Updated" line it shows changes.
+	 * status, the "Updated" line it shows or the host page (Share links name
+	 * it) changes, or any post or term changes: a content gate, which is a
+	 * post, can start covering the Summary, and the coverage can be renamed.
 	 *
 	 * @param int    $coverage_id Coverage term ID.
 	 * @param array  $stored      The stored summary card and the Feed's layout (see persist_block_config()).
@@ -4155,6 +4157,9 @@ class Rolling_Coverage_Block {
 					$status,
 					Entry_Bindings::updated_text( $summary ),
 					get_locale(),
+					self::$host_post_id,
+					wp_cache_get_last_changed( 'posts' ),
+					wp_cache_get_last_changed( 'terms' ),
 				]
 			)
 		);
