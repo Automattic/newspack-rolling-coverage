@@ -729,85 +729,116 @@ async function hideSiteAddress( page, swaps ) {
 	);
 }
 
-// A video can't swap once before each frame the browser sends, so while it
-// records, every document swaps on each mutation and each animation frame.
-// A focused field shows its real value, so a step types into the real address,
-// and a form posts the real address.
-function keepSiteAddressHidden( swap, swaps ) {
+// While a video records, steps still type and save, so only page text and
+// placeholders swap: never field values, menu choices or editable text, which a
+// save could read back.
+function keepSiteAddressHidden( swaps ) {
 	if ( window.__shotAddressHidden ) {
-		return;
+		return 0;
 	}
 	window.__shotAddressHidden = true;
-	const shown = new WeakMap();
-	const run = () => {
-		if ( ! document.documentElement ) {
+	const patterns = swaps.map( ( { source, to } ) => [
+		new RegExp( source, 'g' ),
+		to,
+	] );
+	const swap = ( text ) =>
+		patterns.reduce(
+			( result, [ pattern, to ] ) => result.replace( pattern, to ),
+			text
+		);
+	let swapped = 0;
+	const update = ( before, write ) => {
+		const after = before ? swap( before ) : before;
+		if ( after !== before ) {
+			write( after );
+			swapped++;
+		}
+	};
+	const skip = [
+		'SCRIPT',
+		'STYLE',
+		'NOSCRIPT',
+		'TEMPLATE',
+		'TEXTAREA',
+		'OPTION',
+	];
+	const editable = ( element ) => !! element.closest( '[contenteditable]' );
+	const swapText = ( node ) => {
+		const parent = node.parentElement;
+		if (
+			parent &&
+			! skip.includes( parent.nodeName.toUpperCase() ) &&
+			! editable( parent )
+		) {
+			update( node.nodeValue, ( after ) => ( node.nodeValue = after ) );
+		}
+	};
+	const swapPlaceholder = ( element ) => {
+		if ( ! editable( element ) ) {
+			update( element.getAttribute( 'placeholder' ), ( after ) =>
+				element.setAttribute( 'placeholder', after )
+			);
+		}
+	};
+	const swapTree = ( root ) => {
+		if ( Node.TEXT_NODE === root.nodeType ) {
+			swapText( root );
 			return;
 		}
-		const fields = [ ...document.querySelectorAll( 'input, textarea' ) ];
-		const before = fields.map( ( field ) => field.value );
-		swap( swaps );
-		fields.forEach( ( field, index ) => {
-			if ( field.value === before[ index ] ) {
-				return;
-			}
-			if ( field === field.ownerDocument.activeElement ) {
-				field.value = before[ index ];
-			} else {
-				shown.set( field, {
-					real: before[ index ],
-					shown: field.value,
-				} );
-			}
-		} );
+		if ( ! root.querySelectorAll ) {
+			return;
+		}
+		const walker = document.createTreeWalker( root, NodeFilter.SHOW_TEXT );
+		for ( let node = walker.nextNode(); node; node = walker.nextNode() ) {
+			swapText( node );
+		}
+		if ( root.hasAttribute?.( 'placeholder' ) ) {
+			swapPlaceholder( root );
+		}
+		root.querySelectorAll( '[placeholder]' ).forEach( swapPlaceholder );
 	};
-	document.addEventListener(
-		'focusin',
-		( { target } ) => {
-			const swapped = shown.get( target );
-			if ( swapped && target.value === swapped.shown ) {
-				target.value = swapped.real;
+	new MutationObserver( ( records ) =>
+		records.forEach( ( record ) => {
+			if ( 'characterData' === record.type ) {
+				swapText( record.target );
+			} else if ( 'attributes' === record.type ) {
+				swapPlaceholder( record.target );
+			} else {
+				record.addedNodes.forEach( swapTree );
 			}
-		},
-		true
-	);
-	document.addEventListener(
-		'formdata',
-		( { target, formData } ) => {
-			for ( const field of target.elements ) {
-				const swapped = shown.get( field );
-				if ( field.name && swapped && field.value === swapped.shown ) {
-					formData.set( field.name, swapped.real );
-				}
-			}
-		},
-		true
-	);
-	new MutationObserver( run ).observe( document, {
+		} )
+	).observe( document, {
 		subtree: true,
 		childList: true,
 		characterData: true,
 		attributes: true,
 		attributeFilter: [ 'placeholder' ],
 	} );
-	const everyFrame = () => {
-		run();
-		requestAnimationFrame( everyFrame );
-	};
-	everyFrame();
+	swapTree( document );
+	return swapped;
 }
 
+// Covers the documents already open, and through the init script every
+// document opened while recording, such as the editor's canvas.
 async function keepSiteAddressHiddenWhileRecording( page, swaps ) {
 	if ( ! swaps.length ) {
 		return;
 	}
-	const script = `(${ keepSiteAddressHidden })(${ swapSiteAddress }, ${ JSON.stringify(
-		swaps
-	) })`;
-	await page.context().addInitScript( { content: script } );
+	await page.context().addInitScript( keepSiteAddressHidden, swaps );
 	for ( const frame of page.frames() ) {
-		await frame.evaluate( script ).catch( () => {} );
+		await frame
+			.evaluate( keepSiteAddressHidden, swaps )
+			.catch( ( error ) => {
+				if ( frame === page.mainFrame() ) {
+					fail(
+						`couldn't hide the site's address, so nothing was saved: ${
+							error.message.split( '\n' )[ 0 ]
+						}`
+					);
+				}
+			} );
 	}
-	await hideSiteAddress( page, swaps );
+	await nextFrames( page );
 }
 
 async function closeGuides( page ) {
