@@ -35,7 +35,7 @@ The Rolling Coverage block asks which liveblog to show. Search for it and select
 
 The page's own title is the headline. None of the patterns adds a second one.
 
-Some patterns use the Coverage Status or Follow Coverage block outside the feed. Where a pattern says so below, select each of those blocks, set **Liveblog** to **Custom**, and pick the liveblog. Without that, the block shows nothing on the site. See [Which liveblog a block shows](#which-liveblog-a-block-shows).
+Some patterns use the Coverage Status or Follow Coverage block outside the feed. They follow the liveblog you pick in the page's Rolling Coverage block. See [Which liveblog a block shows](#which-liveblog-a-block-shows).
 
 ## Live page
 
@@ -47,7 +47,7 @@ Use it for a story where the time of each update is the point, such as election 
 
 ## Live page, latest first
 
-The newest entry shows large at the top, under the Live badge. Below it, under the heading "All updates", every entry shows in the Stream layout. The newest entry shows in both places.
+The newest entry shows at the top, under the Live badge, with a large headline and text. Below it, under the heading "All updates", every entry shows in the Stream layout. The newest entry shows in both places.
 
 Use it when readers who arrive late want the latest news first and the full record second.
 
@@ -55,9 +55,9 @@ Use it when readers who arrive late want the latest news first and the full reco
 
 ## Live page with side column
 
-The feed sits on the left, two thirds of the page. On the right are the Live badge with the time of the last update, a **Follow** button and the Update Timer.
+A narrow column on the left, a third of the page, holds the Live badge with the time of the last update, a **Follow** button and the Update Timer. The feed takes the rest.
 
-On a phone the columns stack. The Live badge and the **Follow** button move above the feed, so readers see them without scrolling past the entries. The pattern holds a second copy of both for this. One copy is hidden on large screens and the other on small ones, so edit both when you change them.
+On a phone the columns stack with the badge and **Follow** button first, so readers see them without scrolling past the entries.
 
 Use it for a busy liveblog page on desktop, where readers keep the page open.
 
@@ -79,8 +79,6 @@ A page that asks readers to follow a liveblog. It has a sentence, the **Follow**
 
 The columns are "An alert when it matters", "No account needed" and "Stop anytime". Each fits how the button works: readers get an alert for entries marked to send one, the browser asks for permission the first time, and selecting **Following** stops the alerts. Keep them in line with how your site works if you change them.
 
-The Digest layout shows only the latest entries, so the **Follow** button can't find the liveblog on its own. Pick it in the Rolling Coverage block and in the Follow Coverage block.
-
 <Screenshot label="The Follow page pattern on a page, with the Follow button, three columns of text and a box of latest updates" src="/screenshots/guides/page-patterns-6.webp" width={3024} height={1964} />
 
 ## Follow band
@@ -89,15 +87,13 @@ A full-width band with a heading, the Live badge, a sentence and the **Follow** 
 
 Use it to put a **Follow** button on a page that does more than one thing, or on a landing page for a story. The band takes its background from the theme, so change it in the Group block's **Styles** tab.
 
-Like the Follow page, it needs the liveblog picked in the Rolling Coverage, Coverage Status and Follow Coverage blocks.
-
 <Screenshot label="The Follow band pattern on a page, with a shaded band above a list of the five latest updates" src="/screenshots/guides/page-patterns-7.webp" width={3024} height={1964} />
 
 ## Every live story
 
 A page that lists several liveblogs. It has a sentence and three rows. Each row has a heading for the liveblog's name, its Live badge, a line about it and a **Follow** button on the right.
 
-The rows start without a liveblog. In each row, select the Coverage Status block, set **Liveblog** to **Custom** and pick a liveblog. Do the same for the Follow Coverage block. Until you do, the editor shows a sample badge and button, and the site shows nothing. Type the liveblog's name into the heading yourself. Copy a row to add more.
+The rows have no feed, so each row's Coverage Status and Follow Coverage blocks need their own liveblog. In each row, select the Coverage Status block, set **Liveblog** to **Custom** and pick a liveblog. Do the same for the Follow Coverage block. Until you do, the editor shows a sample badge and button, and the site shows nothing. Type the liveblog's name into the heading yourself. Copy a row to add more.
 
 Use it as the page readers land on when you run several liveblogs at once.
 
@@ -105,7 +101,7 @@ Use it as the page readers land on when you run several liveblogs at once.
 
 ## Which liveblog a block shows
 
-The Coverage Status, Follow Coverage and Update Timer blocks set to **Automatic** use the first Rolling Coverage block on the page that shows more than the latest entries. A feed in the Digest, Wire, Flash, Ticker or Alert layout shows only the latest entries, so it doesn't count. That is why the Follow page and the Follow band need **Custom**, and why the other patterns work without it.
+The Coverage Status, Follow Coverage and Update Timer blocks set to **Automatic** use the first Rolling Coverage block on the page that shows every entry. If the page has none, they use the first one that shows only the latest entries, such as the Digest or Wire layout. So the Follow page and the Follow band work as soon as you pick the liveblog in their feed.
 
 ## Next
 

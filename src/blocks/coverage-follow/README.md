@@ -24,7 +24,7 @@ The Liveblog panel appears only outside a Rolling Coverage block.
 | Automatic | "Follows the liveblog on this page, or a breakout post’s liveblog." |
 | Custom | "Always follows this liveblog." Pick the liveblog from the list. |
 
-Automatic uses the first Rolling Coverage block in this post or page's content, not one placed in the site's template, and ignores a block that only previews the latest entries. It works on single posts and pages only, not on archives or password-protected posts. With no liveblog to follow, the button doesn't appear.
+Automatic uses the first Rolling Coverage block in this post or page's content that shows every entry, else the first one that shows only the latest entries, not one placed in the site's template. It works on single posts and pages only, not on archives or password-protected posts. With no liveblog to follow, the button doesn't appear.
 
 If a liveblog you chose is deleted, the block falls back to the page's liveblog. The editor shows a notice.
 
