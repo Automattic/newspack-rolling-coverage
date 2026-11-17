@@ -240,6 +240,9 @@ class Test_Summary extends Rolling_Coverage_TestCase {
 		$this->assertSame( [ $summary_id ], get_posts( array_merge( $base, [ Summary::QUERY_VAR => 'only' ] ) ) );
 		$this->assertEqualsCanonicalizing( [ $entry_id, $summary_id ], get_posts( array_merge( $base, [ Summary::QUERY_VAR => 'include' ] ) ) );
 		$this->assertSame( $summary_id, Summary::get_published( $coverage_id )->ID );
+
+		$post_id = self::factory()->post->create();
+		$this->assertEqualsCanonicalizing( [ $entry_id, $post_id ], get_posts( array_merge( $base, [ 'post_type' => [ 'post', Post_Type::CPT_SLUG ] ] ) ), 'A query for entries and other posts leaves the Summary out too.' );
 	}
 
 	/**

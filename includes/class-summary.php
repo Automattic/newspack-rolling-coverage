@@ -238,16 +238,16 @@ class Summary {
 	}
 
 	/**
-	 * Leave the Summary out of every entry query, unless it asks for it with
-	 * QUERY_VAR or is the main query for one entry. This runs for get_posts()
-	 * too, which skips the SQL filters.
+	 * Leave the Summary out of every query that lists entries, alone or with
+	 * other post types, unless it asks for it with QUERY_VAR or is the main
+	 * query for one entry. This runs for get_posts() too, which skips the SQL
+	 * filters.
 	 *
 	 * @param WP_Query $query The query about to run.
 	 */
 	public static function filter_query( WP_Query $query ): void {
-		$post_type = $query->get( 'post_type' );
-
-		if ( Post_Type::CPT_SLUG !== $post_type && [ Post_Type::CPT_SLUG ] !== $post_type ) {
+		// A query for `any` post type leaves entries out already, as they are excluded from search.
+		if ( ! in_array( Post_Type::CPT_SLUG, (array) $query->get( 'post_type' ), true ) ) {
 			return;
 		}
 

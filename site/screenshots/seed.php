@@ -1063,11 +1063,12 @@ function newspack_rc_screenshots_remove( $everything ) {
 
 	$posts = get_posts(
 		[
-			'post_type'   => array_values( get_post_types() ),
-			'post_status' => array_keys( get_post_stati() ),
-			'numberposts' => -1, // phpcs:ignore WordPressVIPMinimum.Performance.NoPaging.posts_per_page_numberposts -- Every marked item, from a command line run.
-			'fields'      => 'ids',
-			'meta_query'  => [ $marked ], // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+			'post_type'        => array_values( get_post_types() ),
+			'post_status'      => array_keys( get_post_stati() ),
+			Summary::QUERY_VAR => 'include',
+			'numberposts'      => -1, // phpcs:ignore WordPressVIPMinimum.Performance.NoPaging.posts_per_page_numberposts -- Every marked item, from a command line run.
+			'fields'           => 'ids',
+			'meta_query'       => [ $marked ], // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
 		]
 	);
 	$posts = array_values(
@@ -1234,11 +1235,12 @@ function newspack_rc_screenshots_remove( $everything ) {
 function newspack_rc_screenshots_has_posts( $user_id ) {
 	return (bool) get_posts(
 		[
-			'author'      => $user_id,
-			'post_type'   => array_values( get_post_types() ),
-			'post_status' => array_keys( get_post_stati() ),
-			'numberposts' => 1,
-			'fields'      => 'ids',
+			'author'           => $user_id,
+			Summary::QUERY_VAR => 'include',
+			'post_type'        => array_values( get_post_types() ),
+			'post_status'      => array_keys( get_post_stati() ),
+			'numberposts'      => 1,
+			'fields'           => 'ids',
 		]
 	);
 }
