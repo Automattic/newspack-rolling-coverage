@@ -18,14 +18,14 @@
 		"login": "james",
 		"first_name": "James",
 		"last_name": "Smith",
-		"email": "james.smith@example.com"
+		"email": "james.smith@yourgroovydomain.com"
 	},
 	"users": [
 		{
 			"login": "dokafor",
 			"first_name": "Dana",
 			"last_name": "Okafor",
-			"email": "dokafor@example.com",
+			"email": "dokafor@yourgroovydomain.com",
 			"role": "editor",
 			"avatar": "dana-okafor.png"
 		},
@@ -33,7 +33,7 @@
 			"login": "mreilly",
 			"first_name": "Marcus",
 			"last_name": "Reilly",
-			"email": "mreilly@example.com",
+			"email": "mreilly@yourgroovydomain.com",
 			"role": "editor",
 			"avatar": "marcus-reilly.png"
 		},
@@ -41,7 +41,7 @@
 			"login": "ethorne",
 			"first_name": "Ellis",
 			"last_name": "Thorne",
-			"email": "ethorne@example.com",
+			"email": "ethorne@yourgroovydomain.com",
 			"role": "editor",
 			"avatar": "ellis-thorne.png"
 		},
@@ -49,7 +49,7 @@
 			"login": "pverma",
 			"first_name": "Priya",
 			"last_name": "Verma",
-			"email": "pverma@example.com",
+			"email": "pverma@yourgroovydomain.com",
 			"role": "author",
 			"avatar": "priya-verma.png"
 		},
@@ -57,7 +57,7 @@
 			"login": "mquinn",
 			"first_name": "Marisol",
 			"last_name": "Quinn",
-			"email": "mquinn@example.com",
+			"email": "mquinn@yourgroovydomain.com",
 			"role": "author",
 			"avatar": "marisol-quinn.png"
 		},
@@ -65,7 +65,7 @@
 			"login": "wcastellano",
 			"first_name": "Wren",
 			"last_name": "Castellano",
-			"email": "wcastellano@example.com",
+			"email": "wcastellano@yourgroovydomain.com",
 			"role": "author",
 			"avatar": "wren-castellano.png"
 		},
@@ -73,7 +73,7 @@
 			"login": "rdelgado",
 			"first_name": "Rosa",
 			"last_name": "Delgado",
-			"email": "rdelgado@example.com",
+			"email": "rdelgado@yourgroovydomain.com",
 			"role": "author",
 			"avatar": "rosa-delgado.png"
 		},
@@ -81,7 +81,7 @@
 			"login": "ndoyle",
 			"first_name": "Nora",
 			"last_name": "Doyle",
-			"email": "ndoyle@example.com",
+			"email": "ndoyle@yourgroovydomain.com",
 			"role": "author",
 			"avatar": "nora-doyle.png"
 		},
@@ -89,7 +89,7 @@
 			"login": "cfalk",
 			"first_name": "Curtis",
 			"last_name": "Falk",
-			"email": "cfalk@example.com",
+			"email": "cfalk@yourgroovydomain.com",
 			"role": "author",
 			"avatar": "curtis-falk.png"
 		},
@@ -97,7 +97,7 @@
 			"login": "sadeyemi",
 			"first_name": "Simone",
 			"last_name": "Adeyemi",
-			"email": "sadeyemi@example.com",
+			"email": "sadeyemi@yourgroovydomain.com",
 			"role": "author",
 			"avatar": "simone-adeyemi.png"
 		},
@@ -105,7 +105,7 @@
 			"login": "hbrennan",
 			"first_name": "Hal",
 			"last_name": "Brennan",
-			"email": "hbrennan@example.com",
+			"email": "hbrennan@yourgroovydomain.com",
 			"role": "author",
 			"avatar": "hal-brennan.png"
 		}
@@ -1080,7 +1080,7 @@
 		{
 			"coverage": "bridge-street-water-main-break",
 			"title": "*Boil-water notice issued* for the Grid. Residents…",
-			"content": "<!-- wp:paragraph -->\n<p>*Boil-water notice issued* for the Grid. Residents should boil tap water for at least one minute before drinking or cooking with it. Public works has a map at example.com/boil-notice.</p>\n<!-- /wp:paragraph -->",
+			"content": "<!-- wp:paragraph -->\n<p>*Boil-water notice issued* for the Grid. Residents should boil tap water for at least one minute before drinking or cooking with it. Public works has a map at yourgroovydomain.com/boil-notice.</p>\n<!-- /wp:paragraph -->",
 			"author": "ndoyle",
 			"age": 188580,
 			"slack": {
@@ -1274,7 +1274,7 @@
 		{
 			"coverage": "open-studios",
 			"title": "",
-			"content": "<!-- wp:paragraph -->\n<p><strong>The last hour has started</strong> across the district. Foot traffic looks like a <em>record</em>, up from <s>5,100</s> 5,200 last year 🎨</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Studios close at 9pm in the <a href=\"https://example.com/stock-house\">Stock House</a>. Thanks @Wren Castellano for the photos.<br>More soon.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:list -->\n<ul class=\"wp-block-list\"><!-- wp:list-item -->\n<li>Stock House: open</li>\n<!-- /wp:list-item -->\n\n<!-- wp:list-item -->\n<li>Beater Room: <strong>full</strong><!-- wp:list -->\n<ul class=\"wp-block-list\"><!-- wp:list-item -->\n<li>Queue back to Mill Race Road</li>\n<!-- /wp:list-item --></ul>\n<!-- /wp:list --></li>\n<!-- /wp:list-item -->\n\n<!-- wp:list-item -->\n<li>Drying Loft: open</li>\n<!-- /wp:list-item --></ul>\n<!-- /wp:list -->\n\n<!-- wp:paragraph -->\n<p>What happens next:</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:list {\"ordered\":true} -->\n<ol class=\"wp-block-list\"><!-- wp:list-item -->\n<li>Studios close at 9pm</li>\n<!-- /wp:list-item -->\n\n<!-- wp:list-item -->\n<li>Studios reopen at 11am tomorrow</li>\n<!-- /wp:list-item --></ol>\n<!-- /wp:list -->\n\n<!-- wp:quote -->\n<blockquote class=\"wp-block-quote\"><!-- wp:paragraph -->\n<p>We expect to pass 6,000 before we close.</p>\n<!-- /wp:paragraph --></blockquote>\n<!-- /wp:quote -->\n\n<!-- wp:code -->\n<pre class=\"wp-block-code\"><code>Stock House  4,712\nDrying Loft  1,088</code></pre>\n<!-- /wp:code -->",
+			"content": "<!-- wp:paragraph -->\n<p><strong>The last hour has started</strong> across the district. Foot traffic looks like a <em>record</em>, up from <s>5,100</s> 5,200 last year 🎨</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Studios close at 9pm in the <a href=\"https://yourgroovydomain.com/stock-house\">Stock House</a>. Thanks @Wren Castellano for the photos.<br>More soon.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:list -->\n<ul class=\"wp-block-list\"><!-- wp:list-item -->\n<li>Stock House: open</li>\n<!-- /wp:list-item -->\n\n<!-- wp:list-item -->\n<li>Beater Room: <strong>full</strong><!-- wp:list -->\n<ul class=\"wp-block-list\"><!-- wp:list-item -->\n<li>Queue back to Mill Race Road</li>\n<!-- /wp:list-item --></ul>\n<!-- /wp:list --></li>\n<!-- /wp:list-item -->\n\n<!-- wp:list-item -->\n<li>Drying Loft: open</li>\n<!-- /wp:list-item --></ul>\n<!-- /wp:list -->\n\n<!-- wp:paragraph -->\n<p>What happens next:</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:list {\"ordered\":true} -->\n<ol class=\"wp-block-list\"><!-- wp:list-item -->\n<li>Studios close at 9pm</li>\n<!-- /wp:list-item -->\n\n<!-- wp:list-item -->\n<li>Studios reopen at 11am tomorrow</li>\n<!-- /wp:list-item --></ol>\n<!-- /wp:list -->\n\n<!-- wp:quote -->\n<blockquote class=\"wp-block-quote\"><!-- wp:paragraph -->\n<p>We expect to pass 6,000 before we close.</p>\n<!-- /wp:paragraph --></blockquote>\n<!-- /wp:quote -->\n\n<!-- wp:code -->\n<pre class=\"wp-block-code\"><code>Stock House  4,712\nDrying Loft  1,088</code></pre>\n<!-- /wp:code -->",
 			"author": "rdelgado",
 			"age": 183900,
 			"slack": {
