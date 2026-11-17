@@ -19,6 +19,7 @@ use Newspack_Rolling_Coverage\Layout;
 use Newspack_Rolling_Coverage\Layout_Templates;
 use Newspack_Rolling_Coverage\Post_Type;
 use Newspack_Rolling_Coverage\Slack_Config;
+use Newspack_Rolling_Coverage\Summary;
 use Newspack_Rolling_Coverage\Taxonomy;
 
 defined( 'ABSPATH' ) || exit;
@@ -796,6 +797,10 @@ function newspack_rc_screenshots_seed_entries( $entries, $coverages, $users, $me
 			],
 			$entry['age']
 		);
+		// Flagged before it joins the coverage, whose entry count leaves the Summary out.
+		if ( ! empty( $entry['summary'] ) ) {
+			update_post_meta( $entry_id, Summary::META_KEY, true );
+		}
 		wp_set_object_terms( $entry_id, [ $coverages[ $entry['coverage'] ] ], Taxonomy::TAXONOMY_SLUG );
 
 		if ( ! empty( $entry['image'] ) ) {
