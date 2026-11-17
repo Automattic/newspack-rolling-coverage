@@ -1,9 +1,9 @@
 ---
 title: Page patterns
-description: Seven ready-made pages for a liveblog, what each one is for, and how to add one.
+description: Nine ready-made pages for a liveblog, what each one is for, and how to add one.
 ---
 
-A page pattern is a page already laid out with the Rolling Coverage blocks. You add one, write your own text, and pick a liveblog. This page lists the seven patterns and when to use each one.
+A page pattern is a page already laid out with the Rolling Coverage blocks. You add one, write your own text, and pick a liveblog. This page lists the nine patterns and when to use each one.
 
 ## Add a pattern
 
@@ -35,7 +35,7 @@ The Rolling Coverage block asks which liveblog to show. Search for it and select
 
 The page's own title is the headline. None of the patterns adds a second one.
 
-Some patterns use the Coverage Status or Follow Coverage block outside the feed. They follow the liveblog you pick in the page's Rolling Coverage block. See [Which liveblog a block shows](#which-liveblog-a-block-shows).
+Some patterns use the Coverage Status, Follow Coverage or Scoreboard block outside the feed. They follow the liveblog you pick in the page's Rolling Coverage block. See [Which liveblog a block shows](#which-liveblog-a-block-shows).
 
 ## Live page
 
@@ -59,9 +59,33 @@ A narrow column on the left, a third of the page, holds the Live badge with the 
 
 On a phone the columns stack with the badge and **Follow** button first, so readers see them without scrolling past the entries.
 
+The columns are wider than the text column the theme puts the page title in. To line the title up with them, choose a wide page template in the page's **Template** setting, such as **Page (Wide)** on the Newspack Block Theme.
+
 Use it for a busy liveblog page on desktop, where readers keep the page open.
 
 <Screenshot label="The Live page with side column pattern on a page, with the feed on the left and the badge, Follow button and timer on the right" src="/screenshots/guides/page-patterns-4.webp" width={3024} height={1964} />
+
+## Match: scoreboard beside the feed
+
+A page for a match. A narrow column on the left, a third of the page, holds the Scoreboard and a "Line-ups" section with a list of players for each team. The feed takes the rest, in the Clock layout, under the Live badge with the time of the last update and a **Follow** button.
+
+The Scoreboard shows the score you set at the top of the liveblog's entries list, with a row for each team. It stays hidden until the liveblog has a score. See [Scoreboard](/docs/blocks/scoreboard/).
+
+The line-ups are plain text. Replace "Home team", "Away team" and the player names with your own, or remove the section.
+
+On a phone the columns stack with the score and line-ups first. As with the side column page, choose a wide page template to line the page title up with the columns.
+
+Use it for a match where readers want the score and the teams beside the updates.
+
+<Screenshot label="The Match: scoreboard beside the feed pattern on a page, with the score and line-ups on the left and the feed on the right" src="/screenshots/guides/page-patterns-5.webp" width={3024} height={1964} />
+
+## Match: centered scoreline
+
+A page for a match that leads with the score. The team names and the score sit large on one line in the middle of the page, with the status line, such as "Second half", under them. Below are the Live badge with the time of the last update and the feed in the Clock layout.
+
+Use it when the score is the story, such as a final or a derby.
+
+<Screenshot label="The Match: centered scoreline pattern on a page, with a large score above the Live badge and the feed" src="/screenshots/guides/page-patterns-6.webp" width={3024} height={1964} />
 
 ## Breaking news
 
@@ -71,7 +95,7 @@ The bar disappears once the liveblog ends, so the article reads as a normal arti
 
 Use it in a post or a page when a story is breaking and you want readers to see the newest update before the article text. The bar needs a liveblog with its own page, so readers have somewhere to follow the link.
 
-<Screenshot label="The Breaking news pattern on a page, with the latest update in a bar above the article text" src="/screenshots/guides/page-patterns-5.webp" width={3024} height={1964} />
+<Screenshot label="The Breaking news pattern on a page, with the latest update in a bar above the article text" src="/screenshots/guides/page-patterns-7.webp" width={3024} height={1964} />
 
 ## Follow page
 
@@ -79,7 +103,7 @@ A page that asks readers to follow a liveblog. It has a sentence, the **Follow**
 
 The columns are "An alert when it matters", "No account needed" and "Stop anytime". Each fits how the button works: readers get an alert for entries marked to send one, the browser asks for permission the first time, and selecting **Following** stops the alerts. Keep them in line with how your site works if you change them.
 
-<Screenshot label="The Follow page pattern on a page, with the Follow button, three columns of text and a box of latest updates" src="/screenshots/guides/page-patterns-6.webp" width={3024} height={1964} />
+<Screenshot label="The Follow page pattern on a page, with the Follow button, three columns of text and a box of latest updates" src="/screenshots/guides/page-patterns-8.webp" width={3024} height={1964} />
 
 ## Follow band
 
@@ -87,7 +111,7 @@ A full-width band with a heading, the Live badge, a sentence and the **Follow** 
 
 Use it to put a **Follow** button on a page that does more than one thing, or on a landing page for a story. The band takes its background from the theme, so change it in the Group block's **Styles** tab.
 
-<Screenshot label="The Follow band pattern on a page, with a shaded band above a list of the five latest updates" src="/screenshots/guides/page-patterns-7.webp" width={3024} height={1964} />
+<Screenshot label="The Follow band pattern on a page, with a shaded band above a list of the five latest updates" src="/screenshots/guides/page-patterns-9.webp" width={3024} height={1964} />
 
 ## Every live story
 
@@ -97,14 +121,14 @@ The rows have no feed, so each row's Coverage Status and Follow Coverage blocks 
 
 Use it as the page readers land on when you run several liveblogs at once.
 
-<Screenshot label="The Every live story pattern on a page, with a row for each liveblog and a Follow button on the right of each" src="/screenshots/guides/page-patterns-8.webp" width={3024} height={1964} />
+<Screenshot label="The Every live story pattern on a page, with a row for each liveblog and a Follow button on the right of each" src="/screenshots/guides/page-patterns-10.webp" width={3024} height={1964} />
 
 ## Which liveblog a block shows
 
-The Coverage Status, Follow Coverage and Update Timer blocks set to **Automatic** use the first Rolling Coverage block on the page that shows every entry. If the page has none, they use the first one that shows only the latest entries, such as the Digest or Wire layout. So the Follow page and the Follow band work as soon as you pick the liveblog in their feed.
+The Coverage Status, Follow Coverage, Update Timer and Scoreboard blocks set to **Automatic** use the first Rolling Coverage block on the page that shows every entry. If the page has none, they use the first one that shows only the latest entries, such as the Digest or Wire layout. So the Follow page and the Follow band work as soon as you pick the liveblog in their feed.
 
 ## Next
 
 - [Choose a layout](/docs/guides/layouts/)
 - [Push notifications](/docs/guides/push-notifications/), for what readers get after they follow.
-- The [Coverage Status](/docs/blocks/coverage-status/) and [Follow Coverage](/docs/blocks/follow-coverage/) blocks list every setting.
+- The [Coverage Status](/docs/blocks/coverage-status/), [Follow Coverage](/docs/blocks/follow-coverage/) and [Scoreboard](/docs/blocks/scoreboard/) blocks list every setting.
