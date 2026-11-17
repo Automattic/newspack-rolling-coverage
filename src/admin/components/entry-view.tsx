@@ -486,11 +486,12 @@ function EntryView() {
 		( ! disableNewEntry || showArchivedAddEntry ) &&
 		! isFirstLoad &&
 		! isEmpty;
-	const showNewSummary =
-		showNewEntry &&
-		! isArchived &&
+	const canAddSummary =
+		! disableNewEntry &&
 		config.capabilities.canEditEntries &&
 		summaryId === 0;
+	const showNewSummary = showNewEntry && canAddSummary;
+	const showEmptyStateSummary = canAddSummary && isEmpty;
 	const canShowSlack = canConnectSlack && routeCoverage !== null;
 	const showSlackInHeader =
 		canShowSlack && ! isFirstLoad && ( ! isEmpty || !! slackChannelLabel );
@@ -747,6 +748,7 @@ function EntryView() {
 						{ ( ! disableNewEntry || showSlackInEmptyState ) && (
 							<EmptyState.Actions>
 								{ emptyStateSlackButton }
+								{ showEmptyStateSummary && addSummaryButton }
 								{ ! disableNewEntry && addEntryButton }
 							</EmptyState.Actions>
 						) }
