@@ -77,7 +77,17 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 				const isFromSlack = getEntrySource( item ) === SOURCE_SLACK;
 				const isPinnedFirst = item.pinned || item.isSummary;
 				let sourceLabel;
-				if ( isPinnedFirst ) {
+				if ( item.isSummary ) {
+					sourceLabel = isFromSlack
+						? __(
+								'Summary, from Slack',
+								'newspack-rolling-coverage'
+							)
+						: __(
+								'Summary, from WordPress',
+								'newspack-rolling-coverage'
+							);
+				} else if ( isPinnedFirst ) {
 					sourceLabel = isFromSlack
 						? __(
 								'Pinned, from Slack',
