@@ -31,14 +31,14 @@ class Page_Patterns {
 	/**
 	 * Initialize hooks.
 	 */
-	public static function init() {
+	public static function init(): void {
 		add_action( 'init', [ __CLASS__, 'register' ], 11 );
 	}
 
 	/**
 	 * Registers the category and the patterns.
 	 */
-	public static function register() {
+	public static function register(): void {
 		register_block_pattern_category(
 			self::CATEGORY,
 			[
@@ -135,17 +135,87 @@ class Page_Patterns {
 	 * @return string Block markup.
 	 */
 	public static function follow(): string {
-		$text = __( 'Follow', 'newspack-rolling-coverage' );
-		$name  = trim( (string) wp_json_encode( $text ), '"' );
-		$label = esc_html( $text );
+		$text   = __( 'Follow', 'newspack-rolling-coverage' );
+		$label  = esc_html( $text );
+		$button_html = "\n" . '<div class="wp-block-button"><button type="button" class="wp-block-button__link wp-element-button">' . $label . '</button></div>' . "\n";
+		$button = [
+			'blockName'    => 'core/button',
+			'attrs'        => [
+				'tagName'  => 'button',
+				'metadata' => [
+					'name'     => $text,
+					'bindings' => [
+						'url' => [
+							'source' => 'newspack-rolling-coverage/entry',
+							'args'   => [ 'key' => 'followTag' ],
+						],
+					],
+				],
+			],
+			'innerBlocks'  => [],
+			'innerHTML'    => $button_html,
+			'innerContent' => [ $button_html ],
+		];
+		$buttons = [
+			'blockName'    => 'core/buttons',
+			'attrs'        => [ 'metadata' => [ 'name' => $text ] ],
+			'innerBlocks'  => [ $button ],
+			'innerHTML'    => "\n" . '<div class="wp-block-buttons"></div>' . "\n",
+			'innerContent' => [ "\n" . '<div class="wp-block-buttons">', null, '</div>' . "\n" ],
+		];
 
-		return '<!-- wp:newspack-rolling-coverage/coverage-follow -->' . "\n"
-			. '<!-- wp:buttons {"metadata":{"name":"' . $name . '"}} -->' . "\n"
-			. '<div class="wp-block-buttons"><!-- wp:button {"tagName":"button","metadata":{"name":"' . $name . '","bindings":{"url":{"source":"newspack-rolling-coverage/entry","args":{"key":"followTag"}}}}} -->' . "\n"
-			. '<div class="wp-block-button"><button type="button" class="wp-block-button__link wp-element-button">' . $label . '</button></div>' . "\n"
-			. '<!-- /wp:button --></div>' . "\n"
-			. '<!-- /wp:buttons -->' . "\n"
-			. '<!-- /wp:newspack-rolling-coverage/coverage-follow -->';
+		return serialize_block(
+			[
+				'blockName'    => 'newspack-rolling-coverage/coverage-follow',
+				'attrs'        => [],
+				'innerBlocks'  => [ $buttons ],
+				'innerHTML'    => "\n\n",
+				'innerContent' => [ "\n", null, "\n" ],
+			]
+		);
+	}
+
+	/**
+	 * A heading at a font size preset, with the markup core saves for it.
+	 *
+	 * @param string   $text       Heading text, already escaped.
+	 * @param string[] $sizes      Font size slugs: the first one the theme has.
+	 * @param int      $level      Heading level.
+	 * @param string   $margin_top Spacing preset slug for the top margin, if any.
+	 * @return string Block markup.
+	 */
+	public static function heading( string $text, array $sizes, int $level = 2, string $margin_top = '' ): string {
+		$size       = self::first_size( $sizes );
+		$classes    = 'wp-block-heading' . ( $size ? ' has-' . _wp_to_kebab_case( $size ) . '-font-size' : '' );
+		$style      = $margin_top ? ' style="margin-top:var(--wp--preset--spacing--' . $margin_top . ')"' : '';
+		$attributes = array_filter(
+			[
+				'level'    => 2 === $level ? null : $level,
+				'style'    => $margin_top ? [ 'spacing' => [ 'margin' => [ 'top' => 'var:preset|spacing|' . $margin_top ] ] ] : null,
+				'fontSize' => $size,
+			]
+		);
+		$html       = "\n" . '<h' . $level . ' class="' . esc_attr( $classes ) . '"' . $style . '>' . $text . '</h' . $level . '>' . "\n";
+
+		return serialize_block(
+			[
+				'blockName'    => 'core/heading',
+				'attrs'        => $attributes,
+				'innerBlocks'  => [],
+				'innerHTML'    => $html,
+				'innerContent' => [ $html ],
+			]
+		);
+	}
+
+	/**
+	 * The first of some font size slugs that the theme has.
+	 *
+	 * @param string[] $slugs Font size slugs, in order of preference.
+	 * @return string The slug, or empty when the theme has none of them.
+	 */
+	private static function first_size( array $slugs ): string {
+		return (string) current( array_intersect( $slugs, self::font_size_slugs() ) );
 	}
 
 	/**

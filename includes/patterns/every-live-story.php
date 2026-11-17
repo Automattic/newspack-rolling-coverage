@@ -17,9 +17,7 @@ defined( 'ABSPATH' ) || exit;
 <!-- wp:group {"style":{"border":{"bottom":{"color":"var(--wp--preset--color--base-3, var(--newspack-theme-color-border, #ddd))","width":"1px","style":"solid"}},"spacing":{"padding":{"top":"var:preset|spacing|40","bottom":"var:preset|spacing|40"},"blockGap":"var:preset|spacing|40"}},"layout":{"type":"flex","flexWrap":"wrap","justifyContent":"space-between","verticalAlignment":"center"}} -->
 <div class="wp-block-group" style="border-bottom-color:var(--wp--preset--color--base-3, var(--newspack-theme-color-border, #ddd));border-bottom-style:solid;border-bottom-width:1px;padding-top:var(--wp--preset--spacing--40);padding-bottom:var(--wp--preset--spacing--40)"><!-- wp:group {"style":{"spacing":{"blockGap":"var:preset|spacing|20"}},"layout":{"type":"flex","orientation":"vertical","justifyContent":"stretch"}} -->
 <div class="wp-block-group"><!-- wp:group {"style":{"spacing":{"blockGap":"var:preset|spacing|30"}},"layout":{"type":"flex","flexWrap":"wrap","verticalAlignment":"center"}} -->
-<div class="wp-block-group"><!-- wp:heading {"level":3,"fontSize":"large"} -->
-<h3 class="wp-block-heading has-large-font-size"><?php esc_html_e( 'Liveblog name', 'newspack-rolling-coverage' ); ?></h3>
-<!-- /wp:heading -->
+<div class="wp-block-group"><?php echo Page_Patterns::heading( esc_html__( 'Liveblog name', 'newspack-rolling-coverage' ), [ 'large', 'normal' ] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Block markup from serialize_block(). ?>
 
 <!-- wp:newspack-rolling-coverage/coverage-status /--></div>
 <!-- /wp:group -->

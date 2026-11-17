@@ -29,8 +29,6 @@ echo Page_Patterns::feed(
 );
 ?>
 
-<!-- wp:heading {"fontSize":"x-large"} -->
-<h2 class="wp-block-heading has-x-large-font-size"><?php esc_html_e( 'All updates', 'newspack-rolling-coverage' ); ?></h2>
-<!-- /wp:heading -->
+<?php echo Page_Patterns::heading( esc_html__( 'All updates', 'newspack-rolling-coverage' ), [ 'x-large', 'large' ] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Block markup from serialize_block(). ?>
 
 <?php echo Page_Patterns::feed( 'stream' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Block markup from serialize_block(). ?>
