@@ -762,9 +762,12 @@ function newspack_rc_screenshots_seed_posts( $posts, $users, $media, $tokens, $c
 			'post_status'  => $post['status'] ?? 'publish',
 			'post_name'    => $post['slug'],
 			'post_title'   => $post['title'],
-			'post_content' => strtr( $post['content'], $tokens ),
+			'post_content' => isset( $post['pattern'] ) ? newspack_rc_screenshots_pattern_content( $post, $tokens ) : strtr( $post['content'], $tokens ),
 			'post_author'  => $users[ (string) $post['author'] ],
 		];
+		if ( ! empty( $post['template'] ) ) {
+			$args['page_template'] = $post['template'];
+		}
 		if ( ! empty( $post['category'] ) ) {
 			$args['post_category'] = [ newspack_rc_screenshots_category_id( $post['category'], $categories ) ];
 		}
@@ -777,6 +780,63 @@ function newspack_rc_screenshots_seed_posts( $posts, $users, $media, $tokens, $c
 		}
 	}
 	return $ids;
+}
+
+/**
+ * Builds a page's content from one of the plugin's page patterns, with the
+ * liveblogs picked as an editor would pick them.
+ *
+ * A page names its pattern, the liveblog for the Rolling Coverage block
+ * (`coverage`), and the liveblogs for blocks set to Custom (`rows`, one per
+ * Coverage Status and Follow Coverage pair, in order) with their names and
+ * descriptions (`row_text`), which replace the pattern's placeholder text.
+ *
+ * @param array $post   The page from content.json.
+ * @param array $tokens Placeholders in content.json and their values.
+ * @return string Block markup.
+ */
+function newspack_rc_screenshots_pattern_content( $post, $tokens ) {
+	$pattern = WP_Block_Patterns_Registry::get_instance()->get_registered( 'newspack-rolling-coverage/' . $post['pattern'] );
+	if ( ! $pattern ) {
+		newspack_rc_screenshots_fail( sprintf( 'The page pattern "%s" is not registered', $post['pattern'] ), 'Check that this checkout is the active Rolling Coverage.' );
+	}
+	$coverage_id = static function ( $slug ) use ( $tokens, $post ) {
+		$key = '"{{coverage:' . $slug . '}}"';
+		if ( ! isset( $tokens[ $key ] ) ) {
+			newspack_rc_screenshots_fail( sprintf( 'Unknown liveblog "%s" on page "%s"', $slug, $post['title'] ), 'Add it to content.json.' );
+		}
+		return (int) $tokens[ $key ];
+	};
+	$rows = array_map( $coverage_id, $post['rows'] ?? [] );
+	$feed = isset( $post['coverage'] ) ? $coverage_id( $post['coverage'] ) : 0;
+
+	$apply = static function ( $blocks ) use ( &$apply, &$rows, $feed ) {
+		foreach ( $blocks as $index => $block ) {
+			if ( 'newspack-rolling-coverage/rolling-coverage' === $block['blockName'] && $feed ) {
+				$blocks[ $index ]['attrs']['coverageId'] = $feed;
+			} elseif ( $rows && in_array( $block['blockName'], [ 'newspack-rolling-coverage/coverage-status', 'newspack-rolling-coverage/coverage-follow' ], true ) ) {
+				$blocks[ $index ]['attrs']['coverageId'] = $rows[0];
+				if ( 'newspack-rolling-coverage/coverage-follow' === $block['blockName'] ) {
+					array_shift( $rows );
+				}
+			}
+			$blocks[ $index ]['innerBlocks'] = $apply( $block['innerBlocks'] );
+		}
+		return $blocks;
+	};
+
+	$content = serialize_blocks( $apply( parse_blocks( $pattern['content'] ) ) );
+
+	foreach ( $post['row_text'] ?? [] as $row ) {
+		foreach ( [ 'Liveblog name', 'One line about this liveblog.' ] as $index => $placeholder ) {
+			$at = strpos( $content, $placeholder );
+			if ( false !== $at ) {
+				$content = substr_replace( $content, esc_html( $row[ $index ] ), $at, strlen( $placeholder ) );
+			}
+		}
+	}
+
+	return $content;
 }
 
 /**

@@ -1556,6 +1556,107 @@
 			"author": null,
 			"age": 600,
 			"status": "draft"
+		},
+		{
+			"type": "page",
+			"slug": "kettle-river-flood-hour-by-hour",
+			"title": "Kettle River flood, hour by hour",
+			"pattern": "live-page",
+			"coverage": "live-kettle-river-flood",
+			"author": "ethorne",
+			"age": 3400000
+		},
+		{
+			"type": "page",
+			"slug": "kettle-river-flood-latest-updates",
+			"title": "Kettle River flood: the latest updates",
+			"pattern": "live-page-latest-first",
+			"coverage": "live-kettle-river-flood",
+			"author": "ethorne",
+			"age": 3400100
+		},
+		{
+			"type": "page",
+			"slug": "kettle-river-flood-watch",
+			"title": "Kettle River flood watch",
+			"pattern": "live-page-side-column",
+			"coverage": "live-kettle-river-flood",
+			"template": "page/wide",
+			"author": "ethorne",
+			"age": 3400200
+		},
+		{
+			"type": "page",
+			"slug": "riverbend-fc-v-toledo-beacon-match-center",
+			"title": "Riverbend FC v Toledo Beacon: match center",
+			"pattern": "match-side",
+			"coverage": "riverbend-fc-v-toledo-beacon",
+			"template": "page/wide",
+			"author": "mquinn",
+			"age": 3400300
+		},
+		{
+			"type": "page",
+			"slug": "riverbend-fc-v-toledo-beacon-full-time",
+			"title": "Riverbend FC v Toledo Beacon: full time",
+			"pattern": "match-centered",
+			"coverage": "riverbend-fc-v-toledo-beacon",
+			"author": "mquinn",
+			"age": 3400400
+		},
+		{
+			"type": "page",
+			"slug": "kettle-river-tops-flood-stage",
+			"title": "Kettle River tops flood stage in Riverbend",
+			"pattern": "breaking-news",
+			"coverage": "live-kettle-river-flood",
+			"author": "ethorne",
+			"age": 3400500
+		},
+		{
+			"type": "page",
+			"slug": "follow-the-flood-coverage",
+			"title": "Get alerts on the Kettle River flood",
+			"pattern": "follow-page",
+			"coverage": "live-kettle-river-flood",
+			"author": "ethorne",
+			"age": 3400600
+		},
+		{
+			"type": "page",
+			"slug": "kettle-river-flood-follow-band",
+			"title": "Riverbend and the Kettle River flood",
+			"pattern": "follow-band",
+			"coverage": "live-kettle-river-flood",
+			"author": "ethorne",
+			"age": 3400700
+		},
+		{
+			"type": "page",
+			"slug": "live-coverage",
+			"title": "Live coverage",
+			"pattern": "every-live-story",
+			"rows": [
+				"live-kettle-river-flood",
+				"bridge-street-water-main-break",
+				"open-studios"
+			],
+			"author": "ethorne",
+			"age": 3400800,
+			"row_text": [
+				[
+					"Kettle River flood",
+					"Water levels, closures and shelters."
+				],
+				[
+					"Bridge Street water main break",
+					"Repairs and the boil-water notice."
+				],
+				[
+					"Open Studios",
+					"Door counts and what is worth the wait."
+				]
+			]
 		}
 	],
 	"parts": [
