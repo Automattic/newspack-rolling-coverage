@@ -155,6 +155,12 @@ class Rolling_Coverage_Block {
 	const BREAKOUT_CACHE_GROUP = 'newspack-rolling-coverage-breakouts';
 
 	/**
+	 * Object cache group for the summary card polls carry, keyed on what it
+	 * shows, so an edit, another layout or a new day renders it again.
+	 */
+	const SUMMARY_CACHE_GROUP = 'newspack-rolling-coverage-summary-cards';
+
+	/**
 	 * The custom property holding the space between the coverage's items:
 	 * the archived notice, Follow, each entry, the separator and ads. It
 	 * comes from the Feed group's Block spacing; its fallback, `spacing-50`,
@@ -4112,7 +4118,10 @@ class Rolling_Coverage_Block {
 
 	/**
 	 * The coverage's Summary for a poll reply: its ID, last edit and summary
-	 * card, or null while the coverage has no published Summary.
+	 * card, or null while the coverage has no published Summary. Every poll
+	 * URL asks for it, so the rendered card is kept in the object cache
+	 * (SUMMARY_CACHE_GROUP) until the Summary, the stored card, the coverage's
+	 * status or the "Updated" line it shows changes.
 	 *
 	 * @param int    $coverage_id Coverage term ID.
 	 * @param array  $stored      The stored summary card and the Feed's layout (see persist_block_config()).
@@ -4126,9 +4135,28 @@ class Rolling_Coverage_Block {
 			return null;
 		}
 
-		$html = self::render_summary_card( $stored['block'], $summary, $coverage_id, $status, is_array( $stored['parentLayout'] ?? null ) ? $stored['parentLayout'] : [] );
+		$parent_layout = is_array( $stored['parentLayout'] ?? null ) ? $stored['parentLayout'] : [];
+		$cache_key     = md5(
+			(string) wp_json_encode(
+				[
+					$summary->ID,
+					self::post_modified_gmt( $summary ),
+					$stored['block'],
+					$parent_layout,
+					$status,
+					Entry_Bindings::updated_text( $summary ),
+					get_locale(),
+				]
+			)
+		);
+		$html          = wp_cache_get( $cache_key, self::SUMMARY_CACHE_GROUP );
 
-		wp_reset_postdata();
+		if ( ! is_string( $html ) ) {
+			$html = self::render_summary_card( $stored['block'], $summary, $coverage_id, $status, $parent_layout );
+
+			wp_reset_postdata();
+			wp_cache_set( $cache_key, $html, self::SUMMARY_CACHE_GROUP, DAY_IN_SECONDS );
+		}
 
 		return [
 			'id'       => $summary->ID,

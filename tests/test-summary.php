@@ -387,6 +387,37 @@ class Test_Summary extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * Polls render the summary card once, and again only after an edit.
+	 */
+	public function test_polls_reuse_the_rendered_card_until_the_summary_changes() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id );
+		$summary_id = self::create_summary( $coverage_id );
+		$html       = self::render( $coverage_id );
+		$params     = [
+			'template_key' => self::wrapper_attribute( $html, 'data-template-key' ),
+			'recent'       => 1,
+		];
+		$renders    = 0;
+		$count      = static function ( $content ) use ( &$renders ) {
+			++$renders;
+			return $content;
+		};
+
+		add_filter( 'render_block_core/post-content', $count );
+		$first  = self::dispatch( 'GET', "/coverages/{$coverage_id}/entries", $params )->get_data()['summary'];
+		$second = self::dispatch( 'GET', "/coverages/{$coverage_id}/entries", $params )->get_data()['summary'];
+		$this->assertSame( 1, $renders );
+		$this->assertSame( $first, $second );
+
+		self::set_entry_modified( $summary_id, '2026-01-05 15:42:00' );
+		self::dispatch( 'GET', "/coverages/{$coverage_id}/entries", $params );
+		remove_filter( 'render_block_core/post-content', $count );
+
+		$this->assertSame( 2, $renders, 'An edit renders the card again.' );
+	}
+
+	/**
 	 * The "Updated" line gives the time alone on the day of the edit, and the
 	 * date with it after that.
 	 */
