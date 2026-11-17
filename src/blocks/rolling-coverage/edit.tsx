@@ -2408,7 +2408,7 @@ export default function Edit( {
 									'newspack-rolling-coverage'
 								) }
 								placeholder={ __(
-									'https://example.com/live-coverage',
+									'https://yourgroovydomain.com/live-coverage',
 									'newspack-rolling-coverage'
 								) }
 								value={ pendingCanonicalUrl }
@@ -3027,7 +3027,7 @@ export default function Edit( {
 												"When empty, links to the liveblog's latest breakout post, if there is one.",
 												'newspack-rolling-coverage'
 											) }
-											placeholder="https://example.com/story"
+											placeholder="https://yourgroovydomain.com/story"
 											value={ archivedNoticeLinkUrl }
 											onChange={ ( value: string ) =>
 												setAttributes( {
