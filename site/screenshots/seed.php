@@ -789,7 +789,8 @@ function newspack_rc_screenshots_seed_posts( $posts, $users, $media, $tokens, $c
  * A page names its pattern, the liveblog for the Rolling Coverage block
  * (`coverage`), and the liveblogs for blocks set to Custom (`rows`, one per
  * Coverage Status and Follow Coverage pair, in order) with their names and
- * descriptions (`row_text`), which replace the pattern's placeholder text.
+ * descriptions (`row_text`), which replace the pattern's placeholder text, as
+ * does `copy`, a list of [placeholder, text] pairs for the pattern's paragraphs.
  *
  * @param array $post   The page from content.json.
  * @param array $tokens Placeholders in content.json and their values.
@@ -826,6 +827,13 @@ function newspack_rc_screenshots_pattern_content( $post, $tokens ) {
 	};
 
 	$content = serialize_blocks( $apply( parse_blocks( $pattern['content'] ) ) );
+
+	foreach ( $post['copy'] ?? [] as $replacement ) {
+		$at = strpos( $content, esc_html( $replacement[0] ) );
+		if ( false !== $at ) {
+			$content = substr_replace( $content, esc_html( $replacement[1] ), $at, strlen( esc_html( $replacement[0] ) ) );
+		}
+	}
 
 	foreach ( $post['row_text'] ?? [] as $row ) {
 		foreach ( [ 'Liveblog name', 'One line about this liveblog.' ] as $index => $placeholder ) {
