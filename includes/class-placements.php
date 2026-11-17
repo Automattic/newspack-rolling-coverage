@@ -1409,7 +1409,7 @@ class Placements {
 	}
 
 	/**
-	 * The first coverage in a list of feeds that can be followed.
+	 * The first coverage that can be followed in a list of feeds.
 	 *
 	 * @param int[] $feeds Coverage IDs of the feeds, in page order.
 	 * @return int Coverage term ID, or 0.
