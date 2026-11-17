@@ -21,7 +21,7 @@ echo Page_Patterns::feed(
 		'latestOnly'    => true,
 		'latestCount'   => 1,
 		'hideWhenEnded' => true,
-	] 
+	]
 );
 ?>
 
