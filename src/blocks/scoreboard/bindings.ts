@@ -1,0 +1,70 @@
+/**
+ * WordPress dependencies
+ */
+import { registerBlockBindingsSource } from '@wordpress/blocks';
+
+/**
+ * Internal dependencies
+ */
+import { COVERAGE_ID_CONTEXT } from '../shared/entry-bindings';
+import {
+	SCORE_KEYS,
+	SCORE_META_KEY,
+	isScore,
+	scorePart,
+	type ScoreKey,
+} from '../shared/score';
+import { sampleScore } from './sample';
+
+const SCORE_BINDINGS_SOURCE = 'newspack-rolling-coverage/score';
+const COVERAGE_TAXONOMY = 'rolling_coverage';
+// Edit context needs manage_categories, which Authors and Contributors lack.
+const VIEW_CONTEXT = { context: 'view' };
+
+interface BindingsArgs {
+	bindings: Record< string, { args?: { key?: string } } >;
+	context?: Record< string, unknown >;
+	select: ( store: string ) => {
+		getEntityRecord: (
+			kind: string,
+			name: string,
+			id: number,
+			query: Record< string, string >
+		) => { meta?: Record< string, unknown > } | undefined;
+	};
+}
+
+/**
+ * Mirrors Scoreboard_Block::get_value() in the editor: the parts of the
+ * score of the coverage in context, or of a sample score where there is no
+ * coverage or it has no score yet, so the scoreboard can still be styled.
+ */
+registerBlockBindingsSource( {
+	name: SCORE_BINDINGS_SOURCE,
+	usesContext: [ COVERAGE_ID_CONTEXT ],
+	getValues( { bindings, context, select }: BindingsArgs ) {
+		const coverageId = Number( context?.[ COVERAGE_ID_CONTEXT ] ) || 0;
+		const stored = coverageId
+			? select( 'core' ).getEntityRecord(
+					'taxonomy',
+					COVERAGE_TAXONOMY,
+					coverageId,
+					VIEW_CONTEXT
+				)?.meta?.[ SCORE_META_KEY ]
+			: null;
+		const score = isScore( stored ) ? stored : sampleScore();
+
+		return Object.fromEntries(
+			Object.entries( bindings ).map( ( [ attribute, binding ] ) => {
+				const key = binding?.args?.key as ScoreKey;
+
+				return [
+					attribute,
+					SCORE_KEYS.includes( key ) ? scorePart( score, key ) : '',
+				];
+			} )
+		);
+	},
+} );
+
+export { SCORE_BINDINGS_SOURCE };
