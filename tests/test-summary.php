@@ -192,6 +192,21 @@ class Test_Summary extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * Saving a coverage's only Summary through the core entries route goes
+	 * through: it doesn't collide with itself.
+	 */
+	public function test_core_route_saves_the_only_summary() {
+		self::log_in_as( 'editor' );
+		$summary_id = self::create_summary( self::create_coverage() );
+
+		$request = new WP_REST_Request( 'POST', '/wp/v2/' . Post_Type::REST_BASE . '/' . $summary_id );
+		$request->set_param( 'title', 'What we know now' );
+
+		$this->assertSame( 200, rest_get_server()->dispatch( $request )->get_status() );
+		$this->assertSame( 'What we know now', get_post( $summary_id )->post_title );
+	}
+
+	/**
 	 * The core entries route refuses to move a Summary into a coverage that
 	 * already has one.
 	 */
