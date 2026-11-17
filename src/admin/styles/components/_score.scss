@@ -17,8 +17,15 @@
 	}
 
 	&__fields {
+		display: grid;
 		flex: 1 1 auto;
+		gap: var(--wpds-dimension-gap-lg, #{wp-vars.$grid-unit-20});
+		grid-template-columns: minmax(0, 1fr);
 		min-width: 0;
 		max-width: 628px;
+
+		@media (min-width: #{wp-breakpoints.$break-small}) {
+			grid-template-columns: repeat(3, minmax(0, 1fr));
+		}
 	}
 }
