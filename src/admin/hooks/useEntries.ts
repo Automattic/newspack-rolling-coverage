@@ -74,6 +74,7 @@ function useEntries( options: UseEntriesOptions ): UseEntriesResult {
 	const [ totalItems, setTotalItems ] = useState( 0 );
 	const [ totalPages, setTotalPages ] = useState( 0 );
 	const [ syncNotices, setSyncNotices ] = useState< SyncNotice[] >( [] );
+	const [ summaryId, setSummaryId ] = useState< number | null >( null );
 	const [ error, setError ] = useState< string | null >( null );
 
 	const cursorRef = useRef< string | null >( null );
@@ -119,6 +120,7 @@ function useEntries( options: UseEntriesOptions ): UseEntriesResult {
 			cursorRef.current = null;
 			totalsViewRef.current = null;
 			setSyncNotices( [] );
+			setSummaryId( null );
 			return;
 		}
 
@@ -172,6 +174,7 @@ function useEntries( options: UseEntriesOptions ): UseEntriesResult {
 					setTotalItems( response.totalItems );
 					setTotalPages( response.totalPages );
 					cursorRef.current = response.cursor;
+					setSummaryId( response.summaryId ?? 0 );
 					totalsViewRef.current = { url: urlFor( 1, 1 ), perPage };
 					setHasResolved( true );
 					setError( null );
@@ -239,6 +242,7 @@ function useEntries( options: UseEntriesOptions ): UseEntriesResult {
 			setTotalItems,
 			setTotalPages,
 			setSyncNotices,
+			setSummaryId,
 		};
 
 		let intervalId = window.setInterval(
@@ -283,6 +287,7 @@ function useEntries( options: UseEntriesOptions ): UseEntriesResult {
 		totalPages,
 		syncNotices,
 		error,
+		summaryId,
 	};
 }
 

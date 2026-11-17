@@ -33,20 +33,25 @@ const SYNC_INTERVAL_MS = 10000;
 
 /**
  * Starts a new entry in a coverage for Quick Edit to open: an empty
- * auto-draft, which the first save turns into a draft or publishes.
+ * auto-draft, which the first save turns into a draft or publishes. With
+ * `isSummary`, it starts the coverage's Summary instead, titled "What we
+ * know", or hands back the unsaved one left behind.
  *
- * @param {string} restNamespace - REST namespace URL (from config.restBaseUrls.restNamespace).
- * @param {number} coverageId    - The coverage term ID the entry is added to.
+ * @param {string}  restNamespace - REST namespace URL (from config.restBaseUrls.restNamespace).
+ * @param {number}  coverageId    - The coverage term ID the entry is added to.
+ * @param {boolean} isSummary     - Whether to start the coverage's Summary.
  * @return {Promise<CreateEntryResult>} Result with the new entry's ID, or the error.
  */
 async function createEntry(
 	restNamespace: string,
-	coverageId: number
+	coverageId: number,
+	isSummary = false
 ): Promise< CreateEntryResult > {
 	try {
 		const entry = await apiFetch< { id: number } >( {
 			url: `${ restNamespace }coverages/${ coverageId }/entries`,
 			method: 'POST',
+			...( isSummary ? { data: { summary: true } } : {} ),
 		} );
 
 		return { success: true, id: entry.id };
@@ -80,6 +85,7 @@ function toEntry( row: EntryViewRow ): Entry {
 		content: { rendered: '' },
 		author: row.author?.id ?? 0,
 		pinned: row.pinned,
+		isSummary: row.is_summary,
 		archivedAt: row.archived_at,
 		coverageStatus: row.coverage_status,
 		canEdit: row.can_edit,
@@ -298,7 +304,14 @@ function mergeSyncDelta(
 	if ( added.length === 0 && ! changedOnThisPage ) {
 		return prev;
 	}
-	return [ ...added, ...mergedById.values() ];
+
+	// The Summary leads the list, as the server orders it, ahead of new entries.
+	const merged = [ ...added, ...mergedById.values() ];
+
+	return [
+		...merged.filter( ( row ) => row.is_summary ),
+		...merged.filter( ( row ) => ! row.is_summary ),
+	];
 }
 
 /**
@@ -312,7 +325,13 @@ function mergeSyncDelta(
  * @return {Promise<void>} Resolves when the totals are set, or left as they were.
  */
 async function refreshTotals( ctx: SyncPollContext ): Promise< void > {
-	const { totalsViewRef, isMountedRef, setTotalItems, setTotalPages } = ctx;
+	const {
+		totalsViewRef,
+		isMountedRef,
+		setTotalItems,
+		setTotalPages,
+		setSummaryId,
+	} = ctx;
 
 	const view = totalsViewRef.current;
 
@@ -337,6 +356,7 @@ async function refreshTotals( ctx: SyncPollContext ): Promise< void > {
 		setTotalPages(
 			Math.max( 1, Math.ceil( response.totalItems / view.perPage ) )
 		);
+		setSummaryId( response.summaryId ?? 0 );
 	} catch {
 		// Silent: the next poll that changes entries recounts.
 	}

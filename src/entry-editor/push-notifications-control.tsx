@@ -22,16 +22,19 @@ type EditorPostSelectors = {
 
 /**
  * Whether the entry being edited still takes the notify opt-in: an entry
- * that isn't published yet. A published entry has had its chance to notify.
+ * that isn't published yet. A published entry has had its chance to notify,
+ * and the Summary never notifies.
  *
  * @return {boolean} Whether to show the Push Notifications control.
  */
 function useCanOptInToNotify(): boolean {
 	return useSelect( ( select ) => {
 		const editor = select( editorStore ) as unknown as EditorPostSelectors;
+		const post = editor.getCurrentPost();
 		return (
 			editor.getCurrentPostType() === 'rolling_cov_entry' &&
-			editor.getCurrentPost().status !== 'publish'
+			post.status !== 'publish' &&
+			! post.isSummary
 		);
 	}, [] );
 }

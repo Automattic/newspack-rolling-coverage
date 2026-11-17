@@ -110,7 +110,8 @@ function EditorReadySignal( { onReady }: { onReady: () => void } ) {
  * coverage, as `post-new.php` does for a post, then opens it like any entry.
  * The footer offers Save Draft and Publish (or Submit for Review); the first
  * successful save closes the modal, since the entry now exists in the list,
- * and the editor's own save snackbar shows on the page. Cancel deletes the
+ * and the editor's own save snackbar shows on the page. With `isSummary`
+ * it starts the coverage's Summary instead, titled "Add Summary". Cancel deletes the
  * auto-draft, which is still empty on the server; one left behind another
  * way (the tab closed, say) is deleted by core's auto-draft cleanup a week
  * later.
@@ -143,6 +144,7 @@ function EditorReadySignal( { onReady }: { onReady: () => void } ) {
 function QuickEditModal( {
 	entryId,
 	coverageId,
+	isSummary = false,
 	onClose,
 	onSaved,
 }: QuickEditModalProps ) {
@@ -181,22 +183,32 @@ function QuickEditModal( {
 			return;
 		}
 		hasStartedEntryRef.current = true;
-		createEntry( config.restBaseUrls.restNamespace, coverageId ).then(
-			( result ) => {
-				if ( result.success && result.id ) {
-					setNewEntryId( result.id );
-				} else {
-					setCreateError(
-						result.error ||
-							__(
-								'Failed to create entry',
-								'newspack-rolling-coverage'
-							)
-					);
-				}
+		createEntry(
+			config.restBaseUrls.restNamespace,
+			coverageId,
+			isSummary
+		).then( ( result ) => {
+			if ( result.success && result.id ) {
+				setNewEntryId( result.id );
+			} else if ( isSummary ) {
+				setCreateError(
+					result.error ||
+						__(
+							'Failed to create summary',
+							'newspack-rolling-coverage'
+						)
+				);
+			} else {
+				setCreateError(
+					result.error ||
+						__(
+							'Failed to create entry',
+							'newspack-rolling-coverage'
+						)
+				);
 			}
-		);
-	}, [ isNew, coverageId, config.restBaseUrls.restNamespace ] );
+		} );
+	}, [ isNew, isSummary, coverageId, config.restBaseUrls.restNamespace ] );
 
 	const editorRegistry = useQuickEditRegistry();
 
@@ -260,9 +272,24 @@ function QuickEditModal( {
 		? { type: 'constrained' }
 		: undefined;
 
-	const title = isNew
-		? __( 'Add Entry', 'newspack-rolling-coverage' )
-		: __( 'Quick Edit', 'newspack-rolling-coverage' );
+	let title: string = __( 'Quick Edit', 'newspack-rolling-coverage' );
+
+	if ( isNew ) {
+		title = isSummary
+			? __( 'Add Summary', 'newspack-rolling-coverage' )
+			: __( 'Add Entry', 'newspack-rolling-coverage' );
+	}
+
+	let loadingLabel: string = __(
+		'Fetching entry…',
+		'newspack-rolling-coverage'
+	);
+
+	if ( isNew ) {
+		loadingLabel = isSummary
+			? __( 'Preparing summary…', 'newspack-rolling-coverage' )
+			: __( 'Preparing entry…', 'newspack-rolling-coverage' );
+	}
 
 	const modalProps = {
 		contentLabel: title,
@@ -342,19 +369,7 @@ function QuickEditModal( {
 						{ createError ? (
 							<ErrorNotice message={ createError } />
 						) : (
-							<LoadingState
-								label={
-									isNew
-										? __(
-												'Preparing entry…',
-												'newspack-rolling-coverage'
-											)
-										: __(
-												'Fetching entry…',
-												'newspack-rolling-coverage'
-											)
-								}
-							/>
+							<LoadingState label={ loadingLabel } />
 						) }
 					</div>
 				) }

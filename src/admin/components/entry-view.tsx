@@ -71,7 +71,9 @@ const FIT_COLUMNS = [ 'modified', 'date' ];
  * selected coverage passed via <Outlet context> by AdminLayout.
  *
  * The "Add Entry" header action opens Quick Edit on a new entry in the
- * coverage, which the modal starts itself; see `QuickEditModal`.
+ * coverage, which the modal starts itself; see `QuickEditModal`. While the
+ * coverage has no Summary, "Add Summary" does the same for its Summary, for
+ * those who can pin entries.
  */
 function EntryView() {
 	const config = useAdminContext();
@@ -115,6 +117,7 @@ function EntryView() {
 		[ view.filters, view.search ]
 	);
 	const [ isAddingEntry, setIsAddingEntry ] = useState( false );
+	const [ isAddingSummary, setIsAddingSummary ] = useState( false );
 	const [ quickEditEntry, setQuickEditEntry ] = useState< Entry | null >(
 		null
 	);
@@ -260,6 +263,7 @@ function EntryView() {
 		totalItems,
 		totalPages,
 		syncNotices,
+		summaryId,
 	} = useEntries( {
 		coverageId: isValidCoverageId ? numericCoverageId : null,
 		page: view.page ?? 1,
@@ -307,6 +311,14 @@ function EntryView() {
 
 	const handleNewEntryClose = useCallback( () => {
 		setIsAddingEntry( false );
+	}, [] );
+
+	const handleNewSummary = useCallback( () => {
+		setIsAddingSummary( true );
+	}, [] );
+
+	const handleNewSummaryClose = useCallback( () => {
+		setIsAddingSummary( false );
 	}, [] );
 
 	const entryFields = useMemo( () => getEntryFields( config ), [ config ] );
@@ -429,6 +441,7 @@ function EntryView() {
 		setIsSlackDrawerOpen( false );
 		setQuickEditEntry( null );
 		setIsAddingEntry( false );
+		setIsAddingSummary( false );
 	}, [ numericCoverageId ] );
 	const slackChannelLabel = routeCoverage
 		? getSlackChannelLabel( routeCoverage )
@@ -473,6 +486,11 @@ function EntryView() {
 		( ! disableNewEntry || showArchivedAddEntry ) &&
 		! isFirstLoad &&
 		! isEmpty;
+	const showNewSummary =
+		showNewEntry &&
+		! isArchived &&
+		config.capabilities.canEditEntries &&
+		summaryId === 0;
 	const canShowSlack = canConnectSlack && routeCoverage !== null;
 	const showSlackInHeader =
 		canShowSlack && ! isFirstLoad && ( ! isEmpty || !! slackChannelLabel );
@@ -595,6 +613,15 @@ function EntryView() {
 		[ isArchived, handleNewEntry, statusLabels ]
 	);
 
+	const addSummaryButton = useMemo(
+		() => (
+			<Button variant="secondary" onClick={ handleNewSummary }>
+				{ __( 'Add Summary', 'newspack-rolling-coverage' ) }
+			</Button>
+		),
+		[ handleNewSummary ]
+	);
+
 	const placementsButton = useMemo(
 		() => (
 			<Button
@@ -613,11 +640,14 @@ function EntryView() {
 				<>
 					{ showSlackInHeader && slackButton }
 					{ showPlacements && placementsButton }
+					{ showNewSummary && addSummaryButton }
 					{ showNewEntry && addEntryButton }
 				</>
 			) : null,
 		[
 			showNewEntry,
+			showNewSummary,
+			addSummaryButton,
 			showSlackInHeader,
 			showPlacements,
 			placementsButton,
@@ -747,6 +777,15 @@ function EntryView() {
 					entryId={ null }
 					coverageId={ numericCoverageId }
 					onClose={ handleNewEntryClose }
+					onSaved={ handleQuickEditSaved }
+				/>
+			) }
+			{ isAddingSummary && numericCoverageId !== null && (
+				<QuickEditModal
+					entryId={ null }
+					coverageId={ numericCoverageId }
+					isSummary
+					onClose={ handleNewSummaryClose }
 					onSaved={ handleQuickEditSaved }
 				/>
 			) }

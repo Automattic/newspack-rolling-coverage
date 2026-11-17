@@ -184,6 +184,8 @@ interface Entry {
 	author: number;
 	meta: Record< string, unknown >;
 	pinned?: boolean;
+	/** Whether the entry is its coverage's Summary, shown above the feed rather than in it. */
+	isSummary?: boolean;
 	coverageStatus?: 'active' | 'paused' | 'archived' | 'trash' | '';
 	archivedAt?: number;
 	/** Whether the current user may edit this entry (core `edit_post` meta cap). */
@@ -438,6 +440,8 @@ interface UseEntriesResult {
 	totalPages: number;
 	syncNotices: SyncNotice[];
 	error: string | null;
+	/** The coverage's saved Summary outside the trash; 0 for none, null until the first page loads. */
+	summaryId: number | null;
 }
 
 interface SaveCoverageData {
@@ -563,11 +567,14 @@ type QuickEditModalProps = {
 			/** The entry to edit. */
 			entryId: number;
 			coverageId?: never;
+			isSummary?: never;
 	  }
 	| {
 			/** No entry yet: a new one is added to `coverageId`. */
 			entryId: null;
 			coverageId: number;
+			/** Whether the new entry is the coverage's Summary. */
+			isSummary?: boolean;
 	  }
 );
 
@@ -751,6 +758,8 @@ interface EntryViewRow {
 	modified: string;
 	status: PostStatus;
 	pinned: boolean;
+	/** Whether the entry is its coverage's Summary. */
+	is_summary: boolean;
 	archived_at: number;
 	coverage_status: 'active' | 'paused' | 'archived' | 'trash' | '';
 	author: {
@@ -791,6 +800,8 @@ interface EntryPageResponse {
 	totalPages: number;
 	page: number;
 	cursor: string;
+	/** The coverage's saved Summary outside the trash, whatever the view's filters; 0 for none. */
+	summaryId: number;
 }
 
 interface EntrySyncDelta {
@@ -830,6 +841,7 @@ interface SyncPollContext {
 	setTotalItems: Dispatch< SetStateAction< number > >;
 	setTotalPages: Dispatch< SetStateAction< number > >;
 	setSyncNotices: Dispatch< SetStateAction< SyncNotice[] > >;
+	setSummaryId: Dispatch< SetStateAction< number | null > >;
 }
 
 export type {
