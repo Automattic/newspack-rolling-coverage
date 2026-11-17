@@ -91,11 +91,11 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 		update_post_meta( $split_id, Layout::SLUG_META_KEY, 'split' );
 		update_post_meta( $other_id, Layout::SLUG_META_KEY, 'stream' );
 
-		$wrapper = static fn( string $html ): string => (string) strstr( $html, '>', true );
+		$opening_tag = static fn( string $html ): string => (string) strstr( $html, '>', true );
 
 		$this->assertStringContainsString(
 			'alignwide',
-			$wrapper(
+			$opening_tag(
 				self::render_story(
 					[
 						'coverageId' => $coverage_id,
@@ -106,7 +106,7 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 		);
 		$this->assertStringNotContainsString(
 			'alignwide',
-			$wrapper(
+			$opening_tag(
 				self::render_story(
 					[
 						'coverageId' => $coverage_id,

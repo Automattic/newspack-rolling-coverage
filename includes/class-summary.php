@@ -52,13 +52,17 @@ class Summary {
 	/**
 	 * Publish a block theme's Date block font and line height with the feed
 	 * block's stylesheet, on the site and in the editor, so the summary card's
-	 * "Updated" line reads like the layout's entry times. The editor fires
-	 * the hook twice into one stylesheet, so they're added once.
+	 * "Updated" line reads like the layout's entry times. On the site they're
+	 * worked out only where the block's stylesheet loads, as reading the
+	 * merged Global Styles isn't cached. The editor fires the hook twice into
+	 * one stylesheet, so they're added once.
 	 */
 	public static function add_date_type_style(): void {
 		static $added = false;
 
-		if ( $added ) {
+		$handle = generate_block_asset_handle( 'newspack-rolling-coverage/rolling-coverage', 'style' );
+
+		if ( $added || ( ! is_admin() && ! wp_style_is( $handle, 'enqueued' ) ) ) {
 			return;
 		}
 
@@ -74,22 +78,21 @@ class Summary {
 
 		$added = true;
 
-		wp_add_inline_style(
-			generate_block_asset_handle( 'newspack-rolling-coverage/rolling-coverage', 'style' ),
-			':root{' . $declarations . '}'
-		);
+		wp_add_inline_style( $handle, ':root{' . $declarations . '}' );
 	}
 
 	/**
 	 * A block theme's Date block font family and line height, as merged with
 	 * its style variation and Global Styles, by custom property. Only preset
-	 * and custom variables count; anything else is left to the stylesheet's
-	 * fallbacks, as is a classic theme, whose heading font the stylesheet
-	 * gives the line as the classic Newspack Theme gives its dates.
+	 * and custom variables count, so no other Global Styles string is printed
+	 * into the inline stylesheet; anything else, such as a literal font stack,
+	 * is left to the stylesheet's fallbacks, as is a classic theme, whose
+	 * heading font the stylesheet gives the line as the classic Newspack Theme
+	 * gives its dates.
 	 *
 	 * @return array<string, string>
 	 */
-	public static function date_type(): array {
+	private static function date_type(): array {
 		if ( ! wp_is_block_theme() ) {
 			return [];
 		}
@@ -107,8 +110,8 @@ class Summary {
 				continue;
 			}
 
-			if ( preg_match( '/^var:(preset|custom)\|([a-z0-9-]+)\|([a-z0-9-]+)$/', $value, $matches ) ) {
-				$value = sprintf( 'var(--wp--%s--%s--%s)', $matches[1], $matches[2], $matches[3] );
+			if ( preg_match( '/^var:(preset|custom)\|([a-z0-9|-]+)$/', $value, $matches ) ) {
+				$value = 'var(--wp--' . $matches[1] . '--' . str_replace( '|', '--', $matches[2] ) . ')';
 			}
 
 			if ( preg_match( '/^var\(--wp--(?:preset|custom)--[a-z0-9-]+\)$/', $value ) ) {

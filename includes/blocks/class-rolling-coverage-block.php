@@ -548,7 +548,8 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * Whether the block shows the built-in Split layout.
+	 * Whether the block shows the built-in Split layout: its pattern is the
+	 * Split one and still published, as an unpublished one renders Bulletin.
 	 *
 	 * @param array $attributes Block attributes.
 	 * @return bool
@@ -556,7 +557,9 @@ class Rolling_Coverage_Block {
 	private static function is_split_layout( array $attributes ): bool {
 		$layout_id = (int) ( $attributes['layoutId'] ?? 0 );
 
-		return $layout_id > 0 && 'split' === get_post_meta( $layout_id, Layout::SLUG_META_KEY, true );
+		return $layout_id > 0
+			&& 'publish' === get_post_status( $layout_id )
+			&& 'split' === get_post_meta( $layout_id, Layout::SLUG_META_KEY, true );
 	}
 
 	/**
