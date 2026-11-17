@@ -32,6 +32,9 @@ class Scoreboard_Block {
 
 	const KEYS = [ 'team1Name', 'team1Score', 'team2Score', 'team2Name', 'status' ];
 
+	// Class of the dash between the scores, which screen readers skip.
+	const DASH_CLASS = 'newspack-rolling-coverage-scoreboard__dash';
+
 	// Seconds between a page's own score checks, as the feed's default poll interval.
 	const POLL_INTERVAL = 30;
 
@@ -214,8 +217,9 @@ class Scoreboard_Block {
 			return '';
 		}
 
-		$score  = Score::get( $coverage_id );
-		$status = Rolling_Coverage_Block::coverage_status( $coverage_id );
+		$score   = Score::get( $coverage_id );
+		$status  = Rolling_Coverage_Block::coverage_status( $coverage_id );
+		$content = self::hide_dashes( $content );
 
 		if ( is_feed() || Lite_Feed::is_lite_render() ) {
 			return $score ? sprintf( '<div %s>%s</div>', get_block_wrapper_attributes(), $content ) : '';
@@ -238,6 +242,24 @@ class Scoreboard_Block {
 			$score ? '' : ' hidden',
 			$content
 		);
+	}
+
+	/**
+	 * Hides the dash between the scores from screen readers, which read the
+	 * score as the names and numbers alone, as the live region announces it.
+	 * A paragraph can't save `aria-hidden`, so its class marks it.
+	 *
+	 * @param string $content The inner blocks, rendered.
+	 * @return string
+	 */
+	private static function hide_dashes( string $content ): string {
+		$tags = new WP_HTML_Tag_Processor( $content );
+
+		while ( $tags->next_tag( [ 'class_name' => self::DASH_CLASS ] ) ) {
+			$tags->set_attribute( 'aria-hidden', 'true' );
+		}
+
+		return $tags->get_updated_html();
 	}
 
 	/**

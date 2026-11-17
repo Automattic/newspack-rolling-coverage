@@ -23,6 +23,7 @@ function scoreboard( first: number, second: number ): HTMLElement {
 		<div class="wp-block-group">
 			<p data-rc-score="team1Name">Riverbend FC</p>
 			<p data-rc-score="team1Score">${ first }</p>
+			<p class="newspack-rolling-coverage-scoreboard__dash" aria-hidden="true">–</p>
 			<p data-rc-score="team2Score">${ second }</p>
 			<p data-rc-score="team2Name">Toledo Beacon</p>
 		</div>
@@ -44,6 +45,9 @@ describe( 'applyScore', () => {
 		expect( applyScore( block, score( 3, 1 ) ) ).toBe( true );
 		expect( text( block, 'team1Score' ) ).toBe( '3' );
 		expect( announced( block ) ).toBe( 'Riverbend FC 3, Toledo Beacon 1' );
+		expect(
+			block.querySelector( '[aria-hidden="true"]' )?.textContent
+		).toBe( '–' );
 	} );
 
 	it( 'stays quiet when only the status line changes, and shows it', () => {

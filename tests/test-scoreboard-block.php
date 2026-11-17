@@ -111,6 +111,15 @@ class Test_Scoreboard_Block extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * The dash between the scores, as the editor inserts it.
+	 *
+	 * @return string
+	 */
+	private static function dash(): string {
+		return '<!-- wp:paragraph {"className":"' . Scoreboard_Block::DASH_CLASS . '"} --><p class="' . Scoreboard_Block::DASH_CLASS . '">–</p><!-- /wp:paragraph -->';
+	}
+
+	/**
 	 * The block's markup, its parts in a group as the editor inserts them.
 	 *
 	 * @param array $attributes Block attributes.
@@ -118,7 +127,7 @@ class Test_Scoreboard_Block extends Rolling_Coverage_TestCase {
 	 */
 	private static function scoreboard( array $attributes = [] ): string {
 		return '<!-- wp:newspack-rolling-coverage/scoreboard ' . wp_json_encode( (object) $attributes ) . ' -->'
-			. '<!-- wp:group --><div class="wp-block-group">' . self::part( 'team1Name' ) . self::part( 'team1Score' ) . self::part( 'team2Score' ) . self::part( 'team2Name' ) . '</div><!-- /wp:group -->'
+			. '<!-- wp:group --><div class="wp-block-group">' . self::part( 'team1Name' ) . self::part( 'team1Score' ) . self::dash() . self::part( 'team2Score' ) . self::part( 'team2Name' ) . '</div><!-- /wp:group -->'
 			. self::part( 'status' )
 			. '<!-- /wp:newspack-rolling-coverage/scoreboard -->';
 	}
@@ -173,6 +182,24 @@ class Test_Scoreboard_Block extends Rolling_Coverage_TestCase {
 		$this->assertStringContainsString( 'data-status="active"', $html );
 		$this->assertStringContainsString( 'data-score-url="' . esc_url( rest_url( 'rolling-coverage/v1/coverages/' . $coverage_id . '/score' ) ) . '"', $html );
 		$this->assertStringContainsString( '<div class="screen-reader-text" aria-live="polite" aria-atomic="true" data-rc-score-announce></div>', $html );
+	}
+
+	/**
+	 * The dash between the scores stays on screen and out of what screen
+	 * readers read, which is the names and scores alone.
+	 */
+	public function test_hides_the_dash_from_screen_readers() {
+		$coverage_id = self::create_coverage();
+		self::set_score( $coverage_id );
+
+		$html = do_blocks( self::scoreboard( [ 'coverageId' => $coverage_id ] ) );
+
+		$tags = new WP_HTML_Tag_Processor( $html );
+
+		$this->assertTrue( $tags->next_tag( [ 'class_name' => Scoreboard_Block::DASH_CLASS ] ) );
+		$this->assertSame( 'true', $tags->get_attribute( 'aria-hidden' ) );
+		$this->assertMatchesRegularExpression( '/data-rc-score="team1Score"[^>]*>2<\/p><p [^>]*' . Scoreboard_Block::DASH_CLASS . '[^>]*>–<\/p><p [^>]*data-rc-score="team2Score"/', $html );
+		$this->assertSame( [ 'team1Name', 'team1Score', 'team2Score', 'team2Name', 'status' ], array_keys( self::parts( $html ) ) );
 	}
 
 	/**

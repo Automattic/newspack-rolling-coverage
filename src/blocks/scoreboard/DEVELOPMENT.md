@@ -31,11 +31,12 @@ Everything else is block supports on the wrapper (colors, typography, padding, m
 
 ## Inner blocks and bindings
 
-The block saves its inner blocks (`save` returns `InnerBlocks.Content`) and renders dynamically. New blocks get `scoreboardTemplate()` from `template.ts`: a flex group (no wrap, centered, block gap `spacing|40`) holding four paragraphs, the first team's name, its score, the second team's score and its name, then a centered paragraph for the status line. The names fill the space either side (`selfStretch: fill`), so the scores sit in the middle, and a long name wraps within its half at phone widths. Every choice is a block setting from the theme's presets, read when the block is inserted:
+The block saves its inner blocks (`save` returns `InnerBlocks.Content`) and renders dynamically. New blocks get `scoreboardTemplate()` from `template.ts`: a flex group (no wrap, centered, block gap `spacing|40`) holding five paragraphs, the first team's name, its score, a dash, the second team's score and its name, then a centered paragraph for the status line. The names fill the space either side (`selfStretch: fill`), so the scores sit in the middle, and a long name wraps within its half at phone widths. Every choice is a block setting from the theme's presets, read when the block is inserted:
 
 - **Font family.** Names and scores take the font family preset headings use: the site's global styles for headings, then the theme's, then the body's (`headingFontFamily()`, from core-data's global styles records). Without a preset, as on the classic Newspack Theme, they get no `fontFamily`; their `use-header-font` class gives the classic theme's heading font.
 - **Sizes.** On a block theme scale (one with `xx-large`), names at Large and scores at XX-Large; on the classic Newspack Theme's scale, Normal and Huge. Names and scores are bold.
 - **Status line.** X-Small (Small on the classic theme), in the muted text color the layouts' dates use (`mutedTextColor()`: `contrast-3` on the block theme, `medium-gray` on the classic theme), and no color where the palette has neither.
+- **Dash.** A static paragraph holding "–", a size down from the scores (X-Large, or Large on the classic theme), in the heading font at normal weight and the same muted color as the status line. It carries the `newspack-rolling-coverage-scoreboard__dash` class (`Scoreboard_Block::DASH_CLASS`, `DASH_CLASS` in `template.ts`), which the server reads to keep it from screen readers (see "Rendering").
 
 Each paragraph binds its `content` to the `newspack-rolling-coverage/score` source with a `key`: `team1Name`, `team1Score`, `team2Score`, `team2Name` or `status` (`Scoreboard_Block::KEYS`, `SCORE_KEYS`). Editors can restyle, move, remove or add blocks; any paragraph or heading inside the scoreboard can bind to a key.
 
@@ -59,6 +60,8 @@ With no coverage, the block renders nothing. Otherwise it renders the inner bloc
 - `data-poll-interval`, seconds between the page's own checks: `POLL_INTERVAL` (30, the feed's default) or the site's minimum poll interval when that is longer,
 - an empty `div.screen-reader-text` with `aria-live="polite"` and `aria-atomic="true"`, for the view script's announcement.
 
+`hide_dashes()` adds `aria-hidden="true"` to every element with the dash class in the inner blocks, on every render, Lite Site and feeds included. A paragraph can't save `aria-hidden`, and a CSS `::before` would still be read and couldn't be styled with block settings, so the class marks it. Screen readers then read the row as the names and scores alone, as the live region announces them. The dash isn't bound, so the view script, which finds parts by `data-rc-score`, never touches it.
+
 On a Lite Site page (`Lite_Feed::is_lite_render()`) and in syndication feeds, which run no script, it renders the inner blocks in a plain wrapper, without the data attributes or the live region, and nothing without a score.
 
 ## Live updates
@@ -73,8 +76,8 @@ On a Lite Site page (`Lite_Feed::is_lite_render()`) and in syndication feeds, wh
 ## Tests
 
 - `tests/test-score.php`: the meta's sanitizing, saving and removing it through the coverages route, the capability, schema validation, the score route and its cache header, and the score in poll replies.
-- `tests/test-scoreboard-block.php`: rendering the bound parts, nothing without a coverage, hidden until a score is added (and nothing for an ended coverage without one), the hidden empty status line, Automatic, the feed's context, Lite Site pages, and the coverage-level item.
+- `tests/test-scoreboard-block.php`: rendering the bound parts, the dash hidden from screen readers, nothing without a coverage, hidden until a score is added (and nothing for an ended coverage without one), the hidden empty status line, Automatic, the feed's context, Lite Site pages, and the coverage-level item.
 - `tests/js/scoreboard-apply.test.ts`: applying a score, when it is announced, and hiding and showing the scoreboard.
-- `tests/js/scoreboard-template.test.ts`: the inserted defaults on block and classic theme presets, and the heading font lookup.
+- `tests/js/scoreboard-template.test.ts`: the inserted parts and their order, the defaults on block and classic theme presets, and the heading font lookup.
 
 From this plugin's directory, run `../../../n test-php` (add `--filter <name>` for one test). The tests register the block from `src/blocks/scoreboard/block.json` when the build isn't there.

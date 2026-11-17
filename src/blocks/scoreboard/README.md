@@ -1,6 +1,6 @@
 # Scoreboard
 
-Shows a liveblog's score: the two team names with a score for each on one row, and a short status line such as "Second half" or "Full time" beneath. Open pages pick up a new score without a reload.
+Shows a liveblog's score: the two team names with a score for each on one row, a dash between the scores, and a short status line such as "Second half" or "Full time" beneath. Open pages pick up a new score without a reload.
 
 The score belongs to the liveblog. Set it at the top of the liveblog's entries list, in Rolling Coverage > All Liveblogs. See [Setting the score](#setting-the-score).
 
@@ -40,9 +40,9 @@ Only editors and administrators, who can edit liveblogs, can change the score. O
 
 ## Styling
 
-The block is built from paragraphs inside a group, so each part has its own settings. Select a team name, a score or the status line to change its size, weight, color or alignment. Select the Scoreboard block itself to set a background, text color, border, padding or margin for the whole scoreboard.
+The block is built from paragraphs inside a group, so each part has its own settings. Select a team name, a score, the dash or the status line to change its size, weight, color or alignment. Screen readers skip the dash, and read the row as the team names and scores. Select the Scoreboard block itself to set a background, text color, border, padding or margin for the whole scoreboard.
 
-New blocks take their look from the theme: the team names and scores in the font the theme uses for headings, bold, with the scores largest, and the status line small and in the theme's muted text color. On a phone, long team names wrap onto a second line within their half of the row.
+New blocks take their look from the theme: the team names and scores in the font the theme uses for headings, bold, with the scores largest and a slightly smaller dash between them. The dash and the small status line take the theme's muted text color. On a phone, long team names wrap onto a second line within their half of the row.
 
 ## In the editor
 

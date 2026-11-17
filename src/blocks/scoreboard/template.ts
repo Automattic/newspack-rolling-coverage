@@ -12,6 +12,8 @@ import type { TemplateItem } from '../rolling-coverage/types';
 
 const SCORE_BINDINGS_SOURCE = 'newspack-rolling-coverage/score';
 
+const DASH_CLASS = 'newspack-rolling-coverage-scoreboard__dash';
+
 /**
  * The theme presets the template picks from.
  */
@@ -86,14 +88,15 @@ function part(
 
 /**
  * The block's inner blocks as inserted: the teams and their scores on one
- * row, the names filling the space either side so the scores sit in the
- * middle, and the status line under it.
+ * row, a dash between the scores, the names filling the space either side so
+ * the scores sit in the middle, and the status line under it.
  *
  * Every choice is a block setting from the theme's presets. Names and scores
  * take the headings' font family and are bold; a block theme scale (Large,
  * XX-Large) gives them its fluid sizes, the classic Newspack Theme's scale
- * Normal and Huge. The status line is small, in the muted color the layouts'
- * dates use. Long names wrap within their half of the row.
+ * Normal and Huge. The dash is a size down from the scores, and it and the
+ * status line, which is small, take the muted color the layouts' dates use.
+ * Long names wrap within their half of the row.
  *
  * @param {Object}   tokens             The theme's presets.
  * @param {string[]} tokens.sizes       Font size slugs.
@@ -125,6 +128,19 @@ function scoreboardTemplate( {
 		style: { typography: { fontWeight: '700', lineHeight: '1' } },
 	};
 	const muted = mutedTextColor( colors );
+	const mutedColor = muted ? { textColor: muted } : {};
+	const dash: TemplateItem = [
+		'core/paragraph',
+		{
+			...font,
+			className: `${ font.className } ${ DASH_CLASS }`,
+			content: '–',
+			fontSize: isBlockScale ? 'x-large' : 'large',
+			...mutedColor,
+			style: { typography: { lineHeight: '1' } },
+			metadata: { name: __( 'Dash', 'newspack-rolling-coverage' ) },
+		},
+	];
 
 	return [
 		[
@@ -150,6 +166,7 @@ function scoreboardTemplate( {
 					__( 'First Team Score', 'newspack-rolling-coverage' ),
 					score
 				),
+				dash,
 				part(
 					'team2Score',
 					__( 'Second Team Score', 'newspack-rolling-coverage' ),
@@ -164,11 +181,16 @@ function scoreboardTemplate( {
 		],
 		part( 'status', __( 'Status Line', 'newspack-rolling-coverage' ), {
 			fontSize: isBlockScale ? 'x-small' : 'small',
-			...( muted ? { textColor: muted } : {} ),
+			...mutedColor,
 			style: { typography: { textAlign: 'center' } },
 		} ),
 	];
 }
 
-export { SCORE_BINDINGS_SOURCE, headingFontFamily, scoreboardTemplate };
+export {
+	DASH_CLASS,
+	SCORE_BINDINGS_SOURCE,
+	headingFontFamily,
+	scoreboardTemplate,
+};
 export type { ThemeTokens };

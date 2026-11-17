@@ -1,4 +1,5 @@
 import {
+	DASH_CLASS,
 	headingFontFamily,
 	scoreboardTemplate,
 } from '../../src/blocks/scoreboard/template';
@@ -12,8 +13,9 @@ const parts = ( template: Item[] ) => {
 	const [ row, status ] = template;
 
 	return {
-		names: [ row[ 2 ]![ 0 ], row[ 2 ]![ 3 ] ],
-		scores: [ row[ 2 ]![ 1 ] ],
+		names: [ row[ 2 ]![ 0 ], row[ 2 ]![ 4 ] ],
+		scores: [ row[ 2 ]![ 1 ], row[ 2 ]![ 3 ] ],
+		dash: row[ 2 ]![ 2 ],
 		status,
 		row,
 	};
@@ -42,8 +44,27 @@ describe( 'headingFontFamily', () => {
 } );
 
 describe( 'scoreboardTemplate', () => {
+	it( 'puts the names, the scores and a dash between them in order', () => {
+		const { row } = parts(
+			scoreboardTemplate( { sizes: BLOCK_SIZES, colors: [] } ) as Item[]
+		);
+
+		expect(
+			row[ 2 ]!.map(
+				( [ , attributes ] ) =>
+					attributes.metadata.bindings?.content.args.key ?? 'dash'
+			)
+		).toEqual( [
+			'team1Name',
+			'team1Score',
+			'dash',
+			'team2Score',
+			'team2Name',
+		] );
+	} );
+
 	it( 'uses the block theme scale, heading font and muted status there', () => {
-		const { names, scores, status, row } = parts(
+		const { names, scores, dash, status, row } = parts(
 			scoreboardTemplate( {
 				sizes: BLOCK_SIZES,
 				colors: [ 'contrast', 'contrast-3' ],
@@ -57,6 +78,14 @@ describe( 'scoreboardTemplate', () => {
 		] );
 		expect( names[ 0 ][ 1 ].fontFamily ).toBe( 'inter' );
 		expect( scores[ 0 ][ 1 ].fontSize ).toBe( 'xx-large' );
+		expect( dash[ 1 ] ).toMatchObject( {
+			content: '–',
+			className: `use-header-font ${ DASH_CLASS }`,
+			fontFamily: 'inter',
+			fontSize: 'x-large',
+			textColor: 'contrast-3',
+		} );
+		expect( dash[ 1 ].metadata ).not.toHaveProperty( 'bindings' );
 		expect( status[ 1 ].textColor ).toBe( 'contrast-3' );
 		expect( row[ 1 ].style.spacing.blockGap ).toBe(
 			'var:preset|spacing|40'
@@ -64,7 +93,7 @@ describe( 'scoreboardTemplate', () => {
 	} );
 
 	it( 'falls back to the classic theme scale and colors', () => {
-		const { names, scores, status } = parts(
+		const { names, scores, dash, status } = parts(
 			scoreboardTemplate( {
 				sizes: CLASSIC_SIZES,
 				colors: [ 'primary', 'medium-gray' ],
@@ -75,15 +104,18 @@ describe( 'scoreboardTemplate', () => {
 		expect( names[ 0 ][ 1 ] ).not.toHaveProperty( 'fontFamily' );
 		expect( names[ 0 ][ 1 ].className ).toBe( 'use-header-font' );
 		expect( scores[ 0 ][ 1 ].fontSize ).toBe( 'huge' );
+		expect( dash[ 1 ].fontSize ).toBe( 'large' );
+		expect( dash[ 1 ].textColor ).toBe( 'medium-gray' );
 		expect( status[ 1 ].fontSize ).toBe( 'small' );
 		expect( status[ 1 ].textColor ).toBe( 'medium-gray' );
 	} );
 
-	it( 'leaves the status color alone without a muted preset', () => {
-		const { status } = parts(
+	it( 'leaves the dash and status colors alone without a muted preset', () => {
+		const { dash, status } = parts(
 			scoreboardTemplate( { sizes: BLOCK_SIZES, colors: [] } ) as Item[]
 		);
 
+		expect( dash[ 1 ] ).not.toHaveProperty( 'textColor' );
 		expect( status[ 1 ] ).not.toHaveProperty( 'textColor' );
 	} );
 } );
