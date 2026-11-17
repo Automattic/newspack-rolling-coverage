@@ -901,3 +901,8 @@ $row-fade-start-rtl: "linear-gradient(to left, transparent, #000 var(--newspack-
 		}
 	}
 }
+
+.newspack-rolling-coverage-summary-updated {
+	font-family: var(--newspack-rolling-coverage-date-font, var(--newspack-theme-font-heading, inherit));
+	line-height: var(--newspack-rolling-coverage-date-line-height, inherit);
+}

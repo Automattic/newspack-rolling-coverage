@@ -34,6 +34,10 @@ class Summary {
 	// REST field on the core entries route.
 	const REST_FIELD = 'isSummary';
 
+	// Custom properties holding the font and line height the theme gives a Date block, which the summary card's "Updated" line takes.
+	const DATE_FONT_PROPERTY        = '--newspack-rolling-coverage-date-font';
+	const DATE_LINE_HEIGHT_PROPERTY = '--newspack-rolling-coverage-date-line-height';
+
 	/**
 	 * Initialize hooks.
 	 */
@@ -42,6 +46,77 @@ class Summary {
 		add_action( 'pre_get_posts', [ __CLASS__, 'filter_query' ] );
 		add_action( 'rest_api_init', [ __CLASS__, 'register_rest_field' ] );
 		add_filter( 'rest_pre_insert_' . Post_Type::CPT_SLUG, [ __CLASS__, 'check_rest_save' ], 10, 2 );
+		add_action( 'enqueue_block_assets', [ __CLASS__, 'add_date_type_style' ] );
+	}
+
+	/**
+	 * Publish a block theme's Date block font and line height with the feed
+	 * block's stylesheet, on the site and in the editor, so the summary card's
+	 * "Updated" line reads like the layout's entry times. The editor fires
+	 * the hook twice into one stylesheet, so they're added once.
+	 */
+	public static function add_date_type_style(): void {
+		static $added = false;
+
+		if ( $added ) {
+			return;
+		}
+
+		$declarations = '';
+
+		foreach ( self::date_type() as $property => $value ) {
+			$declarations .= $property . ':' . $value . ';';
+		}
+
+		if ( '' === $declarations ) {
+			return;
+		}
+
+		$added = true;
+
+		wp_add_inline_style(
+			generate_block_asset_handle( 'newspack-rolling-coverage/rolling-coverage', 'style' ),
+			':root{' . $declarations . '}'
+		);
+	}
+
+	/**
+	 * A block theme's Date block font family and line height, as merged with
+	 * its style variation and Global Styles, by custom property. Only preset
+	 * and custom variables count; anything else is left to the stylesheet's
+	 * fallbacks, as is a classic theme, whose heading font the stylesheet
+	 * gives the line as the classic Newspack Theme gives its dates.
+	 *
+	 * @return array<string, string>
+	 */
+	public static function date_type(): array {
+		if ( ! wp_is_block_theme() ) {
+			return [];
+		}
+
+		$typography = (array) wp_get_global_styles( [ 'blocks', 'core/post-date', 'typography' ] );
+		$values     = [];
+
+		foreach (
+			[
+				self::DATE_FONT_PROPERTY        => $typography['fontFamily'] ?? '',
+				self::DATE_LINE_HEIGHT_PROPERTY => $typography['lineHeight'] ?? '',
+			] as $property => $value
+		) {
+			if ( ! is_string( $value ) ) {
+				continue;
+			}
+
+			if ( preg_match( '/^var:(preset|custom)\|([a-z0-9-]+)\|([a-z0-9-]+)$/', $value, $matches ) ) {
+				$value = sprintf( 'var(--wp--%s--%s--%s)', $matches[1], $matches[2], $matches[3] );
+			}
+
+			if ( preg_match( '/^var\(--wp--(?:preset|custom)--[a-z0-9-]+\)$/', $value ) ) {
+				$values[ $property ] = $value;
+			}
+		}
+
+		return $values;
 	}
 
 	/**

@@ -10,6 +10,8 @@ import { useCallback, useMemo } from '@wordpress/element';
  */
 import metadata from './block.json';
 import {
+	CARD_RADIUS,
+	RADIUS_MEDIUM,
 	bulletinEntryTemplate,
 	streamEntryTemplate,
 	railEntryTemplate,
@@ -160,7 +162,10 @@ export function innerTemplate(): TemplateItem[] {
 export function streamInnerTemplate(): TemplateItem[] {
 	return [
 		feedTemplate( [
-			summaryCard( 4 ),
+			summaryCard( 4, {
+				radius: CARD_RADIUS,
+				updated: { muted: true },
+			} ),
 			...streamEntryTemplate( paletteSlugs(), themeFontSizeSlugs() ),
 			loadMoreBlock( {
 				layout: { type: 'flex', justifyContent: 'center' },
@@ -179,7 +184,10 @@ export function railInnerTemplate(): TemplateItem[] {
 	return [
 		feedTemplate(
 			[
-				summaryCard( 4 ),
+				summaryCard( 4, {
+					radius: RADIUS_MEDIUM,
+					updated: { fontWeight: '700' },
+				} ),
 				...railEntryTemplate( paletteSlugs() ),
 				loadMoreBlock( loadMoreTopUp( '40' ) ),
 			],
@@ -197,7 +205,10 @@ export function railInnerTemplate(): TemplateItem[] {
 export function clockInnerTemplate(): TemplateItem[] {
 	return [
 		feedTemplate( [
-			summaryCard( 4 ),
+			summaryCard( 4, {
+				radius: RADIUS_MEDIUM,
+				updated: { muted: true, fontWeight: '600' },
+			} ),
 			...clockEntryTemplate( paletteSlugs(), themeFontSizeSlugs() ),
 			loadMoreBlock(),
 		] ),
@@ -248,7 +259,10 @@ export function minuteInnerTemplate(): TemplateItem[] {
 export function bylineInnerTemplate(): TemplateItem[] {
 	return [
 		feedTemplate( [
-			summaryCard( 4 ),
+			summaryCard( 4, {
+				radius: RADIUS_MEDIUM,
+				updated: { muted: true },
+			} ),
 			...bylineEntryTemplate( paletteSlugs() ),
 			loadMoreBlock(),
 		] ),
@@ -290,7 +304,12 @@ export function splitInnerTemplate(): TemplateItem[] {
 		feedTemplate(
 			[
 				summaryCard( 4, {
-					spacing: { margin: { bottom: 'var:preset|spacing|50' } },
+					style: {
+						spacing: {
+							margin: { bottom: 'var:preset|spacing|50' },
+						},
+					},
+					updated: { fontWeight: '700' },
 				} ),
 				...splitEntryTemplate( paletteSlugs() ),
 				loadMoreBlock(),

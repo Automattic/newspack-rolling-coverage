@@ -313,12 +313,27 @@ const PINNED_STACK_CLASS = 'newspack-rolling-coverage-pinned-stack';
 const SUMMARY_CARD_CLASS = 'newspack-rolling-coverage-summary-card';
 
 /**
- * The summary card's "Updated" line color: the block theme's Contrast 3, else
- * the classic theme's Medium Gray. Written as a value rather than a palette
- * slug, since the line is a static block whose saved classes the server
- * can't swap for the theme it renders on.
+ * Class of the summary card's "Updated" line, which style.scss sets in the
+ * font the theme gives a Date block.
+ */
+const SUMMARY_UPDATED_CLASS = 'newspack-rolling-coverage-summary-updated';
+
+/**
+ * The summary card's "Updated" line color where the layout's entry times
+ * carry none of their own: the color the themes give a Date block, the block
+ * theme's Contrast 3 and the classic theme's text color. Written as values
+ * rather than palette slugs, here and below, since the line is a static block
+ * whose saved classes the server can't swap for the theme it renders on.
  */
 const SUMMARY_UPDATED_COLOR =
+	'var(--wp--preset--color--contrast-3, currentColor)';
+
+/**
+ * The "Updated" line color where the layout's entry times are muted, as
+ * mutedDateColor() picks it: the block theme's Contrast 3, else the classic
+ * theme's Medium Gray.
+ */
+const SUMMARY_UPDATED_MUTED_COLOR =
 	'var(--wp--preset--color--contrast-3, var(--wp--preset--color--medium-gray, currentColor))';
 
 /**
@@ -3514,21 +3529,39 @@ function isSummaryCard( block: {
 /**
  * The summary card: the coverage's Summary once, above the entries, on the
  * pinned card's quiet background, with the Summary's title at the layout's
- * entry heading level, its content, and a small muted line saying when it
- * was last edited, in the site's time format (the `summaryUpdated`
- * binding). It belongs to the coverage, not to each entry, and is locked in
- * place like the entry groups.
+ * entry heading level, its content, and a small line saying when it was last
+ * edited, in the site's time format (the `summaryUpdated` binding). The line
+ * is set like the layout's entry times, in the font the themes give a Date
+ * block, and the card takes the corners of the layout's own boxes. It belongs
+ * to the coverage, not to each entry, and is locked in place like the entry
+ * groups.
  *
- * @param {number} level   The title's heading level, the layout's
- *                         entry titles' level.
- * @param {Object} [style] Style the card adds, such as its margin in
- *                         a grid Feed.
+ * @param {number}  level                        The title's heading level, the layout's
+ *                                               entry titles' level.
+ * @param {Object}  [options]                    How the layout sets the card.
+ * @param {Object}  [options.style]              Style the card adds, such as its margin
+ *                                               in a grid Feed.
+ * @param {string}  [options.radius]             Its corner radius.
+ * @param {Object}  [options.updated]            How the "Updated" line is set,
+ *                                               as the layout's entry times.
+ * @param {boolean} [options.updated.muted]      Whether it's muted.
+ * @param {string}  [options.updated.fontWeight] Its font weight.
  * @return {TemplateItem} The group.
  */
 function summaryCard(
 	level: number,
-	style: Record< string, unknown > = {}
+	{
+		style = {},
+		radius,
+		updated = {},
+	}: {
+		style?: Record< string, unknown >;
+		radius?: string;
+		updated?: { muted?: boolean; fontWeight?: string };
+	} = {}
 ): TemplateItem {
+	const { muted, fontWeight } = updated;
+
 	return [
 		'core/group',
 		{
@@ -3537,6 +3570,7 @@ function summaryCard(
 			style: {
 				...style,
 				color: { background: PINNED_BACKGROUND },
+				...( radius ? { border: { radius } } : {} ),
 				spacing: {
 					...( ( style.spacing as object ) ?? {} ),
 					padding: CARD_PADDING,
@@ -3553,8 +3587,16 @@ function summaryCard(
 			[
 				'core/paragraph',
 				{
+					className: SUMMARY_UPDATED_CLASS,
 					fontSize: 'small',
-					style: { color: { text: SUMMARY_UPDATED_COLOR } },
+					style: {
+						color: {
+							text: muted
+								? SUMMARY_UPDATED_MUTED_COLOR
+								: SUMMARY_UPDATED_COLOR,
+						},
+						...( fontWeight ? { typography: { fontWeight } } : {} ),
+					},
 					content: __( 'Updated', 'newspack-rolling-coverage' ),
 					metadata: {
 						name: __( 'Updated', 'newspack-rolling-coverage' ),
@@ -5449,6 +5491,8 @@ export {
 	SUMMARY_CARD_CLASS,
 	isSummaryCard,
 	summaryCard,
+	CARD_RADIUS,
+	RADIUS_MEDIUM,
 	withoutSummaryCard,
 	summaryCardIds,
 	isPinnedCard,
