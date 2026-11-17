@@ -21,7 +21,7 @@ The Liveblog panel is at the top of the block's settings. It appears only when t
 | Automatic | "Shows the liveblog on this page, or a breakout post’s liveblog." Uses the first Rolling Coverage block in this post or page's content that shows every entry, else, on a breakout post, the liveblog the post came from, else the first one that shows only the latest entries, not one placed in the site's template. |
 | Custom | "Always shows this liveblog." Pick the liveblog from the list. |
 
-Automatic works on single posts and pages only, not on archives or password-protected posts. A block that shows only the latest entries counts only when the page has no feed that shows every entry.
+Automatic works on single posts and pages only, not on archives or password-protected posts. Automatic uses the first feed that shows every entry; on a story broken out from a liveblog, that liveblog next; otherwise the first feed that shows only the latest entries.
 
 The block shows nothing on the site when there is no liveblog to show. Most liveblogs aren't matches, so a liveblog has no score until someone adds one. Until then the scoreboard stays hidden, and open pages show it as soon as a score is added, without a reload. An ended liveblog without a score shows nothing.
 
