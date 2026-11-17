@@ -118,9 +118,9 @@ function isProtected( record: PostRecord ): boolean {
  * The coverage a block shows or follows, decided as the site decides it:
  * the Rolling Coverage block it sits in; else its chosen coverage while that
  * exists and isn't trashed; else the first full feed in the post it is
- * about, else the first capped one, or, for a breakout post, its source entry's coverage. Templates and
- * synced patterns edited on their own have no page, so only a chosen
- * coverage counts there.
+ * about, else the first capped one, or, for a breakout post, its source
+ * entry's coverage. Templates and synced patterns edited on their own have
+ * no page, so only a chosen coverage counts there.
  *
  * The post is the one being edited, or, inside a Query Loop, the item the
  * block renders for. With the template shown, only feeds in the post
