@@ -318,6 +318,7 @@ function loadSampleRecords(): void {
 			date: formatDate( 'Y-m-d\\TH:i:s', timestamp, undefined ),
 			date_gmt: new Date( timestamp ).toISOString().slice( 0, 19 ),
 			modified: formatDate( 'Y-m-d\\TH:i:s', timestamp, undefined ),
+			modified_gmt: new Date( timestamp ).toISOString().slice( 0, 19 ),
 			title: { raw: sample.title, rendered: escapeHTML( sample.title ) },
 			content: {
 				raw: `<!-- wp:paragraph --><p>${ paragraph }</p><!-- /wp:paragraph -->`,
@@ -350,6 +351,7 @@ function loadSampleRecords(): void {
 		date: summaryTime,
 		date_gmt: new Date( now - 5 * 60000 ).toISOString().slice( 0, 19 ),
 		modified: summaryTime,
+		modified_gmt: new Date( now - 5 * 60000 ).toISOString().slice( 0, 19 ),
 		title: {
 			raw: __( 'What we know', 'newspack-rolling-coverage' ),
 			rendered: escapeHTML(

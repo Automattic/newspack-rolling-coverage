@@ -20,7 +20,7 @@ interface BindingsArgs {
 			name: string,
 			id: number,
 			query?: Record< string, string >
-		) => { name?: string; modified?: string } | undefined;
+		) => { name?: string; modified_gmt?: string } | undefined;
 	};
 }
 
@@ -42,13 +42,15 @@ function breakoutLabel(): string {
  * mirroring Entry_Bindings::updated_text(): the time in the site's time
  * format, with the date when it wasn't today.
  *
- * @param {string} modified The entry's last edit, in the site's timezone.
+ * @param {string} modifiedGmt The entry's last edit, in UTC.
  * @return {string} The line, or an empty string without a date.
  */
-function updatedText( modified: string | undefined ): string {
-	if ( ! modified ) {
+function updatedText( modifiedGmt: string | undefined ): string {
+	if ( ! modifiedGmt ) {
 		return '';
 	}
+
+	const modified = `${ modifiedGmt }Z`;
 
 	const { formats } = getSettings();
 	let time = dateI18n( formats.time, modified, undefined );
@@ -105,7 +107,7 @@ registerBlockBindingsSource( {
 
 					return [
 						attribute,
-						updatedText( entry?.modified ) ||
+						updatedText( entry?.modified_gmt ) ||
 							__( 'Updated', 'newspack-rolling-coverage' ),
 					];
 				}
