@@ -204,4 +204,44 @@ describe( 'useScorePanel', () => {
 
 		expect( screen.getByLabelText( 'Status' ) ).toHaveValue( 'Second ha' );
 	} );
+
+	it( 'saves a typed score once, when the field is left', async () => {
+		const setContext = jest.fn();
+		render( createElement( Screen, { coverage: A, setContext } ) );
+		const field = screen.getByRole( 'spinbutton', {
+			name: 'Riverbend FC',
+		} );
+
+		fireEvent.change( field, { target: { value: '1' } } );
+		fireEvent.change( field, { target: { value: '12' } } );
+
+		expect( mockFetch ).not.toHaveBeenCalled();
+
+		await act( async () => {
+			fireEvent.blur( field );
+		} );
+
+		expect(
+			mockFetch.mock.calls.map(
+				( [ options ] ) =>
+					options.data.meta.rolling_coverage_score.teams[ 0 ].score
+			)
+		).toEqual( [ 12 ] );
+	} );
+
+	it( 'leaves the score alone when the field is cleared', async () => {
+		const setContext = jest.fn();
+		render( createElement( Screen, { coverage: A, setContext } ) );
+		const field = screen.getByRole( 'spinbutton', {
+			name: 'Riverbend FC',
+		} );
+
+		fireEvent.change( field, { target: { value: '' } } );
+		await act( async () => {
+			fireEvent.blur( field );
+		} );
+
+		expect( mockFetch ).not.toHaveBeenCalled();
+		expect( field ).toHaveValue( 1 );
+	} );
 } );

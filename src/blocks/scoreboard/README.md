@@ -32,7 +32,7 @@ At the top of a liveblog's entries list:
 2. Type the **First team** and **Second team** names. The first team shows on the left.
 3. Select **Add Score**.
 
-The score row then shows a number for each team, with + and − buttons, and a **Status** field. A change to a number saves straight away. The status line saves when you press Enter or leave the field. If a save fails, the row goes back to the last saved score and a message says why.
+The score row then shows a number for each team, with + and − buttons, and a **Status** field. The + and − buttons save straight away. A typed number, like the status line, saves when you press Enter or leave the field. If a save fails, the row goes back to the last saved score and a message says why.
 
 The menu at the end of the row holds **Edit Teams**, to rename the teams, and **Remove Score**. Removing the score hides every Scoreboard block for the liveblog.
 

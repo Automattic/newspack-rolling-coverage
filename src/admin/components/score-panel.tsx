@@ -223,6 +223,9 @@ function ScorePanel( {
 	const [ score, setScore ] = useState< Score | null >( saved );
 	const [ status, setStatus ] = useState( saved?.status ?? '' );
 	const [ isEditingTeams, setIsEditingTeams ] = useState( false );
+	const [ drafts, setDrafts ] = useState< [ string | null, string | null ] >(
+		[ null, null ]
+	);
 	const confirmed = useRef< Score | null >( saved );
 	const pending = useRef< PendingSave | null >( null );
 	const isSaving = useRef( false );
@@ -318,25 +321,78 @@ function ScorePanel( {
 		[ flush ]
 	);
 
-	const step = ( index: 0 | 1, value: string | undefined ) => {
+	const step = ( index: 0 | 1, value: number ) => {
 		if ( ! score ) {
 			return;
 		}
 
-		const parsed = Math.min(
-			MAX_SCORE,
-			Math.max( 0, Math.floor( Number( value ) || 0 ) )
-		);
+		const next = Math.min( MAX_SCORE, Math.max( 0, value ) );
 
-		if ( parsed === score.teams[ index ].score ) {
+		if ( next === score.teams[ index ].score ) {
 			return;
 		}
 
 		const teams = score.teams.map( ( team, i ) =>
-			i === index ? { ...team, score: parsed } : team
+			i === index ? { ...team, score: next } : team
 		) as Score[ 'teams' ];
 
 		save( { ...score, teams } );
+	};
+
+	const setDraft = ( index: 0 | 1, value: string | null ) =>
+		setDrafts( ( previous ) =>
+			index === 0 ? [ value, previous[ 1 ] ] : [ previous[ 0 ], value ]
+		);
+
+	/**
+	 * Saves a typed score once the field is left or Enter is pressed, so
+	 * readers never get the digits typed on the way, such as 1 before 12. An
+	 * empty or non-numeric field goes back to the saved score.
+	 *
+	 * @param {number} index The team.
+	 */
+	const commitDraft = ( index: 0 | 1 ) => {
+		const draft = drafts[ index ]?.trim() ?? '';
+
+		setDraft( index, null );
+
+		if ( /^\d+$/.test( draft ) ) {
+			step( index, Number( draft ) );
+		}
+	};
+
+	/**
+	 * The + and − buttons, and the arrow keys, save at once; typing waits for
+	 * commitDraft().
+	 *
+	 * @param {number} index            The team.
+	 * @param {string} value            The field's value.
+	 * @param {Object} extra            The change's details.
+	 * @param {Object} extra.event      The event behind it.
+	 * @param {string} extra.event.type The event's type.
+	 * @param {string} extra.event.key  The key pressed, for a keydown.
+	 */
+	const changeScore = (
+		index: 0 | 1,
+		value: string | undefined,
+		extra?: { event?: { type?: string; key?: string } }
+	) => {
+		const event = extra?.event;
+		const isStep =
+			event?.type === 'click' ||
+			( event?.type === 'keydown' &&
+				( event.key === 'ArrowUp' || event.key === 'ArrowDown' ) );
+
+		if ( ! isStep ) {
+			setDraft( index, value ?? '' );
+			return;
+		}
+
+		setDraft( index, null );
+
+		if ( /^\d+$/.test( value ?? '' ) ) {
+			step( index, Number( value ) );
+		}
 	};
 
 	const saveStatus = () => {
@@ -371,13 +427,24 @@ function ScorePanel( {
 							<NumberControl
 								__next40pxDefaultSize
 								label={ score.teams[ index ].name }
-								value={ score.teams[ index ].score }
+								value={
+									drafts[ index ] ??
+									score.teams[ index ].score
+								}
 								min={ 0 }
 								max={ MAX_SCORE }
 								step={ 1 }
 								spinControls="custom"
 								isDragEnabled={ false }
-								onChange={ ( value ) => step( index, value ) }
+								onChange={ ( value, extra ) =>
+									changeScore( index, value, extra )
+								}
+								onBlur={ () => commitDraft( index ) }
+								onKeyDown={ ( event: { key: string } ) => {
+									if ( event.key === 'Enter' ) {
+										commitDraft( index );
+									}
+								} }
 							/>
 						</div>
 					) ) }
