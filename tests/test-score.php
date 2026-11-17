@@ -94,6 +94,46 @@ class Test_Score extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * Text is stored as plain text, never encoded: a lone `<` and an `&`
+	 * stay as typed, so pages that set it as text show what was typed.
+	 */
+	public function test_text_is_stored_as_typed() {
+		$coverage_id = self::create_coverage();
+		$score       = self::score();
+
+		$score['teams'][1]['name'] = 'Toledo   U<23 & Co';
+		$score['status']           = "Half\ttime <i>(late)</i>";
+
+		self::log_in_as( 'editor' );
+		$response = self::save( $coverage_id, $score );
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertSame( 'Toledo U<23 & Co', Score::get( $coverage_id )['teams'][1]['name'] );
+		$this->assertSame( 'Half time (late)', Score::get( $coverage_id )['status'] );
+		$this->assertSame( 'Toledo U<23 & Co', $response->get_data()['meta'][ Score::META_KEY ]['teams'][1]['name'] );
+	}
+
+	/**
+	 * A name made only of tags keeps its text, so it never empties the
+	 * score; one with nothing but spaces and angle brackets is turned away.
+	 */
+	public function test_names_never_empty_the_score() {
+		$coverage_id = self::create_coverage();
+		$tag_only    = self::score();
+		$blank       = self::score();
+
+		$tag_only['teams'][0]['name'] = '<b></b>';
+		$blank['teams'][0]['name']    = ' <> ';
+
+		self::log_in_as( 'editor' );
+
+		$this->assertSame( 200, self::save( $coverage_id, $tag_only )->get_status() );
+		$this->assertSame( 'b/b', Score::get( $coverage_id )['teams'][0]['name'] );
+		$this->assertSame( 400, self::save( $coverage_id, $blank )->get_status() );
+		$this->assertSame( 'b/b', Score::get( $coverage_id )['teams'][0]['name'] );
+	}
+
+	/**
 	 * Anything but two named teams isn't a score.
 	 */
 	public function test_sanitize_rejects_what_isnt_a_score() {

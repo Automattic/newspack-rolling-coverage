@@ -2,6 +2,7 @@
  * WordPress dependencies
  */
 import { registerBlockBindingsSource } from '@wordpress/blocks';
+import { escapeHTML } from '@wordpress/escape-html';
 
 /**
  * Internal dependencies
@@ -38,6 +39,8 @@ interface BindingsArgs {
  * Mirrors Scoreboard_Block::get_value() in the editor: the parts of the
  * score of the coverage in context, or of a sample score where there is no
  * coverage or it has no score yet, so the scoreboard can still be styled.
+ * They are escaped, as on the server, since a paragraph reads its content
+ * as HTML.
  */
 registerBlockBindingsSource( {
 	name: SCORE_BINDINGS_SOURCE,
@@ -60,7 +63,9 @@ registerBlockBindingsSource( {
 
 				return [
 					attribute,
-					SCORE_KEYS.includes( key ) ? scorePart( score, key ) : '',
+					SCORE_KEYS.includes( key )
+						? escapeHTML( scorePart( score, key ) )
+						: '',
 				];
 			} )
 		);

@@ -84,7 +84,13 @@ class Score {
 						'type'                 => 'object',
 						'additionalProperties' => false,
 						'properties'           => [
-							'name'  => array_merge( $text, [ 'minLength' => 1 ] ),
+							'name'  => array_merge(
+								$text,
+								[
+									'minLength' => 1,
+									'pattern'   => '[^\\s<>]',
+								]
+							),
 							'score' => [
 								'type'    => 'integer',
 								'minimum' => 0,
@@ -201,12 +207,28 @@ class Score {
 	}
 
 	/**
-	 * Plain text, cut to MAX_TEXT_LENGTH characters.
+	 * Plain text, cut to MAX_TEXT_LENGTH characters: tags and comments taken
+	 * out and whitespace collapsed, but nothing encoded. Every output escapes
+	 * it, and pages set it as text, where an entity such as `&lt;` would show
+	 * as typed. A lone `<`, as in "U<23", stays. A name made only of tags
+	 * keeps its text without the angle brackets, so it never empties the
+	 * score; the schema's pattern turns away one with nothing else.
 	 *
 	 * @param mixed $value Raw value.
 	 * @return string
 	 */
 	private static function text( $value ): string {
-		return is_scalar( $value ) ? mb_substr( sanitize_text_field( (string) $value ), 0, self::MAX_TEXT_LENGTH ) : '';
+		if ( ! is_scalar( $value ) ) {
+			return '';
+		}
+
+		$raw  = wp_check_invalid_utf8( (string) $value, true );
+		$text = (string) preg_replace( '/<!--.*?-->|<\/?[a-zA-Z][^>]*>/s', '', $raw );
+
+		if ( '' === trim( $text ) ) {
+			$text = str_replace( [ '<', '>' ], '', $raw );
+		}
+
+		return mb_substr( trim( (string) preg_replace( '/\s+/u', ' ', $text ) ), 0, self::MAX_TEXT_LENGTH );
 	}
 }

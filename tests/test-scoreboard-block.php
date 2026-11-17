@@ -80,7 +80,7 @@ class Test_Scoreboard_Block extends Rolling_Coverage_TestCase {
 						'score' => 2,
 					],
 					[
-						'name'  => 'Toledo Beacon & Co',
+						'name'  => 'Toledo Beacon U<23 & Co',
 						'score' => 1,
 					],
 				],
@@ -164,7 +164,7 @@ class Test_Scoreboard_Block extends Rolling_Coverage_TestCase {
 				'team1Name'  => 'Riverbend FC',
 				'team1Score' => '2',
 				'team2Score' => '1',
-				'team2Name'  => 'Toledo Beacon &amp; Co',
+				'team2Name'  => 'Toledo Beacon U&lt;23 &amp; Co',
 				'status'     => 'Second half',
 			],
 			self::parts( $html )

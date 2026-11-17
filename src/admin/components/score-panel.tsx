@@ -270,12 +270,25 @@ function ScorePanel( {
 			pending.current = null;
 
 			try {
-				await apiFetch( {
+				const response = await apiFetch< {
+					meta?: Record< string, unknown >;
+				} >( {
 					url: `${ config.restBaseUrls.coverages }/${ coverageId }`,
 					method: 'POST',
 					data: { meta: { [ SCORE_META_KEY ]: next } },
 				} );
-				confirmed.current = next;
+				const kept = response?.meta?.[ SCORE_META_KEY ];
+
+				confirmed.current = isScore( kept ) ? kept : null;
+
+				if ( ! pending.current ) {
+					setScore( confirmed.current );
+
+					if ( ! isStatusEdited.current ) {
+						setStatus( confirmed.current?.status ?? '' );
+					}
+				}
+
 				waiters.forEach( ( settle ) => settle( true ) );
 			} catch ( error ) {
 				const later = pending.current as PendingSave | null;
