@@ -43,6 +43,7 @@ function entry(
 		modified: '2026-10-23T10:00:00',
 		status,
 		pinned: false,
+		is_summary: false,
 		archived_at: 0,
 		coverage_status: 'active',
 		author: { id: 1, name: 'Editor' },
@@ -135,6 +136,10 @@ class EntriesView {
 			totalPages: Math.max( 1, Math.ceil( matching.length / perPage ) ),
 			page,
 			cursor: `${ this.cursor }:2026-10-23 10:00:00`,
+			summaryId:
+				this.entries.find(
+					( row ) => row.is_summary && row.status !== 'trash'
+				)?.id ?? 0,
 		};
 
 		if ( ! this.holding ) {
@@ -179,6 +184,31 @@ afterEach( () => {
 } );
 
 describe( 'useEntries', () => {
+	it( 'keeps the Summary first when a poll brings new entries', async () => {
+		server.seed( { ...entry( 1 ), is_summary: true }, entry( 2 ) );
+		const { result } = renderHook( () => useEntries( VIEW ) );
+		await wait( 0 );
+
+		server.publish( entry( 3 ) );
+		await wait( POLL_MS );
+
+		expect( result.current.rows?.map( ( row ) => row.id ) ).toEqual( [
+			1, 3, 2,
+		] );
+	} );
+
+	it( 'reports the Summary gone once a poll sees it trashed', async () => {
+		server.seed( { ...entry( 1 ), is_summary: true }, entry( 2 ) );
+		const { result } = renderHook( () => useEntries( VIEW ) );
+		await wait( 0 );
+		expect( result.current.summaryId ).toBe( 1 );
+
+		server.trash( 1 );
+		await wait( POLL_MS );
+
+		expect( result.current.summaryId ).toBe( 0 );
+	} );
+
 	it( 'counts the entries a poll brings in', async () => {
 		const { result } = renderHook( () => useEntries( VIEW ) );
 		await wait( 0 );
