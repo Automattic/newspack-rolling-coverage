@@ -103,7 +103,7 @@ beforeEach( () => {
 } );
 
 describe( 'useScorePanel', () => {
-	it( 'offers Add Score in the header menu only while there is no score', () => {
+	it( 'returns an Add Score control only while there is no score', () => {
 		const setContext = jest.fn();
 		const unscored = {
 			...A,
