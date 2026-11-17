@@ -28,7 +28,7 @@ The block shows nothing on the site when there is no liveblog to show. Most live
 
 At the top of a liveblog's entries list:
 
-1. Select **Add Score** in the header.
+1. Open the **More actions** menu in the header and select **Add Score**.
 2. Type the **First team** and **Second team** names. The first team shows on the left.
 3. Select **Add Score**.
 

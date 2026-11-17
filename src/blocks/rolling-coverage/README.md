@@ -161,7 +161,7 @@ Feeds set to Latest ignore pinning and show the newest entries only.
 
 ### Summary
 
-A liveblog can have a Summary: a short entry, usually a list under a heading like "What we know", that readers see in a box at the very top of the feed, above pinned entries. Add it with **Add Summary** in the liveblog's entries list, and keep it up to date there, with Quick Edit or the entry editor, like any entry.
+A liveblog can have a Summary: a short entry, usually a list under a heading like "What we know", that readers see in a box at the very top of the feed, above pinned entries. Add it from the liveblog's entries list: open the **More actions** menu at the top and select **Add Summary**. Keep it up to date there, with Quick Edit or the entry editor, like any entry.
 
 - The box shows the Summary's title as a heading, its content, and "Updated" with the time it was last edited, in the site's time format (and the date, once it wasn't edited today). It sits on the theme's secondary background color, like a pinned entry in Bulletin.
 - "Updated" is set like the layout's entry times: in the font the theme gives dates, at their size and weight, and muted where they are (Stream, Clock and Byline). The box has rounded corners in the layouts whose boxes do: Stream, like its pinned entry, and Rail, Clock and Byline, like their full story cards.

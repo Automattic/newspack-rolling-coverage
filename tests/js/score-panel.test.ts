@@ -5,6 +5,7 @@
  */
 import apiFetch from '@wordpress/api-fetch';
 import { act, fireEvent, render, screen } from '@testing-library/react';
+import { DropdownMenu } from '@wordpress/components';
 import { createElement, Fragment } from '@wordpress/element';
 
 import { useScorePanel } from '../../src/admin/components/score-panel';
@@ -35,13 +36,13 @@ const A = coverage( 1, 'Riverbend FC', 'Toledo Beacon' );
 const B = coverage( 2, 'Kettle Rovers', 'Millrace United' );
 
 /**
- * Renders the header button and the panel for a coverage, as the entries
- * list does.
+ * Renders the header menu's Add Score item and the panel for a coverage, as
+ * the entries list does.
  *
  * @param {Object}   props            Props.
  * @param {Coverage} props.coverage   The listed coverage.
  * @param {Function} props.setContext The context setter.
- * @return {Element} The button and panel.
+ * @return {Element} The menu and panel.
  */
 function Screen( {
 	coverage: listed,
@@ -50,9 +51,18 @@ function Screen( {
 	coverage: Coverage;
 	setContext: jest.Mock;
 } ) {
-	const { addButton, panel } = useScorePanel( listed, setContext );
+	const { addControl, panel } = useScorePanel( listed, setContext );
 
-	return createElement( Fragment, null, addButton, panel );
+	return createElement(
+		Fragment,
+		null,
+		addControl &&
+			createElement( DropdownMenu, {
+				label: 'More actions',
+				controls: [ addControl ],
+			} ),
+		panel
+	);
 }
 
 /**
@@ -93,6 +103,32 @@ beforeEach( () => {
 } );
 
 describe( 'useScorePanel', () => {
+	it( 'offers Add Score in the header menu only while there is no score', () => {
+		const setContext = jest.fn();
+		const unscored = {
+			...A,
+			meta: { rolling_coverage_status: 'active' },
+		} as unknown as Coverage;
+		const { rerender } = render(
+			createElement( Screen, { coverage: unscored, setContext } )
+		);
+
+		fireEvent.click(
+			screen.getByRole( 'button', { name: 'More actions' } )
+		);
+		fireEvent.click(
+			screen.getByRole( 'menuitem', { name: 'Add Score' } )
+		);
+
+		expect( screen.getByLabelText( 'First team' ) ).toHaveValue( '' );
+
+		rerender( createElement( Screen, { coverage: A, setContext } ) );
+
+		expect(
+			screen.queryByRole( 'button', { name: 'More actions' } )
+		).toBeNull();
+	} );
+
 	it( 'shows the next liveblog’s score when a save is still out', async () => {
 		const setContext = jest.fn();
 		const release = holdNextFetch();

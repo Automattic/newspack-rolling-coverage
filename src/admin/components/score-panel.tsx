@@ -39,6 +39,14 @@ type PendingSave = {
 	waiters: ( ( ok: boolean ) => void )[];
 };
 
+/**
+ * An item for a `DropdownMenu`'s controls.
+ */
+type MenuControl = {
+	title: string;
+	onClick: () => void;
+};
+
 // Score::MAX_TEXT_LENGTH and Score::MAX_SCORE.
 const MAX_TEXT_LENGTH = 40;
 const MAX_SCORE = 999;
@@ -606,18 +614,18 @@ function ScorePanel( {
 }
 
 /**
- * The score of the liveblog whose entries are listed: an Add Score button
- * for the header while it has none, and the liveblog's score panel (see
- * ScorePanel) for above the list.
+ * The score of the liveblog whose entries are listed: an Add Score item
+ * for the header's More actions menu while it has none, and the liveblog's
+ * score panel (see ScorePanel) for above the list.
  *
  * @param {Coverage|null} coverage   The listed coverage.
  * @param {Function}      setContext Sets the admin context, whose copy of the coverage takes each saved score.
- * @return {Object} The header button and the panel, either of which can be null.
+ * @return {Object} The menu item and the panel, either of which can be null.
  */
 function useScorePanel(
 	coverage: Coverage | null,
 	setContext: ContextExports[ 1 ]
-): { addButton: JSX.Element | null; panel: JSX.Element | null } {
+): { addControl: MenuControl | null; panel: JSX.Element | null } {
 	const config = useAdminContext();
 	const canEdit = config.capabilities.canManageTerms;
 	const coverageId = coverage?.id ?? 0;
@@ -645,21 +653,19 @@ function useScorePanel(
 	);
 	const onAddClose = useCallback( () => setAddingFor( null ), [] );
 
-	const addButton = useMemo(
+	const addControl = useMemo(
 		() =>
-			canEdit && coverageId && ! hasScore && ! isTrashed ? (
-				<Button
-					variant="tertiary"
-					onClick={ () => setAddingFor( coverageId ) }
-				>
-					{ __( 'Add Score', 'newspack-rolling-coverage' ) }
-				</Button>
-			) : null,
+			canEdit && coverageId && ! hasScore && ! isTrashed
+				? {
+						title: __( 'Add Score', 'newspack-rolling-coverage' ),
+						onClick: () => setAddingFor( coverageId ),
+					}
+				: null,
 		[ canEdit, coverageId, hasScore, isTrashed ]
 	);
 
 	return {
-		addButton,
+		addControl,
 		panel: coverage ? (
 			<ScorePanel
 				key={ coverage.id }
@@ -674,3 +680,4 @@ function useScorePanel(
 }
 
 export { useScorePanel };
+export type { MenuControl };

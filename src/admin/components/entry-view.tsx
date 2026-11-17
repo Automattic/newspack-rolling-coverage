@@ -9,8 +9,8 @@ import {
 	useCallback,
 	useRef,
 } from '@wordpress/element';
-import { Button, VisuallyHidden } from '@wordpress/components';
-import { postContent } from '@wordpress/icons';
+import { Button, DropdownMenu, VisuallyHidden } from '@wordpress/components';
+import { moreVertical, postContent } from '@wordpress/icons';
 import { __, sprintf } from '@wordpress/i18n';
 import { useDispatch, useRegistry } from '@wordpress/data';
 import { store as coreStore } from '@wordpress/core-data';
@@ -35,7 +35,7 @@ import { QuickEditModal } from './quick-edit-modal';
 import { EntryDetailsDrawer } from './entry-details-drawer';
 import { SlackConnectionDrawer } from './slack-connection-drawer';
 import { PlacementsDrawer } from './placements-drawer';
-import { useScorePanel } from './score-panel';
+import { useScorePanel, type MenuControl } from './score-panel';
 import { useConfirmDialog } from './confirm-dialog';
 import { getEntryActions } from '../actions/entry-actions';
 import { getEntryNoticeMessage } from '../utils/notices';
@@ -73,8 +73,8 @@ const FIT_COLUMNS = [ 'modified', 'date' ];
  *
  * The "Add Entry" header action opens Quick Edit on a new entry in the
  * coverage, which the modal starts itself; see `QuickEditModal`. While the
- * coverage has no Summary, "Add Summary" does the same for its Summary, for
- * those who can pin entries.
+ * coverage has no Summary, "Add Summary" in the header's More actions menu
+ * does the same for its Summary, for those who can pin entries.
  */
 function EntryView() {
 	const config = useAdminContext();
@@ -585,10 +585,12 @@ function EntryView() {
 		! isFirstLoad && ( routeCoverage?.placements ?? [] ).length > 0;
 	const [ isPlacementsOpen, setIsPlacementsOpen ] = useState( false );
 
+	const addEntryButtonRef = useRef< HTMLButtonElement | null >( null );
 	const addEntryButton = useMemo(
 		() =>
 			isArchived ? (
 				<Button
+					ref={ addEntryButtonRef }
 					variant="primary"
 					disabled
 					accessibleWhenDisabled
@@ -608,7 +610,11 @@ function EntryView() {
 					{ __( 'Add Entry', 'newspack-rolling-coverage' ) }
 				</Button>
 			) : (
-				<Button variant="primary" onClick={ handleNewEntry }>
+				<Button
+					ref={ addEntryButtonRef }
+					variant="primary"
+					onClick={ handleNewEntry }
+				>
 					{ __( 'Add Entry', 'newspack-rolling-coverage' ) }
 				</Button>
 			),
@@ -636,35 +642,82 @@ function EntryView() {
 		[]
 	);
 
-	const { addButton: addScoreButton, panel: scorePanel } = useScorePanel(
+	const { addControl: addScoreControl, panel: scorePanel } = useScorePanel(
 		isFirstLoad ? null : routeCoverage,
 		setContext
 	);
 
+	const menuControls = useMemo( () => {
+		const controls: MenuControl[] = [];
+		if ( showNewSummary ) {
+			controls.push( {
+				title: __( 'Add Summary', 'newspack-rolling-coverage' ),
+				onClick: handleNewSummary,
+			} );
+		}
+		if ( addScoreControl ) {
+			controls.push( addScoreControl );
+		}
+		return controls;
+	}, [ showNewSummary, handleNewSummary, addScoreControl ] );
+	const hasMenu = menuControls.length > 0;
+
+	// Adding the last item the menu holds takes the menu away, and focus with
+	// it, so focus moves to Add Entry instead of dropping to the page.
+	const menuShownFor = useRef< number | null >( null );
+	useEffect( () => {
+		if ( hasMenu ) {
+			menuShownFor.current = numericCoverageId;
+			return;
+		}
+		if ( menuShownFor.current === null ) {
+			return;
+		}
+		const wasSameCoverage = menuShownFor.current === numericCoverageId;
+		menuShownFor.current = null;
+		if ( ! wasSameCoverage ) {
+			return;
+		}
+		window.requestAnimationFrame( () => {
+			const button = addEntryButtonRef.current;
+			const active = button?.ownerDocument.activeElement;
+			if (
+				button?.isConnected &&
+				( ! active || active === button.ownerDocument.body )
+			) {
+				button.focus();
+			}
+		} );
+	}, [ hasMenu, numericCoverageId ] );
+
 	const headerActions = useMemo(
 		() =>
-			showNewEntry ||
-			showSlackInHeader ||
-			showPlacements ||
-			addScoreButton ? (
+			showNewEntry || showSlackInHeader || showPlacements || hasMenu ? (
 				<>
-					{ addScoreButton }
 					{ showSlackInHeader && slackButton }
 					{ showPlacements && placementsButton }
-					{ showNewSummary && addSummaryButton }
 					{ showNewEntry && addEntryButton }
+					{ hasMenu && (
+						<DropdownMenu
+							icon={ moreVertical }
+							label={ __(
+								'More actions',
+								'newspack-rolling-coverage'
+							) }
+							controls={ menuControls }
+						/>
+					) }
 				</>
 			) : null,
 		[
 			showNewEntry,
-			showNewSummary,
-			addSummaryButton,
 			showSlackInHeader,
 			showPlacements,
 			placementsButton,
 			slackButton,
 			addEntryButton,
-			addScoreButton,
+			hasMenu,
+			menuControls,
 		]
 	);
 	useHeader( {
