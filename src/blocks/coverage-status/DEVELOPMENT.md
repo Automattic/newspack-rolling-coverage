@@ -21,9 +21,9 @@ Text color, margin and block gap come from block supports. The wrapper is a flex
 
 1. **Inside a Rolling Coverage block**, the feed's coverage, from the `newspack-rolling-coverage/coverageId` context. A Status block among a layout's coverage-level blocks gets it from `Rolling_Coverage_Block::render_coverage_blocks()`. Its own `coverageId` is ignored there.
 2. **Custom** (`coverageId > 0`), while that coverage exists and isn't trashed (`Page_Coverages::is_followable()`). A chosen coverage that is gone falls back to Automatic.
-3. **Automatic** (`coverageId` 0): the first uncapped Rolling Coverage block in the post being viewed, including ones inside synced patterns (`feed_coverage_ids()`), or, for a breakout post, its source entry's coverage (`breakout_coverage_id()`). Automatic resolves only on single views (`page_id()`) and never for a password-protected post.
+3. **Automatic** (`coverageId` 0): the first full (uncapped) Rolling Coverage block in the post being viewed, else the first capped one (`latestOnly`), including ones inside synced patterns (`feed_coverage_ids()`, then `capped_feed_coverage_ids()`), or, for a breakout post, its source entry's coverage (`breakout_coverage_id()`). Automatic resolves only on single views (`page_id()`) and never for a password-protected post.
 
-With no coverage, the block renders nothing. Capped feeds (`latestOnly`) never count for Automatic, because they only preview a coverage.
+With no coverage, the block renders nothing. A capped feed only previews a coverage, so it counts for Automatic only when the post has no full feed. `Placements::scan()` and `useBlockCoverage()` in `src/blocks/shared/block-coverage.ts` apply the same order.
 
 The editor mirrors these rules in `useBlockCoverage()` (`src/blocks/shared/block-coverage.ts`). Inside a Rolling Coverage block, `edit.tsx` of that block provides the coverage through `BlockContextProvider`.
 
@@ -85,7 +85,7 @@ With `hideWhenEnded`, `render_block()` returns nothing for an archived coverage,
 
 ## Tests
 
-- `tests/test-coverage-status-block.php`: coverage resolution (feed context, Custom, Automatic, breakout posts, capped feeds, synced patterns, single views only), labels, `hideWhenEnded`, the dot, custom backgrounds, the "Updated" time, the `newestEntry` REST field, the flex layout support and the default gap.
+- `tests/test-coverage-status-block.php`: coverage resolution (feed context, Custom, Automatic, breakout posts, full feeds winning over capped ones, capped feeds alone, synced patterns, single views only), labels, `hideWhenEnded`, the dot, custom backgrounds, the "Updated" time, the `newestEntry` REST field, the flex layout support and the default gap.
 - `tests/test-status-labels.php`: the labels option and REST route.
 - `tests/test-apca.php`: color normalizing and contrast.
 - `tests/test-newest-entry.php`: keeping the newest entry date current.
