@@ -158,7 +158,7 @@ class Page_Patterns {
 	 *     How the scoreboard is set out.
 	 *
 	 *     @type bool     $stacked     One row per team, its name then its score, instead of one line with the scores in the middle.
-	 *     @type string[] $name_size   Font size slugs for the team names: the first one the theme has.
+	 *     @type string[] $name_size   Font size slugs for the team names: the first one the theme has. Defaults to Large on a theme with a block scale (it has Extra Extra Large), else Normal, as the block's own template does.
 	 *     @type string[] $score_size  Font size slugs for the scores.
 	 *     @type string[] $status_size Font size slugs for the status line.
 	 *     @type string   $gap         Spacing preset slug between a row's parts.
@@ -169,7 +169,6 @@ class Page_Patterns {
 	public static function scoreboard( array $options ): string {
 		$options += [
 			'stacked'     => false,
-			'name_size'   => [ 'large', 'normal' ],
 			'score_size'  => [ 'xx-large', 'huge' ],
 			'status_size' => [ 'x-small', 'small' ],
 			'gap'         => '40',
@@ -178,6 +177,7 @@ class Page_Patterns {
 
 		$sizes  = self::font_size_slugs();
 		$size   = static fn( array $slugs ) => current( array_intersect( $slugs, $sizes ) );
+		$names  = $options['name_size'] ?? ( in_array( 'xx-large', $sizes, true ) ? [ 'large' ] : [ 'normal' ] );
 		$font   = array_filter(
 			[
 				'className'  => 'use-header-font',
@@ -185,7 +185,7 @@ class Page_Patterns {
 			]
 		);
 		$name   = static fn( string $align ) => $font + [
-			'fontSize' => $size( $options['name_size'] ),
+			'fontSize' => $size( $names ),
 			'style'    => [
 				'layout'     => [
 					'selfStretch' => 'fill',
@@ -274,9 +274,9 @@ class Page_Patterns {
 			[
 				isset( $typography['textAlign'] ) ? 'has-text-align-' . $typography['textAlign'] : '',
 				$attributes['className'] ?? '',
-				isset( $attributes['textColor'] ) ? 'has-' . $attributes['textColor'] . '-color has-text-color' : '',
-				isset( $attributes['fontFamily'] ) ? 'has-' . $attributes['fontFamily'] . '-font-family' : '',
-				isset( $attributes['fontSize'] ) ? 'has-' . $attributes['fontSize'] . '-font-size' : '',
+				isset( $attributes['textColor'] ) ? 'has-' . _wp_to_kebab_case( $attributes['textColor'] ) . '-color has-text-color' : '',
+				isset( $attributes['fontFamily'] ) ? 'has-' . _wp_to_kebab_case( $attributes['fontFamily'] ) . '-font-family' : '',
+				isset( $attributes['fontSize'] ) ? 'has-' . _wp_to_kebab_case( $attributes['fontSize'] ) . '-font-size' : '',
 			]
 		);
 		$styles     = array_filter(
@@ -337,14 +337,16 @@ class Page_Patterns {
 		$families = [];
 
 		foreach ( (array) wp_get_global_settings( [ 'typography', 'fontFamilies' ] ) as $origin ) {
-			$families = array_merge( $families, array_column( is_array( $origin ) ? $origin : [], 'slug' ) );
+			foreach ( array_column( is_array( $origin ) ? $origin : [], 'slug' ) as $slug ) {
+				$families[ _wp_to_kebab_case( $slug ) ] = $slug;
+			}
 		}
 
 		foreach ( [ [ 'elements', 'heading', 'typography', 'fontFamily' ], [ 'typography', 'fontFamily' ] ] as $path ) {
 			$value = wp_get_global_styles( $path );
 
-			if ( is_string( $value ) && preg_match( '/font-family(?:--|\|)([a-z0-9-]+)/', $value, $match ) && in_array( $match[1], $families, true ) ) {
-				return $match[1];
+			if ( is_string( $value ) && preg_match( '/font-family(?:--|\|)([a-z0-9-]+)/', $value, $match ) && isset( $families[ $match[1] ] ) ) {
+				return $families[ $match[1] ];
 			}
 		}
 

@@ -28,7 +28,6 @@ $newspack_rc_players = static function () {
 echo Page_Patterns::scoreboard(
 	[
 		'stacked'    => true,
-		'name_size'  => [ 'large', 'normal' ],
 		'score_size' => [ 'xxx-large', 'huge', 'xx-large' ],
 		'gap'        => '30',
 		'attributes' => [
