@@ -1564,7 +1564,13 @@
 			"pattern": "live-page",
 			"coverage": "live-kettle-river-flood",
 			"author": "ethorne",
-			"age": 3400000
+			"age": 3400000,
+			"copy": [
+				[
+					"Sum up the story in one sentence and say what readers can expect from this liveblog.",
+					"The Kettle River is above flood stage in Riverbend. We are posting road closures, shelter openings and river readings as they come in."
+				]
+			]
 		},
 		{
 			"type": "page",
@@ -1611,7 +1617,25 @@
 			"pattern": "breaking-news",
 			"coverage": "live-kettle-river-flood",
 			"author": "ethorne",
-			"age": 3400500
+			"age": 3400500,
+			"copy": [
+				[
+					"Say what happened in one or two sentences.",
+					"The Kettle River rose above flood stage at Bridge Street and crested at 21.3 feet, closing roads across Riverbend."
+				],
+				[
+					"Tell the story: who, what, where and when.",
+					"The river passed 18 feet at the Bridge Street gauge, which is flood stage. Water came over the curb on Water Street, and police closed the road between Bridge Street and Depot Street."
+				],
+				[
+					"Add what readers need to do next, and what happens from here.",
+					"Stay off flooded roads and keep away from Water Street, Fell Street and the Kettle Greenway. The fairgrounds shelter on Route 9 is open, and pets go in a separate barn."
+				],
+				[
+					"Add background and context.",
+					"Fell Creek in Northgate has overtopped its culverts five times since 2019. The county sends text alerts to low-lying blocks when the forecast crosses 15 feet."
+				]
+			]
 		},
 		{
 			"type": "page",
