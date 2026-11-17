@@ -446,7 +446,6 @@ function ScorePanel( {
 						{ ( [ 0, 1 ] as const ).map( ( index ) => (
 							<NumberControl
 								key={ index }
-								__next40pxDefaultSize
 								size="compact"
 								label={ score.teams[ index ].name }
 								value={
@@ -470,7 +469,6 @@ function ScorePanel( {
 							/>
 						) ) }
 						<InputControl
-							__next40pxDefaultSize
 							size="compact"
 							label={ __(
 								'Status',
