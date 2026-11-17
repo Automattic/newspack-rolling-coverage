@@ -18,6 +18,7 @@ use Newspack_Rolling_Coverage\Breakout;
 use Newspack_Rolling_Coverage\Layout;
 use Newspack_Rolling_Coverage\Layout_Templates;
 use Newspack_Rolling_Coverage\Post_Type;
+use Newspack_Rolling_Coverage\Score;
 use Newspack_Rolling_Coverage\Slack_Config;
 use Newspack_Rolling_Coverage\Summary;
 use Newspack_Rolling_Coverage\Taxonomy;
@@ -734,6 +735,9 @@ function newspack_rc_screenshots_seed_coverages( $coverages ) {
 		}
 		if ( ! empty( $coverage['ads_disabled'] ) ) {
 			update_term_meta( $term_id, Taxonomy::ADS_DISABLED_META_KEY, 1 );
+		}
+		if ( isset( $coverage['score'] ) ) {
+			update_term_meta( $term_id, Score::META_KEY, $coverage['score'] );
 		}
 		$ids[ $coverage['slug'] ] = $term_id;
 	}

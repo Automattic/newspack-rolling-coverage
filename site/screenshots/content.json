@@ -329,7 +329,20 @@
 			"status": "archived",
 			"age": 1828664,
 			"ended_age": 1821900,
-			"canonical": "riverbend-fc-v-toledo-beacon-live-updates"
+			"canonical": "riverbend-fc-v-toledo-beacon-live-updates",
+			"score": {
+				"teams": [
+					{
+						"name": "Riverbend FC",
+						"score": 2
+					},
+					{
+						"name": "Toledo Beacon",
+						"score": 1
+					}
+				],
+				"status": "Full time"
+			}
 		}
 	],
 	"entries": [
@@ -1499,7 +1512,7 @@
 			"type": "page",
 			"slug": "riverbend-fc-v-toledo-beacon-live-updates",
 			"title": "Riverbend FC v Toledo Beacon: live updates",
-			"content": "<!-- wp:newspack-rolling-coverage/rolling-coverage {\"coverageId\":\"{{coverage:riverbend-fc-v-toledo-beacon}}\",\"layoutId\":\"{{layout:minute}}\"} /-->",
+			"content": "<!-- wp:newspack-rolling-coverage/scoreboard -->\n<!-- wp:group {\"metadata\":{\"name\":\"Score\"},\"layout\":{\"type\":\"flex\",\"flexWrap\":\"nowrap\",\"justifyContent\":\"center\",\"verticalAlignment\":\"center\"}} -->\n<div class=\"wp-block-group\"><!-- wp:paragraph {\"metadata\":{\"name\":\"First Team\",\"bindings\":{\"content\":{\"source\":\"newspack-rolling-coverage/score\",\"args\":{\"key\":\"team1Name\"}}}},\"className\":\"use-header-font\",\"style\":{\"layout\":{\"selfStretch\":\"fill\",\"flexSize\":null},\"typography\":{\"fontWeight\":\"700\",\"textAlign\":\"right\"}},\"fontSize\":\"medium\"} -->\n<p class=\"has-text-align-right use-header-font has-medium-font-size\" style=\"font-weight:700\"></p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph {\"metadata\":{\"name\":\"First Team Score\",\"bindings\":{\"content\":{\"source\":\"newspack-rolling-coverage/score\",\"args\":{\"key\":\"team1Score\"}}}},\"className\":\"use-header-font\",\"style\":{\"typography\":{\"fontWeight\":\"700\",\"lineHeight\":\"1\"}},\"fontSize\":\"xxx-large\"} -->\n<p class=\"use-header-font has-xxx-large-font-size\" style=\"font-weight:700;line-height:1\"></p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph {\"metadata\":{\"name\":\"Second Team Score\",\"bindings\":{\"content\":{\"source\":\"newspack-rolling-coverage/score\",\"args\":{\"key\":\"team2Score\"}}}},\"className\":\"use-header-font\",\"style\":{\"typography\":{\"fontWeight\":\"700\",\"lineHeight\":\"1\"}},\"fontSize\":\"xxx-large\"} -->\n<p class=\"use-header-font has-xxx-large-font-size\" style=\"font-weight:700;line-height:1\"></p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph {\"metadata\":{\"name\":\"Second Team\",\"bindings\":{\"content\":{\"source\":\"newspack-rolling-coverage/score\",\"args\":{\"key\":\"team2Name\"}}}},\"className\":\"use-header-font\",\"style\":{\"layout\":{\"selfStretch\":\"fill\",\"flexSize\":null},\"typography\":{\"fontWeight\":\"700\"}},\"fontSize\":\"medium\"} -->\n<p class=\"use-header-font has-medium-font-size\" style=\"font-weight:700\"></p>\n<!-- /wp:paragraph --></div>\n<!-- /wp:group -->\n\n<!-- wp:paragraph {\"metadata\":{\"name\":\"Status Line\",\"bindings\":{\"content\":{\"source\":\"newspack-rolling-coverage/score\",\"args\":{\"key\":\"status\"}}}},\"style\":{\"typography\":{\"textAlign\":\"center\"}},\"fontSize\":\"x-small\"} -->\n<p class=\"has-text-align-center has-x-small-font-size\"></p>\n<!-- /wp:paragraph -->\n<!-- /wp:newspack-rolling-coverage/scoreboard -->\n\n<!-- wp:newspack-rolling-coverage/rolling-coverage {\"coverageId\":\"{{coverage:riverbend-fc-v-toledo-beacon}}\",\"layoutId\":\"{{layout:minute}}\"} /-->",
 			"author": "mquinn",
 			"age": 1825317
 		},
