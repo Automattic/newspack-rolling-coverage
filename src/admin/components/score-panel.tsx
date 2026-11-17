@@ -8,6 +8,8 @@ import {
 	Modal,
 	TextControl,
 	// eslint-disable-next-line @wordpress/no-unsafe-wp-apis
+	__experimentalGrid as Grid,
+	// eslint-disable-next-line @wordpress/no-unsafe-wp-apis
 	__experimentalInputControl as InputControl,
 	// eslint-disable-next-line @wordpress/no-unsafe-wp-apis
 	__experimentalNumberControl as NumberControl,
@@ -441,63 +443,69 @@ function ScorePanel( {
 				role="group"
 				aria-label={ __( 'Score', 'newspack-rolling-coverage' ) }
 			>
-				<Stack direction="row" gap="md" align="flex-end" wrap="wrap">
-					{ ( [ 0, 1 ] as const ).map( ( index ) => (
-						<div
-							key={ index }
-							className="newspack-rolling-coverage-score__team"
-						>
-							<NumberControl
+				<Stack direction="row" gap="md" align="flex-end">
+					<Grid
+						className="newspack-rolling-coverage-score__fields"
+						columns={ [ 1, 3 ] }
+						gap={ 4 }
+					>
+						{ ( [ 0, 1 ] as const ).map( ( index ) => (
+							<div
+								key={ index }
+								className="newspack-rolling-coverage-score__team"
+							>
+								<NumberControl
+									__next40pxDefaultSize
+									size="compact"
+									label={ score.teams[ index ].name }
+									value={
+										drafts[ index ] ??
+										score.teams[ index ].score
+									}
+									min={ 0 }
+									max={ MAX_SCORE }
+									step={ 1 }
+									spinControls="custom"
+									isDragEnabled={ false }
+									onChange={ ( value, extra ) =>
+										changeScore( index, value, extra )
+									}
+									onBlur={ () => commitDraft( index ) }
+									onKeyDown={ ( event: { key: string } ) => {
+										if ( event.key === 'Enter' ) {
+											commitDraft( index );
+										}
+									} }
+								/>
+							</div>
+						) ) }
+						<div className="newspack-rolling-coverage-score__status">
+							<InputControl
 								__next40pxDefaultSize
 								size="compact"
-								label={ score.teams[ index ].name }
-								value={
-									drafts[ index ] ??
-									score.teams[ index ].score
-								}
-								min={ 0 }
-								max={ MAX_SCORE }
-								step={ 1 }
-								spinControls="custom"
-								isDragEnabled={ false }
-								onChange={ ( value, extra ) =>
-									changeScore( index, value, extra )
-								}
-								onBlur={ () => commitDraft( index ) }
-								onKeyDown={ ( event: { key: string } ) => {
+								label={ __(
+									'Status',
+									'newspack-rolling-coverage'
+								) }
+								placeholder={ __(
+									'For example, Second half',
+									'newspack-rolling-coverage'
+								) }
+								value={ status }
+								maxLength={ MAX_TEXT_LENGTH }
+								onChange={ ( value ) => {
+									isStatusEdited.current = true;
+									setStatus( value ?? '' );
+								} }
+								onBlur={ saveStatus }
+								onKeyDown={ ( event ) => {
 									if ( event.key === 'Enter' ) {
-										commitDraft( index );
+										saveStatus();
 									}
 								} }
 							/>
 						</div>
-					) ) }
-					<div className="newspack-rolling-coverage-score__status">
-						<InputControl
-							__next40pxDefaultSize
-							size="compact"
-							label={ __(
-								'Status',
-								'newspack-rolling-coverage'
-							) }
-							placeholder={ __(
-								'For example, Second half',
-								'newspack-rolling-coverage'
-							) }
-							value={ status }
-							maxLength={ MAX_TEXT_LENGTH }
-							onChange={ ( value ) => {
-								isStatusEdited.current = true;
-								setStatus( value ?? '' );
-							} }
-							onBlur={ saveStatus }
-							onKeyDown={ ( event ) => {
-								if ( event.key === 'Enter' ) {
-									saveStatus();
-								}
-							} }
-						/>
-					</div>
+					</Grid>
 					<DropdownMenu
 						icon={ moreVertical }
 						label={ __(
