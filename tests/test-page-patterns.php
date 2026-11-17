@@ -38,6 +38,7 @@ class Test_Page_Patterns extends Rolling_Coverage_TestCase {
 	 * Leaves the registry as the test found it.
 	 */
 	public function tear_down() {
+		wp_clean_theme_json_cache();
 		self::unregister_all();
 		parent::tear_down();
 	}
@@ -197,5 +198,85 @@ class Test_Page_Patterns extends Rolling_Coverage_TestCase {
 		$content = self::pattern( $slug )['content'];
 
 		$this->assertDoesNotMatchRegularExpression( '/wp:newspack-rolling-coverage\/(coverage-status|coverage-follow|update-timer) \{[^}]*"coverageId"/', $content );
+	}
+
+	/**
+	 * The pattern's own blocks, without those of the layouts inside its feeds.
+	 *
+	 * @param array[] $blocks Parsed blocks.
+	 * @return array[]
+	 */
+	private static function own_blocks( array $blocks ): array {
+		$own = [];
+
+		foreach ( $blocks as $block ) {
+			if ( Rolling_Coverage_Block::BLOCK_NAME === $block['blockName'] ) {
+				continue;
+			}
+
+			$own[] = $block['attrs'];
+			$own   = array_merge( $own, self::own_blocks( $block['innerBlocks'] ) );
+		}
+
+		return $own;
+	}
+
+	/**
+	 * No pattern hides blocks by viewport: editors see each block once.
+	 *
+	 * @dataProvider slugs
+	 *
+	 * @param string $slug Pattern slug.
+	 */
+	public function test_patterns_hide_no_blocks( string $slug ) {
+		$this->assertStringNotContainsString( 'blockVisibility', wp_json_encode( self::own_blocks( parse_blocks( self::pattern( $slug )['content'] ) ) ) );
+	}
+
+	/**
+	 * The side column is the first column, so it stacks first on phones.
+	 */
+	public function test_side_column_comes_first() {
+		$columns = parse_blocks( self::pattern( 'live-page-side-column' )['content'] )[0]['innerBlocks'];
+
+		$this->assertSame( '33.33%', $columns[0]['attrs']['width'] );
+		$this->assertSame( 'newspack-rolling-coverage/coverage-status', $columns[0]['innerBlocks'][0]['blockName'] );
+		$this->assertSame( Rolling_Coverage_Block::BLOCK_NAME, $columns[1]['innerBlocks'][0]['blockName'] );
+	}
+
+	/**
+	 * The lead entry is set at headline scale with block attributes.
+	 */
+	public function test_latest_entry_is_the_lead() {
+		add_filter(
+			'wp_theme_json_data_theme',
+			static fn( $data ) => $data->update_with(
+				[
+					'version'  => WP_Theme_JSON::LATEST_SCHEMA,
+					'settings' => [
+						'typography' => [
+							'fontSizes' => [
+								[
+									'slug' => 'large',
+									'name' => 'large',
+									'size' => '1.5rem',
+								],
+								[
+									'slug' => 'xx-large',
+									'name' => 'xx-large',
+									'size' => '3rem',
+								],
+							],
+						],
+					],
+				]
+			)
+		);
+		wp_clean_theme_json_cache();
+
+		$lead = self::feeds( parse_blocks( self::pattern( 'live-page-latest-first' )['content'] ) )[0];
+		$json = wp_json_encode( $lead['innerBlocks'] );
+
+		$this->assertStringContainsString( '"fontSize":"xx-large"', $json );
+		$this->assertStringContainsString( 'post-content', $json );
 	}
 }

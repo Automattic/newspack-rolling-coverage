@@ -65,13 +65,18 @@ class Page_Patterns {
 	 *
 	 * @param string $layout     Built-in layout slug.
 	 * @param array  $attributes The block's own settings: what picking the layout in the editor sets, such as `latestOnly`.
+	 * @param array  $overrides  Attributes to set on blocks of the layout, by block name, such as `core/post-title`. A `fontSize` takes a list of slugs: the first one the theme has.
 	 * @return string Block markup, empty for a slug without a layout.
 	 */
-	public static function feed( string $layout, array $attributes = [] ): string {
+	public static function feed( string $layout, array $attributes = [], array $overrides = [] ): string {
 		$blocks = Layout_Templates::get_blocks( $layout );
 
 		if ( null === $blocks ) {
 			return '';
+		}
+
+		if ( $overrides ) {
+			$blocks = self::override( $blocks, $overrides, self::font_size_slugs() );
 		}
 
 		return serialize_block(
@@ -83,6 +88,43 @@ class Page_Patterns {
 				'innerContent' => array_fill( 0, count( $blocks ), null ),
 			]
 		);
+	}
+
+	/**
+	 * Sets attributes on the blocks of a layout.
+	 *
+	 * @param array[]  $blocks    Parsed blocks.
+	 * @param array    $overrides Attributes by block name.
+	 * @param string[] $sizes    The theme's font size slugs.
+	 * @return array[]
+	 */
+	private static function override( array $blocks, array $overrides, array $sizes ): array {
+		foreach ( $blocks as $index => $block ) {
+			foreach ( $overrides[ $block['blockName'] ?? '' ] ?? [] as $name => $value ) {
+				if ( 'fontSize' === $name ) {
+					$value = current( array_intersect( (array) $value, $sizes ) );
+				}
+
+				if ( false !== $value ) {
+					$blocks[ $index ]['attrs'][ $name ] = $value;
+				}
+			}
+
+			$blocks[ $index ]['innerBlocks'] = self::override( $block['innerBlocks'] ?? [], $overrides, $sizes );
+		}
+
+		return $blocks;
+	}
+
+	/**
+	 * The theme's font size slugs.
+	 *
+	 * @return string[]
+	 */
+	private static function font_size_slugs(): array {
+		$sizes = wp_get_global_settings( [ 'typography', 'fontSizes' ] );
+
+		return array_column( is_array( $sizes ) ? ( $sizes['theme'] ?? [] ) : [], 'slug' );
 	}
 
 	/**

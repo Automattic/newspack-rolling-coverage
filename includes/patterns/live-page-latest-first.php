@@ -18,7 +18,14 @@ echo Page_Patterns::feed(
 	[
 		'latestOnly'  => true,
 		'latestCount' => 1,
-	] 
+	],
+	[
+		'core/post-title'   => [
+			'level'    => 2,
+			'fontSize' => [ 'xx-large', 'huge', 'x-large' ],
+		],
+		'core/post-content' => [ 'fontSize' => [ 'large' ] ],
+	]
 );
 ?>
 
