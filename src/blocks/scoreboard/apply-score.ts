@@ -54,13 +54,20 @@ function renderedLine( block: HTMLElement ): string | null {
 /**
  * Shows a score in a scoreboard, and tells screen readers when the two
  * scores change. A change of names or status line updates silently. Without
- * a score the scoreboard hides, as a fresh render would leave it out.
+ * a score the scoreboard hides, as a fresh render does.
+ * With several scoreboards of one coverage on a page, only one announces,
+ * so screen readers hear each change once.
  *
  * @param {HTMLElement} block The scoreboard's wrapper.
- * @param {Score|null}  score The coverage's score, or null for none.
+ * @param {Score|null}  score    The coverage's score, or null for none.
+ * @param {boolean}     announce Whether this scoreboard announces changes.
  * @return {boolean} Whether the change was announced.
  */
-function applyScore( block: HTMLElement, score: Score | null ): boolean {
+function applyScore(
+	block: HTMLElement,
+	score: Score | null,
+	announce = true
+): boolean {
 	if ( ! score ) {
 		block.hidden = true;
 		return false;
@@ -86,7 +93,7 @@ function applyScore( block: HTMLElement, score: Score | null ): boolean {
 
 	const region = block.querySelector< HTMLElement >( ANNOUNCE_SELECTOR );
 
-	if ( ! region || previous === null || previous === line ) {
+	if ( ! announce || ! region || previous === null || previous === line ) {
 		return false;
 	}
 

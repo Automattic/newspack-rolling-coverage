@@ -77,4 +77,12 @@ describe( 'applyScore', () => {
 		applyScore( block, score( 2, 1 ) );
 		expect( block.hidden ).toBe( false );
 	} );
+
+	it( 'leaves the announcement to another scoreboard when told to', () => {
+		const block = scoreboard( 2, 1 );
+
+		expect( applyScore( block, score( 3, 1 ), false ) ).toBe( false );
+		expect( text( block, 'team1Score' ) ).toBe( '3' );
+		expect( announced( block ) ).toBe( '' );
+	} );
 } );

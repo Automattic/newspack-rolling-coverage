@@ -35,16 +35,17 @@ function scoreboards( coverageId?: number ): HTMLElement[] {
 }
 
 /**
- * Shows a coverage's score in each of its scoreboards.
+ * Shows a coverage's score in each of its scoreboards. Only the first
+ * announces a change.
  *
  * @param {number}     coverageId Coverage ID.
  * @param {Score|null} score      The score, or null for none.
  * @param {string}     status     The coverage's status.
  */
 function show( coverageId: number, score: Score | null, status: string ) {
-	scoreboards( coverageId ).forEach( ( block ) => {
+	scoreboards( coverageId ).forEach( ( block, index ) => {
 		block.dataset.status = status;
-		applyScore( block, score );
+		applyScore( block, score, index === 0 );
 	} );
 }
 
