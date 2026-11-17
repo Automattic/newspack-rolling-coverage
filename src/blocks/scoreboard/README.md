@@ -42,7 +42,7 @@ Only editors and administrators, who can edit liveblogs, can change the score. O
 
 The block is built from paragraphs inside a group, so each part has its own settings. Select a team name, a score or the status line to change its size, weight, color or alignment. Select the Scoreboard block itself to set a background, text color, border, padding or margin for the whole scoreboard.
 
-New blocks show the scores large and bold, the team names in a smaller size, and the status line in a small size under them.
+New blocks take their look from the theme: the team names and scores in the font the theme uses for headings, bold, with the scores largest, and the status line small and in the theme's muted text color. On a phone, long team names wrap onto a second line within their half of the row.
 
 ## In the editor
 

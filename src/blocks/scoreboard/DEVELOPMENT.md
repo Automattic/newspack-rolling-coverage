@@ -31,7 +31,11 @@ Everything else is block supports on the wrapper (colors, typography, padding, m
 
 ## Inner blocks and bindings
 
-The block saves its inner blocks (`save` returns `InnerBlocks.Content`) and renders dynamically. New blocks get `scoreboardTemplate()` from `edit.tsx`: a flex group (no wrap, centered) holding four paragraphs, the first team's name, its score, the second team's score and its name, then a centered paragraph for the status line. The names fill the space either side (`selfStretch: fill`), so the scores sit in the middle. Sizes come from the theme's presets, as the built-in layouts pick them (`themeFontSize()`): the scores at XXX-Large (Huge on the classic Newspack Theme), the names at Medium (Normal), the status at X-Small (Small). The names and scores carry `use-header-font`, which the classic theme uses for its heading font.
+The block saves its inner blocks (`save` returns `InnerBlocks.Content`) and renders dynamically. New blocks get `scoreboardTemplate()` from `template.ts`: a flex group (no wrap, centered, block gap `spacing|40`) holding four paragraphs, the first team's name, its score, the second team's score and its name, then a centered paragraph for the status line. The names fill the space either side (`selfStretch: fill`), so the scores sit in the middle, and a long name wraps within its half at phone widths. Every choice is a block setting from the theme's presets, read when the block is inserted:
+
+- **Font family.** Names and scores take the font family preset headings use: the site's global styles for headings, then the theme's, then the body's (`headingFontFamily()`, from core-data's global styles records). Without a preset, as on the classic Newspack Theme, they get no `fontFamily`; their `use-header-font` class gives the classic theme's heading font.
+- **Sizes.** On a block theme scale (one with `xx-large`), names at Large and scores at XX-Large; on the classic Newspack Theme's scale, Normal and Huge. Names and scores are bold.
+- **Status line.** X-Small (Small on the classic theme), in the muted text color the layouts' dates use (`mutedTextColor()`: `contrast-3` on the block theme, `medium-gray` on the classic theme), and no color where the palette has neither.
 
 Each paragraph binds its `content` to the `newspack-rolling-coverage/score` source with a `key`: `team1Name`, `team1Score`, `team2Score`, `team2Name` or `status` (`Scoreboard_Block::KEYS`, `SCORE_KEYS`). Editors can restyle, move, remove or add blocks; any paragraph or heading inside the scoreboard can bind to a key.
 
@@ -71,5 +75,6 @@ On a Lite Site page (`Lite_Feed::is_lite_render()`) and in syndication feeds, wh
 - `tests/test-score.php`: the meta's sanitizing, saving and removing it through the coverages route, the capability, schema validation, the score route and its cache header, and the score in poll replies.
 - `tests/test-scoreboard-block.php`: rendering the bound parts, nothing without a score, the hidden empty status line, Automatic, the feed's context, Lite Site pages, and the coverage-level item.
 - `tests/js/scoreboard-apply.test.ts`: applying a score, when it is announced, and hiding and showing the scoreboard.
+- `tests/js/scoreboard-template.test.ts`: the inserted defaults on block and classic theme presets, and the heading font lookup.
 
 From this plugin's directory, run `../../../n test-php` (add `--filter <name>` for one test). The tests register the block from `src/blocks/scoreboard/block.json` when the build isn't there.

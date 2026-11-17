@@ -20,10 +20,8 @@ import { __ } from '@wordpress/i18n';
 import CoverageChoice from '../shared/coverage-choice';
 import { useBlockCoverage } from '../shared/block-coverage';
 import { COVERAGE_ID_CONTEXT } from '../shared/entry-bindings';
-import { isScore, type ScoreKey } from '../shared/score';
-import { themeFontSize } from '../shared/theme-font-size';
-import { SCORE_BINDINGS_SOURCE } from './bindings';
-import type { TemplateItem } from '../rolling-coverage/types';
+import { isScore } from '../shared/score';
+import { headingFontFamily, scoreboardTemplate } from './template';
 import type { ScoreboardAttributes } from './types';
 
 interface ScoreboardConfig {
@@ -41,116 +39,19 @@ declare global {
 
 const VIEW_CONTEXT = { context: 'view' };
 
+type GlobalStyles = {
+	styles?: {
+		typography?: { fontFamily?: string };
+		elements?: { heading?: { typography?: { fontFamily?: string } } };
+	};
+};
+
 const config: ScoreboardConfig = window.newspackScoreboardBlock ?? {
 	scoreMetaKey: 'rolling_coverage_score',
 	sourceEntryField: 'rolling_coverage_source_entry',
 	statusMetaKey: 'rolling_coverage_status',
 	taxonomySlug: 'rolling_coverage',
 };
-
-/**
- * A paragraph bound to one part of the score.
- *
- * @param {string} key        The part.
- * @param {string} name       Its name in List View.
- * @param {Object} attributes More attributes for the paragraph.
- * @return {Array} The template item.
- */
-function part(
-	key: ScoreKey,
-	name: string,
-	attributes: Record< string, unknown >
-): TemplateItem {
-	return [
-		'core/paragraph',
-		{
-			...attributes,
-			metadata: {
-				name,
-				bindings: {
-					content: {
-						source: SCORE_BINDINGS_SOURCE,
-						args: { key },
-					},
-				},
-			},
-		},
-	];
-}
-
-/**
- * The block's inner blocks as inserted: the teams and their scores on one
- * row, the names filling the space either side so the scores sit in the
- * middle, and the status line under it.
- *
- * @param {string[]} sizes The theme's font size slugs.
- * @return {Array} The template.
- */
-function scoreboardTemplate( sizes: string[] ): TemplateItem[] {
-	const name = {
-		className: 'use-header-font',
-		fontSize: themeFontSize( sizes, 'medium', 'normal' ),
-		style: {
-			layout: { selfStretch: 'fill', flexSize: null },
-			typography: { fontWeight: '700' },
-		},
-	};
-	const score = {
-		className: 'use-header-font',
-		fontSize: themeFontSize( sizes, 'xxx-large', 'huge' ),
-		style: { typography: { fontWeight: '700', lineHeight: '1' } },
-	};
-
-	return [
-		[
-			'core/group',
-			{
-				metadata: { name: __( 'Score', 'newspack-rolling-coverage' ) },
-				layout: {
-					type: 'flex',
-					flexWrap: 'nowrap',
-					justifyContent: 'center',
-					verticalAlignment: 'center',
-				},
-			},
-			[
-				part(
-					'team1Name',
-					__( 'First Team', 'newspack-rolling-coverage' ),
-					{
-						...name,
-						style: {
-							...name.style,
-							typography: {
-								...name.style.typography,
-								textAlign: 'right',
-							},
-						},
-					}
-				),
-				part(
-					'team1Score',
-					__( 'First Team Score', 'newspack-rolling-coverage' ),
-					score
-				),
-				part(
-					'team2Score',
-					__( 'Second Team Score', 'newspack-rolling-coverage' ),
-					score
-				),
-				part(
-					'team2Name',
-					__( 'Second Team', 'newspack-rolling-coverage' ),
-					name
-				),
-			],
-		],
-		part( 'status', __( 'Status Line', 'newspack-rolling-coverage' ), {
-			fontSize: themeFontSize( sizes, 'x-small', 'small' ),
-			style: { typography: { textAlign: 'center' } },
-		} ),
-	];
-}
 
 /**
  * Editor for the Scoreboard block: the inner blocks showing the score of
@@ -189,21 +90,27 @@ export default function Edit( {
 		sourceEntryField: config.sourceEntryField,
 	} );
 
-	const { hasScore, sizes } = useSelect(
+	const { hasScore, tokens } = useSelect(
 		( select ) => {
+			const core = select( coreStore ) as unknown as {
+				getEntityRecord: (
+					kind: string,
+					name: string,
+					id: number,
+					query?: Record< string, string >
+				) => { meta?: Record< string, unknown > } | undefined;
+				getEditedEntityRecord: (
+					kind: string,
+					name: string,
+					id: number | string
+				) => GlobalStyles | undefined;
+				__experimentalGetCurrentGlobalStylesId: () =>
+					number | string | undefined;
+				__experimentalGetCurrentThemeBaseGlobalStyles: () =>
+					GlobalStyles | undefined;
+			};
 			const coverage = followed
-				? (
-						select( coreStore ) as unknown as {
-							getEntityRecord: (
-								kind: string,
-								name: string,
-								id: number,
-								query: Record< string, string >
-							) =>
-								| { meta?: Record< string, unknown > }
-								| undefined;
-						}
-					 ).getEntityRecord(
+				? core.getEntityRecord(
 						'taxonomy',
 						config.taxonomySlug,
 						followed,
@@ -213,34 +120,73 @@ export default function Edit( {
 			const settings = (
 				select( blockEditorStore ) as unknown as {
 					getSettings: () => {
+						colors?: { slug: string }[];
 						__experimentalFeatures?: {
+							color?: {
+								palette?: Record< string, { slug: string }[] >;
+							};
 							typography?: {
-								fontSizes?: { theme?: { slug: string }[] };
+								fontSizes?: Record<
+									string,
+									{ slug: string }[]
+								>;
+								fontFamilies?: Record<
+									string,
+									{ slug: string }[]
+								>;
 							};
 						};
 					};
 				}
 			 ).getSettings();
+			const features = settings.__experimentalFeatures;
+			const slugs = ( origins?: Record< string, { slug: string }[] > ) =>
+				Object.values( origins ?? {} )
+					.flat()
+					.map( ( preset ) => preset.slug );
+			const stylesId = core.__experimentalGetCurrentGlobalStylesId();
+			const site = stylesId
+				? core.getEditedEntityRecord( 'root', 'globalStyles', stylesId )
+				: undefined;
+			const theme = core.__experimentalGetCurrentThemeBaseGlobalStyles();
+			const headingFont = headingFontFamily(
+				[
+					site?.styles?.elements?.heading?.typography?.fontFamily,
+					theme?.styles?.elements?.heading?.typography?.fontFamily,
+					site?.styles?.typography?.fontFamily,
+					theme?.styles?.typography?.fontFamily,
+				],
+				slugs( features?.typography?.fontFamilies )
+			);
 
 			return {
 				hasScore:
 					coverage === undefined ||
 					isScore( coverage?.meta?.[ config.scoreMetaKey ] ),
-				sizes: (
-					settings.__experimentalFeatures?.typography?.fontSizes
-						?.theme ?? []
-				)
-					.map( ( size ) => size.slug )
-					.join( ',' ),
+				tokens: [
+					slugs( features?.typography?.fontSizes ).join( ',' ),
+					[
+						...slugs( features?.color?.palette ),
+						...( settings.colors ?? [] ).map(
+							( color ) => color.slug
+						),
+					].join( ',' ),
+					headingFont ?? '',
+				].join( ';' ),
 			};
 		},
 		[ followed ]
 	);
 
-	const template = useMemo(
-		() => scoreboardTemplate( sizes.split( ',' ) ),
-		[ sizes ]
-	);
+	const template = useMemo( () => {
+		const [ sizes, colors, headingFont ] = tokens.split( ';' );
+
+		return scoreboardTemplate( {
+			sizes: sizes.split( ',' ),
+			colors: colors.split( ',' ),
+			headingFont: headingFont || undefined,
+		} );
+	}, [ tokens ] );
 	const blockProps = useBlockProps();
 	const innerBlocksProps = useInnerBlocksProps( blockProps, { template } );
 	const blockContext = useMemo(

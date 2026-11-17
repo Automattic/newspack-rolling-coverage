@@ -15,8 +15,8 @@ import {
 	type ScoreKey,
 } from '../shared/score';
 import { sampleScore } from './sample';
+import { SCORE_BINDINGS_SOURCE } from './template';
 
-const SCORE_BINDINGS_SOURCE = 'newspack-rolling-coverage/score';
 const COVERAGE_TAXONOMY = 'rolling_coverage';
 // Edit context needs manage_categories, which Authors and Contributors lack.
 const VIEW_CONTEXT = { context: 'view' };
