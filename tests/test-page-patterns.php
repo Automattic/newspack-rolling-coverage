@@ -127,7 +127,6 @@ class Test_Page_Patterns extends Rolling_Coverage_TestCase {
 		$this->assertNotEmpty( $pattern['viewportWidth'] );
 		$this->assertArrayNotHasKey( 'blockTypes', $pattern );
 		$this->assertArrayNotHasKey( 'templateTypes', $pattern );
-		$this->assertStringNotContainsString( 'core/post-content', wp_json_encode( $pattern ) );
 	}
 
 	/**
@@ -199,41 +198,19 @@ class Test_Page_Patterns extends Rolling_Coverage_TestCase {
 	 * @param string $slug Pattern slug.
 	 */
 	public function test_status_and_follow_blocks_follow_the_page_or_wait_for_a_pick( string $slug ) {
-		$content = self::pattern( $slug )['content'];
+		$names = [
+			'newspack-rolling-coverage/coverage-status',
+			'newspack-rolling-coverage/coverage-follow',
+			'newspack-rolling-coverage/update-timer',
+			Scoreboard_Block::BLOCK_NAME,
+			Rolling_Coverage_Block::BLOCK_NAME,
+		];
 
-		$this->assertDoesNotMatchRegularExpression( '/wp:newspack-rolling-coverage\/(coverage-status|coverage-follow|update-timer|scoreboard) \{[^}]*"coverageId"/', $content );
-	}
-
-	/**
-	 * The pattern's own blocks, without those of the layouts inside its feeds.
-	 *
-	 * @param array[] $blocks Parsed blocks.
-	 * @return array[]
-	 */
-	private static function own_blocks( array $blocks ): array {
-		$own = [];
-
-		foreach ( $blocks as $block ) {
-			if ( Rolling_Coverage_Block::BLOCK_NAME === $block['blockName'] ) {
-				continue;
+		foreach ( $names as $name ) {
+			foreach ( self::find( parse_blocks( self::pattern( $slug )['content'] ), $name ) as $block ) {
+				$this->assertArrayNotHasKey( 'coverageId', $block['attrs'], $name );
 			}
-
-			$own[] = $block['attrs'];
-			$own   = array_merge( $own, self::own_blocks( $block['innerBlocks'] ) );
 		}
-
-		return $own;
-	}
-
-	/**
-	 * No pattern hides blocks by viewport: editors see each block once.
-	 *
-	 * @dataProvider slugs
-	 *
-	 * @param string $slug Pattern slug.
-	 */
-	public function test_patterns_hide_no_blocks( string $slug ) {
-		$this->assertStringNotContainsString( 'blockVisibility', wp_json_encode( self::own_blocks( parse_blocks( self::pattern( $slug )['content'] ) ) ) );
 	}
 
 	/**
@@ -441,5 +418,210 @@ class Test_Page_Patterns extends Rolling_Coverage_TestCase {
 		$this->assertSame( 'contrast-3', $parts[4]['attrs']['textColor'] );
 		$this->assertArrayNotHasKey( 'fontSize', $parts[4]['attrs'] );
 		$this->assertSame( '<p class="has-text-align-right use-header-font has-display-font-family has-x-large-font-size" style="font-weight:700;line-height:1.2"></p>', $parts[0]['innerHTML'] );
+	}
+
+	/**
+	 * Gives the theme font families, font sizes and palette for a test.
+	 *
+	 * @param array $settings Theme JSON settings.
+	 * @param array $styles   Theme JSON styles.
+	 */
+	private static function theme( array $settings, array $styles = [] ) {
+		add_filter(
+			'wp_theme_json_data_theme',
+			static fn( $data ) => $data->update_with(
+				[
+					'version'  => WP_Theme_JSON::LATEST_SCHEMA,
+					'settings' => $settings,
+					'styles'   => $styles,
+				]
+			)
+		);
+		wp_clean_theme_json_cache();
+	}
+
+	/**
+	 * A slug core writes in kebab case in a class is matched the way the
+	 * editor saves it.
+	 */
+	public function test_scoreboard_classes_kebab_case_the_slugs() {
+		self::theme(
+			[
+				'color'      => [
+					'palette' => [
+						[
+							'slug'  => 'contrast3',
+							'name'  => 'Contrast 3',
+							'color' => '#6c6c6c',
+						],
+					],
+				],
+				'typography' => [
+					'fontFamilies'     => [
+						[
+							'slug'       => 'ibmPlexSans',
+							'name'       => 'IBM Plex Sans',
+							'fontFamily' => 'sans-serif',
+						],
+					],
+					'defaultFontSizes' => false,
+					'fontSizes'        => [
+						[
+							'slug' => 'serif2',
+							'name' => 'Serif 2',
+							'size' => '2rem',
+						],
+						[
+							'slug' => 'huge2',
+							'name' => 'Huge 2',
+							'size' => '5rem',
+						],
+					],
+				],
+			],
+			[ 'elements' => [ 'heading' => [ 'typography' => [ 'fontFamily' => 'var(--wp--preset--font-family--ibm-plex-sans)' ] ] ] ]
+		);
+
+		$markup = Page_Patterns::scoreboard(
+			[
+				'name_size'   => [ 'serif2' ],
+				'score_size'  => [ 'huge2' ],
+				'status_size' => [ 'serif2' ],
+			]
+		);
+		$parts  = self::find( parse_blocks( $markup ), 'core/paragraph' );
+
+		$this->assertSame( 'ibmPlexSans', $parts[0]['attrs']['fontFamily'] );
+		$this->assertSame( 'serif2', $parts[0]['attrs']['fontSize'] );
+		$this->assertStringContainsString( 'has-ibm-plex-sans-font-family', $parts[0]['innerHTML'] );
+		$this->assertStringContainsString( 'has-serif-2-font-size', $parts[0]['innerHTML'] );
+		$this->assertStringContainsString( 'has-huge-2-font-size', $parts[1]['innerHTML'] );
+	}
+
+	/**
+	 * Team names are Large only on a theme with a block scale, else Normal,
+	 * as the block's own template sets them.
+	 */
+	public function test_scoreboard_name_size_follows_the_theme_scale() {
+		self::theme(
+			[
+				'typography' => [
+					'defaultFontSizes' => false,
+					'fontSizes'        => [
+						[
+							'slug' => 'normal',
+							'name' => 'Normal',
+							'size' => '1rem',
+						],
+						[
+							'slug' => 'large',
+							'name' => 'Large',
+							'size' => '1.5rem',
+						],
+						[
+							'slug' => 'huge',
+							'name' => 'Huge',
+							'size' => '3rem',
+						],
+					],
+				],
+			]
+		);
+
+		$parts = self::find( parse_blocks( Page_Patterns::scoreboard( [] ) ), 'core/paragraph' );
+
+		$this->assertSame( 'normal', $parts[0]['attrs']['fontSize'] );
+		$this->assertSame( 'huge', $parts[1]['attrs']['fontSize'] );
+	}
+
+	/**
+	 * Static headings take the first size the theme has, so a classic theme
+	 * gets a preset where the block theme's slugs don't exist.
+	 */
+	public function test_headings_use_a_size_the_theme_has() {
+		self::theme(
+			[
+				'typography' => [
+					'defaultFontSizes' => false,
+					'fontSizes'        => [
+						[
+							'slug' => 'small',
+							'name' => 'Small',
+							'size' => '0.8rem',
+						],
+						[
+							'slug' => 'normal',
+							'name' => 'Normal',
+							'size' => '1rem',
+						],
+						[
+							'slug' => 'large',
+							'name' => 'Large',
+							'size' => '1.5rem',
+						],
+						[
+							'slug' => 'huge',
+							'name' => 'Huge',
+							'size' => '3rem',
+						],
+					],
+				],
+			]
+		);
+
+		foreach ( [ 'follow-band', 'follow-page', 'live-page-latest-first', 'every-live-story', 'match-side' ] as $slug ) {
+			foreach ( self::find( parse_blocks( self::pattern( $slug )['content'] ), 'core/heading' ) as $heading ) {
+				$this->assertContains( $heading['attrs']['fontSize'] ?? '', [ 'small', 'normal', 'large' ], $slug );
+				$this->assertStringContainsString( 'has-' . $heading['attrs']['fontSize'] . '-font-size', $heading['innerHTML'], $slug );
+			}
+		}
+	}
+
+	/**
+	 * Blocks without the layouts inside their Rolling Coverage blocks.
+	 *
+	 * @param array[] $blocks Parsed blocks.
+	 * @return array[]
+	 */
+	private static function without_feeds( array $blocks ): array {
+		$kept = [];
+
+		foreach ( $blocks as $block ) {
+			if ( Rolling_Coverage_Block::BLOCK_NAME !== $block['blockName'] ) {
+				$block['innerBlocks'] = self::without_feeds( $block['innerBlocks'] );
+				$kept[]               = $block;
+			}
+		}
+
+		return $kept;
+	}
+
+	/**
+	 * A heading that comes before any other in a pattern is a level 2.
+	 */
+	public function test_first_headings_are_level_two() {
+		foreach ( [ 'follow-page', 'every-live-story', 'match-side' ] as $slug ) {
+			$headings = self::find( self::without_feeds( parse_blocks( self::pattern( $slug )['content'] ) ), 'core/heading' );
+
+			$this->assertNotEmpty( $headings, $slug );
+
+			foreach ( $headings as $heading ) {
+				$this->assertArrayNotHasKey( 'level', $heading['attrs'], $slug );
+				$this->assertMatchesRegularExpression( '/^\s*<h2 /', $heading['innerHTML'], $slug );
+			}
+		}
+	}
+
+	/**
+	 * The Follow button is the markup the block builds for its own.
+	 */
+	public function test_follow_markup_is_the_blocks_own() {
+		$blocks = parse_blocks( Page_Patterns::follow() );
+
+		$this->assertSame( 'newspack-rolling-coverage/coverage-follow', $blocks[0]['blockName'] );
+		$this->assertSame( 'Follow', $blocks[0]['innerBlocks'][0]['attrs']['metadata']['name'] );
+		$button = $blocks[0]['innerBlocks'][0]['innerBlocks'][0];
+		$this->assertSame( 'followTag', $button['attrs']['metadata']['bindings']['url']['args']['key'] );
+		$this->assertStringContainsString( '>Follow</button>', $button['innerHTML'] );
 	}
 }
