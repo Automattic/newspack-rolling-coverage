@@ -3,6 +3,7 @@
  */
 import { registerBlockBindingsSource } from '@wordpress/blocks';
 import { escapeHTML } from '@wordpress/escape-html';
+import { __ } from '@wordpress/i18n';
 
 /**
  * Internal dependencies
@@ -36,11 +37,27 @@ interface BindingsArgs {
 }
 
 /**
+ * The names the bindings panel lists the score's parts by.
+ *
+ * @return {Object} Labels by key.
+ */
+function fieldLabels(): Record< ScoreKey, string > {
+	return {
+		team1Name: __( 'First team', 'newspack-rolling-coverage' ),
+		team1Score: __( 'First team score', 'newspack-rolling-coverage' ),
+		team2Score: __( 'Second team score', 'newspack-rolling-coverage' ),
+		team2Name: __( 'Second team', 'newspack-rolling-coverage' ),
+		status: __( 'Status line', 'newspack-rolling-coverage' ),
+	};
+}
+
+/**
  * Mirrors Scoreboard_Block::get_value() in the editor: the parts of the
  * score of the coverage in context, or of a sample score where there is no
  * coverage or it has no score yet, so the scoreboard can still be styled.
  * They are escaped, as on the server, since a paragraph reads its content
- * as HTML.
+ * as HTML. The bindings panel offers the parts wherever a coverage is in
+ * context, as inside a scoreboard or a feed.
  */
 registerBlockBindingsSource( {
 	name: SCORE_BINDINGS_SOURCE,
@@ -69,6 +86,17 @@ registerBlockBindingsSource( {
 				];
 			} )
 		);
+	},
+	getFieldsList( { context }: { context?: Record< string, unknown > } ) {
+		if ( context?.[ COVERAGE_ID_CONTEXT ] === undefined ) {
+			return [];
+		}
+
+		return SCORE_KEYS.map( ( key ) => ( {
+			label: fieldLabels()[ key ],
+			type: 'string',
+			args: { key },
+		} ) );
 	},
 } );
 
