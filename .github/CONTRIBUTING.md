@@ -153,7 +153,7 @@ includes/
     class-ai-settings.php        Prompt settings + REST route
     class-abilities.php          WordPress Abilities API registration
     class-key-takeaways-feature.php  AI plugin per-feature model config
-  class-page-patterns.php        The "Rolling Coverage pages" block pattern category and its nine page patterns
+  class-page-patterns.php        The "Rolling Coverage - Pages" block pattern category and its nine page patterns
   patterns/                      One file per page pattern: the block markup `Page_Patterns` registers by `filePath`
   blocks/                        Server render callbacks for the ten blocks, entry bindings, shared layouts and their server copies (`layouts/`), breakout cards, status labels, entry name, Jump to Latest and Full story label settings, Lite Site feed support
   slack/                         Slack config, API client, content processor, media importer, author resolver, ingestion service, verifier, webhook controller, monitor
