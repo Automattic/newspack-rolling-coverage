@@ -238,7 +238,18 @@ class Test_Page_Patterns extends Rolling_Coverage_TestCase {
 			$this->assertSame( $reorder, str_contains( $columns['innerHTML'], Page_Patterns::FIRST_COLUMN_TO_SECOND ) );
 		}
 
-		$this->assertStringNotContainsString( Page_Patterns::FIRST_COLUMN_TO_SECOND, self::pattern( 'match-side' )['content'] );
+		$this->assertSame( class_exists( 'Newspack_Blocks' ), str_contains( self::pattern( 'match-side' )['content'], Page_Patterns::FIRST_COLUMN_TO_SECOND ) );
+
+		require_once __DIR__ . '/mocks/class-newspack-blocks.php';
+
+		foreach ( [ 'live-page-side-column', 'match-side' ] as $slug ) {
+			ob_start();
+			include dirname( __DIR__ ) . '/includes/patterns/' . $slug . '.php';
+			$columns = parse_blocks( ob_get_clean() )[0];
+
+			$this->assertSame( Page_Patterns::FIRST_COLUMN_TO_SECOND, $columns['attrs']['className'], $slug );
+			$this->assertStringContainsString( Page_Patterns::FIRST_COLUMN_TO_SECOND, $columns['innerHTML'], $slug );
+		}
 	}
 
 	/**
