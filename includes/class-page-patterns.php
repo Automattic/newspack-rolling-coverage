@@ -221,8 +221,8 @@ class Page_Patterns {
 	/**
 	 * A Scoreboard block with its parts bound to the score, set as the
 	 * block's own template sets them (`src/blocks/scoreboard/template.ts`):
-	 * team names and scores bold in the headings' font, the status line small
-	 * and muted. It has no `coverageId`, so it shows the page's liveblog.
+	 * team names and scores bold in the headings' font, a dash between the
+	 * scores on one line, the status line small and muted. It has no `coverageId`, so it shows the page's liveblog.
 	 *
 	 * @param array $options {
 	 *     How the scoreboard is set out.
@@ -230,6 +230,7 @@ class Page_Patterns {
 	 *     @type bool     $stacked     One row per team, its name then its score, instead of one line with the scores in the middle.
 	 *     @type string[] $name_size   Font size slugs for the team names: the first one the theme has. Defaults to Large on a theme with a block scale (it has Extra Extra Large), else Normal, as the block's own template does.
 	 *     @type string[] $score_size  Font size slugs for the scores.
+	 *     @type string[] $dash_size   Font size slugs for the dash between the scores, a size down from them. Not used when stacked.
 	 *     @type string[] $status_size Font size slugs for the status line.
 	 *     @type string   $gap         Spacing preset slug between a row's parts.
 	 *     @type array    $attributes  The Scoreboard block's own settings, such as a background.
@@ -240,6 +241,7 @@ class Page_Patterns {
 		$options += [
 			'stacked'     => false,
 			'score_size'  => [ 'xx-large', 'huge' ],
+			'dash_size'   => [ 'x-large', 'large' ],
 			'status_size' => [ 'x-small', 'small' ],
 			'gap'         => '40',
 			'attributes'  => [],
@@ -305,6 +307,16 @@ class Page_Patterns {
 		$team1_score = self::score_part( 'team1Score', __( 'First Team Score', 'newspack-rolling-coverage' ), $score );
 		$team2_score = self::score_part( 'team2Score', __( 'Second Team Score', 'newspack-rolling-coverage' ), $score );
 		$team2_name  = self::score_part( 'team2Name', __( 'Second Team', 'newspack-rolling-coverage' ), $name( 'left' ) );
+		$dash        = self::paragraph(
+			[
+				'metadata'   => [ 'name' => __( 'Dash', 'newspack-rolling-coverage' ) ],
+				'className'  => $font['className'] . ' ' . Scoreboard_Block::DASH_CLASS,
+				'fontFamily' => $font['fontFamily'] ?? '',
+				'fontSize'   => $size( $options['dash_size'] ),
+				'style'      => [ 'typography' => [ 'lineHeight' => '1' ] ],
+			],
+			'–'
+		);
 
 		$blocks = $options['stacked']
 			? [
@@ -313,7 +325,7 @@ class Page_Patterns {
 				$status,
 			]
 			: [
-				$row( __( 'Score', 'newspack-rolling-coverage' ), [ $team1_name, $team1_score, $team2_score, $team2_name ] ),
+				$row( __( 'Score', 'newspack-rolling-coverage' ), [ $team1_name, $team1_score, $dash, $team2_score, $team2_name ] ),
 				$status,
 			];
 
@@ -338,6 +350,29 @@ class Page_Patterns {
 	 * @return array Parsed block.
 	 */
 	private static function score_part( string $key, string $label, array $attributes ): array {
+		return self::paragraph(
+			[
+				'metadata' => [
+					'name'     => $label,
+					'bindings' => [
+						'content' => [
+							'source' => Scoreboard_Block::SOURCE_NAME,
+							'args'   => [ 'key' => $key ],
+						],
+					],
+				],
+			] + $attributes
+		);
+	}
+
+	/**
+	 * A paragraph with the markup core saves for its settings.
+	 *
+	 * @param array  $attributes Its settings; empty ones are left out.
+	 * @param string $content    Its text.
+	 * @return array Parsed block.
+	 */
+	private static function paragraph( array $attributes, string $content = '' ): array {
 		$attributes = array_filter( $attributes );
 		$typography = $attributes['style']['typography'] ?? [];
 		$classes    = array_filter(
@@ -356,21 +391,11 @@ class Page_Patterns {
 			]
 		);
 		$html       = '<p' . ( $classes ? ' class="' . esc_attr( implode( ' ', $classes ) ) . '"' : '' )
-			. ( $styles ? ' style="' . esc_attr( implode( ';', $styles ) ) . '"' : '' ) . '></p>';
+			. ( $styles ? ' style="' . esc_attr( implode( ';', $styles ) ) . '"' : '' ) . '>' . esc_html( $content ) . '</p>';
 
 		return [
 			'blockName'    => 'core/paragraph',
-			'attrs'        => [
-				'metadata' => [
-					'name'     => $label,
-					'bindings' => [
-						'content' => [
-							'source' => Scoreboard_Block::SOURCE_NAME,
-							'args'   => [ 'key' => $key ],
-						],
-					],
-				],
-			] + $attributes,
+			'attrs'        => $attributes,
 			'innerBlocks'  => [],
 			'innerHTML'    => $html,
 			'innerContent' => [ $html ],
