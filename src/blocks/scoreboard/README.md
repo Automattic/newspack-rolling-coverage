@@ -8,7 +8,7 @@ The score belongs to the liveblog. Set it at the top of the liveblog's entries l
 
 - **Above the feed.** Add it to a match's page or post, above the Rolling Coverage block, or to a template.
 - **Inside a Rolling Coverage block.** Add it to the block's layout, such as its header. It shows that block's liveblog, and the Liveblog panel is hidden. It can't go inside an entry or the pinned entry.
-- **In a match page pattern.** The inserter's Rolling Coverage pages category has two Match patterns with a Scoreboard beside or above the feed: Match: scoreboard beside the feed, and Match: centered scoreline.
+- **In a match page pattern.** The inserter's Rolling Coverage - Pages category has two Match patterns with a Scoreboard beside or above the feed: Match: scoreboard beside the feed, and Match: centered scoreline.
 
 The block is in the inserter's Newspack category, or Rolling Coverage on sites without Newspack.
 

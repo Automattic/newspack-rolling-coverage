@@ -1,6 +1,6 @@
 <?php
 /**
- * Tests for the page patterns in the "Rolling Coverage pages" category.
+ * Tests for the page patterns in the "Rolling Coverage - Pages" category.
  *
  * @package Newspack_Rolling_Coverage
  */
@@ -106,7 +106,7 @@ class Test_Page_Patterns extends Rolling_Coverage_TestCase {
 	public function test_registers_the_category() {
 		$category = WP_Block_Pattern_Categories_Registry::get_instance()->get_registered( 'rolling-coverage-pages' );
 
-		$this->assertSame( 'Rolling Coverage pages', $category['label'] );
+		$this->assertSame( 'Rolling Coverage - Pages', $category['label'] );
 		$this->assertNotSame( \Newspack_Rolling_Coverage\Layout::PATTERN_CATEGORY, Page_Patterns::CATEGORY );
 	}
 
@@ -222,6 +222,23 @@ class Test_Page_Patterns extends Rolling_Coverage_TestCase {
 		$this->assertSame( '33.33%', $columns[0]['attrs']['width'] );
 		$this->assertSame( 'newspack-rolling-coverage/coverage-status', $columns[0]['innerBlocks'][0]['blockName'] );
 		$this->assertSame( Rolling_Coverage_Block::BLOCK_NAME, $columns[1]['innerBlocks'][0]['blockName'] );
+	}
+
+	/**
+	 * With Newspack Blocks, the side column rows take its style that shows the
+	 * side column second from tablet width up; without it, they have no style.
+	 */
+	public function test_side_columns_use_the_newspack_blocks_order_style() {
+		foreach ( [ true, false ] as $reorder ) {
+			$markup  = Page_Patterns::side_columns_open( $reorder ) . '<!-- wp:column /--></div><!-- /wp:columns -->';
+			$columns = parse_blocks( $markup )[0];
+
+			$this->assertSame( 'wide', $columns['attrs']['align'] );
+			$this->assertSame( $reorder, Page_Patterns::FIRST_COLUMN_TO_SECOND === ( $columns['attrs']['className'] ?? '' ) );
+			$this->assertSame( $reorder, str_contains( $columns['innerHTML'], Page_Patterns::FIRST_COLUMN_TO_SECOND ) );
+		}
+
+		$this->assertStringNotContainsString( Page_Patterns::FIRST_COLUMN_TO_SECOND, self::pattern( 'match-side' )['content'] );
 	}
 
 	/**

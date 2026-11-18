@@ -20,8 +20,7 @@ $newspack_rc_players = static function () {
 	return '<!-- wp:list {"fontSize":"small"} -->' . "\n" . '<ul class="wp-block-list has-small-font-size">' . implode( "\n\n", $items ) . '</ul>' . "\n" . '<!-- /wp:list -->';
 };
 ?>
-<!-- wp:columns {"align":"wide"} -->
-<div class="wp-block-columns alignwide"><!-- wp:column {"verticalAlignment":"top","width":"33.33%"} -->
+<?php echo Page_Patterns::side_columns_open(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Block markup. ?><!-- wp:column {"verticalAlignment":"top","width":"33.33%"} -->
 <div class="wp-block-column is-vertically-aligned-top" style="flex-basis:33.33%">
 <?php
 // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Block markup from serialize_block().

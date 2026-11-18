@@ -10,7 +10,7 @@ namespace Newspack_Rolling_Coverage;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Registers the "Rolling Coverage pages" block pattern category and the page
+ * Registers the "Rolling Coverage - Pages" block pattern category and the page
  * patterns in it, which the inserter's Patterns tab offers.
  *
  * Their markup lives in `includes/patterns/<slug>.php`, one file per pattern,
@@ -29,6 +29,12 @@ class Page_Patterns {
 	const NAME_PREFIX = 'newspack-rolling-coverage/';
 
 	/**
+	 * Newspack Blocks' Columns style that shows the second column first from
+	 * tablet width up.
+	 */
+	const FIRST_COLUMN_TO_SECOND = 'is-style-first-col-to-second';
+
+	/**
 	 * Initialize hooks.
 	 */
 	public static function init(): void {
@@ -42,7 +48,8 @@ class Page_Patterns {
 		register_block_pattern_category(
 			self::CATEGORY,
 			[
-				'label'       => __( 'Rolling Coverage pages', 'newspack-rolling-coverage' ),
+				/* translators: %s: the plugin's name, Rolling Coverage. */
+				'label'       => sprintf( __( '%s - Pages', 'newspack-rolling-coverage' ), 'Rolling Coverage' ),
 				'description' => __( 'Ready-made pages for a liveblog.', 'newspack-rolling-coverage' ),
 			]
 		);
@@ -125,6 +132,23 @@ class Page_Patterns {
 		$sizes = wp_get_global_settings( [ 'typography', 'fontSizes' ] );
 
 		return array_column( is_array( $sizes ) ? ( $sizes['theme'] ?? [] ) : [], 'slug' );
+	}
+
+	/**
+	 * The opening of a wide row of two columns whose first column is the
+	 * narrow side column, so it stacks first on phones. With Newspack Blocks
+	 * active, the row takes its "Move first column to second" style, which
+	 * shows the side column on the right from tablet width up.
+	 *
+	 * @param bool|null $reorder Whether to use the style; null uses it when Newspack Blocks is active.
+	 * @return string Block markup up to the first column.
+	 */
+	public static function side_columns_open( ?bool $reorder = null ): string {
+		$reorder    = $reorder ?? class_exists( 'Newspack_Blocks' );
+		$attributes = [ 'align' => 'wide' ] + ( $reorder ? [ 'className' => self::FIRST_COLUMN_TO_SECOND ] : [] );
+
+		return '<!-- wp:columns ' . serialize_block_attributes( $attributes ) . ' -->' . "\n"
+			. '<div class="wp-block-columns alignwide' . ( $reorder ? ' ' . self::FIRST_COLUMN_TO_SECOND : '' ) . '">';
 	}
 
 	/**
