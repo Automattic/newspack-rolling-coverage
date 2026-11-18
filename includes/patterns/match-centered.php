@@ -15,7 +15,7 @@ echo Page_Patterns::scoreboard(
 	[
 		'name_size'   => [ 'x-large', 'large' ],
 		'score_size'  => [ 'xxxxx-large', 'huge', 'xx-large' ],
-		'dash_size'   => [ 'xxxx-large', 'large', 'x-large' ],
+		'dash_size'   => [ 'xxxx-large', 'x-large', 'large' ],
 		'status_size' => [ 'small' ],
 		'gap'         => '50',
 		'attributes'  => [
