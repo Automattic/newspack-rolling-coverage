@@ -283,19 +283,26 @@ class Test_Page_Patterns extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * The score keys a scoreboard's paragraphs are bound to, in order.
+	 * The score keys of a scoreboard's bound paragraphs, in order.
 	 *
 	 * @param array $scoreboard Parsed Scoreboard block.
 	 * @return string[]
 	 */
 	private static function bound_keys( array $scoreboard ): array {
-		return array_map(
-			static function ( $paragraph ) {
-				$binding = $paragraph['attrs']['metadata']['bindings']['content'];
+		$bound = array_filter(
+			self::find( $scoreboard['innerBlocks'], 'core/paragraph' ),
+			static fn( $paragraph ) => isset( $paragraph['attrs']['metadata']['bindings'] )
+		);
 
-				return Scoreboard_Block::SOURCE_NAME === $binding['source'] ? $binding['args']['key'] : '';
-			},
-			self::find( $scoreboard['innerBlocks'], 'core/paragraph' )
+		return array_values(
+			array_map(
+				static function ( $paragraph ) {
+					$binding = $paragraph['attrs']['metadata']['bindings']['content'];
+
+					return Scoreboard_Block::SOURCE_NAME === $binding['source'] ? $binding['args']['key'] : '';
+				},
+				$bound
+			)
 		);
 	}
 
@@ -349,6 +356,40 @@ class Test_Page_Patterns extends Rolling_Coverage_TestCase {
 		$this->assertSame( 'center', $blocks[1]['attrs']['layout']['justifyContent'] );
 		$this->assertSame( Rolling_Coverage_Block::BLOCK_NAME, $blocks[2]['blockName'] );
 		$this->assertSame( [ 'team1Name', 'team1Score', 'team2Score', 'team2Name', 'status' ], self::bound_keys( $blocks[0] ) );
+	}
+
+	/**
+	 * The centered scoreline has the block's dash between the scores, a size
+	 * down from them, and the stacked scoreboard beside the feed has none.
+	 */
+	public function test_match_scoreboards_dash() {
+		self::theme(
+			[
+				'typography' => [
+					'defaultFontSizes' => false,
+					'fontSizes'        => array_map(
+						static fn( $slug ) => [
+							'slug' => $slug,
+							'name' => $slug,
+							'size' => '2rem',
+						],
+						[ 'x-large', 'xxxx-large', 'xxxxx-large' ]
+					),
+				],
+			]
+		);
+
+		$centered = self::find( parse_blocks( self::pattern( 'match-centered' )['content'] ), Scoreboard_Block::BLOCK_NAME )[0];
+		$parts    = self::find( $centered['innerBlocks'], 'core/paragraph' );
+
+		$this->assertStringContainsString( Scoreboard_Block::DASH_CLASS, $parts[2]['attrs']['className'] );
+		$this->assertArrayNotHasKey( 'bindings', $parts[2]['attrs']['metadata'] );
+		$this->assertSame( 'xxxx-large', $parts[2]['attrs']['fontSize'] );
+		$this->assertSame( 'xxxxx-large', $parts[1]['attrs']['fontSize'] );
+		$this->assertStringContainsString( '>–</p>', $parts[2]['innerHTML'] );
+
+		$side = self::find( parse_blocks( self::pattern( 'match-side' )['content'] ), Scoreboard_Block::BLOCK_NAME )[0];
+		$this->assertStringNotContainsString( Scoreboard_Block::DASH_CLASS, serialize_block( $side ) );
 	}
 
 	/**
@@ -415,8 +456,8 @@ class Test_Page_Patterns extends Rolling_Coverage_TestCase {
 		$this->assertSame( 'x-large', $parts[0]['attrs']['fontSize'] );
 		$this->assertSame( 'display', $parts[0]['attrs']['fontFamily'] );
 		$this->assertSame( 'xxxxx-large', $parts[1]['attrs']['fontSize'] );
-		$this->assertSame( 'contrast-3', $parts[4]['attrs']['textColor'] );
-		$this->assertArrayNotHasKey( 'fontSize', $parts[4]['attrs'] );
+		$this->assertSame( 'contrast-3', $parts[5]['attrs']['textColor'] );
+		$this->assertArrayNotHasKey( 'fontSize', $parts[5]['attrs'] );
 		$this->assertSame( '<p class="has-text-align-right use-header-font has-display-font-family has-x-large-font-size" style="font-weight:700;line-height:1.2"></p>', $parts[0]['innerHTML'] );
 	}
 
