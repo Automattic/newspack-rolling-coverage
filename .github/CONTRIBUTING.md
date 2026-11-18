@@ -59,6 +59,8 @@ Ten blocks ship with the plugin (namespace `newspack-rolling-coverage`). Each bl
 | Load More | `load-more` | The button that loads older entries, shown when the feed's Older entries setting is "Load more" button. | [README](../src/blocks/load-more/README.md), [DEVELOPMENT](../src/blocks/load-more/DEVELOPMENT.md) |
 | New Label | `new-label` | Marks an entry that arrives while the reader has the page open, until they've seen it. | [README](../src/blocks/new-label/README.md), [DEVELOPMENT](../src/blocks/new-label/DEVELOPMENT.md) |
 
+Nine page patterns in the `rolling-coverage-pages` block pattern category are registered by `Page_Patterns`. Each holds its Rolling Coverage blocks' layouts as inner blocks, with no liveblog, and none is offered in the new-page "Choose a pattern" window. See [Page patterns](../src/blocks/rolling-coverage/DEVELOPMENT.md#layouts).
+
 The feed also sends analytics events as readers see entries and when a poll fails (`coverage_entry_seen`, `coverage_poll_error`, in `src/blocks/rolling-coverage/analytics.ts`).
 
 ### Slack ingestion
@@ -151,6 +153,8 @@ includes/
     class-ai-settings.php        Prompt settings + REST route
     class-abilities.php          WordPress Abilities API registration
     class-key-takeaways-feature.php  AI plugin per-feature model config
+  class-page-patterns.php        The "Rolling Coverage - Pages" block pattern category and its nine page patterns
+  patterns/                      One file per page pattern: the block markup `Page_Patterns` registers by `filePath`
   blocks/                        Server render callbacks for the ten blocks, entry bindings, shared layouts and their server copies (`layouts/`), breakout cards, status labels, entry name, Jump to Latest and Full story label settings, Lite Site feed support
   slack/                         Slack config, API client, content processor, media importer, author resolver, ingestion service, verifier, webhook controller, monitor
   sources/

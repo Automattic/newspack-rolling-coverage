@@ -15,7 +15,7 @@ The Liveblog panel appears only outside a Rolling Coverage block.
 
 | Setting | What it does |
 | --- | --- |
-| Automatic | "Counts down to the next check of the liveblog on this page." Uses the first Rolling Coverage block in this post or page's content, or a breakout post's liveblog. |
+| Automatic | "Counts down to the next check of the liveblog on this page." Uses the first Rolling Coverage block in this post or page's content that shows every entry, else, on a breakout post, the liveblog the post came from, else the first one that shows only the latest entries. |
 | Custom | "Always counts down for this liveblog." Pick the liveblog from the list. |
 
 The timer counts down a Rolling Coverage block's own checks, so it appears only when a Rolling Coverage block for the same liveblog is on the page. If a liveblog you chose is deleted, the block falls back to the page's liveblog, or stays hidden if the page has none. The editor shows a notice.

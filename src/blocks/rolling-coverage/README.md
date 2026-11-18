@@ -42,6 +42,10 @@ The first time someone who can publish picks a built-in layout, the site saves i
 
 You can also insert a layout from the inserter's Patterns tab, in the Rolling Coverage category. It becomes a Rolling Coverage block that uses that layout and asks for a liveblog.
 
+## Page patterns
+
+The inserter's Patterns tab has a **Rolling Coverage - Pages** category with nine ready-made pages built from the Rolling Coverage blocks: Live page, Live page, latest first, Live page with side column, Match: scoreboard beside the feed, Match: centered scoreline, Breaking news, Follow page, Follow band and Every live story. Each holds the blocks, layouts and placeholder text for its kind of page. After inserting one, write your own text and pick the liveblog in the Rolling Coverage block. The pages don't appear in the New page window. See [Page patterns](https://github.com/Automattic/newspack-rolling-coverage/blob/trunk/site/content/docs/guides/page-patterns.mdx) for what each one is for.
+
 ## Settings
 
 Select the block to open its settings in the sidebar. Some panels appear only when they apply.

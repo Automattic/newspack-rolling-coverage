@@ -20,47 +20,87 @@ defined( 'ABSPATH' ) || exit;
 class Page_Coverages {
 
 	/**
-	 * Coverage IDs of the feeds found in each post, keyed by post ID and content hash.
+	 * The feeds found in each post, keyed by post ID and content hash.
 	 *
-	 * @var array<string, int[]>
+	 * @var array<string, array{full: int[], capped: int[]}>
 	 */
 	private static $feeds = [];
 
 	/**
-	 * Coverage IDs of the uncapped Rolling Coverage blocks in a post, in page
-	 * order, including those in synced patterns, without missing or trashed
-	 * ones. A capped block only previews a coverage, so it never decides
-	 * which coverage the page is about.
+	 * Coverage IDs of the Rolling Coverage blocks in a post, in page order,
+	 * including those in synced patterns, without missing or trashed ones.
+	 * Full feeds and capped ones (Show set to Latest) are listed apart, as
+	 * a capped block only previews a coverage and ranks last (see
+	 * coverage_for_block()).
 	 *
 	 * @param int $post_id Post ID.
-	 * @return int[]
+	 * @return array{full: int[], capped: int[]}
 	 */
-	public static function feed_coverage_ids( int $post_id ): array {
+	private static function feeds_in_post( int $post_id ): array {
 		$post = $post_id ? get_post( $post_id ) : null;
 
 		if ( ! $post || post_password_required( $post ) ) {
-			return [];
+			return [
+				'full'   => [],
+				'capped' => [],
+			];
 		}
 
 		if ( ! has_block( Rolling_Coverage_Block::BLOCK_NAME, $post ) && ! has_block( 'core/block', $post ) ) {
-			return [];
+			return [
+				'full'   => [],
+				'capped' => [],
+			];
 		}
 
 		$key = $post_id . ':' . md5( $post->post_content );
 
 		if ( ! isset( self::$feeds[ $key ] ) ) {
-			$ids                 = array_unique( self::collect_feeds( parse_blocks( $post->post_content ), [] ) );
-			self::$feeds[ $key ] = array_values( array_filter( $ids, [ __CLASS__, 'is_followable' ] ) );
+			$found = [
+				'full'   => [],
+				'capped' => [],
+			];
+
+			foreach ( self::collect_feeds( parse_blocks( $post->post_content ), [] ) as $feed ) {
+				$found[ $feed['capped'] ? 'capped' : 'full' ][] = $feed['id'];
+			}
+
+			foreach ( $found as $kind => $ids ) {
+				$found[ $kind ] = array_values( array_filter( array_unique( $ids ), [ __CLASS__, 'is_followable' ] ) );
+			}
+
+			self::$feeds[ $key ] = $found;
 		}
 
 		return self::$feeds[ $key ];
 	}
 
 	/**
+	 * Coverage IDs of the full Rolling Coverage blocks in a post, in page order.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return int[]
+	 */
+	public static function feed_coverage_ids( int $post_id ): array {
+		return self::feeds_in_post( $post_id )['full'];
+	}
+
+	/**
+	 * Coverage IDs of the capped Rolling Coverage blocks in a post, in page order.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return int[]
+	 */
+	public static function capped_feed_coverage_ids( int $post_id ): array {
+		return self::feeds_in_post( $post_id )['capped'];
+	}
+
+	/**
 	 * The coverage a block outside a feed's entries is about. Inside a
 	 * Rolling Coverage block it is always that block's. Elsewhere a chosen
 	 * coverage wins while it can be followed; otherwise it is the page's
-	 * automatic one.
+	 * automatic one: the first full feed on the page, else a breakout post's
+	 * source coverage, else the first capped feed.
 	 *
 	 * @param WP_Block $block  Block instance.
 	 * @param int      $chosen The block's chosen coverage ID; 0 for Automatic.
@@ -77,7 +117,15 @@ class Page_Coverages {
 
 		$post_id = self::page_id( $block );
 
-		return self::feed_coverage_ids( $post_id )[0] ?? self::breakout_coverage_id( $post_id );
+		$full = self::feed_coverage_ids( $post_id )[0] ?? 0;
+
+		if ( $full ) {
+			return $full;
+		}
+
+		$source = self::breakout_coverage_id( $post_id );
+
+		return $source ? $source : ( self::capped_feed_coverage_ids( $post_id )[0] ?? 0 );
 	}
 
 	/**
@@ -153,12 +201,12 @@ class Page_Coverages {
 	}
 
 	/**
-	 * Collects feed coverage IDs from parsed blocks, reading each synced
-	 * pattern once so one that includes itself can't loop.
+	 * Collects the feeds from parsed blocks, reading each synced pattern once
+	 * so one that includes itself can't loop.
 	 *
 	 * @param array $blocks    Parsed blocks.
 	 * @param int[] $seen_refs Synced patterns already read.
-	 * @return int[]
+	 * @return array<int, array{id: int, capped: bool}>
 	 */
 	private static function collect_feeds( array $blocks, array $seen_refs ): array {
 		$ids = [];
@@ -167,9 +215,10 @@ class Page_Coverages {
 			$name = $block['blockName'] ?? '';
 
 			if ( Rolling_Coverage_Block::BLOCK_NAME === $name ) {
-				if ( empty( $block['attrs']['latestOnly'] ) ) {
-					$ids[] = (int) ( $block['attrs']['coverageId'] ?? 0 );
-				}
+				$ids[] = [
+					'id'     => (int) ( $block['attrs']['coverageId'] ?? 0 ),
+					'capped' => ! empty( $block['attrs']['latestOnly'] ),
+				];
 				continue;
 			}
 
