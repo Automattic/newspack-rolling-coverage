@@ -65,7 +65,7 @@ class Page_Patterns {
 	 *
 	 * @param string $layout     Built-in layout slug.
 	 * @param array  $attributes The block's own settings: what picking the layout in the editor sets, such as `latestOnly`.
-	 * @param array  $overrides  Attributes to set on blocks of the layout, by block name, such as `core/post-title`. A `fontSize` takes a list of slugs: the first one the theme has.
+	 * @param array  $overrides  Attributes to set on dynamic blocks of the layout, by block name, such as `core/post-title`; a static block's saved markup would no longer match them. A `fontSize` takes a list of slugs: the first one the theme has.
 	 * @return string Block markup, empty for a slug without a layout.
 	 */
 	public static function feed( string $layout, array $attributes = [], array $overrides = [] ): string {
@@ -222,7 +222,8 @@ class Page_Patterns {
 	 * A Scoreboard block with its parts bound to the score, set as the
 	 * block's own template sets them (`src/blocks/scoreboard/template.ts`):
 	 * team names and scores bold in the headings' font, a dash between the
-	 * scores on one line, the status line small and muted. It has no `coverageId`, so it shows the page's liveblog.
+	 * scores on one line, the status line small and muted. It has no
+	 * `coverageId`, so it shows the page's liveblog.
 	 *
 	 * @param array $options {
 	 *     How the scoreboard is set out.
@@ -309,7 +310,7 @@ class Page_Patterns {
 		$team2_name  = self::score_part( 'team2Name', __( 'Second Team', 'newspack-rolling-coverage' ), $name( 'left' ) );
 		$dash        = self::paragraph(
 			[
-				'metadata'   => [ 'name' => __( 'Dash', 'newspack-rolling-coverage' ) ],
+				'metadata'   => [ 'name' => _x( 'Dash', 'the punctuation mark between two scores', 'newspack-rolling-coverage' ) ],
 				'className'  => $font['className'] . ' ' . Scoreboard_Block::DASH_CLASS,
 				'fontFamily' => $font['fontFamily'] ?? '',
 				'fontSize'   => $size( $options['dash_size'] ),

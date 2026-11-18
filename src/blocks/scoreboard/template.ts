@@ -1,7 +1,7 @@
 /**
  * WordPress dependencies
  */
-import { __ } from '@wordpress/i18n';
+import { __, _x } from '@wordpress/i18n';
 
 /**
  * Internal dependencies
@@ -138,7 +138,13 @@ function scoreboardTemplate( {
 			content: '–',
 			fontSize: isBlockScale ? 'x-large' : 'large',
 			style: { typography: { lineHeight: '1' } },
-			metadata: { name: __( 'Dash', 'newspack-rolling-coverage' ) },
+			metadata: {
+				name: _x(
+					'Dash',
+					'the punctuation mark between two scores',
+					'newspack-rolling-coverage'
+				),
+			},
 		},
 	];
 
