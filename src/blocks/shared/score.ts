@@ -12,12 +12,21 @@ interface ScoreTeam {
 }
 
 /**
- * A coverage's score, as `Score::get()` returns it: two teams and a status
- * line, which can be empty.
+ * The badge style a status line takes when a Scoreboard shows it as a
+ * badge: the Coverage Status badge of that coverage status, Score::badges().
+ */
+const SCORE_BADGES = [ 'active', 'paused', 'archived' ] as const;
+
+type ScoreBadge = ( typeof SCORE_BADGES )[ number ];
+
+/**
+ * A coverage's score, as `Score::get()` returns it: two teams, a status
+ * line, which can be empty, and its badge style.
  */
 interface Score {
 	teams: [ ScoreTeam, ScoreTeam ];
 	status: string;
+	badge?: ScoreBadge;
 }
 
 // The coverage term meta holding the score, Score::META_KEY.
@@ -110,6 +119,7 @@ function scoreAnnouncement( score: Score ): string {
 }
 
 export {
+	SCORE_BADGES,
 	SCORE_META_KEY,
 	SCORE_KEYS,
 	isScore,
@@ -117,4 +127,4 @@ export {
 	scoreLine,
 	scoreAnnouncement,
 };
-export type { Score, ScoreKey, ScoreTeam };
+export type { Score, ScoreBadge, ScoreKey, ScoreTeam };

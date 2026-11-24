@@ -3,7 +3,7 @@
  */
 import { registerBlockType } from '@wordpress/blocks';
 import { InnerBlocks } from '@wordpress/block-editor';
-import { chartBar } from '@wordpress/icons';
+import { receipt } from '@wordpress/icons';
 
 /**
  * Internal dependencies
@@ -17,7 +17,7 @@ import type { ScoreboardAttributes } from './types';
 
 registerBlockType< ScoreboardAttributes >( metadata, {
 	category: getBlockCategory(),
-	icon: blockIcon( chartBar ),
+	icon: blockIcon( receipt ),
 	edit: Edit,
 	save: () => <InnerBlocks.Content />,
 } );

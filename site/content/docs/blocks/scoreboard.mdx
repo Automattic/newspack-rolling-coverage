@@ -3,7 +3,7 @@ title: Scoreboard block
 description: Show a match's score above the liveblog, and keep it current on open pages.
 ---
 
-The Scoreboard block shows a liveblog's score: the two team names with a score for each on one row, a dash between the scores, and a short status line beneath, such as "Second half" or "Full time". When you change the score, readers who have the page open see the new score without reloading.
+The Scoreboard block shows a liveblog's score: the two team names with a score for each on one row, a dash between the scores, and a short status line beneath, such as "Second half" or "Full time". The status line can show as a badge, in the same styles as the Coverage Status block. When you change the score, readers who have the page open see the new score without reloading.
 
 The score belongs to the liveblog, so you set it once, in the liveblog's entries list, and every Scoreboard block for that liveblog shows it.
 
@@ -41,7 +41,9 @@ The score row appears above the entries. Use the + and − buttons beside each t
 
 Type a short status line in **Status**, such as "84'" or "Full time", and press Enter.
 
-<Screenshot label="The liveblog's entries list, with the score row above the entries picked out" src="/screenshots/blocks/scoreboard-2.webp" width={3024} height={1964} />
+In **Badge**, pick the badge the status line shows as, such as **Ended** for "Full time". The choices are the Coverage Status badges, with your site's labels. It saves as soon as you pick it, and only shows on Scoreboard blocks that show the status as a badge. See [Show the status as a badge](#show-the-status-as-a-badge).
+
+<Screenshot label="The liveblog's entries list, with the score row above the entries picked out, Status set to Full time and Badge to Ended" src="/screenshots/blocks/scoreboard-2.webp" width={3024} height={1964} />
 
 </Step>
 </Steps>
@@ -87,6 +89,40 @@ Outside a Rolling Coverage block, open the **Liveblog** panel in the block setti
 
 In the editor, the block shows the liveblog's score. In a template, or when the liveblog has no score yet, it shows a sample score so you can style it.
 
+## Show the status as a badge
+
+On a match page, the status line can replace the Coverage Status badge: "Full time" as an Ended badge rather than "Ended" next to "Full time".
+
+<Steps>
+<Step>
+
+### Turn on the badge
+
+Select the Scoreboard block. In the **Settings** panel of the block settings, turn on **Show status as a badge**. The status line shows as a badge in the editor straight away.
+
+<Screenshot label="The block settings, Settings panel, with Show status as a badge turned on and picked out, and the status line shown as an Ended badge" src="/screenshots/blocks/scoreboard-6.webp" width={3024} height={1964} />
+
+</Step>
+<Step>
+
+### Pick the badge's style
+
+In the liveblog's score row, pick the style in **Badge**. Change it whenever the status line changes, such as **Live** for "Second half" and **Ended** for "Full time".
+
+</Step>
+<Step>
+
+### Choose the dot and colors
+
+In the **Settings** panel, set **Dot** to **Show** or **Hide**. The dot pulses on a Live badge. To give a badge style its own color, open the **Styles** tab and, under **Color**, set **Live background**, **Paused background**, or **Ended background**.
+
+<Screenshot label="The block settings, Styles tab, with the Live, Paused, and Ended backgrounds under Color picked out" src="/screenshots/blocks/scoreboard-7.webp" width={3024} height={1964} />
+
+</Step>
+</Steps>
+
+The badge looks like the Coverage Status block's badge in the same style, with the same dot and background settings and your site's labels for the choices. Its size and font come from the badge, so the status line's own styles don't change it.
+
 ## Settings
 
 ### Liveblog panel
@@ -100,15 +136,26 @@ The panel appears only outside a Rolling Coverage block.
 
 **Automatic** works on single posts and pages. It uses the first Rolling Coverage block in the page's own content.
 
+### Settings panel
+
+| Setting | What it does |
+| --- | --- |
+| **Show status as a badge** | Shows the status line as a badge, in the style picked in the score row's **Badge** menu. Off on new blocks. |
+| **Dot** | Shows or hides the badge's dot, which pulses on a Live badge. The default is **Show**. Appears with **Show status as a badge** on. |
+
+### Badge colors
+
+With **Show status as a badge** on, the **Styles** tab has **Live background**, **Paused background**, and **Ended background** under **Color**. The text color is chosen for contrast.
+
 ### Styling
 
 The scoreboard is made of a row of five paragraphs (the team names, the scores, and the dash between them) and a status line, so you can style each part on its own. Select a team name, a score, the dash, or the status line to change its size, weight, color, or alignment in the **Styles** tab. Select the Scoreboard block itself to give the whole scoreboard a background, text color, border, padding, or margin.
 
 ## What readers see
 
-The score updates on open pages without a reload. With a Rolling Coverage block for the same liveblog on the page, it updates each time that block checks for new entries. Without one, the page checks the score itself every 30 seconds while the liveblog is live or paused.
+The score updates on open pages without a reload, the badge's text and style included. With a Rolling Coverage block for the same liveblog on the page, it updates each time that block checks for new entries. Without one, the page checks the score itself every 30 seconds while the liveblog is live or paused.
 
-When the score changes, screen readers hear the new score, such as "Riverbend FC 3, Toledo Beacon 1". Nothing on the scoreboard moves or flashes.
+When the score changes, screen readers hear the new score, such as "Riverbend FC 3, Toledo Beacon 1". A change to the status line or its badge isn't read out. Nothing on the scoreboard moves or flashes.
 
 <Screenshot label="A match page with the scoreboard above the liveblog" src="/screenshots/blocks/scoreboard-5.webp" width={3024} height={1964} />
 

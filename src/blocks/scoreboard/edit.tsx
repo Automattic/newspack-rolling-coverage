@@ -8,7 +8,7 @@ import {
 	useInnerBlocksProps,
 	store as blockEditorStore,
 } from '@wordpress/block-editor';
-import { Notice, PanelBody } from '@wordpress/components';
+import { Notice, PanelBody, ToggleControl } from '@wordpress/components';
 import { store as coreStore } from '@wordpress/core-data';
 import { useSelect } from '@wordpress/data';
 import { useMemo, useState } from '@wordpress/element';
@@ -17,11 +17,22 @@ import { __ } from '@wordpress/i18n';
 /**
  * Internal dependencies
  */
+import {
+	BadgeColorSettings,
+	BadgeDotControl,
+	useBadgePalette,
+} from '../shared/badge-settings';
 import CoverageChoice from '../shared/coverage-choice';
 import { useBlockCoverage } from '../shared/block-coverage';
 import { COVERAGE_ID_CONTEXT } from '../shared/entry-bindings';
 import { isScore } from '../shared/score';
-import { headingFontFamily, scoreboardTemplate } from './template';
+import {
+	STATUS_BADGE_COLORS_CONTEXT,
+	STATUS_BADGE_CONTEXT,
+	STATUS_BADGE_DOT_CONTEXT,
+	headingFontFamily,
+	scoreboardTemplate,
+} from './template';
 import type { ScoreboardAttributes } from './types';
 
 interface ScoreboardConfig {
@@ -59,20 +70,24 @@ const config: ScoreboardConfig = window.newspackScoreboardBlock ?? {
  * panel outside a Rolling Coverage block.
  *
  * @param {Object}   props               Block props.
+ * @param {string}   props.clientId      Block client ID.
  * @param {Object}   props.attributes    Block attributes.
  * @param {Function} props.setAttributes Attribute setter.
  * @param {Object}   props.context       Block context.
  */
 export default function Edit( {
+	clientId,
 	attributes,
 	setAttributes,
 	context,
 }: {
+	clientId: string;
 	attributes: ScoreboardAttributes;
 	setAttributes: ( attrs: Partial< ScoreboardAttributes > ) => void;
 	context?: Record< string, unknown >;
 } ) {
-	const { coverageId } = attributes;
+	const { coverageId, showStatusAsBadge, showDot, backgroundColors } =
+		attributes;
 	const [ customChosen, setCustomChosen ] = useState( false );
 
 	const {
@@ -189,9 +204,15 @@ export default function Edit( {
 	}, [ tokens ] );
 	const blockProps = useBlockProps();
 	const innerBlocksProps = useInnerBlocksProps( blockProps, { template } );
+	const { accentSwatch, baseSwatch } = useBadgePalette();
 	const blockContext = useMemo(
-		() => ( { [ COVERAGE_ID_CONTEXT ]: followed } ),
-		[ followed ]
+		() => ( {
+			[ COVERAGE_ID_CONTEXT ]: followed,
+			[ STATUS_BADGE_CONTEXT ]: showStatusAsBadge,
+			[ STATUS_BADGE_DOT_CONTEXT ]: showDot !== false,
+			[ STATUS_BADGE_COLORS_CONTEXT ]: backgroundColors ?? {},
+		} ),
+		[ followed, showStatusAsBadge, showDot, backgroundColors ]
 	);
 
 	let notice = '';
@@ -241,6 +262,33 @@ export default function Edit( {
 						/>
 					</PanelBody>
 				) }
+				<PanelBody
+					title={ __( 'Settings', 'newspack-rolling-coverage' ) }
+				>
+					<ToggleControl
+						__nextHasNoMarginBottom
+						label={ __(
+							'Show status as a badge',
+							'newspack-rolling-coverage'
+						) }
+						help={ __(
+							'Pick its style in the Badge menu of the liveblog’s score row, above its entries.',
+							'newspack-rolling-coverage'
+						) }
+						checked={ showStatusAsBadge }
+						onChange={ ( value ) =>
+							setAttributes( { showStatusAsBadge: value } )
+						}
+					/>
+					{ showStatusAsBadge && (
+						<BadgeDotControl
+							showDot={ showDot }
+							onChange={ ( value ) =>
+								setAttributes( { showDot: value } )
+							}
+						/>
+					) }
+				</PanelBody>
 				{ notice && (
 					<PanelBody>
 						<Notice
@@ -253,6 +301,17 @@ export default function Edit( {
 					</PanelBody>
 				) }
 			</InspectorControls>
+			{ showStatusAsBadge && (
+				<BadgeColorSettings
+					clientId={ clientId }
+					backgroundColors={ backgroundColors }
+					onChange={ ( value ) =>
+						setAttributes( { backgroundColors: value } )
+					}
+					accentSwatch={ accentSwatch }
+					baseSwatch={ baseSwatch }
+				/>
+			) }
 			<BlockContextProvider value={ blockContext }>
 				<div { ...innerBlocksProps } />
 			</BlockContextProvider>

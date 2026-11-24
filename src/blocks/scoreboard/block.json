@@ -16,6 +16,18 @@
 		"coverageId": {
 			"type": "number",
 			"default": 0
+		},
+		"showStatusAsBadge": {
+			"type": "boolean",
+			"default": false
+		},
+		"showDot": {
+			"type": "boolean",
+			"default": true
+		},
+		"backgroundColors": {
+			"type": "object",
+			"default": {}
 		}
 	},
 	"supports": {
@@ -58,5 +70,6 @@
 		}
 	},
 	"editorScript": "file:./index.js",
-	"viewScript": "file:./view.js"
+	"viewScript": "file:./view.js",
+	"style": "file:./view.css"
 }

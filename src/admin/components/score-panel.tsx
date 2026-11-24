@@ -6,6 +6,7 @@ import {
 	Button,
 	DropdownMenu,
 	Modal,
+	SelectControl,
 	TextControl,
 	// eslint-disable-next-line @wordpress/no-unsafe-wp-apis
 	__experimentalInputControl as InputControl,
@@ -26,9 +27,16 @@ import { Stack, Text } from '@wordpress/ui';
 /**
  * Internal dependencies
  */
-import { SCORE_META_KEY, isScore, type Score } from '../../blocks/shared/score';
+import {
+	SCORE_BADGES,
+	SCORE_META_KEY,
+	isScore,
+	type Score,
+	type ScoreBadge,
+} from '../../blocks/shared/score';
 import { handleApiError } from '../utils/api-error';
 import { notifyError, notifySuccess } from '../utils/notices';
+import { useStatusLabels } from '../utils/status-labels';
 import { useAdminContext } from '../hooks/useAdminContext';
 import { useConfirmDialog } from './confirm-dialog';
 import type { ContextExports, Coverage } from '../types';
@@ -241,6 +249,7 @@ function ScorePanel( {
 	const isSaving = useRef( false );
 	const isStatusEdited = useRef( false );
 	const { requestConfirm, dialog } = useConfirmDialog();
+	const statusLabels = useStatusLabels();
 
 	const savedKey = JSON.stringify( saved );
 
@@ -430,6 +439,12 @@ function ScorePanel( {
 		save( { ...score, status: next } );
 	};
 
+	const saveBadge = ( next: ScoreBadge ) => {
+		if ( score && next !== score.badge ) {
+			save( { ...score, badge: next } );
+		}
+	};
+
 	let body: JSX.Element | null = null;
 
 	if ( score && ( ! canEdit || isTrashed ) ) {
@@ -490,6 +505,18 @@ function ScorePanel( {
 									saveStatus();
 								}
 							} }
+						/>
+						<SelectControl
+							size="compact"
+							label={ __( 'Badge', 'newspack-rolling-coverage' ) }
+							value={ score.badge ?? 'active' }
+							options={ SCORE_BADGES.map( ( badge ) => ( {
+								value: badge,
+								label: statusLabels[ badge ] || badge,
+							} ) ) }
+							onChange={ ( value: string ) =>
+								saveBadge( value as ScoreBadge )
+							}
 						/>
 					</div>
 					<DropdownMenu
@@ -563,6 +590,7 @@ function ScorePanel( {
 								{ name: second, score: 0 },
 							],
 							status: '',
+							badge: 'active',
 						} );
 
 						if ( ok ) {

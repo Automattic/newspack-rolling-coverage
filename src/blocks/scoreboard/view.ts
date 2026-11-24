@@ -6,6 +6,7 @@ import { readCheck } from '../shared/check-event';
 import { isScore, type Score } from '../shared/score';
 import { pollWait } from '../rolling-coverage/poll-backoff';
 import { applyScore } from './apply-score';
+import './style.scss';
 
 const SCOREBOARD_SELECTOR =
 	'.wp-block-newspack-rolling-coverage-scoreboard[data-coverage-id]';

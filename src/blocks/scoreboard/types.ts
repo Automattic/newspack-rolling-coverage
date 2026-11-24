@@ -3,4 +3,7 @@
  */
 export type ScoreboardAttributes = {
 	coverageId: number;
+	showStatusAsBadge: boolean;
+	showDot: boolean;
+	backgroundColors: Partial< Record< string, string > >;
 };

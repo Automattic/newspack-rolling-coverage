@@ -26,5 +26,6 @@ export function sampleScore(): Score {
 			},
 		],
 		status: __( 'Second half', 'newspack-rolling-coverage' ),
+		badge: 'active',
 	};
 }

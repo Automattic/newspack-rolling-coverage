@@ -181,15 +181,9 @@ class Coverage_Status_Block {
 			$wrapper['data-hide-when-ended'] = 'true';
 		}
 
-		$classes = self::BADGE_CLASSES[ $status ];
-
-		if ( ! $show_dot && Taxonomy::STATUS_ACTIVE === $status ) {
-			$classes = 'newspack-ui__badge--success';
-		}
-
 		$html = sprintf(
 			'<span class="%s"%s>%s</span>',
-			esc_attr( 'newspack-ui__badge ' . $classes ),
+			esc_attr( self::badge_class_names( $status, $show_dot ) ),
 			'' !== $styles[ $status ] ? ' style="' . esc_attr( $styles[ $status ] ) . '"' : '',
 			esc_html( $labels[ $status ] )
 		);
@@ -202,6 +196,22 @@ class Coverage_Status_Block {
 		}
 
 		return sprintf( '<div %s>%s</div>', get_block_wrapper_attributes( $wrapper ), $html );
+	}
+
+	/**
+	 * The classes of a status's badge. The live badge drops its dot and
+	 * pulse when the dot is hidden.
+	 *
+	 * @param string $status   Coverage status, one of BADGE_CLASSES' keys.
+	 * @param bool   $show_dot Whether the live badge shows its dot.
+	 * @return string
+	 */
+	public static function badge_class_names( string $status, bool $show_dot = true ): string {
+		if ( ! $show_dot && Taxonomy::STATUS_ACTIVE === $status ) {
+			return 'newspack-ui__badge newspack-ui__badge--success';
+		}
+
+		return 'newspack-ui__badge ' . self::BADGE_CLASSES[ $status ];
 	}
 
 	/**
@@ -258,12 +268,14 @@ class Coverage_Status_Block {
 	}
 
 	/**
-	 * The badge style for each status from the block's custom colors.
+	 * The badge style for each status from a block's custom colors, its
+	 * `backgroundColors` attribute. The Scoreboard block's status badge
+	 * uses it too.
 	 *
 	 * @param array $attributes Block attributes.
-	 * @return array<string, string>
+	 * @return array<string, string> An empty string for a status without a custom color.
 	 */
-	private static function badge_styles( array $attributes ): array {
+	public static function badge_styles( array $attributes ): array {
 		$own    = is_array( $attributes['backgroundColors'] ?? null ) ? $attributes['backgroundColors'] : [];
 		$styles = [];
 

@@ -102,4 +102,56 @@ function badgeStyleObject(
 	} as CSSProperties;
 }
 
-export { BADGE_CLASSES, badgeClasses, badgeStatus, badgeStyleObject };
+/**
+ * The inline badge style for a custom background as a style attribute, in
+ * the form Coverage_Status_Block::badge_style() prints it.
+ *
+ * @param {string} color   Background color: a THEME_COLORS name or a hex color.
+ * @param {Object} presets The palette's current colors by slug, as for badgeStyleObject().
+ * @return {string} The style, or '' when unset.
+ */
+function badgeStyleText(
+	color?: string,
+	presets: Record< string, string > = {}
+): string {
+	return Object.entries( badgeStyleObject( color, presets ) ?? {} )
+		.map( ( [ property, value ] ) => `${ property }:${ value }` )
+		.join( ';' );
+}
+
+/**
+ * The palette colors a badge's theme colors read: THEME_COLORS' names and
+ * their pairs, each the site's own color before the theme's, as the preset
+ * variable resolves.
+ *
+ * @param {Object} origins The palette by origin, from the editor settings.
+ * @return {Object} Colors by slug, '' for a slug the palette lacks.
+ */
+function badgePresets(
+	origins: Record< string, { slug: string; color: string }[] > = {}
+): Record< string, string > {
+	const preset = ( slug: string ) =>
+		[ 'custom', 'theme' ]
+			.map(
+				( origin ) =>
+					origins[ origin ]?.find( ( color ) => color.slug === slug )
+						?.color
+			)
+			.find( Boolean ) ?? '';
+
+	return Object.fromEntries(
+		Object.entries( THEME_COLORS ).flatMap( ( [ name, { pair } ] ) => [
+			[ name, preset( name ) ],
+			[ pair, preset( pair ) ],
+		] )
+	);
+}
+
+export {
+	BADGE_CLASSES,
+	badgeClasses,
+	badgePresets,
+	badgeStatus,
+	badgeStyleObject,
+	badgeStyleText,
+};
