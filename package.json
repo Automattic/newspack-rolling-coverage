@@ -46,8 +46,7 @@
 		"*.php": "npm run lint:php:staged"
 	},
 	"overrides": {
-		"@types/react": "^19.0.0",
-		"@types/react-dom": "^19.0.0",
+		"@types/react-dom": "^18.3.0",
 		"@wordpress/stylelint-config": {
 			"@wordpress/theme": "^2.3.0"
 		},
@@ -67,9 +66,6 @@
 			"@wordpress/keycodes": "^4.55.0",
 			"@wordpress/url": "^4.55.0",
 			"newspack-icons": "$newspack-icons"
-		},
-		"newspack-icons": {
-			"@wordpress/primitives": "^4.0.0 || ^5.2.0"
 		}
 	},
 	"devDependencies": {
