@@ -25,7 +25,7 @@
 		max-width: 628px;
 
 		@media (min-width: #{wp-breakpoints.$break-small}) {
-			grid-template-columns: repeat(3, minmax(0, 1fr));
+			grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
 		}
 	}
 }

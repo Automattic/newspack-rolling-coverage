@@ -9,6 +9,7 @@ import { DropdownMenu } from '@wordpress/components';
 import { createElement, Fragment } from '@wordpress/element';
 
 import { useScorePanel } from '../../src/admin/components/score-panel';
+import { setStatusLabels } from '../../src/admin/utils/status-labels';
 import type { Coverage } from '../../src/admin/types';
 
 jest.mock( '@wordpress/api-fetch' );
@@ -28,6 +29,7 @@ const coverage = ( id: number, first: string, second: string ): Coverage =>
 					{ name: second, score: 0 },
 				],
 				status: '',
+				badge: 'active',
 			},
 		},
 	} ) as unknown as Coverage;
@@ -100,6 +102,11 @@ beforeEach( () => {
 		restBaseUrls: { coverages: COVERAGES },
 		capabilities: { canManageTerms: true },
 	} as unknown as typeof window.newspackRollingCoverageAdmin;
+	setStatusLabels( {
+		active: 'Live',
+		paused: 'On hold',
+		archived: 'Ended',
+	} );
 } );
 
 describe( 'useScorePanel', () => {
@@ -279,5 +286,79 @@ describe( 'useScorePanel', () => {
 
 		expect( mockFetch ).not.toHaveBeenCalled();
 		expect( field ).toHaveValue( 1 );
+	} );
+
+	it( 'offers the site’s status labels as badge styles', () => {
+		render(
+			createElement( Screen, { coverage: A, setContext: jest.fn() } )
+		);
+
+		const badge = screen.getByRole( 'combobox', { name: 'Badge' } );
+
+		expect( badge ).toHaveValue( 'active' );
+		expect(
+			Array.from( ( badge as HTMLSelectElement ).options ).map(
+				( option ) => [ option.value, option.textContent ]
+			)
+		).toEqual( [
+			[ 'active', 'Live' ],
+			[ 'paused', 'On hold' ],
+			[ 'archived', 'Ended' ],
+		] );
+	} );
+
+	it( 'saves the badge style as soon as it is picked', async () => {
+		render(
+			createElement( Screen, { coverage: A, setContext: jest.fn() } )
+		);
+
+		await act( async () => {
+			fireEvent.change(
+				screen.getByRole( 'combobox', { name: 'Badge' } ),
+				{
+					target: { value: 'archived' },
+				}
+			);
+		} );
+
+		expect(
+			mockFetch.mock.calls.map(
+				( [ options ] ) => options.data.meta.rolling_coverage_score
+			)
+		).toEqual( [
+			{
+				teams: [
+					{ name: 'Riverbend FC', score: 1 },
+					{ name: 'Toledo Beacon', score: 0 },
+				],
+				status: '',
+				badge: 'archived',
+			},
+		] );
+		expect( screen.getByRole( 'combobox', { name: 'Badge' } ) ).toHaveValue(
+			'archived'
+		);
+	} );
+
+	it( 'puts the badge style back when its save fails', async () => {
+		mockFetch.mockImplementationOnce( () =>
+			Promise.reject( { message: 'Offline' } )
+		);
+		render(
+			createElement( Screen, { coverage: A, setContext: jest.fn() } )
+		);
+
+		await act( async () => {
+			fireEvent.change(
+				screen.getByRole( 'combobox', { name: 'Badge' } ),
+				{
+					target: { value: 'paused' },
+				}
+			);
+		} );
+
+		expect( screen.getByRole( 'combobox', { name: 'Badge' } ) ).toHaveValue(
+			'active'
+		);
 	} );
 } );
