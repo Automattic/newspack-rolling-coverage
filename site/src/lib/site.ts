@@ -28,6 +28,15 @@ export const NAV_LINKS: NavLink[] = [
 export const FOOTER_LINKS: NavLink[] = [];
 
 /**
+ * Whether docs pages show the page tree as a sidebar at `md` and up (768px, the default
+ * MOBILE_MENU_QUERY). With `false` there is no sidebar column: the page and its table of
+ * contents take the width, and the header nav is the page list. Turn it off for a small site
+ * whose header nav already lists every page. The mobile menu keeps the site links and the docs
+ * tree either way.
+ */
+export const DOCS_SIDEBAR = true;
+
+/**
  * Whether the site has a dark color scheme. With `false` the site is light only: the header has
  * no theme toggle, and the head script never sets `dark`, whatever the system setting or a
  * choice stored earlier.
