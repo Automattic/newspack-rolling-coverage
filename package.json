@@ -46,6 +46,8 @@
 		"*.php": "npm run lint:php:staged"
 	},
 	"overrides": {
+		"@types/react": "^19.0.0",
+		"@types/react-dom": "^19.0.0",
 		"@wordpress/stylelint-config": {
 			"@wordpress/theme": "^2.3.0"
 		},
@@ -61,10 +63,13 @@
 			"@wordpress/hooks": "^4.55.0",
 			"@wordpress/html-entities": "^4.55.0",
 			"@wordpress/i18n": "^6.28.0",
-			"@wordpress/icons": "^16.0.0",
+			"@wordpress/icons": "^21.0.0",
 			"@wordpress/keycodes": "^4.55.0",
 			"@wordpress/url": "^4.55.0",
 			"newspack-icons": "$newspack-icons"
+		},
+		"newspack-icons": {
+			"@wordpress/primitives": "^4.0.0 || ^5.2.0"
 		}
 	},
 	"devDependencies": {
@@ -81,7 +86,7 @@
 		"@wordpress/editor": "^15.2.0",
 		"@wordpress/element": "^8.7.0",
 		"@wordpress/i18n": "^6.30.0",
-		"@wordpress/icons": "^16.0.0",
+		"@wordpress/icons": "^21.0.0",
 		"@wordpress/notices": "^5.55.0",
 		"@wordpress/preferences": "^4.55.0",
 		"@wordpress/ui": "^0.26.0",
@@ -92,6 +97,6 @@
 		"classnames": "^2.5.1",
 		"newspack-colors": "~1.1.5",
 		"newspack-components": "~4.12.1",
-		"newspack-icons": "~1.2.0"
+		"newspack-icons": "~1.4.0"
 	}
 }
