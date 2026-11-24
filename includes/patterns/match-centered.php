@@ -13,6 +13,7 @@ defined( 'ABSPATH' ) || exit;
 // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Block markup from serialize_block().
 echo Page_Patterns::scoreboard(
 	[
+		'accent'      => true,
 		'name_size'   => [ 'x-large', 'large' ],
 		'score_size'  => [ 'xxxxx-large', 'huge', 'xx-large' ],
 		'dash_size'   => [ 'xxxx-large', 'x-large', 'large' ],

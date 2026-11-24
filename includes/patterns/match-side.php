@@ -9,12 +9,14 @@ use Newspack_Rolling_Coverage\Page_Patterns;
 
 defined( 'ABSPATH' ) || exit;
 ?>
-<?php echo Page_Patterns::side_columns_open(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Block markup. ?><!-- wp:column {"verticalAlignment":"top","width":"33.33%"} -->
-<div class="wp-block-column is-vertically-aligned-top" style="flex-basis:33.33%">
+<?php echo Page_Patterns::side_columns_open(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Block markup. ?><!-- wp:column {"width":"33.33%"} -->
+<div class="wp-block-column" style="flex-basis:33.33%"><!-- wp:group {"style":{"position":{"type":"sticky","top":"0px"}},"layout":{"type":"default"}} -->
+<div class="wp-block-group">
 <?php
 // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Block markup from serialize_block().
 echo Page_Patterns::scoreboard(
 	[
+		'accent'     => true,
 		'stacked'    => true,
 		'score_size' => [ 'xxx-large', 'huge', 'xx-large' ],
 		'gap'        => '30',
@@ -40,6 +42,7 @@ echo Page_Patterns::scoreboard(
 );
 ?>
 </div>
+<!-- /wp:group --></div>
 <!-- /wp:column -->
 
 <!-- wp:column {"verticalAlignment":"top","width":"66.66%"} -->

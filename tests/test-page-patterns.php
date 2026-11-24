@@ -358,17 +358,22 @@ class Test_Page_Patterns extends Rolling_Coverage_TestCase {
 
 	/**
 	 * Beside the feed, the scoreboard is in the first column, so it stacks
-	 * above the feed on phones.
+	 * above the feed on phones, and stays in view while the feed scrolls in a
+	 * column that stretches to the feed's height.
 	 */
 	public function test_match_side_column_comes_first() {
 		$columns = parse_blocks( self::pattern( 'match-side' )['content'] )[0]['innerBlocks'];
+		$sticky  = $columns[0]['innerBlocks'][0];
 
 		$this->assertSame( '33.33%', $columns[0]['attrs']['width'] );
-		$this->assertSame( Scoreboard_Block::BLOCK_NAME, $columns[0]['innerBlocks'][0]['blockName'] );
+		$this->assertArrayNotHasKey( 'verticalAlignment', $columns[0]['attrs'] );
 		$this->assertCount( 1, $columns[0]['innerBlocks'] );
+		$this->assertSame( 'core/group', $sticky['blockName'] );
+		$this->assertSame( 'sticky', $sticky['attrs']['style']['position']['type'] );
+		$this->assertSame( Scoreboard_Block::BLOCK_NAME, $sticky['innerBlocks'][0]['blockName'] );
 		$this->assertEmpty( self::feeds( $columns[0]['innerBlocks'] ) );
 		$this->assertCount( 1, self::feeds( $columns[1]['innerBlocks'] ) );
-		$this->assertSame( [ 'team1Name', 'team1Score', 'team2Name', 'team2Score', 'status' ], self::bound_keys( $columns[0]['innerBlocks'][0] ) );
+		$this->assertSame( [ 'team1Name', 'team1Score', 'team2Name', 'team2Score', 'status' ], self::bound_keys( $sticky['innerBlocks'][0] ) );
 	}
 
 	/**

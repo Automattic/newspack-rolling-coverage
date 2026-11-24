@@ -35,6 +35,11 @@ class Page_Patterns {
 	const FIRST_COLUMN_TO_SECOND = 'is-style-first-col-to-second';
 
 	/**
+	 * The theme's accent, as the layouts set their Full story label in it.
+	 */
+	const ACCENT = 'var(--newspack-rolling-coverage-accent, var(--wp--preset--color--accent, var(--newspack-theme-color-primary)))';
+
+	/**
 	 * Initialize hooks.
 	 */
 	public static function init(): void {
@@ -258,6 +263,7 @@ class Page_Patterns {
 	 *     @type string[] $dash_size   Font size slugs for the dash between the scores, a size down from them. Not used when stacked.
 	 *     @type string[] $status_size Font size slugs for the status line.
 	 *     @type string   $gap         Spacing preset slug between a row's parts.
+	 *     @type bool     $accent      Set the scores in the theme's accent color.
 	 *     @type array    $attributes  The Scoreboard block's own settings, such as a background.
 	 * }
 	 * @return string Block markup.
@@ -269,6 +275,7 @@ class Page_Patterns {
 			'dash_size'   => [ 'x-large', 'large' ],
 			'status_size' => [ 'x-small', 'small' ],
 			'gap'         => '40',
+			'accent'      => false,
 			'attributes'  => [],
 		];
 
@@ -297,12 +304,15 @@ class Page_Patterns {
 		];
 		$score  = $font + [
 			'fontSize' => $size( $options['score_size'] ),
-			'style'    => [
-				'typography' => [
-					'fontWeight' => '700',
-					'lineHeight' => '1',
-				],
-			],
+			'style'    => array_filter(
+				[
+					'color'      => $options['accent'] ? [ 'text' => self::ACCENT ] : null,
+					'typography' => [
+						'fontWeight' => '700',
+						'lineHeight' => '1',
+					],
+				]
+			),
 		];
 		$muted  = current( array_intersect( Layout_Templates::MUTED_TEXT_COLORS, self::color_slugs() ) );
 		$status = self::score_part(
@@ -405,12 +415,14 @@ class Page_Patterns {
 				isset( $typography['textAlign'] ) ? 'has-text-align-' . $typography['textAlign'] : '',
 				$attributes['className'] ?? '',
 				isset( $attributes['textColor'] ) ? 'has-' . _wp_to_kebab_case( $attributes['textColor'] ) . '-color has-text-color' : '',
+				! isset( $attributes['textColor'] ) && isset( $attributes['style']['color']['text'] ) ? 'has-text-color' : '',
 				isset( $attributes['fontFamily'] ) ? 'has-' . _wp_to_kebab_case( $attributes['fontFamily'] ) . '-font-family' : '',
 				isset( $attributes['fontSize'] ) ? 'has-' . _wp_to_kebab_case( $attributes['fontSize'] ) . '-font-size' : '',
 			]
 		);
 		$styles     = array_filter(
 			[
+				isset( $attributes['style']['color']['text'] ) ? 'color:' . $attributes['style']['color']['text'] : '',
 				isset( $typography['fontWeight'] ) ? 'font-weight:' . $typography['fontWeight'] : '',
 				isset( $typography['lineHeight'] ) ? 'line-height:' . $typography['lineHeight'] : '',
 			]
