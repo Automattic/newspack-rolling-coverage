@@ -22,9 +22,10 @@ class Test_Score extends Rolling_Coverage_TestCase {
 	 * @param int    $first  First team's score.
 	 * @param int    $second Second team's score.
 	 * @param string $status Status line.
+	 * @param string $badge  The status line's badge style.
 	 * @return array
 	 */
-	private static function score( int $first = 2, int $second = 1, string $status = 'Full time' ): array {
+	private static function score( int $first = 2, int $second = 1, string $status = 'Full time', string $badge = Taxonomy::STATUS_ACTIVE ): array {
 		return [
 			'teams'  => [
 				[
@@ -37,6 +38,7 @@ class Test_Score extends Rolling_Coverage_TestCase {
 				],
 			],
 			'status' => $status,
+			'badge'  => $badge,
 		];
 	}
 
@@ -134,6 +136,35 @@ class Test_Score extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * The status line's badge style is one of the Coverage Status badges,
+	 * the live one when it is missing or unknown.
+	 */
+	public function test_sanitize_keeps_a_known_badge() {
+		$missing = self::score();
+		unset( $missing['badge'] );
+
+		$this->assertSame( Taxonomy::STATUS_ARCHIVED, Score::sanitize( self::score( 2, 1, 'Full time', Taxonomy::STATUS_ARCHIVED ) )['badge'] );
+		$this->assertSame( Taxonomy::STATUS_PAUSED, Score::sanitize( self::score( 2, 1, 'Half time', Taxonomy::STATUS_PAUSED ) )['badge'] );
+		$this->assertSame( Taxonomy::STATUS_ACTIVE, Score::sanitize( $missing )['badge'] );
+		$this->assertSame( Taxonomy::STATUS_ACTIVE, Score::sanitize( self::score( 2, 1, 'Full time', 'trash' ) )['badge'] );
+		$this->assertSame( Taxonomy::STATUS_ACTIVE, Score::sanitize( array_merge( self::score(), [ 'badge' => [ 'archived' ] ] ) )['badge'] );
+	}
+
+	/**
+	 * The route saves a known badge style and turns away an unknown one.
+	 */
+	public function test_route_saves_the_badge() {
+		$coverage_id = self::create_coverage();
+		$ended       = self::score( 2, 1, 'Full time', Taxonomy::STATUS_ARCHIVED );
+
+		self::log_in_as( 'editor' );
+
+		$this->assertSame( $ended, self::save( $coverage_id, $ended )->get_data()['meta'][ Score::META_KEY ] );
+		$this->assertSame( 400, self::save( $coverage_id, self::score( 2, 1, 'Full time', 'final' ) )->get_status() );
+		$this->assertSame( Taxonomy::STATUS_ARCHIVED, Score::get( $coverage_id )['badge'] );
+	}
+
+	/**
 	 * Anything but two named teams isn't a score.
 	 */
 	public function test_sanitize_rejects_what_isnt_a_score() {
@@ -198,13 +229,13 @@ class Test_Score extends Rolling_Coverage_TestCase {
 	 */
 	public function test_score_route_serves_the_score() {
 		$coverage_id = self::create_coverage( Taxonomy::STATUS_PAUSED );
-		update_term_meta( $coverage_id, Score::META_KEY, self::score( 1, 1, 'Half time' ) );
+		update_term_meta( $coverage_id, Score::META_KEY, self::score( 1, 1, 'Half time', Taxonomy::STATUS_PAUSED ) );
 
 		wp_set_current_user( 0 );
 		$response = self::dispatch( 'GET', "/coverages/{$coverage_id}/score" );
 
 		$this->assertSame( 200, $response->get_status() );
-		$this->assertSame( self::score( 1, 1, 'Half time' ), $response->get_data()['score'] );
+		$this->assertSame( self::score( 1, 1, 'Half time', Taxonomy::STATUS_PAUSED ), $response->get_data()['score'] );
 		$this->assertSame( Taxonomy::STATUS_PAUSED, $response->get_data()['status'] );
 		$this->assertSame( 0, $response->get_data()['minPollInterval'] );
 		$this->assertSame( 'public, max-age=' . Rolling_Coverage_Block::POLL_MAX_AGE, $response->get_headers()['Cache-Control'] );
@@ -242,8 +273,8 @@ class Test_Score extends Rolling_Coverage_TestCase {
 		$this->assertArrayHasKey( 'score', $poll() );
 		$this->assertNull( $poll()['score'] );
 
-		update_term_meta( $coverage_id, Score::META_KEY, self::score() );
+		update_term_meta( $coverage_id, Score::META_KEY, self::score( 2, 1, 'Full time', Taxonomy::STATUS_ARCHIVED ) );
 
-		$this->assertSame( self::score(), $poll()['score'] );
+		$this->assertSame( self::score( 2, 1, 'Full time', Taxonomy::STATUS_ARCHIVED ), $poll()['score'] );
 	}
 }

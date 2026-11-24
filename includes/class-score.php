@@ -1,6 +1,7 @@
 <?php
 /**
- * A coverage's score: two teams, a score for each, and a status line.
+ * A coverage's score: two teams, a score for each, a status line and the
+ * badge style the status line takes when a Scoreboard shows it as a badge.
  *
  * @package Newspack_Rolling_Coverage
  */
@@ -59,8 +60,18 @@ class Score {
 	}
 
 	/**
-	 * The score's JSON schema: two teams, each a name and a score, and a
-	 * status line, which can be empty.
+	 * The badge styles a status line can take: those of the Coverage Status
+	 * block's badges, keyed by the coverage status each one shows.
+	 *
+	 * @return string[]
+	 */
+	public static function badges(): array {
+		return array_keys( Coverage_Status_Block::BADGE_CLASSES );
+	}
+
+	/**
+	 * The score's JSON schema: two teams, each a name and a score, a status
+	 * line, which can be empty, and its badge style.
 	 *
 	 * @return array
 	 */
@@ -99,6 +110,10 @@ class Score {
 					],
 				],
 				'status' => $text,
+				'badge'  => [
+					'type' => 'string',
+					'enum' => self::badges(),
+				],
 			],
 			'required'             => [ 'teams' ],
 		];
@@ -106,7 +121,8 @@ class Score {
 
 	/**
 	 * Normalizes a score: plain-text names and status cut to
-	 * MAX_TEXT_LENGTH, and whole scores from 0 to MAX_SCORE.
+	 * MAX_TEXT_LENGTH, whole scores from 0 to MAX_SCORE, and a badge style
+	 * from badges(), the live one when it is missing or unknown.
 	 *
 	 * @param mixed $value Raw value.
 	 * @return array|null The score, or null when it isn't one: anything but two named teams.
@@ -131,9 +147,12 @@ class Score {
 			];
 		}
 
+		$badge = $value['badge'] ?? null;
+
 		return [
 			'teams'  => $teams,
 			'status' => self::text( $value['status'] ?? '' ),
+			'badge'  => is_string( $badge ) && in_array( $badge, self::badges(), true ) ? $badge : Taxonomy::STATUS_ACTIVE,
 		];
 	}
 
