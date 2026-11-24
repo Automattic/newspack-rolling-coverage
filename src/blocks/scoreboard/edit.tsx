@@ -258,7 +258,7 @@ export default function Edit( {
 							'newspack-rolling-coverage'
 						) }
 						help={ __(
-							'Pick the badge’s style next to Status in the liveblog’s score.',
+							'Pick its style in the Badge menu of the liveblog’s score row, above its entries.',
 							'newspack-rolling-coverage'
 						) }
 						checked={ showStatusAsBadge }

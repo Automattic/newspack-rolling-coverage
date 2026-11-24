@@ -48,7 +48,7 @@ The block is built from paragraphs inside a group, so each part has its own sett
 
 ### Status as a badge
 
-Turn on **Show status as a badge** in the block's **Settings** panel to show the status line as a badge, such as an Ended badge reading "Full time". The badge looks exactly like the Coverage Status block's badge of the style picked in the score row's **Badge** menu, so a match page can show one status instead of two. Its size, colors and font come from the badge, not from the status line's own settings. It is off on new blocks.
+Turn on **Show status as a badge** in the block's **Settings** panel to show the status line as a badge, such as an Ended badge reading "Full time". The badge looks like the Coverage Status block's default badge of the style picked in the score row's **Badge** menu, so a match page can show one status instead of two. Its size, colors and font come from the badge, not from the status line's own settings. It is off on new blocks.
 
 New blocks take their look from the theme: the team names and scores in the font the theme uses for headings, bold, with the scores largest and a slightly smaller dash between them. The dash keeps the text color, and the small status line takes the theme's muted text color. On a phone, long team names wrap onto a second line within their half of the row.
 
