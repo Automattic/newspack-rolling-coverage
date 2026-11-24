@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-17T22:02:44+00:00\n"
+"POT-Creation-Date: 2026-11-24T18:30:57+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: newspack-rolling-coverage\n"
@@ -90,7 +90,7 @@ msgstr ""
 #: includes/blocks/class-rolling-coverage-block.php:5351
 #: includes/blocks/class-rolling-coverage-block.php:5362
 #: includes/class-post-type.php:1572
-#: includes/class-score.php:189
+#: includes/class-score.php:208
 #: includes/class-taxonomy.php:350
 msgid "Liveblog not found."
 msgstr ""
@@ -143,7 +143,7 @@ msgstr ""
 #: dist/blocks/coverage-follow/index.js:5
 #: dist/blocks/rolling-coverage/index.js:3
 #: dist/blocks/rolling-coverage/index.js:6
-#: dist/blocks/scoreboard/index.js:5
+#: dist/blocks/scoreboard/index.js:7
 msgid "Full story"
 msgstr ""
 
@@ -160,19 +160,19 @@ msgid "When the newest published entry went out, as ISO 8601."
 msgstr ""
 
 #. translators: %s: Time difference, e.g. "2 minutes".
-#: includes/blocks/class-coverage-status-block.php:324
+#: includes/blocks/class-coverage-status-block.php:336
 #, php-format
 msgid "%s ago"
 msgstr ""
 
 #. translators: %s: How long ago the newest entry was published, e.g. "2 minutes ago".
 #. translators: %s: when the liveblog's summary was last edited, such as "3:42 pm".
-#: includes/blocks/class-coverage-status-block.php:334
+#: includes/blocks/class-coverage-status-block.php:346
 #: includes/blocks/class-entry-bindings.php:222
 #: dist/blocks/coverage-follow/index.js:5
 #: dist/blocks/coverage-status/index.js:12
 #: dist/blocks/rolling-coverage/index.js:3
-#: dist/blocks/scoreboard/index.js:5
+#: dist/blocks/scoreboard/index.js:7
 #, php-format,js-format
 msgid "Updated %s"
 msgstr ""
@@ -185,7 +185,7 @@ msgstr ""
 #: includes/blocks/class-entry-bindings.php:210
 #: dist/blocks/coverage-follow/index.js:4
 #: dist/blocks/rolling-coverage/index.js:2
-#: dist/blocks/scoreboard/index.js:4
+#: dist/blocks/scoreboard/index.js:6
 #, php-format,js-format
 msgctxt "date and time"
 msgid "%1$s, %2$s"
@@ -494,7 +494,7 @@ msgstr ""
 msgid "One of cursor, before or recent must be provided."
 msgstr ""
 
-#: includes/blocks/class-scoreboard-block.php:71
+#: includes/blocks/class-scoreboard-block.php:78
 msgid "Liveblog Score"
 msgstr ""
 
@@ -544,8 +544,9 @@ msgstr ""
 #: dist/admin.js:4
 #: dist/admin.js:188
 #: dist/blocks/coverage-follow/index.js:5
-#: dist/blocks/coverage-status/index.js:3
+#: dist/blocks/coverage-status/index.js:5
 #: dist/blocks/new-label/index.js:1
+#: dist/blocks/scoreboard/index.js:7
 #: dist/blocks/update-timer/index.js:3
 msgid "Settings"
 msgstr ""
@@ -1204,11 +1205,11 @@ msgstr ""
 #: dist/admin.js:214
 #: dist/blocks/coverage-follow/index.js:1
 #: dist/blocks/coverage-follow/index.js:5
-#: dist/blocks/coverage-status/index.js:1
 #: dist/blocks/coverage-status/index.js:3
+#: dist/blocks/coverage-status/index.js:5
 #: dist/blocks/rolling-coverage/index.js:10
-#: dist/blocks/scoreboard/index.js:1
-#: dist/blocks/scoreboard/index.js:5
+#: dist/blocks/scoreboard/index.js:3
+#: dist/blocks/scoreboard/index.js:7
 #: dist/blocks/update-timer/index.js:1
 #: dist/blocks/update-timer/index.js:3
 msgid "Liveblog"
@@ -1950,7 +1951,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: dist/admin.js:197
-#: dist/blocks/scoreboard/index.js:5
+#: dist/blocks/scoreboard/index.js:7
 msgid "First team"
 msgstr ""
 
@@ -1959,7 +1960,7 @@ msgid "Shown on the left."
 msgstr ""
 
 #: dist/admin.js:197
-#: dist/blocks/scoreboard/index.js:5
+#: dist/blocks/scoreboard/index.js:7
 msgid "Second team"
 msgstr ""
 
@@ -1986,12 +1987,16 @@ msgid "The score couldn’t be saved: %s"
 msgstr ""
 
 #: dist/admin.js:200
-#: dist/blocks/scoreboard/index.js:5
+#: dist/blocks/scoreboard/index.js:7
 msgid "Score"
 msgstr ""
 
 #: dist/admin.js:200
 msgid "For example, Second half"
+msgstr ""
+
+#: dist/admin.js:200
+msgid "Badge"
 msgstr ""
 
 #: dist/admin.js:200
@@ -2633,17 +2638,17 @@ msgid "Set the labels readers see in every liveblog."
 msgstr ""
 
 #: dist/admin.js:212
-#: dist/blocks/coverage-status/index.js:3
+#: dist/blocks/coverage-status/index.js:5
 msgid "Live label"
 msgstr ""
 
 #: dist/admin.js:212
-#: dist/blocks/coverage-status/index.js:3
+#: dist/blocks/coverage-status/index.js:5
 msgid "Paused label"
 msgstr ""
 
 #: dist/admin.js:212
-#: dist/blocks/coverage-status/index.js:3
+#: dist/blocks/coverage-status/index.js:5
 msgid "Ended label"
 msgstr ""
 
@@ -2960,31 +2965,31 @@ msgid "Check for updates"
 msgstr ""
 
 #: dist/blocks/coverage-follow/index.js:1
-#: dist/blocks/coverage-status/index.js:1
+#: dist/blocks/coverage-status/index.js:3
 #: dist/blocks/rolling-coverage/index.js:10
-#: dist/blocks/scoreboard/index.js:1
+#: dist/blocks/scoreboard/index.js:3
 #: dist/blocks/update-timer/index.js:1
 msgid "Loading liveblogs…"
 msgstr ""
 
 #: dist/blocks/coverage-follow/index.js:1
-#: dist/blocks/coverage-status/index.js:1
-#: dist/blocks/scoreboard/index.js:1
+#: dist/blocks/coverage-status/index.js:3
+#: dist/blocks/scoreboard/index.js:3
 #: dist/blocks/update-timer/index.js:1
 msgid "Choose a liveblog"
 msgstr ""
 
 #: dist/blocks/coverage-follow/index.js:1
-#: dist/blocks/coverage-status/index.js:1
+#: dist/blocks/coverage-status/index.js:3
 #: dist/blocks/rolling-coverage/index.js:10
-#: dist/blocks/scoreboard/index.js:1
+#: dist/blocks/scoreboard/index.js:3
 #: dist/blocks/update-timer/index.js:1
 msgid "Search for a liveblog…"
 msgstr ""
 
 #: dist/blocks/coverage-follow/index.js:1
-#: dist/blocks/coverage-status/index.js:1
-#: dist/blocks/scoreboard/index.js:1
+#: dist/blocks/coverage-status/index.js:3
+#: dist/blocks/scoreboard/index.js:3
 #: dist/blocks/update-timer/index.js:1
 msgctxt "liveblog choice"
 msgid "Automatic"
@@ -2992,15 +2997,15 @@ msgstr ""
 
 #. translators: Screen reader name for the “Automatic” option. Keep the word used to translate “Automatic”.
 #: dist/blocks/coverage-follow/index.js:2
-#: dist/blocks/coverage-status/index.js:2
-#: dist/blocks/scoreboard/index.js:2
+#: dist/blocks/coverage-status/index.js:4
+#: dist/blocks/scoreboard/index.js:4
 #: dist/blocks/update-timer/index.js:2
 msgid "Automatic liveblog"
 msgstr ""
 
 #: dist/blocks/coverage-follow/index.js:2
-#: dist/blocks/coverage-status/index.js:2
-#: dist/blocks/scoreboard/index.js:2
+#: dist/blocks/coverage-status/index.js:4
+#: dist/blocks/scoreboard/index.js:4
 #: dist/blocks/update-timer/index.js:2
 msgctxt "liveblog choice"
 msgid "Custom"
@@ -3008,8 +3013,8 @@ msgstr ""
 
 #. translators: Screen reader name for the “Custom” option. Keep the word used to translate “Custom”.
 #: dist/blocks/coverage-follow/index.js:3
-#: dist/blocks/coverage-status/index.js:3
-#: dist/blocks/scoreboard/index.js:3
+#: dist/blocks/coverage-status/index.js:5
+#: dist/blocks/scoreboard/index.js:5
 #: dist/blocks/update-timer/index.js:3
 msgid "Custom liveblog"
 msgstr ""
@@ -3017,7 +3022,7 @@ msgstr ""
 #: dist/blocks/coverage-follow/index.js:5
 #: dist/blocks/rolling-coverage/index.js:3
 #: dist/blocks/rolling-coverage/index.js:6
-#: dist/blocks/scoreboard/index.js:5
+#: dist/blocks/scoreboard/index.js:7
 msgid "Updated"
 msgstr ""
 
@@ -3034,8 +3039,8 @@ msgid "Always follows this liveblog."
 msgstr ""
 
 #: dist/blocks/coverage-follow/index.js:5
-#: dist/blocks/coverage-status/index.js:3
-#: dist/blocks/scoreboard/index.js:5
+#: dist/blocks/coverage-status/index.js:5
+#: dist/blocks/scoreboard/index.js:7
 #: dist/blocks/update-timer/index.js:3
 msgid "This liveblog no longer exists, so the page’s liveblog is used."
 msgstr ""
@@ -3052,147 +3057,155 @@ msgstr ""
 msgid "This liveblog has ended, so this button won't appear on the site."
 msgstr ""
 
-#: dist/blocks/coverage-status/index.js:3
-msgid "Live"
-msgstr ""
-
-#: dist/blocks/coverage-status/index.js:3
-msgid "Paused"
-msgstr ""
-
-#: dist/blocks/coverage-status/index.js:3
-msgid "Ended"
-msgstr ""
-
-#: dist/blocks/coverage-status/index.js:3
+#: dist/blocks/coverage-status/index.js:1
+#: dist/blocks/scoreboard/index.js:1
 msgid "Live background"
 msgstr ""
 
-#: dist/blocks/coverage-status/index.js:3
+#: dist/blocks/coverage-status/index.js:1
+#: dist/blocks/scoreboard/index.js:1
 msgid "Paused background"
 msgstr ""
 
-#: dist/blocks/coverage-status/index.js:3
+#: dist/blocks/coverage-status/index.js:1
+#: dist/blocks/scoreboard/index.js:1
 msgid "Ended background"
 msgstr ""
 
+#: dist/blocks/coverage-status/index.js:1
+#: dist/blocks/scoreboard/index.js:1
+msgid "Dot"
+msgstr ""
+
+#: dist/blocks/coverage-status/index.js:1
+#: dist/blocks/scoreboard/index.js:1
+msgctxt "dot"
+msgid "Show"
+msgstr ""
+
+#. translators: Screen reader name for the “Show” option. Keep the word used to translate “Show”.
+#: dist/blocks/coverage-status/index.js:2
+#: dist/blocks/scoreboard/index.js:2
+msgid "Show dot"
+msgstr ""
+
+#: dist/blocks/coverage-status/index.js:2
+#: dist/blocks/scoreboard/index.js:2
+msgctxt "dot"
+msgid "Hide"
+msgstr ""
+
+#. translators: Screen reader name for the “Hide” option. Keep the word used to translate “Hide”.
 #: dist/blocks/coverage-status/index.js:3
+#: dist/blocks/scoreboard/index.js:3
+msgid "Hide dot"
+msgstr ""
+
+#: dist/blocks/coverage-status/index.js:5
+msgid "Live"
+msgstr ""
+
+#: dist/blocks/coverage-status/index.js:5
+msgid "Paused"
+msgstr ""
+
+#: dist/blocks/coverage-status/index.js:5
+msgid "Ended"
+msgstr ""
+
+#: dist/blocks/coverage-status/index.js:5
 msgid "This liveblog has ended, so the badge won't show on the site."
 msgstr ""
 
-#: dist/blocks/coverage-status/index.js:3
+#: dist/blocks/coverage-status/index.js:5
 msgid "This liveblog no longer exists, so this badge won’t appear on the site."
 msgstr ""
 
-#: dist/blocks/coverage-status/index.js:3
-#: dist/blocks/scoreboard/index.js:5
+#: dist/blocks/coverage-status/index.js:5
+#: dist/blocks/scoreboard/index.js:7
 msgid "Shows the liveblog on this page, or a breakout post’s liveblog."
 msgstr ""
 
-#: dist/blocks/coverage-status/index.js:3
-#: dist/blocks/scoreboard/index.js:5
+#: dist/blocks/coverage-status/index.js:5
+#: dist/blocks/scoreboard/index.js:7
 msgid "Always shows this liveblog."
 msgstr ""
 
-#: dist/blocks/coverage-status/index.js:3
+#: dist/blocks/coverage-status/index.js:5
 msgid "Labels"
 msgstr ""
 
-#: dist/blocks/coverage-status/index.js:3
+#: dist/blocks/coverage-status/index.js:5
 msgctxt "status labels"
 msgid "Default"
 msgstr ""
 
 #. translators: Screen reader name for the “Default” option. Keep the word used to translate “Default”.
-#: dist/blocks/coverage-status/index.js:4
+#: dist/blocks/coverage-status/index.js:6
 msgid "Default labels"
 msgstr ""
 
-#: dist/blocks/coverage-status/index.js:4
+#: dist/blocks/coverage-status/index.js:6
 msgctxt "status labels"
 msgid "Custom"
 msgstr ""
 
 #. translators: Screen reader name for the “Custom” option. Keep the word used to translate “Custom”.
-#: dist/blocks/coverage-status/index.js:5
+#: dist/blocks/coverage-status/index.js:7
 msgid "Custom labels"
 msgstr ""
 
-#: dist/blocks/coverage-status/index.js:5
+#: dist/blocks/coverage-status/index.js:7
 msgid "Last updated"
 msgstr ""
 
-#: dist/blocks/coverage-status/index.js:5
+#: dist/blocks/coverage-status/index.js:7
 msgctxt "last updated"
 msgid "Show"
 msgstr ""
 
 #. translators: Screen reader name for the “Show” option. Keep the word used to translate “Show”.
-#: dist/blocks/coverage-status/index.js:6
+#: dist/blocks/coverage-status/index.js:8
 msgid "Show last updated"
 msgstr ""
 
-#: dist/blocks/coverage-status/index.js:6
+#: dist/blocks/coverage-status/index.js:8
 msgctxt "last updated"
 msgid "Hide"
 msgstr ""
 
 #. translators: Screen reader name for the “Hide” option. Keep the word used to translate “Hide”.
-#: dist/blocks/coverage-status/index.js:7
+#: dist/blocks/coverage-status/index.js:9
 msgid "Hide last updated"
 msgstr ""
 
-#: dist/blocks/coverage-status/index.js:7
+#: dist/blocks/coverage-status/index.js:9
 #: dist/blocks/rolling-coverage/index.js:21
 msgid "When ended"
 msgstr ""
 
-#: dist/blocks/coverage-status/index.js:7
+#: dist/blocks/coverage-status/index.js:9
 #: dist/blocks/rolling-coverage/index.js:22
 msgctxt "when ended"
 msgid "Show"
 msgstr ""
 
 #. translators: Screen reader name for the “Show” option. Keep the word used to translate “Show”.
-#: dist/blocks/coverage-status/index.js:8
+#: dist/blocks/coverage-status/index.js:10
 #: dist/blocks/rolling-coverage/index.js:23
 msgid "Show when ended"
 msgstr ""
 
-#: dist/blocks/coverage-status/index.js:8
+#: dist/blocks/coverage-status/index.js:10
 #: dist/blocks/rolling-coverage/index.js:23
 msgctxt "when ended"
 msgid "Hide"
 msgstr ""
 
 #. translators: Screen reader name for the “Hide” option. Keep the word used to translate “Hide”.
-#: dist/blocks/coverage-status/index.js:9
+#: dist/blocks/coverage-status/index.js:11
 #: dist/blocks/rolling-coverage/index.js:24
 msgid "Hide when ended"
-msgstr ""
-
-#: dist/blocks/coverage-status/index.js:9
-msgid "Dot"
-msgstr ""
-
-#: dist/blocks/coverage-status/index.js:9
-msgctxt "dot"
-msgid "Show"
-msgstr ""
-
-#. translators: Screen reader name for the “Show” option. Keep the word used to translate “Show”.
-#: dist/blocks/coverage-status/index.js:10
-msgid "Show dot"
-msgstr ""
-
-#: dist/blocks/coverage-status/index.js:10
-msgctxt "dot"
-msgid "Hide"
-msgstr ""
-
-#. translators: Screen reader name for the “Hide” option. Keep the word used to translate “Hide”.
-#: dist/blocks/coverage-status/index.js:11
-msgid "Hide dot"
 msgstr ""
 
 #: dist/blocks/load-more/index.js:1
@@ -3942,60 +3955,68 @@ msgstr ""
 msgid "No new entries"
 msgstr ""
 
-#: dist/blocks/scoreboard/index.js:5
+#: dist/blocks/scoreboard/index.js:7
 msgid "Home team"
 msgstr ""
 
-#: dist/blocks/scoreboard/index.js:5
+#: dist/blocks/scoreboard/index.js:7
 msgid "Away team"
 msgstr ""
 
-#: dist/blocks/scoreboard/index.js:5
+#: dist/blocks/scoreboard/index.js:7
 msgid "Second half"
 msgstr ""
 
-#: dist/blocks/scoreboard/index.js:5
+#: dist/blocks/scoreboard/index.js:7
 msgid "First team score"
 msgstr ""
 
-#: dist/blocks/scoreboard/index.js:5
+#: dist/blocks/scoreboard/index.js:7
 msgid "Second team score"
 msgstr ""
 
-#: dist/blocks/scoreboard/index.js:5
+#: dist/blocks/scoreboard/index.js:7
 msgid "Status line"
 msgstr ""
 
-#: dist/blocks/scoreboard/index.js:5
+#: dist/blocks/scoreboard/index.js:7
 msgid "Dash"
 msgstr ""
 
-#: dist/blocks/scoreboard/index.js:5
+#: dist/blocks/scoreboard/index.js:7
 msgid "First Team"
 msgstr ""
 
-#: dist/blocks/scoreboard/index.js:5
+#: dist/blocks/scoreboard/index.js:7
 msgid "First Team Score"
 msgstr ""
 
-#: dist/blocks/scoreboard/index.js:5
+#: dist/blocks/scoreboard/index.js:7
 msgid "Second Team Score"
 msgstr ""
 
-#: dist/blocks/scoreboard/index.js:5
+#: dist/blocks/scoreboard/index.js:7
 msgid "Second Team"
 msgstr ""
 
-#: dist/blocks/scoreboard/index.js:5
+#: dist/blocks/scoreboard/index.js:7
 msgid "Status Line"
 msgstr ""
 
-#: dist/blocks/scoreboard/index.js:5
+#: dist/blocks/scoreboard/index.js:7
 msgid "This liveblog no longer exists, so this scoreboard won’t appear on the site."
 msgstr ""
 
-#: dist/blocks/scoreboard/index.js:5
+#: dist/blocks/scoreboard/index.js:7
 msgid "This liveblog has no score, so the scoreboard won’t appear on the site. Add one at the top of the liveblog’s entries. Until then, a sample score shows here."
+msgstr ""
+
+#: dist/blocks/scoreboard/index.js:7
+msgid "Show status as a badge"
+msgstr ""
+
+#: dist/blocks/scoreboard/index.js:7
+msgid "Pick its style in the Badge menu of the liveblog’s score row, above its entries."
 msgstr ""
 
 #. translators: Read by screen readers when a liveblog's score changes. 1: The first team's name. 2: Its score. 3: The second team's name. 4: Its score.
