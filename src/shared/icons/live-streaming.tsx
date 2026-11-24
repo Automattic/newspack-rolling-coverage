@@ -1,6 +1,6 @@
 /**
- * The `liveStreaming` icon from newspack-icons, copied here until a
- * newspack-icons release ships it.
+ * The `liveStreaming` icon from newspack-icons, drawn with
+ * `fill="currentColor"` so it takes the surrounding text color.
  */
 const liveStreaming = (
 	<svg

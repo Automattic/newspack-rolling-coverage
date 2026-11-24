@@ -4,7 +4,7 @@
 import { Tooltip } from '@wordpress/components';
 import { __, sprintf } from '@wordpress/i18n';
 import { Badge, Link, Stack, VisuallyHidden } from '@wordpress/ui';
-import { Icon, pinSmall, wordpress } from '@wordpress/icons';
+import { Icon, pin, wordpress } from '@wordpress/icons';
 
 /**
  * Internal dependencies
@@ -112,8 +112,8 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 									? 'newspack-rolling-coverage-entry-title__pin newspack-rolling-coverage-entry-title__pin--slack'
 									: 'newspack-rolling-coverage-entry-title__pin'
 							}
-							icon={ pinSmall }
-							size={ 24 }
+							icon={ pin }
+							size={ 18 }
 						/>
 					);
 				} else if ( isFromSlack ) {
