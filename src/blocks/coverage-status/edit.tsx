@@ -4,10 +4,6 @@
 import {
 	InspectorControls,
 	useBlockProps,
-	// eslint-disable-next-line @wordpress/no-unsafe-wp-apis
-	__experimentalColorGradientSettingsDropdown as ColorGradientSettingsDropdown,
-	// eslint-disable-next-line @wordpress/no-unsafe-wp-apis
-	__experimentalUseMultipleOriginColorsAndGradients as useMultipleOriginColorsAndGradients,
 	store as blockEditorStore,
 } from '@wordpress/block-editor';
 import {
@@ -28,6 +24,11 @@ import { useEffect, useRef, useState } from '@wordpress/element';
 /**
  * Internal dependencies
  */
+import {
+	BadgeColorSettings,
+	BadgeDotControl,
+	useBadgePalette,
+} from '../shared/badge-settings';
 import CoverageChoice from '../shared/coverage-choice';
 import { mutedTextColor } from '../shared/muted-color';
 import { useBlockCoverage } from '../shared/block-coverage';
@@ -56,32 +57,6 @@ const VIEW_CONTEXT = { context: 'view' };
 const SAMPLE_AGE_MS = 2 * 60 * 1000;
 const INSERT_SOURCES = [ undefined, 'inserter_menu', 'quick_inserter' ];
 
-/**
- * The color the picker shows for a badge background: a theme color's palette
- * swatch, else the plain color its variables fall back to, or the stored
- * color itself.
- *
- * @param {string} color        Stored background: 'accent', 'base' or a hex color.
- * @param {string} accentSwatch The palette's accent (or primary) color.
- * @param {string} baseSwatch   The palette's base (or white) color.
- * @return {string|undefined} The color to show.
- */
-function themeSwatch(
-	color: string | undefined,
-	accentSwatch: string,
-	baseSwatch: string
-) {
-	if ( color === 'accent' ) {
-		return accentSwatch || '#003da5';
-	}
-
-	if ( color === 'base' ) {
-		return baseSwatch || '#ffffff';
-	}
-
-	return color;
-}
-
 const config: CoverageStatusConfig = window.newspackCoverageStatusBlock ?? {
 	sourceEntryField: 'rolling_coverage_source_entry',
 	statusLabels: {
@@ -91,12 +66,6 @@ const config: CoverageStatusConfig = window.newspackCoverageStatusBlock ?? {
 	},
 	statusMetaKey: 'rolling_coverage_status',
 	taxonomySlug: 'rolling_coverage',
-};
-
-const BACKGROUND_FIELDS: Record< string, string > = {
-	active: __( 'Live background', 'newspack-rolling-coverage' ),
-	paused: __( 'Paused background', 'newspack-rolling-coverage' ),
-	archived: __( 'Ended background', 'newspack-rolling-coverage' ),
 };
 
 const LABEL_FIELDS: Record< string, string > = {
@@ -217,16 +186,7 @@ export default function Edit( {
 		}
 	}
 
-	const {
-		justInserted,
-		paletteSlugs,
-		accentSwatch,
-		baseSwatch,
-		accentPreset,
-		accentPair,
-		basePreset,
-		basePair,
-	} = useSelect(
+	const { justInserted, paletteSlugs } = useSelect(
 		( select ) => {
 			const blockEditor = select( blockEditorStore ) as unknown as {
 				wasBlockJustInserted: (
@@ -252,23 +212,6 @@ export default function Edit( {
 				...Object.values( origins ).flat(),
 				...( settings.colors ?? [] ),
 			];
-			const swatch = ( ...slugs: string[] ) =>
-				slugs
-					.map(
-						( slug ) =>
-							palette.find( ( color ) => color.slug === slug )
-								?.color
-					)
-					.find( Boolean ) ?? '';
-			const preset = ( slug: string ) =>
-				[ 'custom', 'theme' ]
-					.map(
-						( origin ) =>
-							origins[ origin ]?.find(
-								( color ) => color.slug === slug
-							)?.color
-					)
-					.find( Boolean ) ?? '';
 
 			return {
 				justInserted: INSERT_SOURCES.some( ( source ) =>
@@ -277,13 +220,6 @@ export default function Edit( {
 				paletteSlugs: palette
 					.map( ( color ) => color.slug )
 					.join( ',' ),
-				// The picker needs a literal color to show and mark as selected, so a theme color shows as its palette swatch.
-				accentSwatch: swatch( 'accent', 'primary' ),
-				baseSwatch: swatch( 'base', 'white' ),
-				accentPreset: preset( 'accent' ),
-				accentPair: preset( 'accent-contrast' ),
-				basePreset: preset( 'base' ),
-				basePair: preset( 'contrast' ),
 			};
 		},
 		[ clientId ]
@@ -324,19 +260,7 @@ export default function Edit( {
 	] );
 
 	const blockProps = useBlockProps( { className: layoutClassNames } );
-	const colorGradientSettings = useMultipleOriginColorsAndGradients();
-
-	const setBackground = ( key: string, value?: string ) => {
-		const next = { ...backgroundColors };
-
-		if ( value ) {
-			next[ key ] = value;
-		} else {
-			delete next[ key ];
-		}
-
-		setAttributes( { backgroundColors: next } );
-	};
+	const { accentSwatch, baseSwatch, presets } = useBadgePalette();
 	const endedHidden = !! followed && status === 'archived' && hideWhenEnded;
 	const endedNotice = __(
 		"This liveblog has ended, so the badge won't show on the site.",
@@ -568,81 +492,33 @@ export default function Edit( {
 							}
 						/>
 					</ToggleGroupControl>
-					<ToggleGroupControl
-						__next40pxDefaultSize
-						isBlock
-						label={ __( 'Dot', 'newspack-rolling-coverage' ) }
-						value={ showDot === false ? 'hide' : 'show' }
+					<BadgeDotControl
+						showDot={ showDot }
 						onChange={ ( value ) =>
-							setAttributes( {
-								showDot: value === 'show',
-							} )
+							setAttributes( { showDot: value } )
 						}
-					>
-						<ToggleGroupControlOption
-							value="show"
-							label={ _x(
-								'Show',
-								'dot',
-								'newspack-rolling-coverage'
-							) }
-							aria-label={
-								/* translators: Screen reader name for the “Show” option. Keep the word used to translate “Show”. */
-								__( 'Show dot', 'newspack-rolling-coverage' )
-							}
-						/>
-						<ToggleGroupControlOption
-							value="hide"
-							label={ _x(
-								'Hide',
-								'dot',
-								'newspack-rolling-coverage'
-							) }
-							aria-label={
-								/* translators: Screen reader name for the “Hide” option. Keep the word used to translate “Hide”. */
-								__( 'Hide dot', 'newspack-rolling-coverage' )
-							}
-						/>
-					</ToggleGroupControl>
+					/>
 				</PanelBody>
 			</InspectorControls>
-			<InspectorControls group="color">
-				<ColorGradientSettingsDropdown
-					__experimentalIsRenderedInSidebar
-					panelId={ clientId }
-					settings={ Object.entries( BACKGROUND_FIELDS ).map(
-						( [ key, field ] ) => ( {
-							label: field,
-							colorValue: themeSwatch(
-								backgroundColors?.[ key ],
-								accentSwatch,
-								baseSwatch
-							),
-							onColorChange: ( value?: string ) =>
-								setBackground( key, value ),
-							resetAllFilter: () => ( {
-								backgroundColors: {},
-							} ),
-							clearable: true,
-						} )
-					) }
-					{ ...colorGradientSettings }
-					gradients={ [] }
-					disableCustomGradients
-				/>
-			</InspectorControls>
+			<BadgeColorSettings
+				clientId={ clientId }
+				backgroundColors={ backgroundColors }
+				onChange={ ( value ) =>
+					setAttributes( { backgroundColors: value } )
+				}
+				accentSwatch={ accentSwatch }
+				baseSwatch={ baseSwatch }
+			/>
 			<div { ...blockProps }>
 				<span
 					className={ `newspack-ui__badge ${ badgeClasses(
 						status,
 						showDot !== false
 					) }` }
-					style={ badgeStyleObject( backgroundColors?.[ status ], {
-						accent: accentPreset,
-						'accent-contrast': accentPair,
-						base: basePreset,
-						contrast: basePair,
-					} ) }
+					style={ badgeStyleObject(
+						backgroundColors?.[ status ],
+						presets
+					) }
 				>
 					{ label }
 				</span>
