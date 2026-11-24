@@ -336,8 +336,8 @@ class Test_Page_Patterns extends Rolling_Coverage_TestCase {
 
 	/**
 	 * The Match patterns show the page's score above or beside a Minute feed,
-	 * which leaves out the ended notice, as the score's status line says the
-	 * match is over.
+	 * with no status badge or ended notice, as the score's status line says
+	 * where the match is.
 	 */
 	public function test_match_patterns_show_the_score_and_a_minute_feed() {
 		$minute = serialize_blocks( Layout_Templates::get_blocks( 'minute' ) );
@@ -352,24 +352,23 @@ class Test_Page_Patterns extends Rolling_Coverage_TestCase {
 			$this->assertCount( 1, $feeds, $slug );
 			$this->assertSame( $minute, serialize_blocks( $feeds[0]['innerBlocks'] ), $slug );
 			$this->assertFalse( $feeds[0]['attrs']['archivedNoticeShow'], $slug );
-			$this->assertCount( 'match-side' === $slug ? 1 : 0, self::find( $blocks, 'newspack-rolling-coverage/coverage-status' ), $slug );
+			$this->assertCount( 0, self::find( $blocks, 'newspack-rolling-coverage/coverage-status' ), $slug );
 		}
 	}
 
 	/**
-	 * Beside the feed, the scoreboard and the collapsed line-ups are in the
-	 * first column, so they stack above the feed on phones, with the line-ups
-	 * as one table, a column for each team.
+	 * Beside the feed, the scoreboard and the line-ups card are in the first
+	 * column, so they stack above the feed on phones, with a table for each
+	 * team in the card.
 	 */
 	public function test_match_side_column_comes_first() {
 		$columns = parse_blocks( self::pattern( 'match-side' )['content'] )[0]['innerBlocks'];
 
 		$this->assertSame( '33.33%', $columns[0]['attrs']['width'] );
 		$this->assertSame( Scoreboard_Block::BLOCK_NAME, $columns[0]['innerBlocks'][0]['blockName'] );
-		$this->assertCount( 1, self::find( $columns[0]['innerBlocks'], 'core/details' ) );
-		$tables = self::find( $columns[0]['innerBlocks'], 'core/table' );
-		$this->assertCount( 1, $tables );
-		$this->assertSame( 2, substr_count( $tables[0]['innerHTML'], '<th>' ) );
+		$card = $columns[0]['innerBlocks'][1];
+		$this->assertSame( 'core/group', $card['blockName'] );
+		$this->assertSame( [ 'core/paragraph', 'core/table', 'core/table' ], array_column( $card['innerBlocks'], 'blockName' ) );
 		$this->assertEmpty( self::feeds( $columns[0]['innerBlocks'] ) );
 		$this->assertCount( 1, self::feeds( $columns[1]['innerBlocks'] ) );
 		$this->assertSame( [ 'team1Name', 'team1Score', 'team2Name', 'team2Score', 'status' ], self::bound_keys( $columns[0]['innerBlocks'][0] ) );
