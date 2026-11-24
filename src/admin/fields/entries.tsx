@@ -113,7 +113,7 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 									: 'newspack-rolling-coverage-entry-title__pin'
 							}
 							icon={ pin }
-							size={ 24 }
+							size={ 18 }
 						/>
 					);
 				} else if ( isFromSlack ) {
