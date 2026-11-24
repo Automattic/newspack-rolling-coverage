@@ -515,8 +515,8 @@ class Page_Patterns {
 			],
 			'match-side'             => [
 				'title'         => __( 'Match: scoreboard beside the feed', 'newspack-rolling-coverage' ),
-				'description'   => __( 'The score and the line-ups in a column beside the Minute layout.', 'newspack-rolling-coverage' ),
-				'keywords'      => [ 'liveblog', 'match', 'score', 'scoreboard', 'sport', 'line-ups' ],
+				'description'   => __( 'The score in a column beside the Minute layout.', 'newspack-rolling-coverage' ),
+				'keywords'      => [ 'liveblog', 'match', 'score', 'scoreboard', 'sport' ],
 				'viewportWidth' => 1200,
 			],
 			'match-centered'         => [

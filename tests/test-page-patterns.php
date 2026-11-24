@@ -357,18 +357,15 @@ class Test_Page_Patterns extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Beside the feed, the scoreboard and the line-ups card are in the first
-	 * column, so they stack above the feed on phones, with a table for each
-	 * team in the card.
+	 * Beside the feed, the scoreboard is in the first column, so it stacks
+	 * above the feed on phones.
 	 */
 	public function test_match_side_column_comes_first() {
 		$columns = parse_blocks( self::pattern( 'match-side' )['content'] )[0]['innerBlocks'];
 
 		$this->assertSame( '33.33%', $columns[0]['attrs']['width'] );
 		$this->assertSame( Scoreboard_Block::BLOCK_NAME, $columns[0]['innerBlocks'][0]['blockName'] );
-		$card = $columns[0]['innerBlocks'][1];
-		$this->assertSame( 'core/group', $card['blockName'] );
-		$this->assertSame( [ 'core/paragraph', 'core/table', 'core/table' ], array_column( $card['innerBlocks'], 'blockName' ) );
+		$this->assertCount( 1, $columns[0]['innerBlocks'] );
 		$this->assertEmpty( self::feeds( $columns[0]['innerBlocks'] ) );
 		$this->assertCount( 1, self::feeds( $columns[1]['innerBlocks'] ) );
 		$this->assertSame( [ 'team1Name', 'team1Score', 'team2Name', 'team2Score', 'status' ], self::bound_keys( $columns[0]['innerBlocks'][0] ) );
