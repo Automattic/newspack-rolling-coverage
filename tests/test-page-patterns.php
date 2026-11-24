@@ -335,7 +335,9 @@ class Test_Page_Patterns extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * The Match patterns show the page's score above or beside a Minute feed.
+	 * The Match patterns show the page's score above or beside a Minute feed,
+	 * which leaves out the ended notice, as the score's status line says the
+	 * match is over.
 	 */
 	public function test_match_patterns_show_the_score_and_a_minute_feed() {
 		$minute = serialize_blocks( Layout_Templates::get_blocks( 'minute' ) );
@@ -349,6 +351,7 @@ class Test_Page_Patterns extends Rolling_Coverage_TestCase {
 			$this->assertArrayNotHasKey( 'coverageId', $scoreboards[0]['attrs'], $slug );
 			$this->assertCount( 1, $feeds, $slug );
 			$this->assertSame( $minute, serialize_blocks( $feeds[0]['innerBlocks'] ), $slug );
+			$this->assertFalse( $feeds[0]['attrs']['archivedNoticeShow'], $slug );
 			$this->assertCount( 'match-side' === $slug ? 1 : 0, self::find( $blocks, 'newspack-rolling-coverage/coverage-status' ), $slug );
 		}
 	}

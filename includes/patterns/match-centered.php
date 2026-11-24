@@ -28,4 +28,4 @@ echo Page_Patterns::scoreboard(
 		],
 	]
 );
-echo "\n\n" . Page_Patterns::feed( 'minute' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Block markup from serialize_block().
+echo "\n\n" . Page_Patterns::feed( 'minute', [ 'archivedNoticeShow' => false ] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Block markup from serialize_block().
