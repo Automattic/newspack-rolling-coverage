@@ -509,7 +509,7 @@ function ScorePanel( {
 						<SelectControl
 							size="compact"
 							label={ __( 'Badge', 'newspack-rolling-coverage' ) }
-							value={ score.badge }
+							value={ score.badge ?? 'active' }
 							options={ SCORE_BADGES.map( ( badge ) => ( {
 								value: badge,
 								label: statusLabels[ badge ] || badge,

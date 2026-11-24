@@ -26,7 +26,7 @@ type ScoreBadge = ( typeof SCORE_BADGES )[ number ];
 interface Score {
 	teams: [ ScoreTeam, ScoreTeam ];
 	status: string;
-	badge: ScoreBadge;
+	badge?: ScoreBadge;
 }
 
 // The coverage term meta holding the score, Score::META_KEY.
