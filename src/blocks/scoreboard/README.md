@@ -34,6 +34,8 @@ At the top of a liveblog's entries list:
 
 The score row then shows a number for each team, with + and − buttons, and a **Status** field. The + and − buttons save straight away. A typed number, like the status line, saves when you press Enter or leave the field. If a save fails, the row goes back to the last saved score and a message says why.
 
+Each score is a whole number from 0 to 999, and the status line holds up to 40 characters. For points that come in bigger steps, such as a three-pointer, type the new total. Put the period or the clock in the status line, such as "Q3 4:12" or "OT", and for tennis keep the sets as the score and the games in the status line. Judged sports, events with more than two competitors and scores below zero don't fit two whole numbers; report those scores in the entries, and keep the overall leaderboard in a pinned entry or the summary.
+
 The menu at the end of the row holds **Edit Teams**, to rename the teams, and **Remove Score**. Removing the score hides every Scoreboard block for the liveblog.
 
 Only editors and administrators, who can edit liveblogs, can change the score. Others see it as text.
