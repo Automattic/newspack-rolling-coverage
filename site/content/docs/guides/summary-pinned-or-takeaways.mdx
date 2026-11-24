@@ -9,24 +9,24 @@ A liveblog page has four ways to tell readers about the story. They overlap, so 
 
 | | What it is | Where you edit it | Open pages update | Best for |
 | --- | --- | --- | --- | --- |
-| Page introduction | Text above the feed, part of the page | The page editor | No, readers reload | What the liveblog covers |
+| Page introduction | Text above the feed, part of the page | The page editor | No, readers reload | What the liveblog covers, and the search terms it targets |
 | Summary | One box at the top of the liveblog | The liveblog's entries | Yes | Where the story stands now, in a few points |
 | Pinned entries | Entries held above the others | The liveblog's entries | Yes | One update every reader needs, such as a road closure |
-| Key takeaways | AI-written recap you paste into the page | The page editor | No | A first draft of a recap |
+| Key takeaways | AI-written recap you paste into the page | The page editor | No | A first draft of a recap, picking out points from recent entries that aren't in the summary yet |
 
 Layouts that show only the latest entries (Ticker, Wire, Digest, Flash, and Alert) leave out the summary and ignore pinning. On a page that uses one of them, rely on the page introduction.
 
 ## Page introduction
 
-Write it once, when you set up the page: a sentence or two on what the liveblog covers. It is part of the page, so changing it means updating the page, and readers who have the page open see the change only after they reload.
+Write it once, when you set up the page: a sentence or two on what the liveblog covers, using the main search terms you want the page to be found for. It is part of the page, so changing it means updating the page, and readers who have the page open see the change only after they reload.
 
 Keep it general enough to stay true as the story moves. Put the facts that change in the summary instead.
 
 ## Summary
 
-Use a [summary](/docs/guides/summary/) when the facts change during the story and readers need the current picture before the timeline, such as a "What we know" box with a few bullet points.
+Use a [summary](/docs/guides/summary/) when the facts change during the story and readers need an overview before they read the entries, newest first. This is often a "What we know / What we don't know" box with a few bullet points.
 
-You update it in the liveblog's entries, where you post the updates, and open pages show each change. It isn't an update itself: it doesn't send a push notification or get a "New" label. Each liveblog has one at most.
+Each liveblog has one summary at most. You edit it in the liveblog's entries, like any other entry, and open pages show each change. Unlike an entry, it doesn't send a push notification or get a "New" label.
 
 ## Pinned entries
 
@@ -36,15 +36,15 @@ Pin as few as you can. With more than one, the one edited most recently comes fi
 
 ## Key takeaways
 
-[Key takeaways](/docs/guides/ai-key-takeaways/) write a short recap of the 20 most recent entries, for an editor to check and paste into the page. They are a starting point, not something that updates itself: the pasted text is part of the page, so it changes only when you generate it again and replace it.
+[Key takeaways](/docs/guides/ai-key-takeaways/) generate a draft recap of the 20 most recent entries, for an editor to check and edit before pasting it into the page. They are a starting point, not something that updates itself: the pasted text is part of the page, so it changes only when you generate it again and replace it.
 
-To keep a recap current on open pages, paste the edited takeaways into the summary instead of the page.
+To keep the key takeaways current for readers who have the page open, paste the edited takeaways into the summary instead of the page.
 
 ## Which to use
 
 - **A breaking story that moves fast:** a page introduction and a summary. Pin only what readers need for their safety.
 - **A planned event, such as a match or a festival:** a page introduction. For a match, add a score with the [Scoreboard block](/docs/blocks/scoreboard/). Add a summary if readers arrive late and need to catch up.
-- **A story that runs for several days:** a page introduction and a summary. Use key takeaways to draft the summary at the start of each day.
+- **A story that runs for several days:** a new liveblog each day, with a page introduction and a summary. A liveblog works best when it covers a single day, so link to the previous day's liveblog in the page introduction or the summary. Readers and search engines then find the earlier coverage from the new page. To draft the new summary, generate key takeaways on the previous day's liveblog.
 
 ## Keep them current
 
