@@ -20,7 +20,8 @@ echo Page_Patterns::scoreboard(
 		'status_size' => [ 'small' ],
 		'gap'         => '50',
 		'attributes'  => [
-			'style' => [
+			'showStatusAsBadge' => true,
+			'style'             => [
 				'spacing' => [
 					'blockGap' => 'var:preset|spacing|20',
 					'margin'   => [ 'bottom' => 'var:preset|spacing|30' ],

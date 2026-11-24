@@ -21,7 +21,8 @@ echo Page_Patterns::scoreboard(
 		'score_size' => [ 'xxx-large', 'huge', 'xx-large' ],
 		'gap'        => '30',
 		'attributes' => [
-			'style' => [
+			'showStatusAsBadge' => true,
+			'style'             => [
 				'border'  => [
 					'color' => 'currentColor',
 					'style' => 'solid',

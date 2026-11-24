@@ -349,6 +349,7 @@ class Test_Page_Patterns extends Rolling_Coverage_TestCase {
 
 			$this->assertCount( 1, $scoreboards, $slug );
 			$this->assertArrayNotHasKey( 'coverageId', $scoreboards[0]['attrs'], $slug );
+			$this->assertTrue( $scoreboards[0]['attrs']['showStatusAsBadge'], $slug );
 			$this->assertCount( 1, $feeds, $slug );
 			$this->assertSame( $minute, serialize_blocks( $feeds[0]['innerBlocks'] ), $slug );
 			$this->assertFalse( $feeds[0]['attrs']['archivedNoticeShow'], $slug );
