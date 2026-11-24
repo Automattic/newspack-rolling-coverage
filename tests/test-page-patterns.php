@@ -359,8 +359,9 @@ class Test_Page_Patterns extends Rolling_Coverage_TestCase {
 
 	/**
 	 * Beside the feed, the scoreboard is in the first column, so it stacks
-	 * above the feed on phones, and stays in view while the feed scrolls in a
-	 * column that stretches to the feed's height.
+	 * above the feed on phones, and, on themes with sticky positioning, stays
+	 * in view while the feed scrolls in a column that stretches to the feed's
+	 * height.
 	 */
 	public function test_match_side_column_comes_first() {
 		$columns = parse_blocks( self::pattern( 'match-side' )['content'] )[0]['innerBlocks'];
