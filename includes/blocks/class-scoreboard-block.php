@@ -35,6 +35,10 @@ class Scoreboard_Block {
 	// Context key telling the bound blocks to show the status line as a badge.
 	const STATUS_BADGE_CONTEXT = 'newspack-rolling-coverage/statusAsBadge';
 
+	// Context keys handing the badge's dot and custom backgrounds to the bound blocks.
+	const STATUS_BADGE_DOT_CONTEXT    = 'newspack-rolling-coverage/statusBadgeDot';
+	const STATUS_BADGE_COLORS_CONTEXT = 'newspack-rolling-coverage/statusBadgeColors';
+
 	// Class of the dash between the scores, which screen readers skip.
 	const DASH_CLASS = 'newspack-rolling-coverage-scoreboard__dash';
 
@@ -49,7 +53,7 @@ class Scoreboard_Block {
 		add_action( 'init', [ __CLASS__, 'register_source' ] );
 		add_action( 'enqueue_block_editor_assets', [ __CLASS__, 'localize_editor_config' ] );
 		add_filter( 'render_block_context', [ __CLASS__, 'add_coverage_context' ], 10, 3 );
-		add_filter( 'render_block', [ __CLASS__, 'mark_part' ], 10, 2 );
+		add_filter( 'render_block', [ __CLASS__, 'mark_part' ], 10, 3 );
 	}
 
 	/**
@@ -73,7 +77,7 @@ class Scoreboard_Block {
 			[
 				'label'              => __( 'Liveblog Score', 'newspack-rolling-coverage' ),
 				'get_value_callback' => [ __CLASS__, 'get_value' ],
-				'uses_context'       => [ Entry_Bindings::COVERAGE_ID_CONTEXT, self::STATUS_BADGE_CONTEXT ],
+				'uses_context'       => [ Entry_Bindings::COVERAGE_ID_CONTEXT, self::STATUS_BADGE_CONTEXT, self::STATUS_BADGE_DOT_CONTEXT, self::STATUS_BADGE_COLORS_CONTEXT ],
 			]
 		);
 	}
@@ -104,9 +108,10 @@ class Scoreboard_Block {
 
 	/**
 	 * Hands the scoreboard's coverage to its inner blocks, in the context key
-	 * a feed sets for the blocks in its layout, and whether it shows the
-	 * status line as a badge. Core passes both on down, so blocks nested in
-	 * a group inside the scoreboard get them too.
+	 * a feed sets for the blocks in its layout, whether it shows the status
+	 * line as a badge, and the badge's dot and custom backgrounds. Core
+	 * passes them on down, so blocks nested in a group inside the
+	 * scoreboard get them too.
 	 *
 	 * @param array         $context      Context of the block about to render.
 	 * @param array         $parsed_block That block.
@@ -122,6 +127,8 @@ class Scoreboard_Block {
 
 		$context[ Entry_Bindings::COVERAGE_ID_CONTEXT ] = self::coverage_id( $parent_block );
 		$context[ self::STATUS_BADGE_CONTEXT ]          = ! empty( $parent_block->attributes['showStatusAsBadge'] );
+		$context[ self::STATUS_BADGE_DOT_CONTEXT ]      = self::shows_dot( $parent_block->attributes );
+		$context[ self::STATUS_BADGE_COLORS_CONTEXT ]   = self::background_colors( $parent_block->attributes );
 
 		return $context;
 	}
@@ -146,7 +153,11 @@ class Scoreboard_Block {
 		$text = esc_html( self::part( $score, $key ) );
 
 		if ( 'status' === $key && '' !== $text && ! empty( $block->context[ self::STATUS_BADGE_CONTEXT ] ) ) {
-			return sprintf( '<span class="%s">%s</span>', esc_attr( Coverage_Status_Block::badge_class_names( $score['badge'] ) ), $text );
+			return sprintf(
+				'<span class="%s">%s</span>',
+				esc_attr( Coverage_Status_Block::badge_class_names( $score['badge'], false !== ( $block->context[ self::STATUS_BADGE_DOT_CONTEXT ] ?? true ) ) ),
+				$text
+			);
 		}
 
 		return $text;
@@ -179,13 +190,17 @@ class Scoreboard_Block {
 	/**
 	 * Marks a block bound to a part of the score with the part's key, for
 	 * the view script to update, and hides one left empty, such as a status
-	 * line not set yet, so it takes no space until a poll fills it.
+	 * line not set yet, so it takes no space until a poll fills it. A status
+	 * badge gets its custom background here rather than in get_value(),
+	 * whose HTML core passes through wp_kses_post(), which drops the dot
+	 * color's custom property.
 	 *
-	 * @param string $block_content Rendered block.
-	 * @param array  $block         Parsed block.
+	 * @param string        $block_content Rendered block.
+	 * @param array         $block         Parsed block.
+	 * @param WP_Block|null $instance      Block instance.
 	 * @return string
 	 */
-	public static function mark_part( $block_content, $block ) {
+	public static function mark_part( $block_content, $block, $instance = null ) {
 		$binding = $block['attrs']['metadata']['bindings']['content'] ?? null;
 
 		if ( ! is_string( $block_content ) || '' === $block_content || ! is_array( $binding ) || self::SOURCE_NAME !== ( $binding['source'] ?? '' ) ) {
@@ -203,6 +218,12 @@ class Scoreboard_Block {
 
 		if ( '' === trim( wp_strip_all_tags( $block_content ) ) ) {
 			$tags->set_attribute( 'hidden', true );
+		}
+
+		$style = 'status' === $key && $instance instanceof WP_Block ? self::badge_style( $instance->context ) : '';
+
+		if ( '' !== $style && $tags->next_tag( [ 'class_name' => 'newspack-ui__badge' ] ) ) {
+			$tags->set_attribute( 'style', $style );
 		}
 
 		return $tags->get_updated_html();
@@ -251,6 +272,14 @@ class Scoreboard_Block {
 
 		if ( ! empty( $attributes['showStatusAsBadge'] ) ) {
 			$wrapper['data-status-badge'] = 'true';
+
+			if ( ! self::shows_dot( $attributes ) ) {
+				$wrapper['data-hide-dot'] = 'true';
+			}
+
+			foreach ( array_filter( Coverage_Status_Block::badge_styles( $attributes ) ) as $badge => $style ) {
+				$wrapper[ 'data-style-' . $badge ] = $style;
+			}
 		}
 
 		return sprintf(
@@ -259,6 +288,48 @@ class Scoreboard_Block {
 			$score ? '' : ' hidden',
 			$content
 		);
+	}
+
+	/**
+	 * Whether a scoreboard's status badge shows its dot, as the Coverage
+	 * Status block's `showDot`.
+	 *
+	 * @param array $attributes Scoreboard attributes.
+	 * @return bool
+	 */
+	private static function shows_dot( array $attributes ): bool {
+		return false !== ( $attributes['showDot'] ?? true );
+	}
+
+	/**
+	 * A scoreboard's custom badge backgrounds by status, as the Coverage
+	 * Status block's `backgroundColors`.
+	 *
+	 * @param array $attributes Scoreboard attributes.
+	 * @return array
+	 */
+	private static function background_colors( array $attributes ): array {
+		return is_array( $attributes['backgroundColors'] ?? null ) ? $attributes['backgroundColors'] : [];
+	}
+
+	/**
+	 * The inline style of a bound status badge: the custom background of
+	 * the score's badge style, from the scoreboard's context.
+	 *
+	 * @param array $context The bound block's context.
+	 * @return string The style, or '' for none.
+	 */
+	private static function badge_style( array $context ): string {
+		$colors = $context[ self::STATUS_BADGE_COLORS_CONTEXT ] ?? [];
+		$score  = empty( $context[ self::STATUS_BADGE_CONTEXT ] ) || ! is_array( $colors ) || ! $colors
+			? null
+			: Score::get( (int) ( $context[ Entry_Bindings::COVERAGE_ID_CONTEXT ] ?? 0 ) );
+
+		if ( ! $score ) {
+			return '';
+		}
+
+		return Coverage_Status_Block::badge_styles( [ 'backgroundColors' => $colors ] )[ $score['badge'] ] ?? '';
 	}
 
 	/**

@@ -2,7 +2,7 @@
  * WordPress dependencies
  */
 import { registerBlockBindingsSource } from '@wordpress/blocks';
-import { escapeHTML } from '@wordpress/escape-html';
+import { escapeAttribute, escapeHTML } from '@wordpress/escape-html';
 import { __ } from '@wordpress/i18n';
 
 /**
@@ -17,9 +17,19 @@ import {
 	type ScoreKey,
 	type Score,
 } from '../shared/score';
-import { badgeClasses, badgeStatus } from '../shared/status-badges';
+import {
+	badgeClasses,
+	badgePresets,
+	badgeStatus,
+	badgeStyleText,
+} from '../shared/status-badges';
 import { sampleScore } from './sample';
-import { SCORE_BINDINGS_SOURCE, STATUS_BADGE_CONTEXT } from './template';
+import {
+	SCORE_BINDINGS_SOURCE,
+	STATUS_BADGE_COLORS_CONTEXT,
+	STATUS_BADGE_CONTEXT,
+	STATUS_BADGE_DOT_CONTEXT,
+} from './template';
 
 const COVERAGE_TAXONOMY = 'rolling_coverage';
 // Edit context needs manage_categories, which Authors and Contributors lack.
@@ -35,7 +45,25 @@ interface BindingsArgs {
 			id: number,
 			query: Record< string, string >
 		) => { meta?: Record< string, unknown > } | undefined;
+		getSettings: () => {
+			__experimentalFeatures?: {
+				color?: {
+					palette?: Record<
+						string,
+						{ slug: string; color: string }[]
+					>;
+				};
+			};
+		};
 	};
+}
+
+/**
+ * How a scoreboard shows its status line as a badge, from its context.
+ */
+interface BadgeOptions {
+	showDot: boolean;
+	style: string;
 }
 
 /**
@@ -54,26 +82,35 @@ function fieldLabels(): Record< ScoreKey, string > {
 }
 
 /**
- * One part of a score as HTML, escaped, mirroring Scoreboard_Block::get_value():
- * in a scoreboard that shows the status line as a badge, the status line is
- * the Coverage Status badge of the score's badge style.
+ * One part of a score as HTML, escaped, mirroring Scoreboard_Block::get_value()
+ * and mark_part(): in a scoreboard that shows the status line as a badge,
+ * the status line is the Coverage Status badge of the score's badge style,
+ * with the scoreboard's dot setting and custom background.
  *
- * @param {Score}   score   The score.
- * @param {string}  key     The part.
- * @param {boolean} asBadge Whether the status line shows as a badge.
+ * @param {Score}       score The score.
+ * @param {string}      key   The part.
+ * @param {Object|null} badge How the status line shows as a badge, or null for text.
  * @return {string} The HTML.
  */
-function partHTML( score: Score, key: ScoreKey, asBadge: boolean ): string {
+function partHTML(
+	score: Score,
+	key: ScoreKey,
+	badge: BadgeOptions | null
+): string {
 	const text = escapeHTML( scorePart( score, key ) );
 
-	if ( key !== 'status' || ! asBadge || text === '' ) {
+	if ( key !== 'status' || ! badge || text === '' ) {
 		return text;
 	}
 
+	const style = badge.style
+		? ` style="${ escapeAttribute( badge.style ) }"`
+		: '';
+
 	return `<span class="newspack-ui__badge ${ badgeClasses(
 		badgeStatus( score.badge ),
-		true
-	) }">${ text }</span>`;
+		badge.showDot
+	) }"${ style }>${ text }</span>`;
 }
 
 /**
@@ -86,7 +123,12 @@ function partHTML( score: Score, key: ScoreKey, asBadge: boolean ): string {
  */
 registerBlockBindingsSource( {
 	name: SCORE_BINDINGS_SOURCE,
-	usesContext: [ COVERAGE_ID_CONTEXT, STATUS_BADGE_CONTEXT ],
+	usesContext: [
+		COVERAGE_ID_CONTEXT,
+		STATUS_BADGE_CONTEXT,
+		STATUS_BADGE_DOT_CONTEXT,
+		STATUS_BADGE_COLORS_CONTEXT,
+	],
 	getValues( { bindings, context, select }: BindingsArgs ) {
 		const coverageId = Number( context?.[ COVERAGE_ID_CONTEXT ] ) || 0;
 		const stored = coverageId
@@ -98,7 +140,22 @@ registerBlockBindingsSource( {
 				)?.meta?.[ SCORE_META_KEY ]
 			: null;
 		const score = isScore( stored ) ? stored : sampleScore();
-		const asBadge = context?.[ STATUS_BADGE_CONTEXT ] === true;
+		const colors = context?.[ STATUS_BADGE_COLORS_CONTEXT ] as
+			Record< string, string > | undefined;
+		const badge =
+			context?.[ STATUS_BADGE_CONTEXT ] === true
+				? {
+						showDot:
+							context?.[ STATUS_BADGE_DOT_CONTEXT ] !== false,
+						style: badgeStyleText(
+							colors?.[ badgeStatus( score.badge ) ],
+							badgePresets(
+								select( 'core/block-editor' ).getSettings()
+									.__experimentalFeatures?.color?.palette
+							)
+						),
+					}
+				: null;
 
 		return Object.fromEntries(
 			Object.entries( bindings ).map( ( [ attribute, binding ] ) => {
@@ -107,7 +164,7 @@ registerBlockBindingsSource( {
 				return [
 					attribute,
 					SCORE_KEYS.includes( key )
-						? partHTML( score, key, asBadge )
+						? partHTML( score, key, badge )
 						: '',
 				];
 			} )

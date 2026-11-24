@@ -268,12 +268,14 @@ class Coverage_Status_Block {
 	}
 
 	/**
-	 * The badge style for each status from the block's custom colors.
+	 * The badge style for each status from a block's custom colors, its
+	 * `backgroundColors` attribute. The Scoreboard block's status badge
+	 * uses it too.
 	 *
 	 * @param array $attributes Block attributes.
-	 * @return array<string, string>
+	 * @return array<string, string> An empty string for a status without a custom color.
 	 */
-	private static function badge_styles( array $attributes ): array {
+	public static function badge_styles( array $attributes ): array {
 		$own    = is_array( $attributes['backgroundColors'] ?? null ) ? $attributes['backgroundColors'] : [];
 		$styles = [];
 

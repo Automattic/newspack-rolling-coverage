@@ -54,12 +54,19 @@ function renderedLine( block: HTMLElement ): string | null {
 
 /**
  * Shows the status line as the Coverage Status badge of the score's badge
- * style, adding the badge to a line rendered empty.
+ * style, adding the badge to a line rendered empty. The dot and the custom
+ * background come from the scoreboard's `data-hide-dot` and
+ * `data-style-{status}`, as on the Coverage Status block.
  *
+ * @param {HTMLElement} block   The scoreboard's wrapper.
  * @param {HTMLElement} element The status line's element.
  * @param {Score}       score   The score.
  */
-function applyBadge( element: HTMLElement, score: Score ): void {
+function applyBadge(
+	block: HTMLElement,
+	element: HTMLElement,
+	score: Score
+): void {
 	const text = scorePart( score, 'status' );
 
 	if ( text === '' ) {
@@ -74,10 +81,19 @@ function applyBadge( element: HTMLElement, score: Score ): void {
 		element.replaceChildren( badge );
 	}
 
+	const status = badgeStatus( score.badge );
+	const style = block.getAttribute( `data-style-${ status }` );
+
 	badge.className = `newspack-ui__badge ${ badgeClasses(
-		badgeStatus( score.badge ),
-		true
+		status,
+		! block.hasAttribute( 'data-hide-dot' )
 	) }`;
+
+	if ( style ) {
+		badge.setAttribute( 'style', style );
+	} else {
+		badge.removeAttribute( 'style' );
+	}
 
 	if ( badge.textContent !== text ) {
 		badge.textContent = text;
@@ -121,7 +137,7 @@ function applyScore(
 		const text = scorePart( score, key );
 
 		if ( key === 'status' && asBadge ) {
-			applyBadge( element, score );
+			applyBadge( block, element, score );
 		} else if ( element.textContent !== text ) {
 			element.textContent = text;
 		}

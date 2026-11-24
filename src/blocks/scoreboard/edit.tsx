@@ -17,12 +17,19 @@ import { __ } from '@wordpress/i18n';
 /**
  * Internal dependencies
  */
+import {
+	BadgeColorSettings,
+	BadgeDotControl,
+	useBadgePalette,
+} from '../shared/badge-settings';
 import CoverageChoice from '../shared/coverage-choice';
 import { useBlockCoverage } from '../shared/block-coverage';
 import { COVERAGE_ID_CONTEXT } from '../shared/entry-bindings';
 import { isScore } from '../shared/score';
 import {
+	STATUS_BADGE_COLORS_CONTEXT,
 	STATUS_BADGE_CONTEXT,
+	STATUS_BADGE_DOT_CONTEXT,
 	headingFontFamily,
 	scoreboardTemplate,
 } from './template';
@@ -63,20 +70,24 @@ const config: ScoreboardConfig = window.newspackScoreboardBlock ?? {
  * panel outside a Rolling Coverage block.
  *
  * @param {Object}   props               Block props.
+ * @param {string}   props.clientId      Block client ID.
  * @param {Object}   props.attributes    Block attributes.
  * @param {Function} props.setAttributes Attribute setter.
  * @param {Object}   props.context       Block context.
  */
 export default function Edit( {
+	clientId,
 	attributes,
 	setAttributes,
 	context,
 }: {
+	clientId: string;
 	attributes: ScoreboardAttributes;
 	setAttributes: ( attrs: Partial< ScoreboardAttributes > ) => void;
 	context?: Record< string, unknown >;
 } ) {
-	const { coverageId, showStatusAsBadge } = attributes;
+	const { coverageId, showStatusAsBadge, showDot, backgroundColors } =
+		attributes;
 	const [ customChosen, setCustomChosen ] = useState( false );
 
 	const {
@@ -193,12 +204,15 @@ export default function Edit( {
 	}, [ tokens ] );
 	const blockProps = useBlockProps();
 	const innerBlocksProps = useInnerBlocksProps( blockProps, { template } );
+	const { accentSwatch, baseSwatch } = useBadgePalette();
 	const blockContext = useMemo(
 		() => ( {
 			[ COVERAGE_ID_CONTEXT ]: followed,
 			[ STATUS_BADGE_CONTEXT ]: showStatusAsBadge,
+			[ STATUS_BADGE_DOT_CONTEXT ]: showDot !== false,
+			[ STATUS_BADGE_COLORS_CONTEXT ]: backgroundColors ?? {},
 		} ),
-		[ followed, showStatusAsBadge ]
+		[ followed, showStatusAsBadge, showDot, backgroundColors ]
 	);
 
 	let notice = '';
@@ -266,6 +280,14 @@ export default function Edit( {
 							setAttributes( { showStatusAsBadge: value } )
 						}
 					/>
+					{ showStatusAsBadge && (
+						<BadgeDotControl
+							showDot={ showDot }
+							onChange={ ( value ) =>
+								setAttributes( { showDot: value } )
+							}
+						/>
+					) }
 				</PanelBody>
 				{ notice && (
 					<PanelBody>
@@ -279,6 +301,17 @@ export default function Edit( {
 					</PanelBody>
 				) }
 			</InspectorControls>
+			{ showStatusAsBadge && (
+				<BadgeColorSettings
+					clientId={ clientId }
+					backgroundColors={ backgroundColors }
+					onChange={ ( value ) =>
+						setAttributes( { backgroundColors: value } )
+					}
+					accentSwatch={ accentSwatch }
+					baseSwatch={ baseSwatch }
+				/>
+			) }
 			<BlockContextProvider value={ blockContext }>
 				<div { ...innerBlocksProps } />
 			</BlockContextProvider>

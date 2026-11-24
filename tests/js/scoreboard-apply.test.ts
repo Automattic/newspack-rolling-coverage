@@ -176,6 +176,48 @@ describe( 'applyScore', () => {
 			expect( badge( block ) ).toBeNull();
 		} );
 
+		it( 'keeps the dot hidden and the custom backgrounds through a swap', () => {
+			const ENDED = 'background:#cc0000;color:#ffffff';
+			const block = badgeScoreboard(
+				'<p data-rc-score="status"><span class="newspack-ui__badge newspack-ui__badge--success">Second half</span></p>'
+			);
+
+			block.setAttribute( 'data-hide-dot', 'true' );
+			block.setAttribute( 'data-style-archived', ENDED );
+
+			applyScore( block, score( 2, 1, 'Extra time' ) );
+
+			expect( badge( block )?.className ).toBe(
+				'newspack-ui__badge newspack-ui__badge--success'
+			);
+			expect( badge( block )?.hasAttribute( 'style' ) ).toBe( false );
+
+			applyScore( block, score( 2, 1, 'Full time', 'archived' ) );
+
+			expect( badge( block )?.className ).toBe(
+				'newspack-ui__badge newspack-ui__badge--error'
+			);
+			expect( badge( block )?.getAttribute( 'style' ) ).toBe( ENDED );
+
+			applyScore( block, score( 2, 1, 'Half time', 'paused' ) );
+
+			expect( badge( block )?.hasAttribute( 'style' ) ).toBe( false );
+		} );
+
+		it( 'gives a badge added to an empty line its custom background', () => {
+			const block = badgeScoreboard(
+				'<p data-rc-score="status" hidden></p>'
+			);
+
+			block.setAttribute( 'data-style-active', 'background:#123456' );
+
+			applyScore( block, score( 2, 1, 'Second half' ) );
+
+			expect( badge( block )?.getAttribute( 'style' ) ).toBe(
+				'background:#123456'
+			);
+		} );
+
 		it( 'keeps the status line as text without the option', () => {
 			const block = scoreboard( 2, 1 );
 

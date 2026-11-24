@@ -15,6 +15,11 @@ const SCORE_BINDINGS_SOURCE = 'newspack-rolling-coverage/score';
 // Scoreboard_Block::STATUS_BADGE_CONTEXT.
 const STATUS_BADGE_CONTEXT = 'newspack-rolling-coverage/statusAsBadge';
 
+// Scoreboard_Block::STATUS_BADGE_DOT_CONTEXT and STATUS_BADGE_COLORS_CONTEXT.
+const STATUS_BADGE_DOT_CONTEXT = 'newspack-rolling-coverage/statusBadgeDot';
+const STATUS_BADGE_COLORS_CONTEXT =
+	'newspack-rolling-coverage/statusBadgeColors';
+
 const DASH_CLASS = 'newspack-rolling-coverage-scoreboard__dash';
 
 /**
@@ -193,7 +198,9 @@ function scoreboardTemplate( {
 export {
 	DASH_CLASS,
 	SCORE_BINDINGS_SOURCE,
+	STATUS_BADGE_COLORS_CONTEXT,
 	STATUS_BADGE_CONTEXT,
+	STATUS_BADGE_DOT_CONTEXT,
 	headingFontFamily,
 	scoreboardTemplate,
 };
