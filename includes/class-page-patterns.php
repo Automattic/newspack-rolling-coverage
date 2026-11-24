@@ -515,13 +515,13 @@ class Page_Patterns {
 			],
 			'match-side'             => [
 				'title'         => __( 'Match: scoreboard beside the feed', 'newspack-rolling-coverage' ),
-				'description'   => __( 'The score and the line-ups in a column beside the Clock layout.', 'newspack-rolling-coverage' ),
+				'description'   => __( 'The score and the line-ups in a column beside the Minute layout.', 'newspack-rolling-coverage' ),
 				'keywords'      => [ 'liveblog', 'match', 'score', 'scoreboard', 'sport', 'line-ups' ],
 				'viewportWidth' => 1200,
 			],
 			'match-centered'         => [
 				'title'         => __( 'Match: centered scoreline', 'newspack-rolling-coverage' ),
-				'description'   => __( 'A large score centered above the status badge and the Clock layout.', 'newspack-rolling-coverage' ),
+				'description'   => __( 'A large score centered above the status badge and the Minute layout.', 'newspack-rolling-coverage' ),
 				'keywords'      => [ 'liveblog', 'match', 'score', 'scoreboard', 'sport', 'centered' ],
 				'viewportWidth' => 1200,
 			],

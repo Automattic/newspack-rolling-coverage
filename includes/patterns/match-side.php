@@ -65,6 +65,6 @@ echo Page_Patterns::scoreboard(
 <?php echo Page_Patterns::follow(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Block markup from serialize_block(). ?></div>
 <!-- /wp:group -->
 
-<?php echo Page_Patterns::feed( 'clock', [ 'showAvatar' => false ] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Block markup from serialize_block(). ?></div>
+<?php echo Page_Patterns::feed( 'minute' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Block markup from serialize_block(). ?></div>
 <!-- /wp:column --></div>
 <!-- /wp:columns -->

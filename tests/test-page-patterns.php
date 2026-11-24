@@ -335,10 +335,10 @@ class Test_Page_Patterns extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * The Match patterns show the page's score above or beside a Clock feed.
+	 * The Match patterns show the page's score above or beside a Minute feed.
 	 */
-	public function test_match_patterns_show_the_score_and_a_clock_feed() {
-		$clock = serialize_blocks( Layout_Templates::get_blocks( 'clock' ) );
+	public function test_match_patterns_show_the_score_and_a_minute_feed() {
+		$minute = serialize_blocks( Layout_Templates::get_blocks( 'minute' ) );
 
 		foreach ( [ 'match-side', 'match-centered' ] as $slug ) {
 			$blocks      = parse_blocks( self::pattern( $slug )['content'] );
@@ -348,7 +348,7 @@ class Test_Page_Patterns extends Rolling_Coverage_TestCase {
 			$this->assertCount( 1, $scoreboards, $slug );
 			$this->assertArrayNotHasKey( 'coverageId', $scoreboards[0]['attrs'], $slug );
 			$this->assertCount( 1, $feeds, $slug );
-			$this->assertSame( $clock, serialize_blocks( $feeds[0]['innerBlocks'] ), $slug );
+			$this->assertSame( $minute, serialize_blocks( $feeds[0]['innerBlocks'] ), $slug );
 			$this->assertCount( 1, self::find( $blocks, 'newspack-rolling-coverage/coverage-status' ), $slug );
 		}
 	}
