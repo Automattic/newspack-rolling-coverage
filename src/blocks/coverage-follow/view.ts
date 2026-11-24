@@ -1,6 +1,7 @@
 /**
  * Internal dependencies
  */
+import { getSnackbar } from '../shared/snackbar';
 import type { OneSignalApi } from './types';
 
 const FOLLOW_BUTTON_SELECTOR = 'button[data-rc-follow]';
@@ -61,6 +62,24 @@ function setStatusMessage( button: HTMLButtonElement, text: string ): void {
 
 	message.textContent = text;
 	message.hidden = '' === text;
+}
+
+/**
+ * Shows a failed follow's message in Newspack UI's error snackbar, or, without
+ * Newspack UI, in a live region after the button.
+ *
+ * @param {HTMLButtonElement} button Follow button element.
+ * @param {string}            text   Message text.
+ */
+function showError( button: HTMLButtonElement, text: string ): void {
+	const showSnackbar = getSnackbar();
+
+	if ( showSnackbar && '' !== text ) {
+		showSnackbar( text, 'error' );
+		return;
+	}
+
+	setStatusMessage( button, text );
 }
 
 /**
@@ -203,7 +222,7 @@ function toggleFollow( button: HTMLButtonElement, tag: string ): void {
 		siblings.forEach( ( sibling ) =>
 			updateButtonState( sibling, ! willFollow )
 		);
-		setStatusMessage( button, message );
+		showError( button, message );
 		settle();
 	};
 

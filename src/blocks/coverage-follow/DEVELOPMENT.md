@@ -38,7 +38,7 @@ Inside a Rolling Coverage layout, the block counts as coverage-level (`Entry_Bin
 
 ## View script
 
-`view.ts` wires every `button[data-rc-follow]` through `window.OneSignalDeferred`. OneSignal's synced tags (`coverage_{id}` set to `'1'`) are the source of truth for whether a reader follows; nothing is cached locally. A click flips every button sharing the tag at once, and reverts with the error message if the SDK doesn't answer within `SDK_WAIT_TIMEOUT_MS`. When the browser has already denied permission, it doesn't prompt, since the browser would not show the prompt again; it reverts and shows the blocked message.
+`view.ts` wires every `button[data-rc-follow]` through `window.OneSignalDeferred`. OneSignal's synced tags (`coverage_{id}` set to `'1'`) are the source of truth for whether a reader follows; nothing is cached locally. A click flips every button sharing the tag at once, and reverts with the error message if the SDK doesn't answer within `SDK_WAIT_TIMEOUT_MS`. When the browser has already denied permission, it doesn't prompt, since the browser would not show the prompt again; it reverts and shows the blocked message. Both messages go to Newspack UI's error snackbar (`showError()`, through `getSnackbar()` in `src/blocks/shared/snackbar.ts`, which the Share block uses too), which announces them and stays until the reader closes it. Without Newspack UI, `setStatusMessage()` writes them to a polite live region after the button.
 
 The plugin does not load the OneSignal SDK. It relies on the OneSignal plugin's front-end SDK and its `OneSignalDeferred` queue.
 
