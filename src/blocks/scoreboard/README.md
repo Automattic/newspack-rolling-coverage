@@ -1,6 +1,6 @@
 # Scoreboard
 
-Shows a liveblog's score: the two team names with a score for each on one row, a dash between the scores, and a short status line such as "Second half" or "Full time" beneath. Open pages pick up a new score without a reload.
+Shows a liveblog's score: the two team names with a score for each on one row, a dash between the scores, and a short status line such as "Second half" or "Full time" beneath. The status line can show as a badge, in the same styles as the Coverage Status block's badges. Open pages pick up a new score without a reload.
 
 The score belongs to the liveblog. Set it at the top of the liveblog's entries list, in Rolling Coverage > All Liveblogs. See [Setting the score](#setting-the-score).
 
@@ -32,7 +32,9 @@ At the top of a liveblog's entries list:
 2. Type the **First team** and **Second team** names. The first team shows on the left.
 3. Select **Add Score**.
 
-The score row then shows a number for each team, with + and − buttons, and a **Status** field. The + and − buttons save straight away. A typed number, like the status line, saves when you press Enter or leave the field. If a save fails, the row goes back to the last saved score and a message says why.
+The score row then shows a number for each team, with + and − buttons, a **Status** field and a **Badge** menu. The + and − buttons save straight away. A typed number, like the status line, saves when you press Enter or leave the field. If a save fails, the row goes back to the last saved score and a message says why.
+
+**Badge** picks the style the status line takes in Scoreboard blocks that show it as a badge (see [Status as a badge](#status-as-a-badge)). Its choices are the Coverage Status block's badges, named with the site's labels: Live, Paused and Ended unless the site has renamed them in Rolling Coverage > Settings. It saves as soon as you pick one. A new score starts with the Live style.
 
 Each score is a whole number from 0 to 999, and the status line holds up to 40 characters. For points that come in bigger steps, such as a three-pointer, type the new total. Put the period or the clock in the status line, such as "Q3 4:12" or "OT", and for tennis keep the sets as the score and the games in the status line. Judged sports, events with more than two competitors and scores below zero don't fit two whole numbers; report those scores in the entries, and keep the overall leaderboard in a pinned entry or the summary.
 
@@ -44,11 +46,15 @@ Only editors and administrators, who can edit liveblogs, can change the score. O
 
 The block is built from paragraphs inside a group, so each part has its own settings. Select a team name, a score, the dash or the status line to change its size, weight, color or alignment. Screen readers skip the dash, and read the row as the team names and scores. Select the Scoreboard block itself to set a background, text color, border, padding or margin for the whole scoreboard.
 
+### Status as a badge
+
+Turn on **Show status as a badge** in the block's **Settings** panel to show the status line as a badge, such as an Ended badge reading "Full time". The badge looks exactly like the Coverage Status block's badge of the style picked in the score row's **Badge** menu, so a match page can show one status instead of two. Its size, colors and font come from the badge, not from the status line's own settings. It is off on new blocks.
+
 New blocks take their look from the theme: the team names and scores in the font the theme uses for headings, bold, with the scores largest and a slightly smaller dash between them. The dash keeps the text color, and the small status line takes the theme's muted text color. On a phone, long team names wrap onto a second line within their half of the row.
 
 ## In the editor
 
-The block shows the liveblog's real score. With Automatic in a template, or when the liveblog has no score yet, it shows a sample score, Home team 2, Away team 1, so you can style it. A notice says when the liveblog has no score.
+The block shows the liveblog's real score. With Automatic in a template, or when the liveblog has no score yet, it shows a sample score, Home team 2, Away team 1, so you can style it. A notice says when the liveblog has no score. With **Show status as a badge** on, the status line shows as the badge it will be on the site (Live for the sample).
 
 ## What readers see
 
@@ -57,7 +63,7 @@ The score updates on open pages without a reload:
 - With a Rolling Coverage block for the same liveblog on the page, the score updates each time that block checks for new entries.
 - Without one, the page checks the score itself every 30 seconds, or less often when the site sets a longer minimum. It stops while the browser tab is hidden and once the liveblog has ended.
 
-When the score changes, screen readers hear the new score, such as "Riverbend FC 3, Toledo Beacon 1". A change to the status line or the team names isn't announced. Nothing on the scoreboard moves or animates.
+When the score changes, screen readers hear the new score, such as "Riverbend FC 3, Toledo Beacon 1". A change to the status line, its badge style or the team names isn't announced, though the badge's text and style update on open pages like the rest of the score. Nothing on the scoreboard moves or animates.
 
 On Lite Site's text-only pages, the scoreboard shows the score from when the page was saved for Lite Site.
 
