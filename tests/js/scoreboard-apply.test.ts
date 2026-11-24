@@ -173,6 +173,7 @@ describe( 'applyScore', () => {
 
 			expect( status?.hidden ).toBe( true );
 			expect( status?.textContent ).toBe( '' );
+			expect( badge( block ) ).toBeNull();
 		} );
 
 		it( 'keeps the status line as text without the option', () => {

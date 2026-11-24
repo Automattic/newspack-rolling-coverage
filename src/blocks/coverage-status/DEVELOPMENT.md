@@ -59,7 +59,7 @@ The text color is never chosen by the publisher. For a hex background, `Apca::te
 
 `src/blocks/shared/apca.ts` ports the same algorithm and constants for the editor preview (`badgeStyleObject()` in `src/blocks/shared/status-badges.ts`, which also mirrors `THEME_COLORS`). The two must agree, or the editor shows a different text color from the site; change them together. `tests/test-apca.php` checks the PHP side against reference values.
 
-The badge classes per status are `Coverage_Status_Block::BADGE_CLASSES`, mirrored by `BADGE_CLASSES` in `status-badges.ts`. `Coverage_Status_Block::badge_class_names()` (`badgeClasses()` in `status-badges.ts`) gives a badge's full class list, without the dot and pulse when the dot is hidden. The Scoreboard block uses them to show its status line as one of these badges (see "The status line as a badge" in `src/blocks/scoreboard/DEVELOPMENT.md`), so a change to the badges changes both blocks.
+The badge classes per status are `Coverage_Status_Block::BADGE_CLASSES`, mirrored by `BADGE_CLASSES` in `status-badges.ts`. `Coverage_Status_Block::badge_class_names()` gives a badge's full class list, without the dot and pulse when the dot is hidden. Its mirror, `badgeClasses()` in `status-badges.ts`, gives only the modifier classes, so callers add `newspack-ui__badge` themselves. The Scoreboard block uses them to show its status line as one of these badges (see "The status line as a badge" in `src/blocks/scoreboard/DEVELOPMENT.md`), so a change to the badges changes both blocks.
 
 ## Live updates
 

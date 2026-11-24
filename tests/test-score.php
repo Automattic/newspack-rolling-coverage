@@ -139,7 +139,7 @@ class Test_Score extends Rolling_Coverage_TestCase {
 	 * The status line's badge style is one of the Coverage Status badges,
 	 * the live one when it is missing or unknown.
 	 */
-	public function test_sanitize_keeps_a_known_badge() {
+	public function test_sanitize_keeps_a_known_badge_and_falls_back_to_active() {
 		$missing = self::score();
 		unset( $missing['badge'] );
 

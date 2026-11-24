@@ -60,8 +60,8 @@ class Score {
 	}
 
 	/**
-	 * The badge styles a status line can take: those of the Coverage Status
-	 * block's badges, keyed by the coverage status each one shows.
+	 * The badge styles a status line can take, named after the coverage
+	 * status whose Coverage Status badge each one borrows.
 	 *
 	 * @return string[]
 	 */
