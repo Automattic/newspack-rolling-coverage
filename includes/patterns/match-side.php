@@ -9,15 +9,18 @@ use Newspack_Rolling_Coverage\Page_Patterns;
 
 defined( 'ABSPATH' ) || exit;
 
-$newspack_rc_players = static function () {
-	$items = [];
+$newspack_rc_lineups = static function () {
+	$rows = '';
 
 	foreach ( range( 1, 5 ) as $number ) {
 		/* translators: %d: a placeholder player's number in a team's line-up. */
-		$items[] = '<!-- wp:list-item -->' . "\n" . '<li>' . esc_html( sprintf( __( 'Player %d', 'newspack-rolling-coverage' ), $number ) ) . '</li>' . "\n" . '<!-- /wp:list-item -->';
+		$player = esc_html( sprintf( __( 'Player %d', 'newspack-rolling-coverage' ), $number ) );
+		$rows  .= '<tr><td>' . $player . '</td><td>' . $player . '</td></tr>';
 	}
 
-	return '<!-- wp:list {"fontSize":"small"} -->' . "\n" . '<ul class="wp-block-list has-small-font-size">' . implode( "\n\n", $items ) . '</ul>' . "\n" . '<!-- /wp:list -->';
+	return '<!-- wp:table {"hasFixedLayout":true,"className":"is-style-stripes"} -->' . "\n"
+		. '<figure class="wp-block-table is-style-stripes"><table class="has-fixed-layout"><thead><tr><th>' . esc_html__( 'Home team', 'newspack-rolling-coverage' ) . '</th><th>' . esc_html__( 'Away team', 'newspack-rolling-coverage' ) . '</th></tr></thead><tbody>' . $rows . '</tbody></table></figure>' . "\n"
+		. '<!-- /wp:table -->';
 };
 ?>
 <?php echo Page_Patterns::side_columns_open(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Block markup. ?><!-- wp:column {"verticalAlignment":"top","width":"33.33%"} -->
@@ -47,14 +50,8 @@ echo Page_Patterns::scoreboard(
 );
 ?>
 
-<!-- wp:details {"style":{"spacing":{"margin":{"top":"var:preset|spacing|50"}}}} -->
-<details class="wp-block-details" style="margin-top:var(--wp--preset--spacing--50)"><summary><?php esc_html_e( 'Line-ups', 'newspack-rolling-coverage' ); ?></summary><?php echo Page_Patterns::heading( esc_html__( 'Home team', 'newspack-rolling-coverage' ), [ 'small' ] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Block markup from serialize_block(). ?>
-
-<?php echo $newspack_rc_players(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Block markup with escaped text. ?>
-
-<?php echo Page_Patterns::heading( esc_html__( 'Away team', 'newspack-rolling-coverage' ), [ 'small' ] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Block markup from serialize_block(). ?>
-
-<?php echo $newspack_rc_players(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Block markup with escaped text. ?></details>
+<!-- wp:details {"style":{"spacing":{"margin":{"top":"var:preset|spacing|50"},"blockGap":"var:preset|spacing|30"}},"fontSize":"small"} -->
+<details class="wp-block-details has-small-font-size" style="margin-top:var(--wp--preset--spacing--50)"><summary><?php esc_html_e( 'Line-ups', 'newspack-rolling-coverage' ); ?></summary><?php echo $newspack_rc_lineups(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Block markup with escaped text. ?></details>
 <!-- /wp:details --></div>
 <!-- /wp:column -->
 

@@ -349,14 +349,14 @@ class Test_Page_Patterns extends Rolling_Coverage_TestCase {
 			$this->assertArrayNotHasKey( 'coverageId', $scoreboards[0]['attrs'], $slug );
 			$this->assertCount( 1, $feeds, $slug );
 			$this->assertSame( $minute, serialize_blocks( $feeds[0]['innerBlocks'] ), $slug );
-			$this->assertCount( 1, self::find( $blocks, 'newspack-rolling-coverage/coverage-status' ), $slug );
+			$this->assertCount( 'match-side' === $slug ? 1 : 0, self::find( $blocks, 'newspack-rolling-coverage/coverage-status' ), $slug );
 		}
 	}
 
 	/**
 	 * Beside the feed, the scoreboard and the collapsed line-ups are in the
-	 * first column, so they stack above the feed on phones, with a row for
-	 * each team.
+	 * first column, so they stack above the feed on phones, with the line-ups
+	 * as one table, a column for each team.
 	 */
 	public function test_match_side_column_comes_first() {
 		$columns = parse_blocks( self::pattern( 'match-side' )['content'] )[0]['innerBlocks'];
@@ -364,8 +364,9 @@ class Test_Page_Patterns extends Rolling_Coverage_TestCase {
 		$this->assertSame( '33.33%', $columns[0]['attrs']['width'] );
 		$this->assertSame( Scoreboard_Block::BLOCK_NAME, $columns[0]['innerBlocks'][0]['blockName'] );
 		$this->assertCount( 1, self::find( $columns[0]['innerBlocks'], 'core/details' ) );
-		$this->assertCount( 2, self::find( $columns[0]['innerBlocks'], 'core/heading' ) );
-		$this->assertCount( 2, self::find( $columns[0]['innerBlocks'], 'core/list' ) );
+		$tables = self::find( $columns[0]['innerBlocks'], 'core/table' );
+		$this->assertCount( 1, $tables );
+		$this->assertSame( 2, substr_count( $tables[0]['innerHTML'], '<th>' ) );
 		$this->assertEmpty( self::feeds( $columns[0]['innerBlocks'] ) );
 		$this->assertCount( 1, self::feeds( $columns[1]['innerBlocks'] ) );
 		$this->assertSame( [ 'team1Name', 'team1Score', 'team2Name', 'team2Score', 'status' ], self::bound_keys( $columns[0]['innerBlocks'][0] ) );
@@ -380,9 +381,8 @@ class Test_Page_Patterns extends Rolling_Coverage_TestCase {
 		$blocks = array_values( array_filter( $blocks, static fn( $block ) => ! empty( $block['blockName'] ) ) );
 
 		$this->assertSame( Scoreboard_Block::BLOCK_NAME, $blocks[0]['blockName'] );
-		$this->assertSame( 'newspack-rolling-coverage/coverage-status', $blocks[1]['blockName'] );
-		$this->assertSame( 'center', $blocks[1]['attrs']['layout']['justifyContent'] );
-		$this->assertSame( Rolling_Coverage_Block::BLOCK_NAME, $blocks[2]['blockName'] );
+		$this->assertSame( Rolling_Coverage_Block::BLOCK_NAME, $blocks[1]['blockName'] );
+		$this->assertCount( 2, $blocks );
 		$this->assertSame( [ 'team1Name', 'team1Score', 'team2Score', 'team2Name', 'status' ], self::bound_keys( $blocks[0] ) );
 	}
 
@@ -669,7 +669,7 @@ class Test_Page_Patterns extends Rolling_Coverage_TestCase {
 	 * A heading that comes before any other in a pattern is a level 2.
 	 */
 	public function test_first_headings_are_level_two() {
-		foreach ( [ 'follow-page', 'every-live-story', 'match-side' ] as $slug ) {
+		foreach ( [ 'follow-page', 'every-live-story' ] as $slug ) {
 			$headings = self::find( self::without_feeds( parse_blocks( self::pattern( $slug )['content'] ) ), 'core/heading' );
 
 			$this->assertNotEmpty( $headings, $slug );

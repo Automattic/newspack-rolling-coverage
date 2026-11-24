@@ -521,7 +521,7 @@ class Page_Patterns {
 			],
 			'match-centered'         => [
 				'title'         => __( 'Match: centered scoreline', 'newspack-rolling-coverage' ),
-				'description'   => __( 'A large score centered above the status badge and the Minute layout.', 'newspack-rolling-coverage' ),
+				'description'   => __( 'A large score centered above the Minute layout.', 'newspack-rolling-coverage' ),
 				'keywords'      => [ 'liveblog', 'match', 'score', 'scoreboard', 'sport', 'centered' ],
 				'viewportWidth' => 1200,
 			],

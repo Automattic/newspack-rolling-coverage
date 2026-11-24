@@ -28,8 +28,4 @@ echo Page_Patterns::scoreboard(
 		],
 	]
 );
-?>
-
-<!-- wp:newspack-rolling-coverage/coverage-status {"showLastUpdated":true,"layout":{"type":"flex","flexWrap":"wrap","verticalAlignment":"center","justifyContent":"center"}} /-->
-
-<?php echo Page_Patterns::feed( 'minute' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Block markup from serialize_block(). ?>
+echo "\n\n" . Page_Patterns::feed( 'minute' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Block markup from serialize_block().

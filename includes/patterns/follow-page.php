@@ -16,7 +16,7 @@ defined( 'ABSPATH' ) || exit;
 <?php echo Page_Patterns::follow(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Block markup from serialize_block(). ?>
 
 <!-- wp:columns {"style":{"spacing":{"margin":{"top":"var:preset|spacing|60"}}}} -->
-<div class="wp-block-columns" style="margin-top:var(--wp--preset--spacing--60)"><!-- wp:column -->
+<div class="wp-block-columns" style="margin-top:var(--wp--preset--spacing--60)"><!-- wp:column {"style":{"spacing":{"blockGap":"var:preset|spacing|20"}}} -->
 <div class="wp-block-column"><?php echo Page_Patterns::heading( esc_html__( 'An alert when it matters', 'newspack-rolling-coverage' ), [ 'medium', 'normal' ] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Block markup from serialize_block(). ?>
 
 <!-- wp:paragraph -->
@@ -24,7 +24,7 @@ defined( 'ABSPATH' ) || exit;
 <!-- /wp:paragraph --></div>
 <!-- /wp:column -->
 
-<!-- wp:column -->
+<!-- wp:column {"style":{"spacing":{"blockGap":"var:preset|spacing|20"}}} -->
 <div class="wp-block-column"><?php echo Page_Patterns::heading( esc_html__( 'No account needed', 'newspack-rolling-coverage' ), [ 'medium', 'normal' ] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Block markup from serialize_block(). ?>
 
 <!-- wp:paragraph -->
@@ -32,7 +32,7 @@ defined( 'ABSPATH' ) || exit;
 <!-- /wp:paragraph --></div>
 <!-- /wp:column -->
 
-<!-- wp:column -->
+<!-- wp:column {"style":{"spacing":{"blockGap":"var:preset|spacing|20"}}} -->
 <div class="wp-block-column"><?php echo Page_Patterns::heading( esc_html__( 'Stop anytime', 'newspack-rolling-coverage' ), [ 'medium', 'normal' ] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Block markup from serialize_block(). ?>
 
 <!-- wp:paragraph -->
