@@ -20,7 +20,11 @@ echo Page_Patterns::scoreboard(
 		'gap'        => '30',
 		'attributes' => [
 			'style' => [
-				'color'   => [ 'background' => 'var(--wp--preset--color--base-2, var(--newspack-theme-color-bg-light, #f7f7f7))' ],
+				'border'  => [
+					'color' => 'currentColor',
+					'style' => 'solid',
+					'width' => '1px',
+				],
 				'spacing' => [
 					'padding'  => [
 						'top'    => 'var:preset|spacing|40',
