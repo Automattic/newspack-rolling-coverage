@@ -3,4 +3,5 @@
  */
 export type ScoreboardAttributes = {
 	coverageId: number;
+	showStatusAsBadge: boolean;
 };

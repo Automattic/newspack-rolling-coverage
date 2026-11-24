@@ -68,8 +68,9 @@ class Test_Scoreboard_Block extends Rolling_Coverage_TestCase {
 	 *
 	 * @param int    $coverage_id Coverage term ID.
 	 * @param string $status      Status line.
+	 * @param string $badge       The status line's badge style.
 	 */
-	private static function set_score( int $coverage_id, string $status = 'Second half' ): void {
+	private static function set_score( int $coverage_id, string $status = 'Second half', string $badge = Taxonomy::STATUS_ACTIVE ): void {
 		update_term_meta(
 			$coverage_id,
 			Score::META_KEY,
@@ -85,6 +86,7 @@ class Test_Scoreboard_Block extends Rolling_Coverage_TestCase {
 					],
 				],
 				'status' => $status,
+				'badge'  => $badge,
 			]
 		);
 	}
@@ -235,6 +237,70 @@ class Test_Scoreboard_Block extends Rolling_Coverage_TestCase {
 
 		$this->assertMatchesRegularExpression( '/<p [^>]*data-rc-score="status" hidden><\/p>/', $html );
 		$this->assertDoesNotMatchRegularExpression( '/data-rc-score="team1Name" hidden/', $html );
+	}
+
+	/**
+	 * With Show status as a badge, the status line is the Coverage Status
+	 * badge of the score's badge style, and the wrapper tells the view
+	 * script to keep it one.
+	 */
+	public function test_shows_the_status_line_as_a_badge() {
+		$coverage_id = self::create_coverage();
+		self::set_score( $coverage_id, 'Full time & done', Taxonomy::STATUS_ARCHIVED );
+
+		$html = do_blocks(
+			self::scoreboard(
+				[
+					'coverageId'        => $coverage_id,
+					'showStatusAsBadge' => true,
+				]
+			)
+		);
+
+		$this->assertMatchesRegularExpression( '/<p [^>]*data-rc-score="status"[^>]*><span class="newspack-ui__badge newspack-ui__badge--error">Full time &amp; done<\/span><\/p>/', $html );
+		$this->assertMatchesRegularExpression( '/<div [^>]*data-coverage-id="' . $coverage_id . '"[^>]*data-status-badge="true"/', $html );
+
+		self::set_score( $coverage_id, 'Second half' );
+
+		$this->assertStringContainsString(
+			'<span class="newspack-ui__badge newspack-ui__badge--success newspack-ui__badge--dot newspack-ui__badge--pulse">Second half</span>',
+			do_blocks(
+				self::scoreboard(
+					[
+						'coverageId'        => $coverage_id,
+						'showStatusAsBadge' => true,
+					]
+				)
+			)
+		);
+	}
+
+	/**
+	 * Without the option, the status line stays text whatever the badge
+	 * style, as does an empty one with it.
+	 */
+	public function test_status_line_is_text_without_the_badge_option() {
+		$coverage_id = self::create_coverage();
+		self::set_score( $coverage_id, 'Full time', Taxonomy::STATUS_ARCHIVED );
+
+		$html = do_blocks( self::scoreboard( [ 'coverageId' => $coverage_id ] ) );
+
+		$this->assertSame( 'Full time', self::parts( $html )['status'] );
+		$this->assertStringNotContainsString( 'newspack-ui__badge', $html );
+		$this->assertStringNotContainsString( 'data-status-badge', $html );
+
+		self::set_score( $coverage_id, '' );
+
+		$html = do_blocks(
+			self::scoreboard(
+				[
+					'coverageId'        => $coverage_id,
+					'showStatusAsBadge' => true,
+				]
+			)
+		);
+
+		$this->assertMatchesRegularExpression( '/<p [^>]*data-rc-score="status" hidden><\/p>/', $html );
 	}
 
 	/**

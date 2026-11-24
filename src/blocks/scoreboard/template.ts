@@ -12,6 +12,9 @@ import type { TemplateItem } from '../rolling-coverage/types';
 
 const SCORE_BINDINGS_SOURCE = 'newspack-rolling-coverage/score';
 
+// Scoreboard_Block::STATUS_BADGE_CONTEXT.
+const STATUS_BADGE_CONTEXT = 'newspack-rolling-coverage/statusAsBadge';
+
 const DASH_CLASS = 'newspack-rolling-coverage-scoreboard__dash';
 
 /**
@@ -190,6 +193,7 @@ function scoreboardTemplate( {
 export {
 	DASH_CLASS,
 	SCORE_BINDINGS_SOURCE,
+	STATUS_BADGE_CONTEXT,
 	headingFontFamily,
 	scoreboardTemplate,
 };

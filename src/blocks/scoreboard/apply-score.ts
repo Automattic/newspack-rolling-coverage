@@ -9,6 +9,7 @@ import {
 	type Score,
 	type ScoreKey,
 } from '../shared/score';
+import { badgeClasses, badgeStatus } from '../shared/status-badges';
 
 const PART_ATTRIBUTE = 'data-rc-score';
 const ANNOUNCE_SELECTOR = '[data-rc-score-announce]';
@@ -52,9 +53,42 @@ function renderedLine( block: HTMLElement ): string | null {
 }
 
 /**
+ * Shows the status line as the Coverage Status badge of the score's badge
+ * style, adding the badge to a line rendered empty.
+ *
+ * @param {HTMLElement} element The status line's element.
+ * @param {Score}       score   The score.
+ */
+function applyBadge( element: HTMLElement, score: Score ): void {
+	const text = scorePart( score, 'status' );
+
+	if ( text === '' ) {
+		element.replaceChildren();
+		return;
+	}
+
+	let badge = element.querySelector< HTMLElement >( '.newspack-ui__badge' );
+
+	if ( ! badge ) {
+		badge = element.ownerDocument.createElement( 'span' );
+		element.replaceChildren( badge );
+	}
+
+	badge.className = `newspack-ui__badge ${ badgeClasses(
+		badgeStatus( score.badge ),
+		true
+	) }`;
+
+	if ( badge.textContent !== text ) {
+		badge.textContent = text;
+	}
+}
+
+/**
  * Shows a score in a scoreboard, and tells screen readers when the two
  * scores change. A change of names or status line updates silently. Without
- * a score the scoreboard hides, as a fresh render does.
+ * a score the scoreboard hides, as a fresh render does. A scoreboard that
+ * shows the status line as a badge (`data-status-badge`) keeps it one.
  * With several scoreboards of one coverage on a page, only one announces,
  * so screen readers hear each change once.
  *
@@ -81,10 +115,14 @@ function applyScore(
 	block.hidden = false;
 	shownLines.set( block, line );
 
+	const asBadge = block.dataset.statusBadge === 'true';
+
 	parts( block ).forEach( ( [ element, key ] ) => {
 		const text = scorePart( score, key );
 
-		if ( element.textContent !== text ) {
+		if ( key === 'status' && asBadge ) {
+			applyBadge( element, score );
+		} else if ( element.textContent !== text ) {
 			element.textContent = text;
 		}
 

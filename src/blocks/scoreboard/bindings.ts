@@ -15,9 +15,11 @@ import {
 	isScore,
 	scorePart,
 	type ScoreKey,
+	type Score,
 } from '../shared/score';
+import { badgeClasses, badgeStatus } from '../shared/status-badges';
 import { sampleScore } from './sample';
-import { SCORE_BINDINGS_SOURCE } from './template';
+import { SCORE_BINDINGS_SOURCE, STATUS_BADGE_CONTEXT } from './template';
 
 const COVERAGE_TAXONOMY = 'rolling_coverage';
 // Edit context needs manage_categories, which Authors and Contributors lack.
@@ -52,6 +54,29 @@ function fieldLabels(): Record< ScoreKey, string > {
 }
 
 /**
+ * One part of a score as HTML, escaped, mirroring Scoreboard_Block::get_value():
+ * in a scoreboard that shows the status line as a badge, the status line is
+ * the Coverage Status badge of the score's badge style.
+ *
+ * @param {Score}   score   The score.
+ * @param {string}  key     The part.
+ * @param {boolean} asBadge Whether the status line shows as a badge.
+ * @return {string} The HTML.
+ */
+function partHTML( score: Score, key: ScoreKey, asBadge: boolean ): string {
+	const text = escapeHTML( scorePart( score, key ) );
+
+	if ( key !== 'status' || ! asBadge || text === '' ) {
+		return text;
+	}
+
+	return `<span class="newspack-ui__badge ${ badgeClasses(
+		badgeStatus( score.badge ),
+		true
+	) }">${ text }</span>`;
+}
+
+/**
  * Mirrors Scoreboard_Block::get_value() in the editor: the parts of the
  * score of the coverage in context, or of a sample score where there is no
  * coverage or it has no score yet, so the scoreboard can still be styled.
@@ -61,7 +86,7 @@ function fieldLabels(): Record< ScoreKey, string > {
  */
 registerBlockBindingsSource( {
 	name: SCORE_BINDINGS_SOURCE,
-	usesContext: [ COVERAGE_ID_CONTEXT ],
+	usesContext: [ COVERAGE_ID_CONTEXT, STATUS_BADGE_CONTEXT ],
 	getValues( { bindings, context, select }: BindingsArgs ) {
 		const coverageId = Number( context?.[ COVERAGE_ID_CONTEXT ] ) || 0;
 		const stored = coverageId
@@ -73,6 +98,7 @@ registerBlockBindingsSource( {
 				)?.meta?.[ SCORE_META_KEY ]
 			: null;
 		const score = isScore( stored ) ? stored : sampleScore();
+		const asBadge = context?.[ STATUS_BADGE_CONTEXT ] === true;
 
 		return Object.fromEntries(
 			Object.entries( bindings ).map( ( [ attribute, binding ] ) => {
@@ -81,7 +107,7 @@ registerBlockBindingsSource( {
 				return [
 					attribute,
 					SCORE_KEYS.includes( key )
-						? escapeHTML( scorePart( score, key ) )
+						? partHTML( score, key, asBadge )
 						: '',
 				];
 			} )

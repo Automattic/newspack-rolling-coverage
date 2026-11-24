@@ -32,6 +32,9 @@ class Scoreboard_Block {
 
 	const KEYS = [ 'team1Name', 'team1Score', 'team2Score', 'team2Name', 'status' ];
 
+	// Context key telling the bound blocks to show the status line as a badge.
+	const STATUS_BADGE_CONTEXT = 'newspack-rolling-coverage/statusAsBadge';
+
 	// Class of the dash between the scores, which screen readers skip.
 	const DASH_CLASS = 'newspack-rolling-coverage-scoreboard__dash';
 
@@ -70,7 +73,7 @@ class Scoreboard_Block {
 			[
 				'label'              => __( 'Liveblog Score', 'newspack-rolling-coverage' ),
 				'get_value_callback' => [ __CLASS__, 'get_value' ],
-				'uses_context'       => [ Entry_Bindings::COVERAGE_ID_CONTEXT ],
+				'uses_context'       => [ Entry_Bindings::COVERAGE_ID_CONTEXT, self::STATUS_BADGE_CONTEXT ],
 			]
 		);
 	}
@@ -101,8 +104,9 @@ class Scoreboard_Block {
 
 	/**
 	 * Hands the scoreboard's coverage to its inner blocks, in the context key
-	 * a feed sets for the blocks in its layout. Core passes it on down, so
-	 * blocks nested in a group inside the scoreboard get it too.
+	 * a feed sets for the blocks in its layout, and whether it shows the
+	 * status line as a badge. Core passes both on down, so blocks nested in
+	 * a group inside the scoreboard get them too.
 	 *
 	 * @param array         $context      Context of the block about to render.
 	 * @param array         $parsed_block That block.
@@ -117,12 +121,15 @@ class Scoreboard_Block {
 		$context = (array) $context;
 
 		$context[ Entry_Bindings::COVERAGE_ID_CONTEXT ] = self::coverage_id( $parent_block );
+		$context[ self::STATUS_BADGE_CONTEXT ]          = ! empty( $parent_block->attributes['showStatusAsBadge'] );
 
 		return $context;
 	}
 
 	/**
-	 * Resolves a bound part of the score of the coverage in context.
+	 * Resolves a bound part of the score of the coverage in context, as
+	 * HTML. In a scoreboard that shows the status line as a badge, the
+	 * status line is the Coverage Status badge of the score's badge style.
 	 *
 	 * @param array    $source_args Binding args; `key` names the part.
 	 * @param WP_Block $block       The bound block.
@@ -136,7 +143,13 @@ class Scoreboard_Block {
 			return null;
 		}
 
-		return esc_html( self::part( $score, $key ) );
+		$text = esc_html( self::part( $score, $key ) );
+
+		if ( 'status' === $key && '' !== $text && ! empty( $block->context[ self::STATUS_BADGE_CONTEXT ] ) ) {
+			return sprintf( '<span class="%s">%s</span>', esc_attr( Coverage_Status_Block::badge_class_names( $score['badge'] ) ), $text );
+		}
+
+		return $text;
 	}
 
 	/**
@@ -229,16 +242,20 @@ class Scoreboard_Block {
 			return '';
 		}
 
+		$wrapper = [
+			'data-coverage-id'   => $coverage_id,
+			'data-status'        => $status,
+			'data-score-url'     => rest_url( sprintf( '%s/coverages/%d/score', NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE, $coverage_id ) ),
+			'data-poll-interval' => max( self::POLL_INTERVAL, Rolling_Coverage_Block::get_min_poll_interval() ),
+		];
+
+		if ( ! empty( $attributes['showStatusAsBadge'] ) ) {
+			$wrapper['data-status-badge'] = 'true';
+		}
+
 		return sprintf(
 			'<div %s%s>%s<div class="screen-reader-text" aria-live="polite" aria-atomic="true" data-rc-score-announce></div></div>',
-			get_block_wrapper_attributes(
-				[
-					'data-coverage-id'   => $coverage_id,
-					'data-status'        => $status,
-					'data-score-url'     => rest_url( sprintf( '%s/coverages/%d/score', NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE, $coverage_id ) ),
-					'data-poll-interval' => max( self::POLL_INTERVAL, Rolling_Coverage_Block::get_min_poll_interval() ),
-				]
-			),
+			get_block_wrapper_attributes( $wrapper ),
 			$score ? '' : ' hidden',
 			$content
 		);

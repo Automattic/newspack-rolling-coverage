@@ -8,7 +8,7 @@ import {
 	useInnerBlocksProps,
 	store as blockEditorStore,
 } from '@wordpress/block-editor';
-import { Notice, PanelBody } from '@wordpress/components';
+import { Notice, PanelBody, ToggleControl } from '@wordpress/components';
 import { store as coreStore } from '@wordpress/core-data';
 import { useSelect } from '@wordpress/data';
 import { useMemo, useState } from '@wordpress/element';
@@ -21,7 +21,11 @@ import CoverageChoice from '../shared/coverage-choice';
 import { useBlockCoverage } from '../shared/block-coverage';
 import { COVERAGE_ID_CONTEXT } from '../shared/entry-bindings';
 import { isScore } from '../shared/score';
-import { headingFontFamily, scoreboardTemplate } from './template';
+import {
+	STATUS_BADGE_CONTEXT,
+	headingFontFamily,
+	scoreboardTemplate,
+} from './template';
 import type { ScoreboardAttributes } from './types';
 
 interface ScoreboardConfig {
@@ -72,7 +76,7 @@ export default function Edit( {
 	setAttributes: ( attrs: Partial< ScoreboardAttributes > ) => void;
 	context?: Record< string, unknown >;
 } ) {
-	const { coverageId } = attributes;
+	const { coverageId, showStatusAsBadge } = attributes;
 	const [ customChosen, setCustomChosen ] = useState( false );
 
 	const {
@@ -190,8 +194,11 @@ export default function Edit( {
 	const blockProps = useBlockProps();
 	const innerBlocksProps = useInnerBlocksProps( blockProps, { template } );
 	const blockContext = useMemo(
-		() => ( { [ COVERAGE_ID_CONTEXT ]: followed } ),
-		[ followed ]
+		() => ( {
+			[ COVERAGE_ID_CONTEXT ]: followed,
+			[ STATUS_BADGE_CONTEXT ]: showStatusAsBadge,
+		} ),
+		[ followed, showStatusAsBadge ]
 	);
 
 	let notice = '';
@@ -241,6 +248,25 @@ export default function Edit( {
 						/>
 					</PanelBody>
 				) }
+				<PanelBody
+					title={ __( 'Settings', 'newspack-rolling-coverage' ) }
+				>
+					<ToggleControl
+						__nextHasNoMarginBottom
+						label={ __(
+							'Show status as a badge',
+							'newspack-rolling-coverage'
+						) }
+						help={ __(
+							'Pick the badge’s style next to Status in the liveblog’s score.',
+							'newspack-rolling-coverage'
+						) }
+						checked={ showStatusAsBadge }
+						onChange={ ( value ) =>
+							setAttributes( { showStatusAsBadge: value } )
+						}
+					/>
+				</PanelBody>
 				{ notice && (
 					<PanelBody>
 						<Notice

@@ -16,6 +16,10 @@
 		"coverageId": {
 			"type": "number",
 			"default": 0
+		},
+		"showStatusAsBadge": {
+			"type": "boolean",
+			"default": false
 		}
 	},
 	"supports": {
