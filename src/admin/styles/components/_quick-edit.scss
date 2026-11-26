@@ -92,7 +92,7 @@ $quick-edit-footer-clearance: 72px;
 	flex-shrink: 0;
 	width: wp-vars.$sidebar-width;
 	overflow-y: auto;
-	background-color: var(--wpds-color-background-surface-neutral, #{wp-colors.$white});
+	background-color: var(--wpds-color-background-surface-neutral-strong, #{wp-colors.$white});
 	border-inline-start: var(--wpds-border-width-xs, #{wp-vars.$border-width}) solid var(--wpds-color-stroke-surface-neutral, #{wp-colors.$gray-300});
 
 	.block-editor-block-inspector {
