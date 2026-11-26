@@ -44,13 +44,11 @@ const EDITOR_SAVE_NOTICE_ID = 'editor-save';
  *
  * @param onSaved   Called after each successful save.
  * @param onSettled Called after each save, successful or not.
- * @param onStarted Called as each save starts.
  * @return Whether a save is running.
  */
 function useQuickEditSaveResult(
 	onSaved: () => void,
-	onSettled?: () => void,
-	onStarted?: () => void
+	onSettled?: () => void
 ): boolean {
 	const { createErrorNotice, removeNotice } = useDispatch( noticesStore );
 
@@ -85,7 +83,6 @@ function useQuickEditSaveResult(
 			wasSavingRef.current = true;
 			removeNotice( SAVE_ERROR_NOTICE_ID );
 			removeNotice( EDITOR_SAVE_NOTICE_ID );
-			onStarted?.();
 			return;
 		}
 		if ( ! wasSavingRef.current || isSavingPost ) {
@@ -114,7 +111,6 @@ function useQuickEditSaveResult(
 		removeNotice,
 		onSaved,
 		onSettled,
-		onStarted,
 	] );
 
 	return isSavingPost;

@@ -155,10 +155,9 @@ function EditorReadySignal( { onReady }: { onReady: () => void } ) {
  * Summary". The editor needs a post to work on before anything is saved,
  * so the modal first asks the plugin's route for an empty auto-draft in the
  * coverage, as `post-new.php` does for a post, then opens it like any entry.
- * An entry's save buttons close the modal once the save succeeds, and
- * their "and keep editing" menu and the save shortcut leave it open; a new
- * Summary's first successful save closes it, since it is in the list now.
- * Either way the editor's own save snackbar shows on the page.
+ * Saving keeps the modal open, except a new Summary's first successful
+ * save, which closes it since the Summary is in the list now, and the
+ * editor's own save snackbar then shows on the page.
  * Closing a new entry or Summary before its first save deletes the
  * auto-draft, which is still empty on the server; one left behind another
  * way (the tab closed, say) is deleted by core's auto-draft cleanup a week
@@ -305,41 +304,34 @@ function QuickEditModal( {
 		[ requestConfirm, handleClose ]
 	);
 
-	// An entry's layout says whether its save closes Quick Edit; a new
-	// Summary closes once it is in the list, and an existing one stays open.
-	// Edits made while the save was running weren't sent, so they keep it
+	// Saving keeps Quick Edit open and refreshes the entry's row, except a
+	// new Summary's first save, which closes it once it is in the list.
+	// Edits made while that save was running weren't sent, so they keep it
 	// open. The editor's own "Draft saved." or "Entry published." snackbar
 	// arrives a tick after the save finishes and then shows on the page, so
 	// unlike Cancel this close leaves the notices alone.
 	const pageRegistry = useRegistry();
-	const handleSaved = useCallback(
-		( shouldClose: boolean = isNew && isSummaryLayout ) => {
-			const hasUnsavedEdits =
-				recordId !== null &&
-				(
-					pageRegistry.select( coreStore ) as unknown as CoreSelectors
-				 ).hasEditsForEntityRecord(
-					'postType',
-					config.postType,
-					recordId
-				);
-			if ( shouldClose && ! hasUnsavedEdits ) {
-				onClose();
-				onSaved();
-			} else if ( recordId !== null ) {
-				onSaved( recordId );
-			}
-		},
-		[
-			isNew,
-			isSummaryLayout,
-			recordId,
-			pageRegistry,
-			config.postType,
-			onClose,
-			onSaved,
-		]
-	);
+	const handleSaved = useCallback( () => {
+		const hasUnsavedEdits =
+			recordId !== null &&
+			(
+				pageRegistry.select( coreStore ) as unknown as CoreSelectors
+			 ).hasEditsForEntityRecord( 'postType', config.postType, recordId );
+		if ( isNew && isSummaryLayout && ! hasUnsavedEdits ) {
+			onClose();
+			onSaved();
+		} else if ( recordId !== null ) {
+			onSaved( recordId );
+		}
+	}, [
+		isNew,
+		isSummaryLayout,
+		recordId,
+		pageRegistry,
+		config.postType,
+		onClose,
+		onSaved,
+	] );
 
 	const settings = useMemo(
 		() =>

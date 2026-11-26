@@ -740,8 +740,8 @@ interface QuickEditEditorLayoutProps {
 	/** Whether push notifications are set up. */
 	canNotify: boolean;
 	onClose: () => void;
-	/** Called after each successful save, with whether it closes Quick Edit. */
-	onSaved: ( shouldClose: boolean ) => void;
+	/** Called after each successful save. */
+	onSaved: () => void;
 }
 
 interface QuickEditEditorHeaderProps {
@@ -749,8 +749,8 @@ interface QuickEditEditorHeaderProps {
 	isSidebarOpen: boolean;
 	onToggleSidebar: () => void;
 	onClose: () => void;
-	/** Called after each successful save, with whether it closes Quick Edit. */
-	onSaved: ( shouldClose: boolean ) => void;
+	/** Called after each successful save. */
+	onSaved: () => void;
 }
 
 interface QuickEditSidebarProps {
