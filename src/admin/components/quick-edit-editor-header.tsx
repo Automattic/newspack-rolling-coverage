@@ -55,7 +55,9 @@ const PublishButtonLabel = PostPublishButtonLabel as unknown as ComponentType;
  * status: for an entry locked by Archive Mode, and while another entity has
  * unsaved edits, since core's Publish button then reads Save but still
  * publishes a draft. That Save also saves the other entities' edits, which
- * the post editor leaves to its save panel.
+ * the post editor leaves to its save panel, but never another entry's: the
+ * page shares one undo history, so another entry's edits may come from an
+ * Undo in this Quick Edit rather than from anything typed here.
  *
  * A save started from these buttons closes Quick Edit once it succeeds. The
  * primary button is a split button whose menu offers the same save "and
@@ -136,16 +138,11 @@ function QuickEditEditorHeader( {
 			editorStore
 		) as unknown as EditorSelectors;
 		const postType = editor.getCurrentPostType();
-		const postId = editor.getCurrentPostId();
 		( registry.select( coreStore ) as unknown as CoreSelectors )
 			.__experimentalGetDirtyEntityRecords()
 			.filter(
 				( record ) =>
-					! (
-						record.kind === 'postType' &&
-						record.name === postType &&
-						String( record.key ) === String( postId )
-					)
+					! ( record.kind === 'postType' && record.name === postType )
 			)
 			.forEach( ( record ) =>
 				saveEditedEntityRecord( record.kind, record.name, record.key )
