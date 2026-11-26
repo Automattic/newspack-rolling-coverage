@@ -314,6 +314,57 @@ class Admin {
 	}
 
 	/**
+	 * Preload the REST responses the block editor waits on before Quick Edit
+	 * can show it, as the post editor's screen does in
+	 * `wp-admin/edit-form-blocks.php`. Without them `EditorProvider` asks for
+	 * the post type, the active theme and the site's settings in chained
+	 * requests after the entry has loaded, each of which boots WordPress again.
+	 */
+	private static function preload_editor_data(): void {
+		$active_theme     = get_stylesheet();
+		$global_styles_id = \WP_Theme_JSON_Resolver::get_user_global_styles_post_id();
+		$global_styles    = current_user_can( 'edit_theme_options' ) ? 'edit' : 'view';
+
+		$preload_paths = [
+			'/wp/v2/types?context=view',
+			sprintf( '/wp/v2/types/%s?context=edit', Post_Type::CPT_SLUG ),
+			[ rest_get_route_for_post_type_items( 'attachment' ), 'OPTIONS' ],
+			[ rest_get_route_for_post_type_items( 'page' ), 'OPTIONS' ],
+			'/wp/v2/settings',
+			[ '/wp/v2/settings', 'OPTIONS' ],
+			'/wp/v2/global-styles/themes/' . $active_theme . '?context=view',
+			'/wp/v2/themes?context=edit&status=active',
+			[ '/wp/v2/global-styles/' . $global_styles_id, 'OPTIONS' ],
+			'/wp/v2/global-styles/' . $global_styles_id . '?context=' . $global_styles,
+			'/wp/v2/block-patterns/categories',
+			// Must match core-data's request for the site's base data, field order included.
+			'/?_fields=' . implode(
+				',',
+				[
+					'description',
+					'gmt_offset',
+					'home',
+					'image_max_bit_depth',
+					'image_sizes',
+					'image_size_threshold',
+					'image_strip_meta',
+					'name',
+					'site_icon',
+					'site_icon_url',
+					'site_logo',
+					'timezone_string',
+					'url',
+					'page_for_posts',
+					'page_on_front',
+					'show_on_front',
+				]
+			),
+		];
+
+		block_editor_rest_api_preload( $preload_paths, new \WP_Block_Editor_Context() );
+	}
+
+	/**
 	 * Load Co-Authors Plus's Authors panel for Quick Edit. Co-Authors Plus
 	 * only loads it on the edit screens of the post types it supports, and
 	 * an admin page isn't one.
@@ -534,6 +585,7 @@ class Admin {
 
 		if ( isset( self::$page_hooks['coverages'] ) && self::$page_hooks['coverages'] === $hook_suffix ) {
 			self::enqueue_coauthors_panel();
+			self::preload_editor_data();
 		}
 
 		// Media library for Image/Gallery blocks.

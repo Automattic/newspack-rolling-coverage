@@ -36,6 +36,9 @@ const SYNC_INTERVAL_MS = 10000;
  * auto-draft, which the first save turns into a draft or publishes. With
  * `isSummary`, it starts a new auto-draft of the coverage's Summary
  * instead, which the server refuses while the coverage has a saved one.
+ * The response carries the new entry as the core entries route returns it,
+ * which is handed to api-fetch's preloading middleware so the editor opens
+ * it without a second round trip.
  *
  * @param {string}  restNamespace - REST namespace URL (from config.restBaseUrls.restNamespace).
  * @param {number}  coverageId    - The coverage term ID the entry is added to.
@@ -48,11 +51,20 @@ async function createEntry(
 	isSummary = false
 ): Promise< CreateEntryResult > {
 	try {
-		const entry = await apiFetch< { id: number } >( {
+		const entry = await apiFetch< {
+			id: number;
+			preload?: Record< string, unknown >;
+		} >( {
 			url: `${ restNamespace }coverages/${ coverageId }/entries`,
 			method: 'POST',
 			...( isSummary ? { data: { summary: true } } : {} ),
 		} );
+
+		if ( entry.preload && Object.keys( entry.preload ).length ) {
+			apiFetch.use(
+				apiFetch.createPreloadingMiddleware( entry.preload )
+			);
+		}
 
 		return { success: true, id: entry.id };
 	} catch ( error ) {

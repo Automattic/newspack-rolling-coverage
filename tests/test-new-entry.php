@@ -83,6 +83,23 @@ class Test_New_Entry extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * The route hands back the auto-draft as the core route returns it in the
+	 * edit context, keyed by that request's path, so Quick Edit opens it
+	 * without asking for it again.
+	 */
+	public function test_route_preloads_the_entry_for_the_editor() {
+		self::log_in_as( 'contributor' );
+		$data     = self::start_entry( self::create_coverage() )->get_data();
+		$entry_id = $data['id'];
+		$preload  = (array) $data['preload'];
+		$path     = '/wp/v2/' . Post_Type::REST_BASE . "/{$entry_id}?context=edit";
+
+		$this->assertSame( [ $path ], array_keys( $preload ), 'The preload should be keyed by the request the editor makes.' );
+		$this->assertSame( $entry_id, $preload[ $path ]['body']['id'] );
+		$this->assertSame( '', $preload[ $path ]['body']['title']['raw'], 'The preload should be in the edit context.' );
+	}
+
+	/**
 	 * Starting an entry needs the capability to create entries.
 	 */
 	public function test_route_is_closed_to_users_who_cannot_create_entries() {

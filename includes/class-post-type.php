@@ -1025,7 +1025,15 @@ class Post_Type {
 			wp_schedule_event( time(), 'daily', 'wp_scheduled_auto_draft_delete' );
 		}
 
-		return new WP_REST_Response( [ 'id' => $entry_id ], 201 );
+		$entry_path = rest_get_route_for_post( $entry_id ) . '?context=edit';
+
+		return new WP_REST_Response(
+			[
+				'id'      => $entry_id,
+				'preload' => (object) rest_preload_api_request( [], $entry_path ),
+			],
+			201
+		);
 	}
 
 	/**
