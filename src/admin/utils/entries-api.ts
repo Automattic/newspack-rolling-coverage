@@ -1,7 +1,7 @@
 /**
  * WordPress dependencies
  */
-import apiFetch from '@wordpress/api-fetch';
+import apiFetch, { type APIFetchMiddleware } from '@wordpress/api-fetch';
 import { store as coreStore } from '@wordpress/core-data';
 import { dispatch } from '@wordpress/data';
 
@@ -30,6 +30,27 @@ import type {
 } from '../types';
 
 const SYNC_INTERVAL_MS = 10000;
+
+let newEntryPreload: APIFetchMiddleware | null = null;
+let isNewEntryPreloadRegistered = false;
+
+/**
+ * Hands the latest new entry's response to api-fetch's preloading
+ * middleware. api-fetch can't remove a middleware, so one is registered for
+ * the page's lifetime and each new entry replaces what it serves.
+ *
+ * @param {Record<string, unknown>} preload - Responses keyed by request path.
+ */
+function preloadNewEntry( preload: Record< string, unknown > ): void {
+	newEntryPreload = apiFetch.createPreloadingMiddleware( preload );
+	if ( isNewEntryPreloadRegistered ) {
+		return;
+	}
+	isNewEntryPreloadRegistered = true;
+	apiFetch.use( ( options, next ) =>
+		newEntryPreload ? newEntryPreload( options, next ) : next( options )
+	);
+}
 
 /**
  * Starts a new entry in a coverage for Quick Edit to open: an empty
@@ -61,9 +82,7 @@ async function createEntry(
 		} );
 
 		if ( entry.preload && Object.keys( entry.preload ).length ) {
-			apiFetch.use(
-				apiFetch.createPreloadingMiddleware( entry.preload )
-			);
+			preloadNewEntry( entry.preload );
 		}
 
 		return { success: true, id: entry.id };
