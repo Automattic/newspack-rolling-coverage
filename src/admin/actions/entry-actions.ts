@@ -121,7 +121,6 @@ function getEntryActions(
 		{
 			id: 'quick-edit',
 			label: __( 'Quick Edit', 'newspack-rolling-coverage' ),
-			isPrimary: true,
 			isEligible: ( entry: Entry ) =>
 				canEditRow( entry ) && ! getEntryEditWarning( entry ),
 			callback: ( items: Entry[] ) => {
@@ -133,7 +132,6 @@ function getEntryActions(
 		{
 			id: 'quick-edit-confirm',
 			label: __( 'Quick Edit', 'newspack-rolling-coverage' ),
-			isPrimary: true,
 			isEligible: ( entry: Entry ) =>
 				canEditRow( entry ) && Boolean( getEntryEditWarning( entry ) ),
 			modalSize: 'small',

@@ -429,8 +429,8 @@ function EntryView() {
 
 	const { requestConfirm, dialog: confirmDialog } = useConfirmDialog();
 
-	// An entry's title opens Quick Edit wherever the row offers it, asking
-	// first on the rows where the Quick Edit action asks.
+	// An entry's title opens Quick Edit on rows the user can edit that aren't
+	// trashed, asking first where the Quick Edit action asks.
 	const canClickEntry = useCallback(
 		( entry: Entry ) =>
 			entry.status !== 'trash' && canEditEntryRow( config, entry ),
