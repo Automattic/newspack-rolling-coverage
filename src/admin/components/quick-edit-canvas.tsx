@@ -56,7 +56,7 @@ function QuickEditCanvas( {
 		<div className="newspack-rolling-coverage-quick-edit__canvas">
 			<BlockCanvas height="100%" styles={ canvasStyles }>
 				<div
-					className={ `editor-visual-editor__post-title-wrapper${ layoutClassName }` }
+					className={ `editor-visual-editor__post-title-wrapper edit-post-visual-editor__post-title-wrapper${ layoutClassName }` }
 				>
 					<PostTitle
 						ref={ titleRef as Ref< { focus: () => void } > }
