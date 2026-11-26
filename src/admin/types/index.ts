@@ -715,6 +715,8 @@ interface QuickEditSaveBarProps {
 interface QuickEditCanvasProps {
 	styles: unknown[];
 	supportsLayout: boolean;
+	/** The theme's `layout` setting: its content and wide sizes. */
+	themeLayout?: { contentSize?: string; wideSize?: string };
 	/** Receives `PostTitle`'s handle, to focus a new entry's title. */
 	titleRef: ( postTitle: { focus: () => void } | null ) => void;
 }

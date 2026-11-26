@@ -41,7 +41,11 @@ import { quickEditPreferencesStore } from '../utils/quick-edit-preferences';
 import { QuickEditCanvas } from './quick-edit-canvas';
 import { QuickEditCommentLayout } from './quick-edit-comment-layout';
 import { QuickEditEditorLayout } from './quick-edit-editor-layout';
-import type { QuickEditModalProps, EntityRecord } from '../types';
+import type {
+	QuickEditModalProps,
+	QuickEditCanvasProps,
+	EntityRecord,
+} from '../types';
 
 /**
  * Gives the editor its own preferences store, with the block toolbar pinned
@@ -405,6 +409,13 @@ function QuickEditModal( {
 		<QuickEditCanvas
 			styles={ settings.styles as unknown[] }
 			supportsLayout={ Boolean( settings.supportsLayout ) }
+			themeLayout={
+				(
+					settings.__experimentalFeatures as
+						| { layout?: QuickEditCanvasProps[ 'themeLayout' ] }
+						| undefined
+				 )?.layout
+			}
 			titleRef={ focusNewEntryTitle }
 		/>
 	);

@@ -576,7 +576,7 @@ class Admin {
 		$page  = $route ? '/' . $route : '/coverages';
 
 		$block_editor_settings = get_block_editor_settings(
-			array(),
+			array( 'supportsLayout' => wp_theme_has_theme_json() ),
 			new \WP_Block_Editor_Context()
 		);
 
