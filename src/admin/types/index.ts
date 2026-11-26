@@ -799,6 +799,11 @@ type EditorSelectors = {
 	getCurrentPostId: () => number;
 };
 
+/** Selectors from the notices store. */
+type NoticesSelectors = {
+	getNotices: () => { id: string; status: string; content: string }[];
+};
+
 /** Selectors from the core-data store. */
 type CoreSelectors = {
 	getLastEntitySaveError: (
@@ -806,6 +811,16 @@ type CoreSelectors = {
 		name: string,
 		recordId: number
 	) => { message?: string } | undefined;
+	__experimentalGetDirtyEntityRecords: () => {
+		kind: string;
+		name: string;
+		key: string | number;
+	}[];
+	hasEditsForEntityRecord: (
+		kind: string,
+		name: string,
+		recordId: number
+	) => boolean;
 };
 
 interface EntryViewRow {
@@ -997,6 +1012,7 @@ export type {
 	EntityRecord,
 	EditorSelectors,
 	CoreSelectors,
+	NoticesSelectors,
 	BlockEditorSelectors,
 	TogglePinResult,
 };

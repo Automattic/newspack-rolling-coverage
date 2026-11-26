@@ -19,7 +19,8 @@ import {
 	PostSavedState,
 	store as editorStore,
 } from '@wordpress/editor';
-import { useDispatch, useSelect } from '@wordpress/data';
+import { store as coreStore } from '@wordpress/core-data';
+import { useDispatch, useRegistry, useSelect } from '@wordpress/data';
 import { useShortcut } from '@wordpress/keyboard-shortcuts';
 import { chevronDown, close, drawerLeft, drawerRight } from '@wordpress/icons';
 import { __, isRTL } from '@wordpress/i18n';
@@ -29,7 +30,11 @@ import { __, isRTL } from '@wordpress/i18n';
  */
 import { useQuickEditSaveResult } from '../hooks/useQuickEditSaveResult';
 import { QuickEditDocumentTools } from './quick-edit-document-tools';
-import type { EditorSelectors, QuickEditEditorHeaderProps } from '../types';
+import type {
+	CoreSelectors,
+	EditorSelectors,
+	QuickEditEditorHeaderProps,
+} from '../types';
 
 // The editor's JS components carry inferred types that mark optional props
 // as required.
@@ -49,7 +54,8 @@ const PublishButtonLabel = PostPublishButtonLabel as unknown as ComponentType;
  * for the pre-publish panel. Otherwise a single Save keeps the entry's
  * status: for an entry locked by Archive Mode, and while another entity has
  * unsaved edits, since core's Publish button then reads Save but still
- * publishes a draft.
+ * publishes a draft. That Save also saves the other entities' edits, which
+ * the post editor leaves to its save panel.
  *
  * A save started from these buttons closes Quick Edit once it succeeds. The
  * primary button is a split button whose menu offers the same save "and
@@ -71,11 +77,14 @@ function QuickEditEditorHeader( {
 	onClose,
 	onSaved,
 }: QuickEditEditorHeaderProps ) {
+	const registry = useRegistry();
 	const { savePost } = useDispatch( editorStore );
+	const { saveEditedEntityRecord } = useDispatch( coreStore );
 	const {
 		isEditorReady,
 		isDirty,
 		hasNonPostEntityChanges,
+		isSavingLocked,
 		canPublishButtonSave,
 	} = useSelect( ( select ) => {
 		const editor = select( editorStore ) as unknown as EditorSelectors & {
@@ -86,6 +95,7 @@ function QuickEditEditorHeader( {
 			isEditorReady: editor.__unstableIsEditorReady?.() ?? false,
 			isDirty: editor.isEditedPostDirty(),
 			hasNonPostEntityChanges: editor.hasNonPostEntityChanges(),
+			isSavingLocked: editor.isPostSavingLocked(),
 			canPublishButtonSave:
 				! editor.isPostSavingLocked() &&
 				editor.isEditedPostSaveable() &&
@@ -117,8 +127,31 @@ function QuickEditEditorHeader( {
 	const isPublishButton = canChangeStatus && ! hasNonPostEntityChanges;
 	const canPlainSave =
 		! isSavingPost &&
+		! isSavingLocked &&
 		isEditorReady &&
 		( isDirty || hasNonPostEntityChanges );
+
+	const saveEntryAndEntities = () => {
+		const editor = registry.select(
+			editorStore
+		) as unknown as EditorSelectors;
+		const postType = editor.getCurrentPostType();
+		const postId = editor.getCurrentPostId();
+		( registry.select( coreStore ) as unknown as CoreSelectors )
+			.__experimentalGetDirtyEntityRecords()
+			.filter(
+				( record ) =>
+					! (
+						record.kind === 'postType' &&
+						record.name === postType &&
+						String( record.key ) === String( postId )
+					)
+			)
+			.forEach( ( record ) =>
+				saveEditedEntityRecord( record.kind, record.name, record.key )
+			);
+		savePost();
+	};
 	const canKeepEditing = isPublishButton
 		? ! isSavingPost && canPublishButtonSave
 		: canPlainSave;
@@ -131,7 +164,7 @@ function QuickEditEditorHeader( {
 				?.querySelector< HTMLButtonElement >( 'button' )
 				?.click();
 		} else {
-			savePost();
+			saveEntryAndEntities();
 		}
 		closeOnNextSaveRef.current = false;
 	};
@@ -155,7 +188,7 @@ function QuickEditEditorHeader( {
 						) : (
 							<Button
 								variant="primary"
-								onClick={ () => savePost() }
+								onClick={ saveEntryAndEntities }
 								isBusy={ isSavingPost }
 								disabled={ ! canPlainSave }
 								accessibleWhenDisabled

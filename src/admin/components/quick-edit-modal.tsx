@@ -45,6 +45,7 @@ import type {
 	QuickEditModalProps,
 	QuickEditCanvasProps,
 	EntityRecord,
+	CoreSelectors,
 } from '../types';
 
 /**
@@ -299,19 +300,38 @@ function QuickEditModal( {
 
 	// An entry's layout says whether its save closes Quick Edit; a new
 	// Summary closes once it is in the list, and an existing one stays open.
-	// The editor's own "Draft saved." or "Entry published." snackbar arrives
-	// a tick after the save finishes and then shows on the page, so unlike
-	// Cancel this close leaves the notices alone.
+	// Edits made while the save was running weren't sent, so they keep it
+	// open. The editor's own "Draft saved." or "Entry published." snackbar
+	// arrives a tick after the save finishes and then shows on the page, so
+	// unlike Cancel this close leaves the notices alone.
+	const pageRegistry = useRegistry();
 	const handleSaved = useCallback(
 		( shouldClose: boolean = isNew && isSummaryLayout ) => {
-			if ( shouldClose ) {
+			const hasUnsavedEdits =
+				recordId !== null &&
+				(
+					pageRegistry.select( coreStore ) as unknown as CoreSelectors
+				 ).hasEditsForEntityRecord(
+					'postType',
+					config.postType,
+					recordId
+				);
+			if ( shouldClose && ! hasUnsavedEdits ) {
 				onClose();
 				onSaved();
 			} else if ( recordId !== null ) {
 				onSaved( recordId );
 			}
 		},
-		[ isNew, isSummaryLayout, recordId, onClose, onSaved ]
+		[
+			isNew,
+			isSummaryLayout,
+			recordId,
+			pageRegistry,
+			config.postType,
+			onClose,
+			onSaved,
+		]
 	);
 
 	const settings = useMemo(

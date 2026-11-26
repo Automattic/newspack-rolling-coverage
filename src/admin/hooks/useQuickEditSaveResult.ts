@@ -11,10 +11,17 @@ import { __ } from '@wordpress/i18n';
 /**
  * Internal dependencies
  */
-import type { EditorSelectors, CoreSelectors } from '../types';
+import type {
+	EditorSelectors,
+	CoreSelectors,
+	NoticesSelectors,
+} from '../types';
 
 /** The failed-save notice, so the next save can remove it. */
 const SAVE_ERROR_NOTICE_ID = 'newspack-rolling-coverage-quick-edit-save-error';
+
+/** The editor's own save notice, which also reports filter failures. */
+const EDITOR_SAVE_NOTICE_ID = 'editor-save';
 
 /**
  * Reports how each Quick Edit save ends, whichever button started it: ours,
@@ -22,7 +29,10 @@ const SAVE_ERROR_NOTICE_ID = 'newspack-rolling-coverage-quick-edit-save-error';
  *
  * `savePost()` never rejects on failure, so the result is detected by
  * watching `isSavingPost` transition to `false` and then reading
- * `didPostSaveRequestFail()`. All store reads go through `useSelect`, so
+ * `didPostSaveRequestFail()`. That only covers the request itself; a
+ * failure in an `editor.preSavePost` filter or an `editor.savePost` action
+ * shows only as the editor's `editor-save` error notice, so that counts as
+ * a failure too. All store reads go through `useSelect`, so
  * this must run inside `EditorProvider` to resolve in its sub-registry.
  *
  * The editor's own failure notice isn't a snackbar, so a failed save gets an
@@ -44,17 +54,27 @@ function useQuickEditSaveResult(
 ): boolean {
 	const { createErrorNotice, removeNotice } = useDispatch( noticesStore );
 
-	const { isSavingPost, didFail, lastSaveError } = useSelect( ( select ) => {
+	const { isSavingPost, didFail, errorMessage } = useSelect( ( select ) => {
 		const editor = select( editorStore ) as unknown as EditorSelectors;
 		const core = select( coreStore ) as unknown as CoreSelectors;
+		const saveNotice = (
+			select( noticesStore ) as unknown as NoticesSelectors
+		 )
+			.getNotices()
+			.find(
+				( notice ) =>
+					notice.id === EDITOR_SAVE_NOTICE_ID &&
+					notice.status === 'error'
+			);
 		return {
 			isSavingPost: editor.isSavingPost(),
-			didFail: editor.didPostSaveRequestFail(),
-			lastSaveError: core.getLastEntitySaveError(
-				'postType',
-				editor.getCurrentPostType(),
-				editor.getCurrentPostId()
-			),
+			didFail: editor.didPostSaveRequestFail() || !! saveNotice,
+			errorMessage:
+				core.getLastEntitySaveError(
+					'postType',
+					editor.getCurrentPostType(),
+					editor.getCurrentPostId()
+				)?.message || saveNotice?.content,
 		};
 	}, [] );
 
@@ -64,6 +84,7 @@ function useQuickEditSaveResult(
 		if ( isSavingPost && ! wasSavingRef.current ) {
 			wasSavingRef.current = true;
 			removeNotice( SAVE_ERROR_NOTICE_ID );
+			removeNotice( EDITOR_SAVE_NOTICE_ID );
 			onStarted?.();
 			return;
 		}
@@ -74,7 +95,7 @@ function useQuickEditSaveResult(
 		onSettled?.();
 		if ( didFail ) {
 			createErrorNotice(
-				lastSaveError?.message ||
+				errorMessage ||
 					__( 'Failed to save entry.', 'newspack-rolling-coverage' ),
 				{
 					id: SAVE_ERROR_NOTICE_ID,
@@ -88,7 +109,7 @@ function useQuickEditSaveResult(
 	}, [
 		isSavingPost,
 		didFail,
-		lastSaveError,
+		errorMessage,
 		createErrorNotice,
 		removeNotice,
 		onSaved,
