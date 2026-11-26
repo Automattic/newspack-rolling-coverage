@@ -122,6 +122,11 @@ function EntryView() {
 	const [ quickEditEntry, setQuickEditEntry ] = useState< Entry | null >(
 		null
 	);
+	// The open Quick Edit's entry as the list last returned it, for the
+	// sidebar's actions menu. A new entry has none until its first save.
+	const [ quickEditRow, setQuickEditRow ] = useState< Entry | null >( null );
+	const quickEditIdRef = useRef< number | null >( null );
+	const quickEditRefreshRef = useRef( 0 );
 
 	const [ detailsItems, setDetailsItems ] = useState< Entry[] >( [] );
 	const [ isDetailsOpen, setIsDetailsOpen ] = useState( false );
@@ -293,6 +298,8 @@ function EntryView() {
 			if ( edits ) {
 				clearEntityRecordEdits( 'postType', config.postType, entry.id );
 			}
+			quickEditIdRef.current = entry.id;
+			setQuickEditRow( entry );
 			setQuickEditEntry( entry );
 		},
 		[ registry, clearEntityRecordEdits, config.postType ]
@@ -302,16 +309,89 @@ function EntryView() {
 		refresh();
 	}, [ refresh ] );
 
-	const handleQuickEditClose = useCallback( () => {
+	const closeQuickEdit = useCallback( () => {
+		quickEditIdRef.current = null;
+		setQuickEditRow( null );
 		setQuickEditEntry( null );
+		setIsAddingEntry( false );
 	}, [] );
+
+	// Refetches the open entry's row by ID after a save or a menu action:
+	// the list's current page may not hold it, and the actions menu and
+	// status controls depend on its fresh state. An entry that is gone from
+	// the coverage or trashed closes Quick Edit.
+	const refreshQuickEditEntry = useCallback(
+		async ( id?: number ) => {
+			refresh();
+			if ( id !== undefined ) {
+				quickEditIdRef.current = id;
+			}
+			const entryId = quickEditIdRef.current;
+			if ( ! entryId || numericCoverageId === null ) {
+				return;
+			}
+			const requestNumber = ++quickEditRefreshRef.current;
+
+			let response: EntryPageResponse;
+			try {
+				response = await apiFetch< EntryPageResponse >( {
+					url: buildPageUrl(
+						config.restBaseUrls.entriesView,
+						numericCoverageId,
+						1,
+						1,
+						'date',
+						'desc',
+						'',
+						undefined,
+						undefined,
+						undefined,
+						undefined,
+						undefined,
+						undefined,
+						String( entryId )
+					),
+				} );
+			} catch {
+				return;
+			}
+
+			if (
+				quickEditIdRef.current !== entryId ||
+				quickEditRefreshRef.current !== requestNumber
+			) {
+				return;
+			}
+
+			const row = response.entries.find(
+				( candidate ) => candidate.id === entryId
+			);
+			if ( ! row || row.status === 'trash' ) {
+				clearEntityRecordEdits( 'postType', config.postType, entryId );
+				closeQuickEdit();
+				return;
+			}
+
+			setQuickEditRow( toEntry( row ) );
+		},
+		[
+			refresh,
+			numericCoverageId,
+			config,
+			clearEntityRecordEdits,
+			closeQuickEdit,
+		]
+	);
+
+	const handleQuickEditActionPerformed = useCallback(
+		() => refreshQuickEditEntry(),
+		[ refreshQuickEditEntry ]
+	);
 
 	const handleNewEntry = useCallback( () => {
+		quickEditIdRef.current = null;
+		setQuickEditRow( null );
 		setIsAddingEntry( true );
-	}, [] );
-
-	const handleNewEntryClose = useCallback( () => {
-		setIsAddingEntry( false );
 	}, [] );
 
 	const handleNewSummary = useCallback( () => {
@@ -340,6 +420,23 @@ function EntryView() {
 	}, [ rows, view.filters, totalItems, totalPages ] );
 
 	const { requestConfirm, dialog: confirmDialog } = useConfirmDialog();
+	const quickEditActions = useMemo(
+		() =>
+			getEntryActions(
+				config,
+				handleQuickEdit,
+				requestConfirm,
+				handleQuickEditActionPerformed,
+				handleEditDetails
+			),
+		[
+			config,
+			handleQuickEdit,
+			requestConfirm,
+			handleQuickEditActionPerformed,
+			handleEditDetails,
+		]
+	);
 	const actions = useMemo(
 		() =>
 			getEntryActions(
@@ -440,10 +537,9 @@ function EntryView() {
 	// entry into the previous coverage.
 	useEffect( () => {
 		setIsSlackDrawerOpen( false );
-		setQuickEditEntry( null );
-		setIsAddingEntry( false );
+		closeQuickEdit();
 		setIsAddingSummary( false );
-	}, [ numericCoverageId ] );
+	}, [ numericCoverageId, closeQuickEdit ] );
 	const slackChannelLabel = routeCoverage
 		? getSlackChannelLabel( routeCoverage )
 		: '';
@@ -845,16 +941,20 @@ function EntryView() {
 			{ quickEditEntry && (
 				<QuickEditModal
 					entryId={ quickEditEntry.id }
-					onClose={ handleQuickEditClose }
-					onSaved={ handleQuickEditSaved }
+					entry={ quickEditRow ?? quickEditEntry }
+					actions={ quickEditActions }
+					onClose={ closeQuickEdit }
+					onSaved={ refreshQuickEditEntry }
 				/>
 			) }
 			{ isAddingEntry && numericCoverageId !== null && (
 				<QuickEditModal
 					entryId={ null }
 					coverageId={ numericCoverageId }
-					onClose={ handleNewEntryClose }
-					onSaved={ handleQuickEditSaved }
+					entry={ quickEditRow }
+					actions={ quickEditActions }
+					onClose={ closeQuickEdit }
+					onSaved={ refreshQuickEditEntry }
 				/>
 			) }
 			{ isAddingSummary && numericCoverageId !== null && (

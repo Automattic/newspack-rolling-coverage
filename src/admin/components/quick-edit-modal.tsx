@@ -11,16 +11,8 @@ import {
 	useCallback,
 } from '@wordpress/element';
 import { Modal, Popover } from '@wordpress/components';
-import {
-	BlockCanvas,
-	BlockList,
-	store as blockEditorStore,
-} from '@wordpress/block-editor';
-import {
-	EditorProvider,
-	PostTitle,
-	store as editorStore,
-} from '@wordpress/editor';
+import { store as blockEditorStore } from '@wordpress/block-editor';
+import { EditorProvider, store as editorStore } from '@wordpress/editor';
 import { useEntityRecord, store as coreStore } from '@wordpress/core-data';
 import {
 	createRegistry,
@@ -37,34 +29,41 @@ import { __ } from '@wordpress/i18n';
  */
 import { useAdminContext } from '../hooks/useAdminContext';
 import { ensureEditorInitialized } from '../utils/block-registration';
-import { createEntry, deleteEntry } from '../utils/entries-api';
+import { createEntry, deleteEntry, isEntryLocked } from '../utils/entries-api';
 import { ErrorNotice } from '../shared/error-notice';
 import { LoadingState } from '../shared/loading-state';
 import { ConfirmModal } from './confirm-modal';
 import { quickEditPreferencesStore } from '../utils/quick-edit-preferences';
-import { QuickEditSaveBar } from './quick-edit-save-bar';
-import { QuickEditToolbar } from './quick-edit-toolbar';
+import { QuickEditCanvas } from './quick-edit-canvas';
+import { QuickEditCommentLayout } from './quick-edit-comment-layout';
+import { QuickEditEditorLayout } from './quick-edit-editor-layout';
 import type { QuickEditModalProps, EntityRecord } from '../types';
 
 /**
- * Gives the editor its own preferences store, with the block toolbar pinned.
+ * Gives the editor its own preferences store, with the block toolbar pinned
+ * or floating as the layout needs.
  *
  * `EditorProvider` ignores `hasFixedToolbar` in its settings and reads the
  * `core.fixedToolbar` preference instead, so the preference is the only
- * switch for the floating per-block toolbar. The page's preferences store
- * cannot carry it: WordPress core installs the user's persistence layer on
+ * switch for the per-block toolbar. The Summary's layout pins it in its
+ * toolbar row; an entry's layout has nowhere to pin it, so it floats there
+ * even for a user who turned on Top Toolbar in the post editor, who would
+ * otherwise get no block toolbar at all. The page's preferences store cannot
+ * carry the flag: WordPress core installs the user's persistence layer on
  * every page that loads `wp-preferences`, so a write there reaches
- * `localStorage` and the user's saved preferences at once, pinning the
+ * `localStorage` and the user's saved preferences at once, changing the
  * toolbar in their real post editor. A child registry with an in-memory
  * `core/preferences` store (`quickEditPreferencesStore`) shadows the page's;
  * the editor's preference reads and writes resolve to it, while core-data
  * and notices still fall through to the page. The trade-off: the user's
  * saved post-editor preferences (hidden block types, icon labels, focus
  * mode, caret behavior) do not apply inside Quick Edit, and editor controls
- * that write preferences, such as the link control's Advanced drawer, write
- * to this throwaway store instead.
+ * that write preferences, such as the link control's Advanced drawer or the
+ * sidebar panels' open state, write to this throwaway store instead.
+ *
+ * @param {boolean} hasFixedToolbar Whether to pin the block toolbar.
  */
-function useQuickEditRegistry() {
+function useQuickEditRegistry( hasFixedToolbar: boolean ) {
 	const parent = useRegistry();
 	const [ registry ] = useState( () => {
 		const child = createRegistry( {}, parent );
@@ -77,7 +76,7 @@ function useQuickEditRegistry() {
 		child.register( quickEditPreferencesStore );
 		child
 			.dispatch( quickEditPreferencesStore )
-			.set( 'core', 'fixedToolbar', true );
+			.set( 'core', 'fixedToolbar', hasFixedToolbar );
 		return child;
 	} );
 	return registry;
@@ -99,19 +98,26 @@ function EditorReadySignal( { onReady }: { onReady: () => void } ) {
 }
 
 /**
- * Quick-edits an entry's title and content in the block editor without
- * leaving the entries list, laid out like P2's comment editor: one toolbar
- * row on top, the canvas, Cancel and Save at the bottom. The WordPress
- * `Modal` header is hidden once the editor is ready; every control is ours.
+ * Quick-edits an entry in the block editor without leaving the entries
+ * list. An entry opens in a layout like the post editor's
+ * (`QuickEditEditorLayout`): the editor's own save and publish buttons in
+ * the header, and a settings sidebar with Entry and Block tabs. The
+ * coverage's Summary opens in a layout like P2's comment editor
+ * (`QuickEditCommentLayout`): one toolbar row on top, the canvas, Cancel and
+ * Save at the bottom. This component holds what both share: loading or
+ * starting the entry, the editor and its registry, the close guard and the
+ * notices. The WordPress `Modal` header is hidden once the editor is ready;
+ * every control is the layout's.
  *
  * With `entryId` null it adds a new entry to `coverageId` instead, titled
- * "Add Entry". The editor needs a post to work on before anything is saved,
+ * "Add Entry", or the coverage's Summary with `isSummary`, titled "Add
+ * Summary". The editor needs a post to work on before anything is saved,
  * so the modal first asks the plugin's route for an empty auto-draft in the
  * coverage, as `post-new.php` does for a post, then opens it like any entry.
- * The footer offers Save Draft and Publish (or Submit for Review); the first
- * successful save closes the modal, since the entry now exists in the list,
- * and the editor's own save snackbar shows on the page. With `isSummary`
- * it starts the coverage's Summary instead, titled "Add Summary". Cancel deletes the
+ * A new entry stays open after its first save, as a post does in the post
+ * editor; a new Summary's first successful save closes the modal, since it
+ * is in the list now, and the editor's own save snackbar shows on the page.
+ * Closing a new entry or Summary before its first save deletes the
  * auto-draft, which is still empty on the server; one left behind another
  * way (the tab closed, say) is deleted by core's auto-draft cleanup a week
  * later.
@@ -119,7 +125,7 @@ function EditorReadySignal( { onReady }: { onReady: () => void } ) {
  * - Save notices render inside the modal through `SnackbarNotices` from
  *   `@wordpress/notices`, which replaces `EditorSnackbars` (deprecated in
  *   WordPress 7.0, removed in 7.2). Its class name is what positions the
- *   snackbar above the footer.
+ *   snackbar.
  * - Closing is guarded when unsaved edits exist (detected via
  *   `useEntityRecord().hasEdits`, backed by core-data's
  *   `hasEditsForEntityRecord`). A small `Modal` around `ConfirmModal` asks
@@ -130,19 +136,22 @@ function EditorReadySignal( { onReady }: { onReady: () => void } ) {
  *   `EditorProvider` runs in a sub-registry whose editor store is invisible
  *   to selectors outside the provider.
  * - The Modal's own close paths (dismiss button, Escape, click outside) are
- *   off so its exit animation can't fire before the guard intercepts.
- *   Cancel in the footer goes through the guard instead.
+ *   off so its exit animation can't fire before the guard intercepts. The
+ *   layouts' close buttons go through the guard instead.
  * - `EditorProvider` stays inside the Modal: its own helper modals
  *   (media editor, pattern rename and duplicate) must
  *   nest in this one, or opening them closes Quick Edit.
- * - The `Popover.Slot` inside the provider keeps the toolbar's popovers
- *   (block library, document overview, inspector) within the modal frame
- *   and its focus trap instead of the body-level fallback container.
+ * - The `Popover.Slot` inside the provider keeps the editor's popovers
+ *   (block library, document overview, block toolbar, inspector, sidebar
+ *   dropdowns) within the modal frame and its focus trap instead of the
+ *   body-level fallback container.
  *
  * @param {QuickEditModalProps} props Component props.
  */
 function QuickEditModal( {
 	entryId,
+	entry = null,
+	actions = [],
 	coverageId,
 	isSummary = false,
 	onClose,
@@ -150,6 +159,7 @@ function QuickEditModal( {
 }: QuickEditModalProps ) {
 	const config = useAdminContext();
 	const isNew = entryId === null;
+	const isSummaryLayout = isSummary || Boolean( entry?.isSummary );
 	const [ newEntryId, setNewEntryId ] = useState< number | null >( null );
 	const [ createError, setCreateError ] = useState< string | null >( null );
 	const recordId = entryId ?? newEntryId;
@@ -210,13 +220,13 @@ function QuickEditModal( {
 		} );
 	}, [ isNew, isSummary, coverageId, config.restBaseUrls.restNamespace ] );
 
-	const editorRegistry = useQuickEditRegistry();
+	const editorRegistry = useQuickEditRegistry( isSummaryLayout );
 
 	// A new entry that was never saved is still an empty auto-draft on the
-	// server, whatever was typed: its first successful save closes the modal
-	// through `handleSaved` instead. So cancelling deletes it rather than
-	// leaving it for core's weekly cleanup. Nothing waits on the request, and
-	// a refusal (the coverage ended meanwhile, say) leaves it to core.
+	// server, whatever was typed, so closing it deletes it rather than
+	// leaving it for core's weekly cleanup. Once saved it is a draft or
+	// published, and stays. Nothing waits on the request, and a refusal (the
+	// coverage ended meanwhile, say) leaves it to core.
 	const isUnsavedNewEntry =
 		isNew && ( ! typedRecord || typedRecord.status === 'auto-draft' );
 	const handleClose = useCallback( () => {
@@ -245,16 +255,19 @@ function QuickEditModal( {
 		handleClose();
 	}, [ hasEdits, handleClose ] );
 
-	// An existing entry stays open after a save; a new one is in the list
-	// now, so the modal closes. The editor's own "Draft saved." or "Entry
-	// published." snackbar arrives a tick after the save finishes and then
-	// shows on the page, so unlike Cancel this leaves the notices alone.
+	// A new Summary is in the list once saved, so the modal closes; the
+	// editor's own "Draft saved." or "Entry published." snackbar arrives a
+	// tick after the save finishes and then shows on the page, so unlike
+	// Cancel this leaves the notices alone. Everything else stays open after
+	// a save, as in the post editor.
 	const handleSaved = useCallback( () => {
-		if ( isNew ) {
+		if ( isNew && isSummaryLayout ) {
 			onClose();
 		}
-		onSaved();
-	}, [ isNew, onClose, onSaved ] );
+		if ( recordId !== null ) {
+			onSaved( recordId );
+		}
+	}, [ isNew, isSummaryLayout, recordId, onClose, onSaved ] );
 
 	const settings = useMemo(
 		() =>
@@ -264,13 +277,6 @@ function QuickEditModal( {
 			} ) as Record< string, unknown >,
 		[ config.blockEditorSettings ]
 	);
-
-	const layoutClassName = settings.supportsLayout
-		? ' is-layout-constrained has-global-padding'
-		: '';
-	const blockListLayout = settings.supportsLayout
-		? { type: 'constrained' }
-		: undefined;
 
 	let title: string = __( 'Quick Edit', 'newspack-rolling-coverage' );
 
@@ -296,6 +302,7 @@ function QuickEditModal( {
 		shouldCloseOnClickOutside: false,
 		shouldCloseOnEsc: false,
 		isDismissible: false,
+		isFullScreen: ! isSummaryLayout,
 		__experimentalHideHeader: true,
 		className: 'newspack-rolling-coverage-quick-edit',
 		overlayClassName: 'newspack-rolling-coverage-quick-edit-overlay',
@@ -353,12 +360,22 @@ function QuickEditModal( {
 				onRequestClose: onClose,
 			};
 
+	const canvas = (
+		<QuickEditCanvas
+			styles={ settings.styles as unknown[] }
+			supportsLayout={ Boolean( settings.supportsLayout ) }
+			titleRef={ focusNewEntryTitle }
+		/>
+	);
+
 	return (
 		<>
 			<Modal
 				ref={ modalRef }
 				{ ...modalProps }
 				className={ classnames( modalProps.className, {
+					'is-comment-layout': isSummaryLayout,
+					'is-editor-layout': ! isSummaryLayout,
 					'is-ready': isReady,
 				} ) }
 				onRequestClose={ handleRequestClose }
@@ -380,30 +397,28 @@ function QuickEditModal( {
 							settings={ settings }
 						>
 							<EditorReadySignal onReady={ handleEditorReady } />
-							<QuickEditToolbar />
-							<div className="newspack-rolling-coverage-quick-edit__canvas">
-								<BlockCanvas
-									height="100%"
-									styles={ settings.styles as unknown[] }
-								>
-									<div
-										className={ `editor-visual-editor__post-title-wrapper${ layoutClassName }` }
-									>
-										<PostTitle ref={ focusNewEntryTitle } />
-									</div>
-									<BlockList
-										className={ `wp-block-post-content${ layoutClassName }` }
-										layout={ blockListLayout }
-									/>
-								</BlockCanvas>
-							</div>
-							<div className="newspack-rolling-coverage-quick-edit__footer">
-								<QuickEditSaveBar
+							{ isSummaryLayout ? (
+								<QuickEditCommentLayout
+									canvas={ canvas }
 									isNew={ isNew }
 									onClose={ handleRequestClose }
 									onSaved={ handleSaved }
 								/>
-							</div>
+							) : (
+								<QuickEditEditorLayout
+									canvas={ canvas }
+									entry={ entry }
+									actions={ actions }
+									canChangeStatus={
+										! entry || ! isEntryLocked( entry )
+									}
+									canNotify={
+										config.pushNotifications.isConfigured
+									}
+									onClose={ handleRequestClose }
+									onSaved={ handleSaved }
+								/>
+							) }
 							<SnackbarNotices className="components-editor-notices__snackbar" />
 							<Popover.Slot />
 						</EditorProvider>

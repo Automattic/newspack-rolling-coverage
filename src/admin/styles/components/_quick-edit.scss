@@ -9,16 +9,7 @@ $quick-edit-inspector-width: 280px;
 $quick-edit-list-view-width: 350px;
 $quick-edit-footer-clearance: 72px;
 
-// The WordPress Modal header is hidden, so its padding goes too; our toolbar,
-// canvas and footer stack in a column and the canvas takes what is left. On
-// small screens core's full-width bottom sheet fills the overlay up to core's
-// own cap, which leaves a strip of the page showing above it. The height is a
-// share of the fixed overlay rather than a viewport unit: `vh` is taller than
-// the visible area while mobile browser bars show, and `dvh` resizes as they
-// slide away. From the small breakpoint up the frame is a centered dialog the
-// size of a generous comment box, released from core's 70%-of-viewport cap.
 .components-modal__frame.newspack-rolling-coverage-quick-edit {
-	height: 100%;
 
 	.components-modal__content {
 		display: flex;
@@ -34,10 +25,80 @@ $quick-edit-footer-clearance: 72px;
 		min-height: 0;
 	}
 
-	@media (min-width: wp-breakpoints.$break-small) {
-		width: min(840px, calc(100vw - #{wp-vars.$grid-unit-40}));
-		height: min(90vh, 720px);
-		max-height: none;
+	&.is-comment-layout {
+		height: 100%;
+
+		@media (min-width: wp-breakpoints.$break-small) {
+			width: min(840px, calc(100vw - #{wp-vars.$grid-unit-40}));
+			height: min(90vh, 720px);
+			max-height: none;
+		}
+	}
+
+	&.is-editor-layout {
+
+		.components-modal__content {
+			margin-bottom: 0;
+		}
+
+		@media (max-width: #{ wp-breakpoints.$break-small - 1px }) {
+			width: 100%;
+			height: 100%;
+			max-height: none;
+			margin: 0;
+		}
+	}
+}
+
+.newspack-rolling-coverage-quick-edit__header {
+	display: flex;
+	flex-shrink: 0;
+	align-items: center;
+	justify-content: space-between;
+	gap: wp-vars.$grid-unit-10;
+	height: wp-vars.$header-height;
+	padding-block: 0;
+	padding-inline: wp-vars.$grid-unit-20 wp-vars.$grid-unit-10;
+	border-bottom: var(--wpds-border-width-xs, #{wp-vars.$border-width}) solid var(--wpds-color-stroke-surface-neutral, #{wp-colors.$gray-300});
+	overflow-x: auto;
+	overflow-y: hidden;
+}
+
+.newspack-rolling-coverage-quick-edit__header-actions {
+	display: flex;
+	flex-shrink: 0;
+	align-items: center;
+	gap: wp-vars.$grid-unit-10;
+	margin-inline-start: auto;
+}
+
+.newspack-rolling-coverage-quick-edit__body {
+	position: relative;
+	display: flex;
+	flex: 1;
+	min-height: 0;
+}
+
+.newspack-rolling-coverage-quick-edit__sidebar {
+	flex-shrink: 0;
+	width: wp-vars.$sidebar-width;
+	overflow-y: auto;
+	background-color: var(--wpds-color-background-surface-neutral, #{wp-colors.$white});
+	border-inline-start: var(--wpds-border-width-xs, #{wp-vars.$border-width}) solid var(--wpds-color-stroke-surface-neutral, #{wp-colors.$gray-300});
+
+	.block-editor-block-inspector {
+		width: 100%;
+	}
+
+	.editor-post-summary {
+		border-top: 0;
+	}
+
+	@media (max-width: #{ wp-breakpoints.$break-medium - 1px }) {
+		position: absolute;
+		inset: 0;
+		width: auto;
+		border-inline-start: 0;
 	}
 }
 
@@ -238,6 +299,7 @@ $quick-edit-footer-clearance: 72px;
 // minimum here would push Cancel and Save out of a short viewport.
 .newspack-rolling-coverage-quick-edit__canvas {
 	flex: 1;
+	min-width: 0;
 	min-height: 0;
 	padding: 0 wp-vars.$grid-unit-20;
 	overflow: auto;
@@ -265,8 +327,14 @@ $quick-edit-footer-clearance: 72px;
 	z-index: wp-z.z-index(".components-snackbar-list");
 }
 
+.newspack-rolling-coverage-quick-edit.is-editor-layout .components-editor-notices__snackbar {
+	bottom: wp-vars.$grid-unit-20;
+}
+
 .newspack-rolling-coverage-quick-edit__toolbar,
+.newspack-rolling-coverage-quick-edit__header,
 .newspack-rolling-coverage-quick-edit__canvas,
+.newspack-rolling-coverage-quick-edit__sidebar,
 .newspack-rolling-coverage-quick-edit__footer {
 	opacity: 0;
 

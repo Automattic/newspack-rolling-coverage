@@ -560,8 +560,12 @@ interface SlackConnectionDrawerProps {
 }
 type QuickEditModalProps = {
 	onClose: () => void;
-	/** Called after each save. A new entry's first save also closes the modal. */
-	onSaved: () => void;
+	/** Called after each save with the entry's ID. A new Summary's first save also closes the modal. */
+	onSaved: ( id: number ) => void;
+	/** The entry's row in the list, refreshed after saves and menu actions; null for a new entry until its first save. */
+	entry?: Entry | null;
+	/** The list's row actions, offered in the sidebar's actions menu. */
+	actions?: Action< Entry >[];
 } & (
 	| {
 			/** The entry to edit. */
@@ -708,6 +712,59 @@ interface QuickEditSaveBarProps {
 	onSaved: () => void;
 }
 
+interface QuickEditCanvasProps {
+	styles: unknown[];
+	supportsLayout: boolean;
+	/** Receives `PostTitle`'s handle, to focus a new entry's title. */
+	titleRef: ( postTitle: { focus: () => void } | null ) => void;
+}
+
+interface QuickEditCommentLayoutProps {
+	canvas: ReactNode;
+	isNew: boolean;
+	onClose: () => void;
+	onSaved: () => void;
+}
+
+interface QuickEditEditorLayoutProps {
+	canvas: ReactNode;
+	/** The entry's row in the list; null for a new entry until its first save. */
+	entry: Entry | null;
+	actions: Action< Entry >[];
+	/** False for an entry locked by Archive Mode, whose status stays as it is. */
+	canChangeStatus: boolean;
+	/** Whether push notifications are set up. */
+	canNotify: boolean;
+	onClose: () => void;
+	onSaved: () => void;
+}
+
+interface QuickEditEditorHeaderProps {
+	canChangeStatus: boolean;
+	isSidebarOpen: boolean;
+	onToggleSidebar: () => void;
+	onClose: () => void;
+	onSaved: () => void;
+}
+
+interface QuickEditSidebarProps {
+	entry: Entry | null;
+	actions: Action< Entry >[];
+	canChangeStatus: boolean;
+	canNotify: boolean;
+}
+
+interface QuickEditEntryPanelProps {
+	entry: Entry | null;
+	actions: Action< Entry >[];
+	canChangeStatus: boolean;
+}
+
+interface QuickEditEntryActionsProps {
+	entry: Entry;
+	actions: Action< Entry >[];
+}
+
 interface EntityRecord {
 	id: number;
 	type: string;
@@ -732,6 +789,7 @@ type EditorSelectors = {
 	isEditedPostSaveable: () => boolean;
 	isSavingPost: () => boolean;
 	didPostSaveRequestFail: () => boolean;
+	hasNonPostEntityChanges: () => boolean;
 	getCurrentPost: () => EntityRecord;
 	getCurrentPostType: () => string;
 	getCurrentPostId: () => number;
@@ -925,6 +983,13 @@ export type {
 	SyncPollContext,
 	QuickEditModalProps,
 	QuickEditSaveBarProps,
+	QuickEditCanvasProps,
+	QuickEditCommentLayoutProps,
+	QuickEditEditorLayoutProps,
+	QuickEditEditorHeaderProps,
+	QuickEditSidebarProps,
+	QuickEditEntryPanelProps,
+	QuickEditEntryActionsProps,
 	EntityRecord,
 	EditorSelectors,
 	CoreSelectors,

@@ -314,6 +314,48 @@ class Admin {
 	}
 
 	/**
+	 * Load Co-Authors Plus's Authors panel for Quick Edit. Co-Authors Plus
+	 * only loads it on the edit screens of the post types it supports, and
+	 * an admin page isn't one.
+	 */
+	private static function enqueue_coauthors_panel(): void {
+		$coauthors_plus = Post_Type::coauthors_plus();
+
+		if ( ! $coauthors_plus || ! defined( 'COAUTHORS_PLUS_FILE' ) || ! $coauthors_plus->current_user_can_set_authors() ) {
+			return;
+		}
+
+		$asset_file = dirname( COAUTHORS_PLUS_FILE ) . '/build/index.asset.php';
+
+		if ( ! file_exists( $asset_file ) ) {
+			return;
+		}
+
+		$asset = include $asset_file;
+
+		wp_enqueue_script(
+			'coauthors-sidebar-js',
+			plugins_url( 'build/index.js', COAUTHORS_PLUS_FILE ),
+			array_merge( $asset['dependencies'] ?? [], [ 'wp-editor' ] ),
+			$asset['version'] ?? false,
+			true
+		);
+
+		wp_set_script_translations(
+			'coauthors-sidebar-js',
+			'co-authors-plus',
+			dirname( COAUTHORS_PLUS_FILE ) . '/languages'
+		);
+
+		wp_enqueue_style(
+			'coauthors-sidebar-css',
+			plugins_url( 'build/style-index.css', COAUTHORS_PLUS_FILE ),
+			[],
+			$asset['version'] ?? false
+		);
+	}
+
+	/**
 	 * Load the breakout editor script when the post being edited is a
 	 * breakout post (it links back to the entry it was broken out from), for
 	 * its Rolling Coverage panel. The panel's placeholder is the label every
@@ -489,6 +531,10 @@ class Admin {
 			'enqueue_block_editor_assets',
 			[ 'Newspack\Blocks', 'enqueue_block_editor_assets' ]
 		);
+
+		if ( isset( self::$page_hooks['coverages'] ) && self::$page_hooks['coverages'] === $hook_suffix ) {
+			self::enqueue_coauthors_panel();
+		}
 
 		// Media library for Image/Gallery blocks.
 		wp_enqueue_media();
