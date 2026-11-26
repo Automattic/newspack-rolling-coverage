@@ -321,7 +321,7 @@ class Admin {
 	private static function enqueue_coauthors_panel(): void {
 		$coauthors_plus = Post_Type::coauthors_plus();
 
-		if ( ! $coauthors_plus || ! defined( 'COAUTHORS_PLUS_FILE' ) || ! $coauthors_plus->current_user_can_set_authors() ) {
+		if ( ! $coauthors_plus || ! defined( 'COAUTHORS_PLUS_FILE' ) || ! $coauthors_plus->current_user_can_set_authors( Post_Type::CPT_SLUG ) ) {
 			return;
 		}
 
