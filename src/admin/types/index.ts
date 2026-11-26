@@ -560,8 +560,8 @@ interface SlackConnectionDrawerProps {
 }
 type QuickEditModalProps = {
 	onClose: () => void;
-	/** Called after each save with the entry's ID. A new Summary's first save also closes the modal. */
-	onSaved: ( id: number ) => void;
+	/** Called after each successful save: with the entry's ID while Quick Edit stays open, without one once the save closes it. */
+	onSaved: ( id?: number ) => void;
 	/** The entry's row in the list, refreshed after saves and menu actions; null for a new entry until its first save. */
 	entry?: Entry | null;
 	/** The list's row actions, offered in the sidebar's actions menu. */
@@ -736,7 +736,8 @@ interface QuickEditEditorLayoutProps {
 	/** Whether push notifications are set up. */
 	canNotify: boolean;
 	onClose: () => void;
-	onSaved: () => void;
+	/** Called after each successful save, with whether it closes Quick Edit. */
+	onSaved: ( shouldClose: boolean ) => void;
 }
 
 interface QuickEditEditorHeaderProps {
@@ -744,7 +745,8 @@ interface QuickEditEditorHeaderProps {
 	isSidebarOpen: boolean;
 	onToggleSidebar: () => void;
 	onClose: () => void;
-	onSaved: () => void;
+	/** Called after each successful save, with whether it closes Quick Edit. */
+	onSaved: ( shouldClose: boolean ) => void;
 }
 
 interface QuickEditSidebarProps {

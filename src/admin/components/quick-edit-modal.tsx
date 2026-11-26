@@ -22,6 +22,10 @@ import {
 } from '@wordpress/data';
 import type { StoreDescriptor } from '@wordpress/data';
 import { SnackbarNotices, store as noticesStore } from '@wordpress/notices';
+import {
+	store as keyboardShortcutsStore,
+	useShortcut,
+} from '@wordpress/keyboard-shortcuts';
 import { __ } from '@wordpress/i18n';
 
 /**
@@ -83,6 +87,38 @@ function useQuickEditRegistry( hasFixedToolbar: boolean ) {
 }
 
 /**
+ * Registers the editor's save shortcut (`core/editor/save`, Cmd+S or
+ * Ctrl+S) while Quick Edit is open. `EditorProvider` handles the shortcut
+ * but leaves registering it to the post editor's layout, so without this it
+ * never fires and the browser opens its Save Page dialog instead. The
+ * handler here keeps that dialog away while the entry is still loading too.
+ */
+function useSaveShortcut() {
+	const { registerShortcut, unregisterShortcut } = useDispatch(
+		keyboardShortcutsStore
+	);
+
+	useEffect( () => {
+		registerShortcut( {
+			name: 'core/editor/save',
+			category: 'global',
+			description: __(
+				'Save your changes.',
+				'newspack-rolling-coverage'
+			),
+			keyCombination: { modifier: 'primary', character: 's' },
+		} );
+		return () => {
+			unregisterShortcut( 'core/editor/save' );
+		};
+	}, [ registerShortcut, unregisterShortcut ] );
+
+	useShortcut( 'core/editor/save', ( event ) => {
+		event.preventDefault();
+	} );
+}
+
+/**
  * Reports that the editor is ready to show. `EditorProvider` renders nothing
  * until its setup requests finish, so this mounts exactly then; a layout
  * effect lets the loading state go before the editor's first frame is painted.
@@ -114,9 +150,10 @@ function EditorReadySignal( { onReady }: { onReady: () => void } ) {
  * Summary". The editor needs a post to work on before anything is saved,
  * so the modal first asks the plugin's route for an empty auto-draft in the
  * coverage, as `post-new.php` does for a post, then opens it like any entry.
- * A new entry stays open after its first save, as a post does in the post
- * editor; a new Summary's first successful save closes the modal, since it
- * is in the list now, and the editor's own save snackbar shows on the page.
+ * An entry's save buttons close the modal once the save succeeds, and
+ * their "and keep editing" menu and the save shortcut leave it open; a new
+ * Summary's first successful save closes it, since it is in the list now.
+ * Either way the editor's own save snackbar shows on the page.
  * Closing a new entry or Summary before its first save deletes the
  * auto-draft, which is still empty on the server; one left behind another
  * way (the tab closed, say) is deleted by core's auto-draft cleanup a week
@@ -221,6 +258,7 @@ function QuickEditModal( {
 	}, [ isNew, isSummary, coverageId, config.restBaseUrls.restNamespace ] );
 
 	const editorRegistry = useQuickEditRegistry( isSummaryLayout );
+	useSaveShortcut();
 
 	// A new entry that was never saved is still an empty auto-draft on the
 	// server, whatever was typed, so closing it deletes it rather than
@@ -255,19 +293,22 @@ function QuickEditModal( {
 		handleClose();
 	}, [ hasEdits, handleClose ] );
 
-	// A new Summary is in the list once saved, so the modal closes; the
-	// editor's own "Draft saved." or "Entry published." snackbar arrives a
-	// tick after the save finishes and then shows on the page, so unlike
-	// Cancel this leaves the notices alone. Everything else stays open after
-	// a save, as in the post editor.
-	const handleSaved = useCallback( () => {
-		if ( isNew && isSummaryLayout ) {
-			onClose();
-		}
-		if ( recordId !== null ) {
-			onSaved( recordId );
-		}
-	}, [ isNew, isSummaryLayout, recordId, onClose, onSaved ] );
+	// An entry's layout says whether its save closes Quick Edit; a new
+	// Summary closes once it is in the list, and an existing one stays open.
+	// The editor's own "Draft saved." or "Entry published." snackbar arrives
+	// a tick after the save finishes and then shows on the page, so unlike
+	// Cancel this close leaves the notices alone.
+	const handleSaved = useCallback(
+		( shouldClose: boolean = isNew && isSummaryLayout ) => {
+			if ( shouldClose ) {
+				onClose();
+				onSaved();
+			} else if ( recordId !== null ) {
+				onSaved( recordId );
+			}
+		},
+		[ isNew, isSummaryLayout, recordId, onClose, onSaved ]
+	);
 
 	const settings = useMemo(
 		() =>

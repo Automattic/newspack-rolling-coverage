@@ -34,11 +34,13 @@ const SAVE_ERROR_NOTICE_ID = 'newspack-rolling-coverage-quick-edit-save-error';
  *
  * @param onSaved   Called after each successful save.
  * @param onSettled Called after each save, successful or not.
+ * @param onStarted Called as each save starts.
  * @return Whether a save is running.
  */
 function useQuickEditSaveResult(
 	onSaved: () => void,
-	onSettled?: () => void
+	onSettled?: () => void,
+	onStarted?: () => void
 ): boolean {
 	const { createErrorNotice, removeNotice } = useDispatch( noticesStore );
 
@@ -62,6 +64,7 @@ function useQuickEditSaveResult(
 		if ( isSavingPost && ! wasSavingRef.current ) {
 			wasSavingRef.current = true;
 			removeNotice( SAVE_ERROR_NOTICE_ID );
+			onStarted?.();
 			return;
 		}
 		if ( ! wasSavingRef.current || isSavingPost ) {
@@ -90,6 +93,7 @@ function useQuickEditSaveResult(
 		removeNotice,
 		onSaved,
 		onSettled,
+		onStarted,
 	] );
 
 	return isSavingPost;
