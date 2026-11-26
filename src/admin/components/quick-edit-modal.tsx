@@ -22,6 +22,7 @@ import {
 } from '@wordpress/data';
 import type { StoreDescriptor } from '@wordpress/data';
 import { SnackbarNotices, store as noticesStore } from '@wordpress/notices';
+import useConfirmDialog from 'newspack-components/dist/esm/hooks/use-confirm-dialog';
 import {
 	store as keyboardShortcutsStore,
 	useShortcut,
@@ -36,7 +37,6 @@ import { ensureEditorInitialized } from '../utils/block-registration';
 import { createEntry, deleteEntry, isEntryLocked } from '../utils/entries-api';
 import { ErrorNotice } from '../shared/error-notice';
 import { LoadingState } from '../shared/loading-state';
-import { ConfirmModal } from './confirm-modal';
 import { quickEditPreferencesStore } from '../utils/quick-edit-preferences';
 import { QuickEditCanvas } from './quick-edit-canvas';
 import { QuickEditCommentLayout } from './quick-edit-comment-layout';
@@ -170,10 +170,9 @@ function EditorReadySignal( { onReady }: { onReady: () => void } ) {
  *   snackbar.
  * - Closing is guarded when unsaved edits exist (detected via
  *   `useEntityRecord().hasEdits`, backed by core-data's
- *   `hasEditsForEntityRecord`). A small `Modal` around `ConfirmModal` asks
- *   before discarding, as the edit-anyway confirm does. Core's
- *   `ConfirmDialog` is not used: showing its title also shows its header's
- *   close button, and Enter on that button confirms the discard. The editor
+ *   `hasEditsForEntityRecord`). newspack-components' `useConfirmDialog`
+ *   asks before discarding, set up as its unsaved-changes dialog is
+ *   elsewhere in Newspack: no title bar, with Cancel focused. The editor
  *   store's `isEditedPostDirty` selector is intentionally not used because
  *   `EditorProvider` runs in a sub-registry whose editor store is invisible
  *   to selectors outside the provider.
@@ -212,7 +211,6 @@ function QuickEditModal( {
 		{ enabled: recordId !== null }
 	);
 	const typedRecord = record as EntityRecord | null;
-	const [ showCloseConfirm, setShowCloseConfirm ] = useState( false );
 	const [ isEditorReady, setIsEditorReady ] = useState( false );
 	const handleEditorReady = useCallback( () => setIsEditorReady( true ), [] );
 
@@ -290,13 +288,22 @@ function QuickEditModal( {
 		onClose,
 	] );
 
-	const handleRequestClose = useCallback( () => {
-		if ( hasEdits ) {
-			setShowCloseConfirm( true );
-			return;
-		}
-		handleClose();
-	}, [ hasEdits, handleClose ] );
+	const { confirmDialog, requestConfirm } = useConfirmDialog( {
+		when: hasEdits,
+		message: __(
+			'You have unsaved changes that will be lost. Discard changes?',
+			'newspack-rolling-coverage'
+		),
+		confirmButtonText: __( 'Discard Changes', 'newspack-rolling-coverage' ),
+		title: __( 'Unsaved changes', 'newspack-rolling-coverage' ),
+		hideTitle: true,
+		focusOnMount: 'firstContentElement',
+	} );
+
+	const handleRequestClose = useCallback(
+		() => requestConfirm( handleClose ),
+		[ requestConfirm, handleClose ]
+	);
 
 	// An entry's layout says whether its save closes Quick Edit; a new
 	// Summary closes once it is in the list, and an existing one stays open.
@@ -497,29 +504,7 @@ function QuickEditModal( {
 					</RegistryProvider>
 				) }
 			</Modal>
-			{ showCloseConfirm && (
-				<Modal
-					title={ __(
-						'Discard Changes?',
-						'newspack-rolling-coverage'
-					) }
-					size="small"
-					onRequestClose={ () => setShowCloseConfirm( false ) }
-				>
-					<ConfirmModal
-						message={ __(
-							'You have unsaved changes. Are you sure you want to close and discard them?',
-							'newspack-rolling-coverage'
-						) }
-						confirmLabel={ __(
-							'Discard Changes',
-							'newspack-rolling-coverage'
-						) }
-						onConfirm={ async () => handleClose() }
-						onClose={ () => setShowCloseConfirm( false ) }
-					/>
-				</Modal>
-			) }
+			{ confirmDialog }
 		</>
 	);
 }

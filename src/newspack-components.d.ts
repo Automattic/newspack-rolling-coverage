@@ -151,3 +151,25 @@ declare module 'newspack-components/dist/esm/hooks/use-unsaved-changes-dialog' {
 	};
 	export default useUnsavedChangesDialog;
 }
+
+declare module 'newspack-components/dist/esm/hooks/use-confirm-dialog' {
+	import type { JSX, ReactNode } from 'react';
+
+	function useConfirmDialog( options: {
+		when?: boolean;
+		message: ReactNode;
+		title?: string;
+		confirmButtonText?: string;
+		cancelButtonText?: string;
+		isDestructive?: boolean;
+		hideTitle?: boolean;
+		size?: 'small' | 'medium' | 'large' | 'x-large' | 'full';
+		className?: string;
+		focusOnMount?: boolean | 'firstElement' | 'firstContentElement';
+	} ): {
+		confirmDialog: JSX.Element;
+		requestConfirm: ( callback: () => void ) => void;
+		cancelConfirm: () => void;
+	};
+	export default useConfirmDialog;
+}
