@@ -85,6 +85,7 @@ function DataViewsWrapper< T extends { id: number | string } >( {
 	paginationInfo,
 	isLoading,
 	onClickItem,
+	isItemClickable,
 	header,
 	defaultLayouts,
 	config,
@@ -159,7 +160,11 @@ function DataViewsWrapper< T extends { id: number | string } >( {
 				paginationInfo={ paginationInfo }
 				isLoading={ isLoading }
 				defaultLayouts={ defaultLayouts ?? { table: {} } }
-				isItemClickable={ onClickItem ? () => true : undefined }
+				isItemClickable={
+					onClickItem
+						? ( isItemClickable ?? ( () => true ) )
+						: undefined
+				}
 				onClickItem={ onClickItem }
 				config={ config }
 				getItemId={ ( item: T ) => String( item.id ) }

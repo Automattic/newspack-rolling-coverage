@@ -28,7 +28,11 @@ import { useStatusLabels } from '../utils/status-labels';
 import { EmptyState, Stack } from '@wordpress/ui';
 import { LoadingState } from '../shared/loading-state';
 import { useHeader } from '../hooks/useHeader';
-import { buildPageUrl, toEntry } from '../utils/entries-api';
+import {
+	buildPageUrl,
+	getEntryEditWarning,
+	toEntry,
+} from '../utils/entries-api';
 import { getCoverage } from '../utils/coverage-api';
 import { DataViewsWrapper } from './data-views-wrapper';
 import { QuickEditModal } from './quick-edit-modal';
@@ -37,7 +41,11 @@ import { SlackConnectionDrawer } from './slack-connection-drawer';
 import { PlacementsDrawer } from './placements-drawer';
 import { useScorePanel, type MenuControl } from './score-panel';
 import { useConfirmDialog } from './confirm-dialog';
-import { getEntryActions } from '../actions/entry-actions';
+import {
+	canEditEntryRow,
+	getEditWarningMessage,
+	getEntryActions,
+} from '../actions/entry-actions';
 import { getEntryNoticeMessage } from '../utils/notices';
 import {
 	applyEntryFilters,
@@ -420,6 +428,29 @@ function EntryView() {
 	}, [ rows, view.filters, totalItems, totalPages ] );
 
 	const { requestConfirm, dialog: confirmDialog } = useConfirmDialog();
+
+	// An entry's title opens Quick Edit wherever the row offers it, asking
+	// first on the rows where the Quick Edit action asks.
+	const canClickEntry = useCallback(
+		( entry: Entry ) =>
+			entry.status !== 'trash' && canEditEntryRow( config, entry ),
+		[ config ]
+	);
+	const handleClickEntry = useCallback(
+		( entry: Entry ) => {
+			if ( ! getEntryEditWarning( entry ) ) {
+				handleQuickEdit( entry );
+				return;
+			}
+			requestConfirm( {
+				title: getEditWarningMessage( entry ),
+				confirmLabel: __( 'Edit', 'newspack-rolling-coverage' ),
+				onConfirm: async () => handleQuickEdit( entry ),
+			} );
+		},
+		[ handleQuickEdit, requestConfirm ]
+	);
+
 	const quickEditActions = useMemo(
 		() =>
 			getEntryActions(
@@ -935,6 +966,8 @@ function EntryView() {
 					actions={ actions }
 					paginationInfo={ paginationInfo }
 					isLoading={ isResolving || isTrashCheckPending }
+					onClickItem={ handleClickEntry }
+					isItemClickable={ canClickEntry }
 					fitColumns={ FIT_COLUMNS }
 				/>
 			) }

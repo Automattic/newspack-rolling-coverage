@@ -296,6 +296,8 @@ interface DataViewsWrapperProps< T > {
 	paginationInfo: PaginationInfo;
 	isLoading: boolean;
 	onClickItem?: ( item: T ) => void;
+	/** Which items `onClickItem` applies to; all of them when left out. */
+	isItemClickable?: ( item: T ) => boolean;
 	header?: JSX.Element;
 	defaultLayouts?: Record< string, unknown >;
 	config?: { perPageSizes: number[] };

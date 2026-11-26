@@ -75,6 +75,20 @@ function getEditWarningMessage( entry: Entry ): string {
 }
 
 /**
+ * Whether the user may edit an entry from the list: Editors and above any
+ * entry, lower roles those WordPress grants them a meta cap for (author:
+ * own; contributor: own drafts). Row-level `can*` flags come from the
+ * endpoint.
+ *
+ * @param {AdminConfig} config Admin config holding the user's capabilities.
+ * @param {Entry}       entry  The entry's row.
+ * @return {boolean} Whether the entry can be edited.
+ */
+function canEditEntryRow( config: AdminConfig, entry: Entry ): boolean {
+	return config.capabilities.canEditEntries || Boolean( entry.canEdit );
+}
+
+/**
  * Returns DataViews action definitions for entry rows.
  *
  * Includes "Edit" (opens the classic editor in a new tab) and "Quick Edit"
@@ -95,11 +109,7 @@ function getEntryActions(
 	onActionPerformed: () => void,
 	onEditDetails: ( items: Entry[] ) => void
 ): Action< Entry >[] {
-	// Editors and above can act on any entry; lower roles are limited to
-	// entries WordPress grants them a meta cap for (author: own; contributor:
-	// own drafts). Row-level `can*` flags come from the endpoint.
-	const canEditRow = ( entry: Entry ) =>
-		config.capabilities.canEditEntries || Boolean( entry.canEdit );
+	const canEditRow = ( entry: Entry ) => canEditEntryRow( config, entry );
 
 	// Only Editors and above, or an author acting on their own entry, may
 	// trash it. Contributors cannot publish, so this excludes them.
@@ -812,4 +822,4 @@ function getEntryActions(
 	];
 }
 
-export { getEntryActions };
+export { getEntryActions, canEditEntryRow, getEditWarningMessage };
