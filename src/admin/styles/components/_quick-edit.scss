@@ -62,6 +62,16 @@ $quick-edit-footer-clearance: 72px;
 	border-bottom: var(--wpds-border-width-xs, #{wp-vars.$border-width}) solid var(--wpds-color-stroke-surface-neutral, #{wp-colors.$gray-300});
 	overflow-x: auto;
 	overflow-y: hidden;
+
+	@media (max-width: #{ wp-breakpoints.$break-mobile - 1px }) {
+		padding-inline-start: wp-vars.$grid-unit-10;
+
+		.newspack-rolling-coverage-quick-edit__document-tools,
+		.newspack-rolling-coverage-quick-edit__header-actions,
+		.newspack-rolling-coverage-quick-edit__save-actions {
+			gap: wp-vars.$grid-unit-05;
+		}
+	}
 }
 
 .newspack-rolling-coverage-quick-edit__header-actions {
