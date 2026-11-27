@@ -105,9 +105,9 @@ function confirmToggle( button: HTMLButtonElement, followed: boolean ): void {
 		return;
 	}
 
-	const content = showSnackbar( full )?.querySelector(
-		'.newspack-ui__snackbar__content'
-	);
+	const content = showSnackbar( full, 'success', {
+		fit: true,
+	} )?.querySelector( '.newspack-ui__snackbar__content' );
 
 	if ( content && visible !== full ) {
 		const shown = document.createElement( 'span' );

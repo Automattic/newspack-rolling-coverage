@@ -1,17 +1,21 @@
 type NoticeType = 'success' | 'error';
 
+type NoticeOptions = { fit?: boolean };
+
 type NewspackUI = {
 	notices?: {
 		createNotice?: (
 			message: string,
-			type?: NoticeType
+			type?: NoticeType,
+			options?: NoticeOptions
 		) => HTMLElement | undefined;
 	};
 };
 
 export type ShowSnackbar = (
 	message: string,
-	type?: NoticeType
+	type?: NoticeType,
+	options?: NoticeOptions
 ) => HTMLElement | undefined;
 
 /**
@@ -31,7 +35,7 @@ export function getSnackbar(): ShowSnackbar | null {
 		return null;
 	}
 
-	return ( message, type = 'success' ) => {
+	return ( message, type = 'success', options ) => {
 		if ( ! document.querySelector( '.newspack-ui__snackbar' ) ) {
 			const wrapper = document.createElement( 'div' );
 			const snackbar = document.createElement( 'div' );
@@ -42,6 +46,8 @@ export function getSnackbar(): ShowSnackbar | null {
 			document.body.appendChild( wrapper );
 		}
 
-		return createNotice( message, type );
+		return options
+			? createNotice( message, type, options )
+			: createNotice( message, type );
 	};
 }

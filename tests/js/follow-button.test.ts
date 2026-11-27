@@ -128,7 +128,9 @@ describe( 'the follow button', () => {
 		jest.advanceTimersByTime( 1000 );
 
 		expect( createNotice ).toHaveBeenCalledTimes( 1 );
-		expect( createNotice ).toHaveBeenCalledWith( ON, 'success' );
+		expect( createNotice ).toHaveBeenCalledWith( ON, 'success', {
+			fit: true,
+		} );
 
 		const notice = createNotice.mock.results[ 0 ].value as HTMLElement;
 		expect( shownText( notice ) ).toBe( ON_SHORT );
@@ -256,7 +258,9 @@ describe( 'the follow button', () => {
 		expect( OneSignal.User.removeTag ).toHaveBeenCalledWith( 'coverage_1' );
 		expect( button.getAttribute( 'aria-pressed' ) ).toBe( 'false' );
 		expect( button.hasAttribute( 'data-rc-fresh' ) ).toBe( false );
-		expect( createNotice ).toHaveBeenCalledWith( OFF, 'success' );
+		expect( createNotice ).toHaveBeenCalledWith( OFF, 'success', {
+			fit: true,
+		} );
 		expect(
 			shownText( createNotice.mock.results[ 0 ].value as HTMLElement )
 		).toBe( OFF_SHORT );
