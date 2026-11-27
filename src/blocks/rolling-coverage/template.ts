@@ -59,24 +59,18 @@ const NEW_LABEL_BLOCK_NAME = 'newspack-rolling-coverage/new-label';
  * mark should show. Its text is left empty, which shows the translated
  * "New".
  *
- * @param {Object}      [options]                How the label shows.
- * @param {string|null} [options.color]          The label's text color, or
- *                                               null for the color of the
- *                                               text around it. Default the
- *                                               readable accent.
- * @param {boolean}     [options.visuallyHidden] Whether the label is for
- *                                               screen readers only, for a
- *                                               layout whose entries already
- *                                               look new. Default false.
- * @param {string}      [options.textAlign]      The label's text alignment.
+ * @param {Object}  [options]                How the label shows.
+ * @param {boolean} [options.visuallyHidden] Whether the label is for
+ *                                           screen readers only, for a
+ *                                           layout whose entries already
+ *                                           look new. Default false.
+ * @param {string}  [options.textAlign]      The label's text alignment.
  * @return {TemplateItem} The label.
  */
 function newLabel( {
-	color = READABLE_ACCENT,
 	visuallyHidden = false,
 	textAlign,
 }: {
-	color?: string | null;
 	visuallyHidden?: boolean;
 	textAlign?: string;
 } = {} ): TemplateItem {
@@ -91,7 +85,7 @@ function newLabel( {
 					...( textAlign ? { textAlign } : {} ),
 					fontWeight: '700',
 				},
-				...( color ? { color: { text: color } } : {} ),
+				color: { text: READABLE_ACCENT },
 			},
 		},
 	];
@@ -319,6 +313,13 @@ const SUMMARY_CARD_CLASS = 'newspack-rolling-coverage-summary-card';
 const SUMMARY_UPDATED_CLASS = 'newspack-rolling-coverage-summary-updated';
 
 /**
+ * Class of an entry's Post Date that the site shows only when the entry
+ * wasn't published on the site's current day, mirroring
+ * Rolling_Coverage_Block::EARLIER_DAY_DATE_CLASS. The editor always shows it.
+ */
+const EARLIER_DAY_DATE_CLASS = 'newspack-rolling-coverage-earlier-day-date';
+
+/**
  * The summary card's "Updated" line color where the layout's entry times
  * carry none of their own: the color the themes give a Date block, the block
  * theme's Contrast 3 and the classic theme's text color. Written as values
@@ -512,6 +513,15 @@ function placeholderLink( text: string ): string {
  */
 function siteTimeFormat(): string {
 	return getSettings().formats.time || 'g:i a';
+}
+
+/**
+ * The site's date format, for layouts that show the day an entry was posted.
+ *
+ * @return {string} A PHP date format.
+ */
+function siteDateFormat(): string {
+	return getSettings().formats.date || 'F j, Y';
 }
 
 /**
@@ -1941,12 +1951,13 @@ function ruledRow(
 }
 
 /**
- * A Clock entry's row: the time set large in a narrow column with the
- * relative date below it, under the New label (after it on phones, see
- * style.scss) and, on the pinned card and the Full Story Entry (which so
- * takes pinned entries too), the pinned row in the accent color, then the title and content, or the breakout post's
- * box for a Full Story Entry, and the author's avatar and name with Share
- * beside it, with an arrow at that row's far end in the box.
+ * A Clock entry's row: the time set large in a narrow column, under the New
+ * label (after it on phones, see style.scss), with the date below it, which
+ * the site shows only for entries from earlier days, and, on the pinned card
+ * and the Full Story Entry (which so takes pinned entries too), the pinned
+ * row in the accent color above them; then the title and content, or the
+ * breakout post's box for a Full Story Entry, and the author's avatar and
+ * name with Share beside it, with an arrow at that row's far end in the box.
  *
  * @param {string[]}  slugs The palette's color slugs.
  * @param {string[]}  sizes The theme's font size slugs.
@@ -1983,7 +1994,8 @@ function clockRow(
 				'core/post-date',
 				{
 					...POST_DATE_ATTRIBUTES,
-					format: 'human-diff',
+					format: siteDateFormat(),
+					className: EARLIER_DAY_DATE_CLASS,
 					fontSize: 'small',
 					...mutedDateColor( slugs ),
 					style: { typography: { fontWeight: '600' } },
@@ -2781,7 +2793,6 @@ function flashEntryTemplate(): TemplateItem[] {
 		string,
 		Record< string, unknown >,
 	];
-	const marker = newLabel( { color: null } );
 	const entry = ( className: string, name: string ): TemplateItem => [
 		'core/group',
 		{
@@ -2790,7 +2801,7 @@ function flashEntryTemplate(): TemplateItem[] {
 			...group,
 			metadata: { name },
 		},
-		[ date, excerpt, marker ],
+		[ date, excerpt ],
 	];
 
 	return [
@@ -2826,7 +2837,6 @@ function flashEntryTemplate(): TemplateItem[] {
 					},
 				],
 				excerpt,
-				marker,
 			],
 			group
 		),
@@ -3535,12 +3545,11 @@ function isSummaryCard( block: {
 /**
  * The summary card: the coverage's Summary once, above the entries, on the
  * pinned card's quiet background, with the Summary's title at the layout's
- * entry heading level, its content, and a small line saying when it was last
- * edited, in the site's time format (the `summaryUpdated` binding). The line
- * is set like the layout's entry times, in the font the themes give a Date
- * block, and the card takes the corners of the layout's own boxes. It belongs
- * to the coverage, not to each entry, and is locked in place like the entry
- * groups.
+ * entry heading level, its content, and a small line saying how long ago it
+ * was last edited (the `summaryUpdated` binding). The line is set like the
+ * layout's entry times, in the font the themes give a Date block, and the
+ * card takes the corners of the layout's own boxes. It belongs to the
+ * coverage, not to each entry, and is locked in place like the entry groups.
  *
  * @param {number}  level                        The title's heading level, the layout's
  *                                               entry titles' level.

@@ -23,7 +23,7 @@ The block adds no markup of its own and has no class name support (`className` a
 
 `Coverage_Follow_Block::render_block()` returns the inner button only when there is a coverage to follow and `should_render()` passes:
 
-- **Which coverage.** `coverage_context()` asks `Page_Coverages::coverage_for_block()`, the same rules as the Coverage Status block: the surrounding Rolling Coverage block's coverage; else a chosen coverage that exists and isn't trashed; else, on single views, the first uncapped feed on the page or a breakout post's source entry's coverage.
+- **Which coverage.** `coverage_context()` asks `Page_Coverages::coverage_for_block()`, the same rules as the Coverage Status block: the surrounding Rolling Coverage block's coverage; else a chosen coverage that exists and isn't trashed; else, on single views, the first full feed on the page, else a breakout post's source entry's coverage, else the first capped feed.
 - **`should_render( $status )`.** The request isn't a feed, OneSignal is configured (`Push_Notifications::is_onesignal_configured()`) and the coverage is not archived.
 - **Context for the button.** `add_coverage_context()` runs on `render_block_context` and hands the coverage ID and status to the blocks inside a Follow Coverage block, and to no other block.
 

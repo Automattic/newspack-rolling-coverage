@@ -38,6 +38,7 @@ const SITES: Record< string, Site > = {
 		],
 		fontSizes: [ 'small', 'medium', 'large', 'x-large', 'xx-large' ],
 		timeFormat: 'g:i a',
+		dateFormat: 'F j, Y',
 	},
 	'Newspack Theme': {
 		palette: [
@@ -49,11 +50,13 @@ const SITES: Record< string, Site > = {
 		],
 		fontSizes: [ 'small', 'normal', 'large', 'huge' ],
 		timeFormat: 'H:i',
+		dateFormat: 'd/m/Y',
 	},
 	'theme without presets': {
 		palette: [],
 		fontSizes: [],
 		timeFormat: 'G:i',
+		dateFormat: 'Y-m-d',
 	},
 };
 
@@ -77,6 +80,8 @@ function tokenValue(
 			return 'See all entries';
 		case 'time_format':
 			return site.timeFormat;
+		case 'date_format':
+			return site.dateFormat;
 		case 'muted_color':
 			return mutedTextColor( site.palette ) ?? null;
 		case 'font_size': {

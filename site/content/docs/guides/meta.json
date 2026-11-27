@@ -3,6 +3,7 @@
 	"pages": [
 		"index",
 		"layouts",
+		"page-patterns",
 		"edit-a-layout",
 		"custom-layouts",
 		"slack",

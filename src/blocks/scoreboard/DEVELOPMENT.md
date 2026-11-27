@@ -57,7 +57,7 @@ A custom background is the Coverage Status block's own style for that color, fro
 
 ## Which coverage it shows
 
-`render_block()` and `add_coverage_context()` ask `Page_Coverages::coverage_for_block()`, as Coverage Status does: the surrounding feed's coverage, else a chosen coverage while it exists and isn't trashed, else the first uncapped feed in the post being viewed or a breakout post's coverage, on single views only. See "Which coverage it shows" in `src/blocks/coverage-status/DEVELOPMENT.md`. The editor mirrors the rules with `useBlockCoverage()`.
+`render_block()` and `add_coverage_context()` ask `Page_Coverages::coverage_for_block()`, as Coverage Status does: the surrounding feed's coverage, else a chosen coverage while it exists and isn't trashed, else the first full feed in the post being viewed, else a breakout post's coverage, else the first capped feed, on single views only. See "Which coverage it shows" in `src/blocks/coverage-status/DEVELOPMENT.md`. The editor mirrors the rules with `useBlockCoverage()`.
 
 Inside a feed it is a coverage-level item (`Entry_Bindings::is_coverage_item()`, `isCoverageItem()` in `template.ts`), so it renders once with the feed's coverage, and `feed-insertion.ts` keeps it out of entries and the pinned card.
 

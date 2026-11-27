@@ -13,7 +13,7 @@ For how publishers use the block, see `README.md` in this directory.
 - `showLastUpdated`: the "Updated 2 minutes ago" text. Default off.
 - `hideWhenEnded`: render nothing once the coverage ends.
 
-Text color, margin and block gap come from block supports. The wrapper is a flex layout set in `block.json`. A newly inserted block gets a muted text color from the theme palette (`mutedTextColor()`), written as a non-persistent change so it doesn't land in the undo stack.
+Text color, font size, margin and block gap come from block supports. The wrapper sets newspack-ui's extra-small size and line height, which a font size from the block's support replaces. Inside the block, `style.scss` restates the badge's newspack-ui tokens (`--newspack-ui-font-size-caption`, `--newspack-ui-spacer-half`, `-1`, `-4`) in `em`, so the badge scales with the wrapper's size and matches newspack-ui's own sizes when no size is set. The wrapper is a flex layout set in `block.json`. A newly inserted block gets a muted text color from the theme palette (`mutedTextColor()`), written as a non-persistent change so it doesn't land in the undo stack.
 
 ## Which coverage it shows
 
@@ -21,9 +21,9 @@ Text color, margin and block gap come from block supports. The wrapper is a flex
 
 1. **Inside a Rolling Coverage block**, the feed's coverage, from the `newspack-rolling-coverage/coverageId` context. A Status block among a layout's coverage-level blocks gets it from `Rolling_Coverage_Block::render_coverage_blocks()`. Its own `coverageId` is ignored there.
 2. **Custom** (`coverageId > 0`), while that coverage exists and isn't trashed (`Page_Coverages::is_followable()`). A chosen coverage that is gone falls back to Automatic.
-3. **Automatic** (`coverageId` 0): the first uncapped Rolling Coverage block in the post being viewed, including ones inside synced patterns (`feed_coverage_ids()`), or, for a breakout post, its source entry's coverage (`breakout_coverage_id()`). Automatic resolves only on single views (`page_id()`) and never for a password-protected post.
+3. **Automatic** (`coverageId` 0): the first full (uncapped) Rolling Coverage block in the post being viewed, else, for a breakout post, its source entry's coverage (`breakout_coverage_id()`), else the first capped one (`latestOnly`), including feeds inside synced patterns (`feed_coverage_ids()`, then `breakout_coverage_id()`, then `capped_feed_coverage_ids()`). A breakout post that holds a capped preview of another liveblog keeps the liveblog it was broken out from. Automatic resolves only on single views (`page_id()`) and never for a password-protected post.
 
-With no coverage, the block renders nothing. Capped feeds (`latestOnly`) never count for Automatic, because they only preview a coverage.
+With no coverage, the block renders nothing. A capped feed only previews a coverage, so it counts for Automatic last. `Placements::build()` and `useBlockCoverage()` in `src/blocks/shared/block-coverage.ts` apply the same order.
 
 The editor mirrors these rules in `useBlockCoverage()` (`src/blocks/shared/block-coverage.ts`). Inside a Rolling Coverage block, `edit.tsx` of that block provides the coverage through `BlockContextProvider`.
 
@@ -85,7 +85,7 @@ With `hideWhenEnded`, `render_block()` returns nothing for an archived coverage,
 
 ## Tests
 
-- `tests/test-coverage-status-block.php`: coverage resolution (feed context, Custom, Automatic, breakout posts, capped feeds, synced patterns, single views only), labels, `hideWhenEnded`, the dot, custom backgrounds, the "Updated" time, the `newestEntry` REST field, the flex layout support and the default gap.
+- `tests/test-coverage-status-block.php`: coverage resolution (feed context, Custom, Automatic, breakout posts, full feeds winning over capped ones, capped feeds alone, synced patterns, single views only), labels, `hideWhenEnded`, the dot, custom backgrounds, the "Updated" time, the `newestEntry` REST field, the flex layout support and the default gap.
 - `tests/test-status-labels.php`: the labels option and REST route.
 - `tests/test-apca.php`: color normalizing and contrast.
 - `tests/test-newest-entry.php`: keeping the newest entry date current.

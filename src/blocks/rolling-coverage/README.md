@@ -21,7 +21,7 @@ A layout is how the feed looks: spacing, colors, type, and which parts each entr
 | Bulletin | The default. Entries stacked with their time and Share, title, and content. | Most liveblogs. |
 | Stream | Like Bulletin, with entries without titles, each headed by its author's photo, name, and how long ago it was posted. | Fast-moving events with many short updates without titles, such as a press conference or a court hearing. |
 | Rail | Entries hang off a timeline, each signed by its author's name beside Share. | Events where the order of updates and the gaps between them matter, such as a storm moving through. |
-| Clock | Each entry starts with the time it was posted and is signed by its author's name beside Share. | Coverage where the time of each update is the point, such as election results or travel delays. |
+| Clock | Each entry starts with the time it was posted, with the date under it for entries from earlier days, and is signed by its author's name beside Share. | Coverage where the time of each update is the point, such as election results or travel delays. |
 | Margin | Each entry split into a margin and its content. The margin holds the time (under Pinned on the pinned entry), the title, the author's name, and Share below it. | Coverage with headlines readers scan down the side, such as a long-running story. |
 | Minute | Closer together, with each entry reduced to its content. | Sports and other minute-by-minute coverage. Start each entry with the minute: "70' Goal! Kowalski scores from the edge of the box." |
 | Byline | Each entry signed by its author's photo and name. | Coverage with several reporters filing, where who reported each entry matters. |
@@ -41,6 +41,10 @@ Ticker, Wire, Digest, and Flash show only the latest entries. They set Show to L
 The first time someone who can publish picks a built-in layout, the site saves it as a shared layout. Every story using it then follows that one copy. A Contributor who picks one before that gets a copy for that story only. See [Edit, detach, and change a layout](#edit-detach-and-change-a-layout).
 
 You can also insert a layout from the inserter's Patterns tab, in the Rolling Coverage category. It becomes a Rolling Coverage block that uses that layout and asks for a liveblog.
+
+## Page patterns
+
+The inserter's Patterns tab has a **Rolling Coverage - Pages** category with nine ready-made pages built from the Rolling Coverage blocks: Live page, Live page, latest first, Live page with side column, Match: scoreboard beside the feed, Match: centered scoreline, Breaking news, Follow page, Follow band and Every live story. Each holds the blocks, layouts and placeholder text for its kind of page. After inserting one, write your own text and pick the liveblog in the Rolling Coverage block. The pages don't appear in the New page window. See [Page patterns](https://github.com/Automattic/newspack-rolling-coverage/blob/trunk/site/content/docs/guides/page-patterns.mdx) for what each one is for.
 
 ## Settings
 
@@ -163,7 +167,7 @@ Feeds set to Latest ignore pinning and show the newest entries only.
 
 A liveblog can have a Summary: a short entry, usually a list under a heading like "What we know", that readers see in a box at the very top of the feed, above pinned entries. Add it from the liveblog's entries list: open the **More actions** menu at the top and select **Add Summary**. Keep it up to date there, with Quick Edit or the entry editor, like any entry.
 
-- The box shows the Summary's title as a heading, its content, and "Updated" with the time it was last edited, in the site's time format (and the date, once it wasn't edited today). It sits on the theme's secondary background color, like a pinned entry in Bulletin.
+- The box shows the Summary's title as a heading, its content, and "Updated" with how long ago it was last edited, such as "Updated 5 minutes ago", as the Coverage Status block does. It counts up once a minute while the page is open, and the editor's preview shows it the same way. On Lite Site's text-only pages and in RSS feeds, where nothing counts it up, it shows the time it was last edited instead, in the site's time format (and the date, once it wasn't edited today). It sits on the theme's secondary background color, like a pinned entry in Bulletin.
 - "Updated" is set like the layout's entry times: in the font the theme gives dates, at their size and weight, and muted where they are (Stream, Clock and Byline). The box has rounded corners in the layouts whose boxes do: Stream, like its pinned entry, and Rail, Clock and Byline, like their full story cards.
 - Every full layout has the box: Bulletin, Stream, Rail, Clock, Margin, Minute, Byline and Split, where it spans the whole width above the pinned column. Layouts that show only the latest entries (Ticker, Wire, Digest, Flash and Alert), and any feed set to Show Latest, leave it out.
 - The Summary isn't an update: it never shows in the feed as an entry, never counts as a new entry, gets no "New" label, and sends no push notification.

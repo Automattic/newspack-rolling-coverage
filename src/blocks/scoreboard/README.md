@@ -8,6 +8,7 @@ The score belongs to the liveblog. Set it at the top of the liveblog's entries l
 
 - **Above the feed.** Add it to a match's page or post, above the Rolling Coverage block, or to a template.
 - **Inside a Rolling Coverage block.** Add it to the block's layout, such as its header. It shows that block's liveblog, and the Liveblog panel is hidden. It can't go inside an entry or the pinned entry.
+- **In a match page pattern.** The inserter's Rolling Coverage - Pages category has two Match patterns with a Scoreboard beside or above the feed: Match: scoreboard beside the feed, and Match: centered scoreline.
 
 The block is in the inserter's Newspack category, or Rolling Coverage on sites without Newspack.
 
@@ -17,10 +18,10 @@ The Liveblog panel is at the top of the block's settings. It appears only when t
 
 | Setting | What it does |
 | --- | --- |
-| Automatic | "Shows the liveblog on this page, or a breakout post’s liveblog." Uses the first Rolling Coverage block in this post or page's content, not one placed in the site's template. On a breakout post, uses the liveblog the post came from. |
+| Automatic | "Shows the liveblog on this page, or a breakout post’s liveblog." Uses the first Rolling Coverage block in this post or page's content that shows every entry, else, on a breakout post, the liveblog the post came from, else the first one that shows only the latest entries, not one placed in the site's template. |
 | Custom | "Always shows this liveblog." Pick the liveblog from the list. |
 
-Automatic works on single posts and pages only, not on archives or password-protected posts. It ignores a Rolling Coverage block that only previews the latest entries.
+Automatic works on single posts and pages only, not on archives or password-protected posts.
 
 The block shows nothing on the site when there is no liveblog to show. Most liveblogs aren't matches, so a liveblog has no score until someone adds one. Until then the scoreboard stays hidden, and open pages show it as soon as a score is added, without a reload. An ended liveblog without a score shows nothing.
 

@@ -19,6 +19,11 @@
 		"showSpinner": {
 			"type": "boolean",
 			"default": true
+		},
+		"ringPosition": {
+			"type": "string",
+			"enum": [ "start", "end" ],
+			"default": "start"
 		}
 	},
 	"supports": {

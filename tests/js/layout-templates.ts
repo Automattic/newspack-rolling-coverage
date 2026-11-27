@@ -2,7 +2,8 @@
  * Builds the built-in layouts in Node the way the editor builds a layout's
  * pattern: each layout's template from `getBuiltInLayouts()`, serialized once
  * `registerBlocks()` has registered the block types. The site the editor
- * would take its palette, font sizes and time format from is passed in.
+ * would take its palette, font sizes and time and date formats from is passed
+ * in.
  */
 import './editor-config';
 
@@ -38,6 +39,7 @@ export type Site = {
 	palette: string[];
 	fontSizes: string[];
 	timeFormat: string;
+	dateFormat: string;
 };
 
 /**
@@ -65,7 +67,7 @@ export function registerBlocks() {
  * Every built-in layout's inner blocks, serialized as the editor would on
  * the given site.
  *
- * @param {Site}            site    The site's palette, font sizes and time format.
+ * @param {Site}            site    The site's palette, font sizes and time and date formats.
  * @param {BuiltInLayout[]} layouts The layouts, when already listed.
  * @return {Record<string, string>} Markup by layout slug.
  */
@@ -91,7 +93,11 @@ export function serializeLayouts(
 	const settings = getSettings();
 	setSettings( {
 		...settings,
-		formats: { ...settings.formats, time: site.timeFormat },
+		formats: {
+			...settings.formats,
+			time: site.timeFormat,
+			date: site.dateFormat,
+		},
 	} );
 
 	return Object.fromEntries(

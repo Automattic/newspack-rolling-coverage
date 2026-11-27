@@ -17,10 +17,10 @@ The Liveblog panel is at the top of the block's settings. It appears only when t
 
 | Setting | What it does |
 | --- | --- |
-| Automatic | "Shows the liveblog on this page, or a breakout post’s liveblog." Uses the first Rolling Coverage block in this post or page's content, not one placed in the site's template. On a breakout post, uses the liveblog the post came from. |
+| Automatic | "Shows the liveblog on this page, or a breakout post’s liveblog." Uses the first Rolling Coverage block in this post or page's content that shows every entry, else, on a breakout post, the liveblog the post came from, else the first one that shows only the latest entries, not one placed in the site's template. |
 | Custom | "Always shows this liveblog." Pick the liveblog from the list. |
 
-Automatic works on single posts and pages only, not on archives or password-protected posts. It ignores a Rolling Coverage block that only previews the latest entries. With no liveblog to show, the block shows nothing on the site.
+Automatic works on single posts and pages only, not on archives or password-protected posts. With no liveblog to show, the block shows nothing on the site.
 
 If a liveblog you chose is deleted, the block falls back to the page's liveblog. The editor shows a notice.
 
@@ -43,6 +43,7 @@ Editors and administrators set the site-wide labels in Rolling Coverage > Settin
 
 - **Badge colors.** In the Styles tab, under Color, set Live background, Paused background, and Ended background. The text color is chosen automatically for contrast. The Flash and Alert layouts color the Live badge with the theme's own colors, which follow the theme's style variations; picking a color here replaces that with the color you pick.
 - **Text color.** The Text color setting changes the "Updated … ago" text. New blocks start with a muted color from the theme palette when it has one.
+- **Size.** In the Styles tab, under Typography, the size setting scales the badge and the "Updated … ago" text together. Without a size, the badge keeps its standard small size.
 - **Spacing.** The Dimensions settings control margin. On themes that support block spacing, they also control the gap between the badge and the "Updated … ago" text, which defaults to the theme's small spacing step. Other themes, including the Newspack Theme, use WordPress's standard gap.
 
 ## What readers see

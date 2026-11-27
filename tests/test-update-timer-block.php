@@ -140,6 +140,19 @@ class Test_Update_Timer_Block extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * With the ring after the countdown, the ring comes last, so a timer on
+	 * the right keeps it in place as the text changes length.
+	 */
+	public function test_puts_the_ring_after_the_text_when_asked() {
+		$coverage_id = self::create_coverage();
+		$after       = $this->render( [ 'ringPosition' => 'end' ], self::page( self::feed( $coverage_id ) ) );
+		$before      = $this->render( [], self::page( self::feed( $coverage_id ) ) );
+
+		$this->assertLessThan( strpos( $after, '<svg' ), strpos( $after, 'update-timer__text' ) );
+		$this->assertLessThan( strpos( $before, 'update-timer__text' ), strpos( $before, '<svg' ) );
+	}
+
+	/**
 	 * With no choice made, it follows the first feed on the page.
 	 */
 	public function test_follows_the_first_feed() {
