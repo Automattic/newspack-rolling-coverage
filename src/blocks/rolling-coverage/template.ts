@@ -1279,11 +1279,12 @@ function bulletinEntryBlocks(
 
 /**
  * A Bulletin Full Story Entry's box, outlined and tinted in the accent like
- * the other layouts' boxes: a row of the label, the time and "Share", with
- * the New label and the pin, shown only for a pinned entry, with the Pinned
- * label for screen readers only, at its far end, then the post's title, at
- * the entries' title size, its summary and a "Read more" button, with its
- * image to their right, stacked on phones.
+ * the other layouts' boxes: a row of the label, the time, the date on
+ * entries from earlier days and "Share", with the New label and the pin,
+ * shown only for a pinned entry, with the Pinned label for screen readers
+ * only, at its far end, then the post's title, at the entries' title size,
+ * its summary and a "Read more" button, with its image to their right,
+ * stacked on phones.
  *
  * @param {string[]} slugs The palette's color slugs.
  * @return {TemplateItem} The group.
@@ -1718,12 +1719,12 @@ function railPin(): TemplateItem {
 /**
  * A Rail entry's row: the time, under the New label and, on the pinned
  * card, the pin, with the date below it on entries from earlier days, in a
- * narrow column, then the entry beside a vertical rule,
- * which style.scss runs up through the Feed's gap to the entry above, in
- * this entry's color: the content, or the breakout post's box for a Full
- * Story Entry, then the author's avatar and name beside Share, with an
- * arrow at that row's far end in the box. The entry is a vertical flex
- * group, so its spacing also applies on the Newspack Theme (see
+ * narrow column, then the entry beside a vertical rule, which style.scss
+ * runs up through the Feed's gap to the entry above, in this entry's color:
+ * the content, or the breakout post's box for a Full Story Entry, then the
+ * author's avatar and name beside Share, with an arrow at that row's far end
+ * in the box. The entry is a vertical flex group, so its spacing also
+ * applies on the Newspack Theme (see
  * Rolling_Coverage_Block::apply_entry_block_gap()). The pinned card's rule
  * is in the accent color and its entry sits on a light gray panel, like
  * Bulletin's pinned card. A Full Story Entry's box is Clock's
@@ -2046,15 +2047,15 @@ function clockRow(
 
 /**
  * A Margin entry's row: the time, the date on entries from earlier days and
- * the New label after them, under the
- * pinned label on the pinned card, the title, the author's avatar and name,
- * then Share, stacked in a margin column, and the content in the wider
- * column beside it. The pinned card is ruled off with a heavier rule. A Full
- * Story Entry is ruled off as heavily in the accent color, with the time and
- * the breakout post's title in the margin, and the Full story label, small
- * like the Pinned label, its image, cropped to 16:9, its summary and a Read
- * more button in the content's place. It takes pinned entries too, with the
- * Pinned label above the time.
+ * the New label after them, under the pinned label on the pinned card, the
+ * title, the author's avatar and name, then Share, stacked in a margin
+ * column, and the content in the wider column beside it. The pinned card is
+ * ruled off with a heavier rule. A Full Story Entry is ruled off as heavily
+ * in the accent color, with the time and the breakout post's title in the
+ * margin, and the Full story label, small like the Pinned label, its image,
+ * cropped to 16:9, its summary and a Read more button in the content's
+ * place. It takes pinned entries too, with the Pinned label above the
+ * time.
  *
  * @param {string[]}  slugs The palette's color slugs.
  * @param {EntryKind} kind  Which part of the template the row is.
@@ -2481,11 +2482,11 @@ function bylineEntryTemplate( slugs: string[] ): TemplateItem[] {
 
 /**
  * The Wire layout's per-entry template: the time, with the date on entries
- * from earlier days and the New label after it, headline and a short excerpt, ruled off from the entry above. The
- * pinned card matches the regular entry, since a capped feed ignores
- * pinning. A Full Story Entry shows the time above Byline's card, without
- * the image, its title at the entries' size and its blocks spaced like an
- * entry's.
+ * from earlier days and the New label after it, the headline and a short
+ * excerpt, ruled off from the entry above. The pinned card matches the
+ * regular entry, since a capped feed ignores pinning. A Full Story Entry
+ * shows the time above Byline's card, without the image, its title at the
+ * entries' size and its blocks spaced like an entry's.
  *
  * @param {string[]} slugs The palette's color slugs.
  * @param {string[]} sizes The theme's font size slugs.
@@ -3064,11 +3065,11 @@ function splitFullStoryBlocks( slugs: string[] ): TemplateItem[] {
  * A Split entry's group: placed in the grid's other two columns, ruled off
  * from the entry above, the time it was posted, under the New label (after
  * it on phones, see style.scss), with the date below it on entries from
- * earlier days, beside the title, content, and the author's
- * avatar and name with the links, or above them on phones. A Full Story
- * Entry shows the breakout post beside its time instead (see
- * splitFullStoryBlocks()). Pinned entries show in the Pinned group instead
- * (see splitPinnedStack()).
+ * earlier days, beside the title, content, and the author's avatar and name
+ * with the links, or above them on phones. A Full Story Entry shows the
+ * breakout post beside its time instead (see splitFullStoryBlocks()).
+ * Pinned entries show in the Pinned group instead (see
+ * splitPinnedStack()).
  *
  * @param {string[]} slugs       The palette's color slugs.
  * @param {boolean}  isFullStory Whether the group is the Full Story Entry group.
