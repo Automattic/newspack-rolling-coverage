@@ -558,7 +558,7 @@ class Page_Patterns {
 			'live-page-side-column'  => [
 				'title'         => __( 'Live page with side column', 'newspack-rolling-coverage' ),
 				'description'   => __( 'Entries under the status badge, beside a box that invites readers to get alerts.', 'newspack-rolling-coverage' ),
-				'keywords'      => [ 'liveblog', 'live', 'sidebar', 'columns', 'follow', 'timer' ],
+				'keywords'      => [ 'liveblog', 'live', 'sidebar', 'columns', 'follow', 'alerts' ],
 				'viewportWidth' => 1200,
 			],
 			'match-side'             => [
