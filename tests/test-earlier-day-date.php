@@ -113,14 +113,14 @@ class Test_Earlier_Day_Date extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Each layout with a date after the time renders it in the site's date
-	 * format, hidden for today's entries.
+	 * Each layout with a date after the time hides it on today's entries only,
+	 * and shows earlier days' in the site's date format.
 	 *
 	 * @dataProvider time_layouts
 	 *
 	 * @param string $slug Built-in layout slug.
 	 */
-	public function test_layouts_show_the_date_after_the_time_on_earlier_days( string $slug ) {
+	public function test_layouts_hide_the_date_on_todays_entries_only( string $slug ) {
 		update_option( 'date_format', 'd/m/Y' );
 
 		$coverage_id = self::create_coverage();

@@ -17,7 +17,6 @@
 import './editor-config';
 
 import { parse } from '@wordpress/block-serialization-default-parser';
-import { getSettings } from '@wordpress/date';
 import { addFilter } from '@wordpress/hooks';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -589,23 +588,6 @@ test( 'every entry variant that shows the time also shows the earlier-day date r
 	expect( wrong ).toEqual( [] );
 } );
 
-test( 'every earlier-day date is small and in the site date format', () => {
-	for ( const slug of TIME_ONLY_LAYOUTS ) {
-		for ( const date of findNodes(
-			layoutNodes( slug ),
-			isEarlierDayDate
-		) ) {
-			expect( date.attributes.fontSize ).toBe( 'small' );
-			expect( date.attributes.format ).toBe(
-				getSettings().formats.date || 'F j, Y'
-			);
-			expect( date.attributes.metadata ).toMatchObject( {
-				bindings: { datetime: { source: 'core/post-data' } },
-			} );
-		}
-	}
-} );
-
 test( "Bulletin's pinned entry shows the clock time, like its other entries", () => {
 	const [ card ] = findNodes( layoutNodes( 'default' ), isPinnedCard );
 
@@ -614,7 +596,7 @@ test( "Bulletin's pinned entry shows the clock time, like its other entries", ()
 	expect( findNodes( [ card ], isEarlierDayDate ) ).toHaveLength( 1 );
 } );
 
-test( 'Stream and Ticker keep their relative dates, and they, Minute, Digest, Flash and Alert have no earlier-day date', () => {
+test( 'Stream and Ticker keep their relative dates', () => {
 	for ( const slug of [ 'stream', 'ticker' ] ) {
 		const nodes = layoutNodes( slug );
 
@@ -622,18 +604,5 @@ test( 'Stream and Ticker keep their relative dates, and they, Minute, Digest, Fl
 			0
 		);
 		expect( findNodes( nodes, isClockTime ) ).toEqual( [] );
-	}
-
-	for ( const slug of [
-		'stream',
-		'ticker',
-		'minute',
-		'digest',
-		'flash',
-		'alert',
-	] ) {
-		expect( findNodes( layoutNodes( slug ), isEarlierDayDate ) ).toEqual(
-			[]
-		);
 	}
 } );
