@@ -214,16 +214,27 @@ class Test_Page_Patterns extends Rolling_Coverage_TestCase {
 
 	/**
 	 * The side column is the first column, so it stacks first on phones, and
-	 * the update timer sits above the feed.
+	 * the status badge and update timer share a row above the feed. On
+	 * desktop a spacer the row's height lines the button up with the feed.
 	 */
 	public function test_side_column_comes_first() {
 		$columns = parse_blocks( self::pattern( 'live-page-side-column' )['content'] )[0]['innerBlocks'];
+		$side    = array_values( array_filter( $columns[0]['innerBlocks'], static fn( $block ) => null !== $block['blockName'] ) );
+		$feed    = array_values( array_filter( $columns[1]['innerBlocks'], static fn( $block ) => null !== $block['blockName'] ) );
 
 		$this->assertSame( '33.33%', $columns[0]['attrs']['width'] );
-		$this->assertSame( 'newspack-rolling-coverage/coverage-status', $columns[0]['innerBlocks'][0]['blockName'] );
+		$this->assertSame( [ 'core/spacer', 'newspack-rolling-coverage/coverage-follow' ], array_column( $side, 'blockName' ) );
 		$this->assertSame(
-			[ 'newspack-rolling-coverage/update-timer', Rolling_Coverage_Block::BLOCK_NAME ],
-			array_values( array_filter( array_column( $columns[1]['innerBlocks'], 'blockName' ) ) )
+			[
+				'mobile' => false,
+				'tablet' => false,
+			],
+			$side[0]['attrs']['metadata']['blockVisibility']['viewport']
+		);
+		$this->assertSame( [ 'core/group', Rolling_Coverage_Block::BLOCK_NAME ], array_column( $feed, 'blockName' ) );
+		$this->assertSame(
+			[ 'newspack-rolling-coverage/coverage-status', 'newspack-rolling-coverage/update-timer' ],
+			array_values( array_filter( array_column( $feed[0]['innerBlocks'], 'blockName' ) ) )
 		);
 	}
 
@@ -707,5 +718,6 @@ class Test_Page_Patterns extends Rolling_Coverage_TestCase {
 
 		$this->assertCount( 1, $timers );
 		$this->assertSame( 'small', $timers[0]['attrs']['fontSize'] ?? null );
+		$this->assertSame( 'end', $timers[0]['attrs']['ringPosition'] ?? null );
 	}
 }

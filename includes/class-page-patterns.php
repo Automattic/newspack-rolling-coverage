@@ -200,13 +200,19 @@ class Page_Patterns {
 	 * An Update Timer block. It has no `coverageId`, so it counts down for
 	 * the liveblog of the page.
 	 *
-	 * @param string[] $sizes Font size slugs: the first one the theme has.
+	 * @param string[] $sizes         Font size slugs: the first one the theme has.
+	 * @param string   $ring_position Where the ring sits beside the countdown: `start` or `end`.
 	 * @return string Block markup.
 	 */
-	public static function update_timer( array $sizes = [] ): string {
-		$size = self::first_size( $sizes );
+	public static function update_timer( array $sizes = [], string $ring_position = 'start' ): string {
+		$attributes = array_filter(
+			[
+				'ringPosition' => 'end' === $ring_position ? 'end' : null,
+				'fontSize'     => self::first_size( $sizes ),
+			]
+		);
 
-		return '<!-- wp:newspack-rolling-coverage/update-timer ' . ( $size ? serialize_block_attributes( [ 'fontSize' => $size ] ) . ' ' : '' ) . '/-->';
+		return '<!-- wp:newspack-rolling-coverage/update-timer ' . ( $attributes ? serialize_block_attributes( $attributes ) . ' ' : '' ) . '/-->';
 	}
 
 	/**
@@ -526,7 +532,7 @@ class Page_Patterns {
 			],
 			'live-page-side-column'  => [
 				'title'         => __( 'Live page with side column', 'newspack-rolling-coverage' ),
-				'description'   => __( 'Entries under the update timer, beside a column with the status badge and a Follow button.', 'newspack-rolling-coverage' ),
+				'description'   => __( 'Entries under the status badge and the update timer, beside a column with a Follow button.', 'newspack-rolling-coverage' ),
 				'keywords'      => [ 'liveblog', 'live', 'sidebar', 'columns', 'follow', 'timer' ],
 				'viewportWidth' => 1200,
 			],
