@@ -28,7 +28,7 @@ defined( 'ABSPATH' ) || exit;
 <div class="wp-block-column"><?php echo Page_Patterns::heading( esc_html__( 'No account needed', 'newspack-rolling-coverage' ), [ 'medium', 'normal' ] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Block markup from serialize_block(). ?>
 
 <!-- wp:paragraph -->
-<p><?php esc_html_e( 'There is nothing to sign up for. Your browser asks for permission the first time you select Follow.', 'newspack-rolling-coverage' ); ?></p>
+<p><?php esc_html_e( 'There is nothing to sign up for. Your browser asks for permission the first time you select Get alerts.', 'newspack-rolling-coverage' ); ?></p>
 <!-- /wp:paragraph --></div>
 <!-- /wp:column -->
 
