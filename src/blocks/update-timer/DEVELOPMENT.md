@@ -26,7 +26,7 @@ The plugin draws its own ring, since it runs without Newspack: a 2-unit stroke o
 
 With `prefers-reduced-motion: reduce` the ring never turns: while checking it shows the full ring, still. The countdown still fills, since it is a slow progress indicator that changes with the text rather than movement across the page.
 
-The editor preview shows the ring still and empty, as at the start of a wait, beside the full interval. The `showSpinner` attribute (Settings > Ring, default `true`) leaves the SVG out of the render and the preview when `false`.
+The editor preview shows the ring still and empty, as at the start of a wait, beside the full interval. The `showSpinner` attribute (Settings > Ring, default `true`) leaves the SVG out of the render and the preview when `false`. `ringPosition` (Settings > Ring position, `start` or `end`, default `start`) puts the SVG before or after the text in the markup, server and preview alike, rather than reversing the flex row, which would also push a timer standing on its own to the right edge.
 
 ## Labels
 
