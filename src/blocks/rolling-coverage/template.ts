@@ -362,6 +362,13 @@ const TIGHT_GAP = '0.25rem';
 const BYLINE_TEXT_CLASS = 'newspack-rolling-coverage-byline-text';
 
 /**
+ * Class of Byline's Time row, whose stylesheet rule keeps a hidden New
+ * label's room, so the row wraps under the name the same way whether the
+ * label shows or not.
+ */
+const BYLINE_TIME_CLASS = 'newspack-rolling-coverage-byline-time';
+
+/**
  * Class of the paragraph that links to the entry's breakout post, mirroring
  * Entry_Bindings::READ_MORE_CLASS.
  */
@@ -2336,10 +2343,12 @@ function minuteEntryTemplate( slugs: string[] ): TemplateItem[] {
  * links. The byline is the name, then a row of the time, the date on
  * entries from earlier days and the New label that never wraps, so the
  * label always shares the time's line; where the byline is too narrow, that
- * row moves under the name as a whole. The pinned entry differs only by the
- * pinned label at the end of its byline row, and a Full Story Entry by the
- * breakout post's box in place of the title and content; it has the pinned
- * label too, so it takes pinned entries.
+ * row moves under the name as a whole. A hidden label keeps its room in the
+ * row (style.scss), so the row sits in the same place whether the label
+ * shows or not. The pinned entry differs only by the pinned label at the
+ * end of its byline row, and a Full Story Entry by the breakout post's box
+ * in place of the title and content; it has the pinned label too, so it
+ * takes pinned entries.
  *
  * @param {string[]}  slugs The palette's color slugs.
  * @param {EntryKind} kind  Which part of the template the row is.
@@ -2380,7 +2389,7 @@ function bylineRow( slugs: string[], kind: EntryKind ): TemplateItem {
 						[
 							'core/group',
 							{
-								className: BYLINE_TEXT_CLASS,
+								className: `${ BYLINE_TEXT_CLASS } ${ BYLINE_TIME_CLASS }`,
 								layout: { type: 'flex', flexWrap: 'nowrap' },
 								style: {
 									spacing: {
