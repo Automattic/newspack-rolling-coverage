@@ -224,7 +224,7 @@ class Test_Page_Patterns extends Rolling_Coverage_TestCase {
 		$this->assertSame( [ 'newspack-rolling-coverage/coverage-status', 'core/columns' ], array_column( $blocks, 'blockName' ) );
 		$this->assertSame( '33.33%', $columns[0]['attrs']['width'] );
 		$this->assertSame( [ 'core/group' ], array_column( $side, 'blockName' ) );
-		$this->assertSame( 'base-3', $side[0]['attrs']['borderColor'] );
+		$this->assertStringStartsWith( 'var(--wp--preset--color--base-3', $side[0]['attrs']['style']['border']['color'] );
 		$this->assertCount( 1, self::find( $side[0]['innerBlocks'], 'newspack-rolling-coverage/coverage-follow' ) );
 		$this->assertSame( Rolling_Coverage_Block::BLOCK_NAME, array_values( array_filter( array_column( $columns[1]['innerBlocks'], 'blockName' ) ) )[0] );
 	}
@@ -669,7 +669,7 @@ class Test_Page_Patterns extends Rolling_Coverage_TestCase {
 			]
 		);
 
-		foreach ( [ 'follow-band', 'follow-page', 'live-page-latest-first', 'every-live-story', 'match-side' ] as $slug ) {
+		foreach ( [ 'follow-band', 'follow-page', 'live-page-side-column', 'every-live-story', 'match-side' ] as $slug ) {
 			foreach ( self::find( parse_blocks( self::pattern( $slug )['content'] ), 'core/heading' ) as $heading ) {
 				$this->assertContains( $heading['attrs']['fontSize'] ?? '', [ 'small', 'normal', 'large' ], $slug );
 				$this->assertStringContainsString( 'has-' . $heading['attrs']['fontSize'] . '-font-size', $heading['innerHTML'], $slug );
@@ -700,7 +700,7 @@ class Test_Page_Patterns extends Rolling_Coverage_TestCase {
 	 * A heading that comes before any other in a pattern is a level 2.
 	 */
 	public function test_first_headings_are_level_two() {
-		foreach ( [ 'follow-page', 'every-live-story' ] as $slug ) {
+		foreach ( [ 'follow-page', 'every-live-story', 'live-page-side-column' ] as $slug ) {
 			$headings = self::find( self::without_feeds( parse_blocks( self::pattern( $slug )['content'] ) ), 'core/heading' );
 
 			$this->assertNotEmpty( $headings, $slug );
