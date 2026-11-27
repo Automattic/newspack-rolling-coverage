@@ -247,6 +247,10 @@ $accent: var(--newspack-rolling-coverage-accent, var(--wp--preset--color--accent
 		align-items: baseline;
 	}
 
+	.newspack-rolling-coverage-earlier-day-date[hidden] {
+		display: none;
+	}
+
 	.newspack-rolling-coverage-entry {
 		scroll-margin-top: var(--newspack-rolling-coverage-scroll-offset, 80px);
 
