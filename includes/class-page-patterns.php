@@ -77,18 +77,13 @@ class Page_Patterns {
 	 *
 	 * @param string $layout     Built-in layout slug.
 	 * @param array  $attributes The block's own settings: what picking the layout in the editor sets, such as `latestOnly`.
-	 * @param array  $overrides  Attributes to set on dynamic blocks of the layout, by block name, such as `core/post-title`; a static block's saved markup would no longer match them. A `fontSize` takes a list of slugs: the first one the theme has.
 	 * @return string Block markup, empty for a slug without a layout.
 	 */
-	public static function feed( string $layout, array $attributes = [], array $overrides = [] ): string {
+	public static function feed( string $layout, array $attributes = [] ): string {
 		$blocks = Layout_Templates::get_blocks( $layout );
 
 		if ( null === $blocks ) {
 			return '';
-		}
-
-		if ( $overrides ) {
-			$blocks = self::override( $blocks, $overrides, self::font_size_slugs() );
 		}
 
 		return serialize_block(
@@ -100,32 +95,6 @@ class Page_Patterns {
 				'innerContent' => array_fill( 0, count( $blocks ), null ),
 			]
 		);
-	}
-
-	/**
-	 * Sets attributes on the blocks of a layout.
-	 *
-	 * @param array[]  $blocks    Parsed blocks.
-	 * @param array    $overrides Attributes by block name.
-	 * @param string[] $sizes    The theme's font size slugs.
-	 * @return array[]
-	 */
-	private static function override( array $blocks, array $overrides, array $sizes ): array {
-		foreach ( $blocks as $index => $block ) {
-			foreach ( $overrides[ $block['blockName'] ?? '' ] ?? [] as $name => $value ) {
-				if ( 'fontSize' === $name ) {
-					$value = current( array_intersect( (array) $value, $sizes ) );
-				}
-
-				if ( false !== $value ) {
-					$blocks[ $index ]['attrs'][ $name ] = $value;
-				}
-			}
-
-			$blocks[ $index ]['innerBlocks'] = self::override( $block['innerBlocks'] ?? [], $overrides, $sizes );
-		}
-
-		return $blocks;
 	}
 
 	/**
@@ -161,13 +130,15 @@ class Page_Patterns {
 	 * no `coverageId`, so it follows the liveblog of the page, or the one it
 	 * is set to once someone picks Custom.
 	 *
+	 * @param bool $full_width Whether the button fills the width of its column.
 	 * @return string Block markup.
 	 */
-	public static function follow(): string {
-		$text   = __( 'Follow', 'newspack-rolling-coverage' );
-		$label  = esc_html( $text );
-		$button_html = "\n" . '<div class="wp-block-button"><button type="button" class="wp-block-button__link wp-element-button">' . $label . '</button></div>' . "\n";
-		$button = [
+	public static function follow( bool $full_width = false ): string {
+		$text        = __( 'Follow', 'newspack-rolling-coverage' );
+		$label       = esc_html__( 'Get alerts', 'newspack-rolling-coverage' );
+		$classes     = 'wp-block-button' . ( $full_width ? ' has-custom-width wp-block-button__width-100' : '' );
+		$button_html = "\n" . '<div class="' . $classes . '"><button type="button" class="wp-block-button__link wp-element-button">' . $label . '</button></div>' . "\n";
+		$button      = [
 			'blockName'    => 'core/button',
 			'attrs'        => [
 				'tagName'  => 'button',
@@ -185,6 +156,9 @@ class Page_Patterns {
 			'innerHTML'    => $button_html,
 			'innerContent' => [ $button_html ],
 		];
+		if ( $full_width ) {
+			$button['attrs']['width'] = 100;
+		}
 		$buttons = [
 			'blockName'    => 'core/buttons',
 			'attrs'        => [ 'metadata' => [ 'name' => $text ] ],
@@ -202,6 +176,19 @@ class Page_Patterns {
 				'innerContent' => [ "\n", null, "\n" ],
 			]
 		);
+	}
+
+	/**
+	 * An Update Timer block. It has no `coverageId`, so it counts down for
+	 * the liveblog of the page.
+	 *
+	 * @param string[] $sizes Font size slugs: the first one the theme has.
+	 * @return string Block markup.
+	 */
+	public static function update_timer( array $sizes = [] ): string {
+		$size = self::first_size( $sizes );
+
+		return '<!-- wp:newspack-rolling-coverage/update-timer ' . ( $size ? serialize_block_attributes( [ 'fontSize' => $size ] ) . ' ' : '' ) . '/-->';
 	}
 
 	/**
@@ -515,7 +502,7 @@ class Page_Patterns {
 			],
 			'live-page-latest-first' => [
 				'title'         => __( 'Live page, latest first', 'newspack-rolling-coverage' ),
-				'description'   => __( 'The newest entry large at the top, with every entry in the Stream layout below it.', 'newspack-rolling-coverage' ),
+				'description'   => __( 'A status badge with the time of the last update, a Follow button beside the heading, and every entry in the Stream layout.', 'newspack-rolling-coverage' ),
 				'keywords'      => [ 'liveblog', 'live', 'latest', 'newest', 'stream' ],
 				'viewportWidth' => 1200,
 			],

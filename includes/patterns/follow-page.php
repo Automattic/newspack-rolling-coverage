@@ -36,7 +36,7 @@ defined( 'ABSPATH' ) || exit;
 <div class="wp-block-column"><?php echo Page_Patterns::heading( esc_html__( 'Stop anytime', 'newspack-rolling-coverage' ), [ 'medium', 'normal' ] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Block markup from serialize_block(). ?>
 
 <!-- wp:paragraph -->
-<p><?php esc_html_e( 'Select Following to stop, or turn alerts off in your browser settings.', 'newspack-rolling-coverage' ); ?></p>
+<p><?php esc_html_e( 'Select the button again to stop, or turn alerts off in your browser settings.', 'newspack-rolling-coverage' ); ?></p>
 <!-- /wp:paragraph --></div>
 <!-- /wp:column --></div>
 <!-- /wp:columns -->

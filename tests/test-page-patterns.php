@@ -173,10 +173,9 @@ class Test_Page_Patterns extends Rolling_Coverage_TestCase {
 	public function test_patterns_use_the_expected_layouts_and_settings() {
 		$latest = self::feeds( parse_blocks( self::pattern( 'live-page-latest-first' )['content'] ) );
 
-		$this->assertCount( 2, $latest );
-		$this->assertTrue( $latest[0]['attrs']['latestOnly'] );
-		$this->assertSame( 1, $latest[0]['attrs']['latestCount'] );
-		$this->assertSame( serialize_blocks( Layout_Templates::get_blocks( 'stream' ) ), serialize_blocks( $latest[1]['innerBlocks'] ) );
+		$this->assertCount( 1, $latest );
+		$this->assertArrayNotHasKey( 'latestOnly', $latest[0]['attrs'] );
+		$this->assertSame( serialize_blocks( Layout_Templates::get_blocks( 'stream' ) ), serialize_blocks( $latest[0]['innerBlocks'] ) );
 
 		$flash = self::feeds( parse_blocks( self::pattern( 'breaking-news' )['content'] ) )[0];
 
@@ -250,43 +249,6 @@ class Test_Page_Patterns extends Rolling_Coverage_TestCase {
 			$this->assertSame( Page_Patterns::FIRST_COLUMN_TO_SECOND, $columns['attrs']['className'], $slug );
 			$this->assertStringContainsString( Page_Patterns::FIRST_COLUMN_TO_SECOND, $columns['innerHTML'], $slug );
 		}
-	}
-
-	/**
-	 * The lead entry is set at headline scale with block attributes.
-	 */
-	public function test_latest_entry_is_the_lead() {
-		add_filter(
-			'wp_theme_json_data_theme',
-			static fn( $data ) => $data->update_with(
-				[
-					'version'  => WP_Theme_JSON::LATEST_SCHEMA,
-					'settings' => [
-						'typography' => [
-							'fontSizes' => [
-								[
-									'slug' => 'large',
-									'name' => 'large',
-									'size' => '1.5rem',
-								],
-								[
-									'slug' => 'xx-large',
-									'name' => 'xx-large',
-									'size' => '3rem',
-								],
-							],
-						],
-					],
-				]
-			)
-		);
-		wp_clean_theme_json_cache();
-
-		$lead = self::feeds( parse_blocks( self::pattern( 'live-page-latest-first' )['content'] ) )[0];
-		$json = wp_json_encode( $lead['innerBlocks'] );
-
-		$this->assertStringContainsString( '"fontSize":"xx-large"', $json );
-		$this->assertStringContainsString( 'post-content', $json );
 	}
 
 	/**
@@ -697,6 +659,49 @@ class Test_Page_Patterns extends Rolling_Coverage_TestCase {
 		$this->assertSame( 'Follow', $blocks[0]['innerBlocks'][0]['attrs']['metadata']['name'] );
 		$button = $blocks[0]['innerBlocks'][0]['innerBlocks'][0];
 		$this->assertSame( 'followTag', $button['attrs']['metadata']['bindings']['url']['args']['key'] );
-		$this->assertStringContainsString( '>Follow</button>', $button['innerHTML'] );
+		$this->assertStringContainsString( '>Get alerts</button>', $button['innerHTML'] );
+		$this->assertArrayNotHasKey( 'width', $button['attrs'] );
+	}
+
+	/**
+	 * A full-width Follow button carries the width core saves for it.
+	 */
+	public function test_follow_full_width() {
+		$button = parse_blocks( Page_Patterns::follow( true ) )[0]['innerBlocks'][0]['innerBlocks'][0];
+
+		$this->assertSame( 100, $button['attrs']['width'] );
+		$this->assertStringContainsString( 'class="wp-block-button has-custom-width wp-block-button__width-100"', $button['innerHTML'] );
+	}
+
+	/**
+	 * The side column's Update Timer is set a size down.
+	 */
+	public function test_side_column_timer_is_small() {
+		add_filter(
+			'wp_theme_json_data_theme',
+			static fn( $data ) => $data->update_with(
+				[
+					'version'  => WP_Theme_JSON::LATEST_SCHEMA,
+					'settings' => [
+						'typography' => [
+							'defaultFontSizes' => false,
+							'fontSizes'        => [
+								[
+									'slug' => 'small',
+									'name' => 'small',
+									'size' => '1rem',
+								],
+							],
+						],
+					],
+				]
+			)
+		);
+		wp_clean_theme_json_cache();
+
+		$timers = self::find( parse_blocks( self::pattern( 'live-page-side-column' )['content'] ), 'newspack-rolling-coverage/update-timer' );
+
+		$this->assertCount( 1, $timers );
+		$this->assertSame( 'small', $timers[0]['attrs']['fontSize'] ?? null );
 	}
 }
