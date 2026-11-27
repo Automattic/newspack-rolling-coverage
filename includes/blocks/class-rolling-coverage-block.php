@@ -1318,7 +1318,7 @@ class Rolling_Coverage_Block {
 		self::$host_post_id = (int) get_the_ID();
 
 		// Preload so polled entries' blocks are styled and work even if none appeared on initial render. Those include the photos Slack messages add, and Follow, Status, Update Timer and Scoreboard blocks placed in an entry or in a feed nested in one.
-		foreach ( [ 'core/buttons', 'core/button', 'core/separator', 'core/icon', 'core/image', 'core/gallery', Coverage_Status_Block::BLOCK_NAME, Update_Timer_Block::BLOCK_NAME, Scoreboard_Block::BLOCK_NAME ] as $entry_block_name ) {
+		foreach ( [ 'core/buttons', 'core/button', 'core/separator', 'core/icon', 'core/image', 'core/gallery', Coverage_Status_Block::BLOCK_NAME, Update_Timer_Block::BLOCK_NAME, Scoreboard_Block::BLOCK_NAME, Coverage_Follow_Block::BLOCK_NAME ] as $entry_block_name ) {
 			$entry_block_type = WP_Block_Type_Registry::get_instance()->get_registered( $entry_block_name );
 
 			foreach ( $entry_block_type ? $entry_block_type->style_handles : [] as $style_handle ) {

@@ -282,6 +282,24 @@ class Test_Coverage_Follow_Block extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * Nothing renders in a syndication feed, where the button can't work, so
+	 * a feed reader never shows a dead button or its stacked labels.
+	 */
+	public function test_renders_nothing_in_a_feed() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id );
+
+		$this->go_to( get_feed_link() );
+		$this->assertTrue( is_feed() );
+		$this->assertSame( '', do_blocks( self::follow( $coverage_id ) ) );
+
+		$feed = do_blocks( self::feed( $coverage_id, self::follow() ) );
+
+		$this->assertStringContainsString( '<article', $feed, 'The feed itself should still render.' );
+		$this->assertSame( [], self::tags( $feed ) );
+	}
+
+	/**
 	 * Nothing renders on a lite page, which has neither the follow script nor
 	 * a push provider. A full page shows the button.
 	 */
@@ -326,7 +344,7 @@ class Test_Coverage_Follow_Block extends Rolling_Coverage_TestCase {
 		$this->assertStringStartsWith( '<div class="wp-block-buttons', $html );
 		$this->assertStringEndsWith( '</div>', $html );
 		$this->assertSame( 2, substr_count( $html, '<div' ), 'Only the Buttons and Button wrappers should render.' );
-		$this->assertStringNotContainsString( 'coverage-follow', $html );
+		$this->assertStringNotContainsString( 'wp-block-newspack-rolling-coverage-coverage-follow', $html );
 	}
 
 	/**
@@ -339,6 +357,47 @@ class Test_Coverage_Follow_Block extends Rolling_Coverage_TestCase {
 		$html = $this->render( self::follow( $coverage_id ) . self::BUTTONS_MARKUP );
 
 		$this->assertSame( [ Push_Notifications::follow_tag( $coverage_id ) ], self::tags( $html ) );
-		$this->assertSame( 1, substr_count( $html, '>Follow</button>' ) );
+		$this->assertSame( 1, substr_count( $html, 'data-rc-label="off">Follow</span>' ) );
+	}
+
+	/**
+	 * The button holds its three labels and the spinner, only the publisher's
+	 * label showing without the stylesheet, and the snackbar messages name
+	 * the liveblog.
+	 */
+	public function test_button_holds_its_labels_and_names_the_liveblog() {
+		$coverage_id = self::create_coverage( '', [ 'name' => 'Kettle River & Flood' ] );
+
+		$html   = $this->render( self::follow( $coverage_id ) );
+		$button = new WP_HTML_Tag_Processor( $html );
+
+		$this->assertTrue( $button->next_tag( 'button' ) );
+		$this->assertSame( 'false', $button->get_attribute( 'aria-pressed' ) );
+		$this->assertSame( 'Alerts on', $button->get_attribute( 'data-on-notice' ) );
+		$this->assertSame( 'Alerts off', $button->get_attribute( 'data-off-notice' ) );
+		$this->assertSame( 'You’ll get alerts for “Kettle River & Flood”.', $button->get_attribute( 'data-on-message' ) );
+		$this->assertSame( 'Alerts for “Kettle River & Flood” are off.', $button->get_attribute( 'data-off-message' ) );
+
+		$labels = [];
+		while ( $button->next_tag( 'span' ) ) {
+			$label = $button->get_attribute( 'data-rc-label' );
+			if ( null !== $label ) {
+				$labels[ $label ] = [ null !== $button->get_attribute( 'hidden' ), $button->get_attribute( 'aria-hidden' ) ];
+			}
+		}
+
+		$this->assertSame(
+			[
+				'off'  => [ false, null ],
+				'on'   => [ true, null ],
+				'stop' => [ true, 'true' ],
+			],
+			$labels
+		);
+		$this->assertStringContainsString( 'data-rc-label="off">Follow</span>', $html );
+		$this->assertStringContainsString( 'Alerts on</span>', $html );
+		$this->assertStringContainsString( '>Stop alerts</span>', $html );
+		$this->assertStringContainsString( '<svg', $html );
+		$this->assertSame( 1, substr_count( $html, 'newspack-rolling-coverage-follow__spinner' ) );
 	}
 }

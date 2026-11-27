@@ -2082,8 +2082,8 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 		$this->assertSame( 1, substr_count( $html, 'newspack-rolling-coverage-all-updates' ), 'The link should render once.' );
 		$this->assertStringContainsString( '<a href="https://example.org/election-night/">See all updates</a>', $html );
 		$this->assertGreaterThan( strrpos( $html, '</article>' ), strpos( $html, 'newspack-rolling-coverage-all-updates' ), 'The footer should follow the last entry.' );
-		$this->assertSame( 1, substr_count( $html, '>Follow</button>' ), 'Follow should render once, in the footer.' );
-		$this->assertGreaterThan( strrpos( $html, '</article>' ), strpos( $html, '>Follow</button>' ) );
+		$this->assertSame( 1, substr_count( $html, 'data-rc-label="off">Follow</span>' ), 'Follow should render once, in the footer.' );
+		$this->assertGreaterThan( strrpos( $html, '</article>' ), strpos( $html, 'data-rc-label="off">Follow</span>' ) );
 	}
 
 	/**
@@ -2112,7 +2112,7 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 		$html = self::render_coverage_items( $attributes, $entry_group . $footer );
 
 		$this->assertStringContainsString( 'digest-footer', $html );
-		$this->assertStringContainsString( '>Follow</button>', $html );
+		$this->assertStringContainsString( 'data-rc-label="off">Follow</span>', $html );
 	}
 
 	/**
