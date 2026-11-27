@@ -179,6 +179,24 @@ class Page_Patterns {
 	}
 
 	/**
+	 * A Coverage Status block with the time of the last update. It has no
+	 * `coverageId`, so it shows the liveblog of the page.
+	 *
+	 * @param string[] $sizes Font size slugs: the first one the theme has.
+	 * @return string Block markup.
+	 */
+	public static function status( array $sizes = [] ): string {
+		$attributes = array_filter(
+			[
+				'showLastUpdated' => true,
+				'fontSize'        => self::first_size( $sizes ),
+			]
+		);
+
+		return '<!-- wp:newspack-rolling-coverage/coverage-status ' . serialize_block_attributes( $attributes ) . ' /-->';
+	}
+
+	/**
 	 * An Update Timer block. It has no `coverageId`, so it counts down for
 	 * the liveblog of the page.
 	 *
@@ -508,7 +526,7 @@ class Page_Patterns {
 			],
 			'live-page-side-column'  => [
 				'title'         => __( 'Live page with side column', 'newspack-rolling-coverage' ),
-				'description'   => __( 'Entries beside a column with the status badge, a Follow button and the update timer.', 'newspack-rolling-coverage' ),
+				'description'   => __( 'Entries under the update timer, beside a column with the status badge and a Follow button.', 'newspack-rolling-coverage' ),
 				'keywords'      => [ 'liveblog', 'live', 'sidebar', 'columns', 'follow', 'timer' ],
 				'viewportWidth' => 1200,
 			],

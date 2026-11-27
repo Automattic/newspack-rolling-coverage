@@ -213,14 +213,18 @@ class Test_Page_Patterns extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * The side column is the first column, so it stacks first on phones.
+	 * The side column is the first column, so it stacks first on phones, and
+	 * the update timer sits above the feed.
 	 */
 	public function test_side_column_comes_first() {
 		$columns = parse_blocks( self::pattern( 'live-page-side-column' )['content'] )[0]['innerBlocks'];
 
 		$this->assertSame( '33.33%', $columns[0]['attrs']['width'] );
 		$this->assertSame( 'newspack-rolling-coverage/coverage-status', $columns[0]['innerBlocks'][0]['blockName'] );
-		$this->assertSame( Rolling_Coverage_Block::BLOCK_NAME, $columns[1]['innerBlocks'][0]['blockName'] );
+		$this->assertSame(
+			[ 'newspack-rolling-coverage/update-timer', Rolling_Coverage_Block::BLOCK_NAME ],
+			array_values( array_filter( array_column( $columns[1]['innerBlocks'], 'blockName' ) ) )
+		);
 	}
 
 	/**
