@@ -21,7 +21,7 @@ A layout is how the feed looks: spacing, colors, type, and which parts each entr
 | Bulletin | The default. Entries stacked with their time and Share, title, and content. | Most liveblogs. |
 | Stream | Like Bulletin, with entries without titles, each headed by its author's photo, name, and how long ago it was posted. | Fast-moving events with many short updates without titles, such as a press conference or a court hearing. |
 | Rail | Entries hang off a timeline, each signed by its author's name beside Share. | Events where the order of updates and the gaps between them matter, such as a storm moving through. |
-| Clock | Each entry starts with the time it was posted and is signed by its author's name beside Share. | Coverage where the time of each update is the point, such as election results or travel delays. |
+| Clock | Each entry starts with the time it was posted, with the date under it for entries from earlier days, and is signed by its author's name beside Share. | Coverage where the time of each update is the point, such as election results or travel delays. |
 | Margin | Each entry split into a margin and its content. The margin holds the time (under Pinned on the pinned entry), the title, the author's name, and Share below it. | Coverage with headlines readers scan down the side, such as a long-running story. |
 | Minute | Closer together, with each entry reduced to its content. | Sports and other minute-by-minute coverage. Start each entry with the minute: "70' Goal! Kowalski scores from the edge of the box." |
 | Byline | Each entry signed by its author's photo and name. | Coverage with several reporters filing, where who reported each entry matters. |

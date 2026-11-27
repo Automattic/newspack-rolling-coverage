@@ -10,6 +10,7 @@
  * - `{{all_updates}}`: the link to the coverage page, in the site's name for
  *   entries.
  * - `{{time_format}}`: the site's time format.
+ * - `{{date_format}}`: the site's date format.
  * - `{{muted_color}}`: the theme's muted text color, or none.
  * - `{{font_size:preferred|fallback}}`: the theme's font size preset.
  */
@@ -149,7 +150,12 @@ function savedHtml( blocks: ReturnType< typeof parse > ): string {
 
 test( 'the server copies of the built-in layouts match their templates (npm run build:layouts writes them)', () => {
 	const layouts = serializeLayouts(
-		{ palette: [], fontSizes: [], timeFormat: '{{time_format}}' },
+		{
+			palette: [],
+			fontSizes: [],
+			timeFormat: '{{time_format}}',
+			dateFormat: '{{date_format}}',
+		},
 		LAYOUTS
 	);
 	const outOfDate: string[] = [];

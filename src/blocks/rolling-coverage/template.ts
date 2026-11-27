@@ -313,6 +313,13 @@ const SUMMARY_CARD_CLASS = 'newspack-rolling-coverage-summary-card';
 const SUMMARY_UPDATED_CLASS = 'newspack-rolling-coverage-summary-updated';
 
 /**
+ * Class of an entry's Post Date that the site shows only when the entry
+ * wasn't published on the site's current day, mirroring
+ * Rolling_Coverage_Block::EARLIER_DAY_DATE_CLASS. The editor always shows it.
+ */
+const EARLIER_DAY_DATE_CLASS = 'newspack-rolling-coverage-earlier-day-date';
+
+/**
  * The summary card's "Updated" line color where the layout's entry times
  * carry none of their own: the color the themes give a Date block, the block
  * theme's Contrast 3 and the classic theme's text color. Written as values
@@ -506,6 +513,15 @@ function placeholderLink( text: string ): string {
  */
 function siteTimeFormat(): string {
 	return getSettings().formats.time || 'g:i a';
+}
+
+/**
+ * The site's date format, for layouts that show the day an entry was posted.
+ *
+ * @return {string} A PHP date format.
+ */
+function siteDateFormat(): string {
+	return getSettings().formats.date || 'F j, Y';
 }
 
 /**
@@ -1935,12 +1951,13 @@ function ruledRow(
 }
 
 /**
- * A Clock entry's row: the time set large in a narrow column with the
- * relative date below it, under the New label (after it on phones, see
- * style.scss) and, on the pinned card and the Full Story Entry (which so
- * takes pinned entries too), the pinned row in the accent color, then the title and content, or the breakout post's
- * box for a Full Story Entry, and the author's avatar and name with Share
- * beside it, with an arrow at that row's far end in the box.
+ * A Clock entry's row: the time set large in a narrow column, under the New
+ * label (after it on phones, see style.scss), with the date below it, which
+ * the site shows only for entries from earlier days, and, on the pinned card
+ * and the Full Story Entry (which so takes pinned entries too), the pinned
+ * row in the accent color above them; then the title and content, or the
+ * breakout post's box for a Full Story Entry, and the author's avatar and
+ * name with Share beside it, with an arrow at that row's far end in the box.
  *
  * @param {string[]}  slugs The palette's color slugs.
  * @param {string[]}  sizes The theme's font size slugs.
@@ -1977,7 +1994,8 @@ function clockRow(
 				'core/post-date',
 				{
 					...POST_DATE_ATTRIBUTES,
-					format: 'human-diff',
+					format: siteDateFormat(),
+					className: EARLIER_DAY_DATE_CLASS,
 					fontSize: 'small',
 					...mutedDateColor( slugs ),
 					style: { typography: { fontWeight: '600' } },

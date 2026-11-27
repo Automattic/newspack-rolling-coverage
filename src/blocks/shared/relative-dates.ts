@@ -4,6 +4,12 @@
  * show how old each date was when the HTML was made.
  */
 
+import {
+	refreshEarlierDayDates,
+	siteDay,
+	type SiteTimezone,
+} from './earlier-day-dates';
+
 // Relative dates, marked by the Rolling Coverage block's entries and the Coverage Status block's "Updated" time.
 const RELATIVE_DATE_SELECTOR = 'time[data-rc-relative][datetime]';
 
@@ -75,26 +81,32 @@ function refreshRelativeDates(
 
 /**
  * Updates the relative dates in a block now and every minute, and in every
- * entry added to its list later by polling or loading more.
+ * entry added to its list later by polling or loading more, and shows or
+ * hides its earlier-day dates for the site's current day at the same times.
  *
- * @param {HTMLElement} root        The block's outer wrapper element.
- * @param {HTMLElement} entriesList The block's entries list.
+ * @param {HTMLElement}  root        The block's outer wrapper element.
+ * @param {HTMLElement}  entriesList The block's entries list.
+ * @param {SiteTimezone} [timezone]  The site's timezone.
  * @return {Function} Stops the updates.
  */
 function keepRelativeDatesCurrent(
 	root: HTMLElement,
-	entriesList: HTMLElement
+	entriesList: HTMLElement,
+	timezone?: SiteTimezone
 ): () => void {
 	const formatter = getFormatter();
+	const refresh = ( scope: Element ) => {
+		if ( formatter ) {
+			refreshRelativeDates( scope, formatter );
+		}
 
-	if ( ! formatter ) {
-		return () => {};
-	}
+		refreshEarlierDayDates( scope, siteDay( Date.now(), timezone ) );
+	};
 
-	refreshRelativeDates( root, formatter );
+	refresh( root );
 
 	const intervalId = window.setInterval(
-		() => refreshRelativeDates( root, formatter ),
+		() => refresh( root ),
 		REFRESH_INTERVAL_MS
 	);
 
@@ -102,7 +114,7 @@ function keepRelativeDatesCurrent(
 		mutations.forEach( ( mutation ) =>
 			mutation.addedNodes.forEach( ( node ) => {
 				if ( node instanceof Element ) {
-					refreshRelativeDates( node, formatter );
+					refresh( node );
 				}
 			} )
 		)
