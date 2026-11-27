@@ -313,7 +313,7 @@ export default function Edit( {
 								} )
 							}
 							help={ __(
-								'After keeps the ring in place when the timer sits on the right, as the countdown changes length.',
+								'After keeps the ring in place when the timer sits at the end of a row, as the countdown changes length.',
 								'newspack-rolling-coverage'
 							) }
 						>
@@ -324,10 +324,13 @@ export default function Edit( {
 									'ring position',
 									'newspack-rolling-coverage'
 								) }
-								aria-label={ __(
-									'Ring before the countdown',
-									'newspack-rolling-coverage'
-								) }
+								aria-label={
+									/* translators: Screen reader name for the “Before” option. Keep the word used to translate “Before”. */
+									__(
+										'Ring before the countdown',
+										'newspack-rolling-coverage'
+									)
+								}
 							/>
 							<ToggleGroupControlOption
 								value="end"
@@ -336,10 +339,13 @@ export default function Edit( {
 									'ring position',
 									'newspack-rolling-coverage'
 								) }
-								aria-label={ __(
-									'Ring after the countdown',
-									'newspack-rolling-coverage'
-								) }
+								aria-label={
+									/* translators: Screen reader name for the “After” option. Keep the word used to translate “After”. */
+									__(
+										'Ring after the countdown',
+										'newspack-rolling-coverage'
+									)
+								}
 							/>
 						</ToggleGroupControl>
 					) }

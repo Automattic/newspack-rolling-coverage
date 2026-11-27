@@ -27,7 +27,7 @@ The Settings panel holds one setting.
 | Setting | Options | What it does |
 | --- | --- | --- |
 | Ring | Show, Hide | "Fills beside the countdown until the next check, then spins while the check runs. It doesn’t spin for readers who ask their device for reduced motion." Hide leaves the text on its own. Show is the default. |
-| Ring position | Before, After | Shown while the ring is on. "After keeps the ring in place when the timer sits on the right, as the countdown changes length." Before is the default. |
+| Ring position | Before, After | Shown while the ring is on. "After keeps the ring in place when the timer sits at the end of a row, as the countdown changes length." Before is the default. |
 
 ## When it doesn't appear
 
