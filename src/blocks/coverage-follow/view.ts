@@ -78,7 +78,7 @@ function announce( text: string ): void {
  * Confirms a toggle in Newspack UI's snackbar, or announces it without
  * Newspack UI. Screen readers always hear which liveblog, e.g. "You'll get
  * alerts for “Kettle River flood”." On screen, a page with one liveblog shows
- * only "Alerts on." or "Alerts off.", since the reader is on that liveblog; a
+ * only "Alerts on" or "Alerts off", since the reader is on that liveblog; a
  * page with buttons for several shows the full sentence. Newspack UI reads a
  * notice out as it opens it, so the notice opens with the full sentence and
  * then shows the short one, keeping the sentence for anyone who reads it later.

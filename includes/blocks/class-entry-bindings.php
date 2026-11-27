@@ -1049,8 +1049,8 @@ class Entry_Bindings {
 					? sprintf( __( 'Alerts for “%s” are off.', 'newspack-rolling-coverage' ), $name )
 					: __( 'Alerts for this liveblog are off.', 'newspack-rolling-coverage' )
 			);
-			$button->set_attribute( 'data-on-notice', __( 'Alerts on.', 'newspack-rolling-coverage' ) );
-			$button->set_attribute( 'data-off-notice', __( 'Alerts off.', 'newspack-rolling-coverage' ) );
+			$button->set_attribute( 'data-on-notice', __( 'Alerts on', 'newspack-rolling-coverage' ) );
+			$button->set_attribute( 'data-off-notice', __( 'Alerts off', 'newspack-rolling-coverage' ) );
 			$button->set_attribute( 'data-blocked-message', __( 'Notifications are blocked in your browser. Allow them in your browser\'s site settings, then try again.', 'newspack-rolling-coverage' ) );
 			$button->set_attribute( 'data-error-message', __( 'Something went wrong. Please try again.', 'newspack-rolling-coverage' ) );
 			$button->set_attribute( 'aria-pressed', 'false' );

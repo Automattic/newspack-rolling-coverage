@@ -9,8 +9,8 @@ const ERROR = 'Something went wrong. Please try again.';
 const ON = 'You’ll get alerts for “Kettle River flood”.';
 const OFF = 'Alerts for “Kettle River flood” are off.';
 const BLOCKED = 'Notifications are blocked in your browser.';
-const ON_SHORT = 'Alerts on.';
-const OFF_SHORT = 'Alerts off.';
+const ON_SHORT = 'Alerts on';
+const OFF_SHORT = 'Alerts off';
 
 const addButtons = ( count = 1, tags = [ 'coverage_1' ] ) => {
 	document.body.innerHTML = Array.from(
@@ -118,7 +118,7 @@ describe( 'the follow button', () => {
 		expect( button.getAttribute( 'aria-pressed' ) ).toBe( 'true' );
 	} );
 
-	it( 'shows "Alerts on." on a page with one liveblog, and reads out which liveblog', async () => {
+	it( 'shows "Alerts on" on a page with one liveblog, and reads out which liveblog', async () => {
 		const createNotice = fakeCreateNotice();
 		( window as TestWindow ).newspackUI = { notices: { createNotice } };
 

@@ -373,8 +373,8 @@ class Test_Coverage_Follow_Block extends Rolling_Coverage_TestCase {
 
 		$this->assertTrue( $button->next_tag( 'button' ) );
 		$this->assertSame( 'false', $button->get_attribute( 'aria-pressed' ) );
-		$this->assertSame( 'Alerts on.', $button->get_attribute( 'data-on-notice' ) );
-		$this->assertSame( 'Alerts off.', $button->get_attribute( 'data-off-notice' ) );
+		$this->assertSame( 'Alerts on', $button->get_attribute( 'data-on-notice' ) );
+		$this->assertSame( 'Alerts off', $button->get_attribute( 'data-off-notice' ) );
 		$this->assertSame( 'You’ll get alerts for “Kettle River & Flood”.', $button->get_attribute( 'data-on-message' ) );
 		$this->assertSame( 'Alerts for “Kettle River & Flood” are off.', $button->get_attribute( 'data-off-message' ) );
 
