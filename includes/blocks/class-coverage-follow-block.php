@@ -83,7 +83,8 @@ class Coverage_Follow_Block {
 	/**
 	 * Whether a follow button should render for the given coverage status.
 	 *
-	 * Requires OneSignal to be configured and the coverage not to be archived.
+	 * Requires a request that isn't a syndication feed, OneSignal to be
+	 * configured, and the coverage not to be archived.
 	 *
 	 * @param string $status Coverage status.
 	 * @return bool

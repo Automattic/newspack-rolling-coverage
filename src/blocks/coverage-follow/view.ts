@@ -219,13 +219,18 @@ function requestNotificationPermission(
 			'permissionChange',
 			onChange
 		);
-		// A prompt the reader closes or ignores never fires permissionChange,
+		// A prompt the reader closes or dismisses never fires permissionChange,
 		// which would leave the spinner on for good.
 		Promise.resolve( OneSignal.Notifications.requestPermission() )
 			.catch( () => undefined )
 			.then( () =>
 				window.setTimeout(
-					() => settle( OneSignal.Notifications.permission ),
+					() =>
+						settle(
+							OneSignal.Notifications.permission ||
+								( typeof Notification !== 'undefined' &&
+									Notification.permission === 'granted' )
+						),
 					PERMISSION_SETTLE_MS
 				)
 			);
@@ -462,30 +467,11 @@ document.addEventListener( 'click', ( event ) => {
 	}
 } );
 
-/**
- * Hands a button's labels and spinner to the stylesheet. They start `hidden`
- * so a page without it reads only the publisher's label, but a theme reset
- * such as `[hidden] { display: none !important }` would otherwise beat the
- * stylesheet and keep them hidden for good.
- *
- * @param {HTMLButtonElement[]} buttons Follow buttons.
- */
-function showLabels( buttons: HTMLButtonElement[] ): void {
-	buttons.forEach( ( button ) =>
-		button
-			.querySelectorAll(
-				'[data-rc-label][hidden], .newspack-rolling-coverage-follow__spinner[hidden]'
-			)
-			.forEach( ( element ) => element.removeAttribute( 'hidden' ) )
-	);
-}
-
 const followButtons = Array.from(
 	document.querySelectorAll< HTMLButtonElement >( FOLLOW_BUTTON_SELECTOR )
 );
 
 if ( followButtons.length ) {
-	showLabels( followButtons );
 	syncWhenReady( followButtons );
 }
 
@@ -498,7 +484,6 @@ new MutationObserver( ( records ) => {
 	);
 
 	if ( arrived.length ) {
-		showLabels( arrived );
 		syncWhenReady( arrived );
 	}
 } ).observe( document.body, { childList: true, subtree: true } );

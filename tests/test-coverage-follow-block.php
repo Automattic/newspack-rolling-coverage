@@ -287,11 +287,16 @@ class Test_Coverage_Follow_Block extends Rolling_Coverage_TestCase {
 	 */
 	public function test_renders_nothing_in_a_feed() {
 		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id );
 
 		$this->go_to( get_feed_link() );
 		$this->assertTrue( is_feed() );
 		$this->assertSame( '', do_blocks( self::follow( $coverage_id ) ) );
-		$this->assertSame( [], self::tags( do_blocks( self::feed( $coverage_id, self::follow() ) ) ) );
+
+		$feed = do_blocks( self::feed( $coverage_id, self::follow() ) );
+
+		$this->assertStringContainsString( '<article', $feed, 'The feed itself should still render.' );
+		$this->assertSame( [], self::tags( $feed ) );
 	}
 
 	/**

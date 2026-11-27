@@ -115,6 +115,33 @@ describe( 'the follow button', () => {
 		expect( button.hasAttribute( 'data-rc-fresh' ) ).toBe( false );
 	} );
 
+	it( 'follows once the reader allows notifications in the prompt', async () => {
+		const OneSignal = fakeOneSignal();
+		OneSignal.Notifications.permission = false;
+		OneSignal.Notifications.requestPermission.mockImplementation(
+			async () => {
+				const [ , onChange ] =
+					OneSignal.Notifications.addEventListener.mock.calls[ 0 ];
+				OneSignal.Notifications.permission = true;
+				onChange( true );
+			}
+		);
+
+		const [ button ] = addButtons();
+		button.click();
+		await runSdk( OneSignal );
+		jest.advanceTimersByTime( 1000 );
+
+		expect( OneSignal.User.addTag ).toHaveBeenCalledWith(
+			'coverage_1',
+			'1'
+		);
+		expect(
+			OneSignal.Notifications.removeEventListener
+		).toHaveBeenCalled();
+		expect( button.getAttribute( 'aria-pressed' ) ).toBe( 'true' );
+	} );
+
 	it( 'returns a button to its old state, with no message, when the prompt is closed', async () => {
 		const createNotice = jest.fn();
 		( window as TestWindow ).newspackUI = { notices: { createNotice } };

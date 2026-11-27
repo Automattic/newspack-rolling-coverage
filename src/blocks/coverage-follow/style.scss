@@ -19,8 +19,9 @@ button[data-rc-follow] {
 		grid-area: 1 / 1;
 	}
 
-	.newspack-rolling-coverage-follow__label {
-		display: inline-flex;
+	.newspack-rolling-coverage-follow__label,
+	.newspack-rolling-coverage-follow__label[hidden] {
+		display: inline-flex !important;
 		align-items: center;
 		justify-content: center;
 		gap: 0.25em;
@@ -28,6 +29,7 @@ button[data-rc-follow] {
 
 		svg {
 			flex: none;
+			fill: currentcolor;
 			width: 1.5em;
 			height: 1.5em;
 			margin-block: -0.25em;
@@ -35,8 +37,9 @@ button[data-rc-follow] {
 		}
 	}
 
-	.newspack-rolling-coverage-follow__spinner {
-		display: none;
+	.newspack-rolling-coverage-follow__spinner,
+	.newspack-rolling-coverage-follow__spinner[hidden] {
+		display: none !important;
 		box-sizing: border-box;
 		width: 1em;
 		height: 1em;
@@ -88,8 +91,9 @@ button[data-rc-follow] {
 			opacity: 0;
 		}
 
-		.newspack-rolling-coverage-follow__spinner {
-			display: block;
+		.newspack-rolling-coverage-follow__spinner,
+		.newspack-rolling-coverage-follow__spinner[hidden] {
+			display: block !important;
 		}
 	}
 }
