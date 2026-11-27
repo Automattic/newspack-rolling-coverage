@@ -24,7 +24,7 @@ const FOLLOW_BUTTONS_TEMPLATE: TemplateItem = [
 			'core/button',
 			{
 				tagName: 'button',
-				text: __( 'Follow', 'newspack-rolling-coverage' ),
+				text: __( 'Get alerts', 'newspack-rolling-coverage' ),
 				metadata: {
 					name: __( 'Follow', 'newspack-rolling-coverage' ),
 					bindings: {

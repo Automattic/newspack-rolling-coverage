@@ -378,8 +378,8 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 		self::create_entry( $this->coverage_id );
 		self::configure_onesignal();
 
-		$this->assertStringContainsString( 'Follow</button>', $this->render_block_html( [], self::FOLLOW_MARKUP ), 'A full page shows the Follow button.' );
-		$this->assertStringNotContainsString( 'Follow</button>', $this->render_lite_page( [], self::FOLLOW_MARKUP ), 'A lite page does not.' );
+		$this->assertStringContainsString( 'data-rc-label="off">Follow</span>', $this->render_block_html( [], self::FOLLOW_MARKUP ), 'A full page shows the Follow button.' );
+		$this->assertStringNotContainsString( 'data-rc-label="off">Follow</span>', $this->render_lite_page( [], self::FOLLOW_MARKUP ), 'A lite page does not.' );
 	}
 
 	/**
@@ -423,10 +423,10 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 			. '</div><!-- /wp:group -->';
 		$lite_page  = $this->render_lite_page( $attributes, $footer );
 
-		$this->assertStringContainsString( 'Follow</button>', $this->render_block_html( $attributes, $footer ), 'A full page shows the Follow button.' );
+		$this->assertStringContainsString( 'data-rc-label="off">Follow</span>', $this->render_block_html( $attributes, $footer ), 'A full page shows the Follow button.' );
 		$this->assertStringContainsString( '<h2>Storm coverage</h2>', $lite_page );
 		$this->assertStringContainsString( '<a href="' . $coverage_page . '">See all updates</a>', $lite_page );
-		$this->assertStringNotContainsString( 'Follow</button>', $lite_page );
+		$this->assertStringNotContainsString( 'data-rc-label="off">Follow</span>', $lite_page );
 	}
 
 	/**

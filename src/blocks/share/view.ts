@@ -3,6 +3,11 @@
  */
 import { __ } from '@wordpress/i18n';
 
+/**
+ * Internal dependencies
+ */
+import { getSnackbar } from '../shared/snackbar';
+
 const BLOCK_SELECTOR = '.wp-block-newspack-rolling-coverage-rolling-coverage';
 // The core button link marked by Entry_Bindings, and the legacy Share block.
 const SHARE_BUTTON_SELECTOR =
@@ -15,35 +20,6 @@ const COPIED_STATE_MS = 2000;
 // feed added after page load gets no listeners, so the closest feed around it
 // that was there at load handles its buttons.
 const handledEvents = new WeakSet< Event >();
-
-type NewspackUI = {
-	notices?: { createNotice?: ( message: string ) => void };
-};
-
-/**
- * Shows a Newspack UI snackbar. Newspack UI adds its snackbar to the first
- * `.newspack-ui` element, which can be a hidden modal, so it gets its own
- * container first.
- *
- * @param {Function} createNotice Newspack UI's createNotice().
- * @param {string}   message      Message to show.
- */
-function showSnackbar(
-	createNotice: ( message: string ) => void,
-	message: string
-): void {
-	if ( ! document.querySelector( '.newspack-ui__snackbar' ) ) {
-		const wrapper = document.createElement( 'div' );
-		const snackbar = document.createElement( 'div' );
-
-		wrapper.className = 'newspack-ui';
-		snackbar.className = 'newspack-ui__snackbar';
-		wrapper.appendChild( snackbar );
-		document.body.appendChild( wrapper );
-	}
-
-	createNotice( message );
-}
 
 /**
  * Copies text through a hidden selection, for browsers that refuse the
@@ -194,18 +170,17 @@ function initBlock( root: HTMLElement ): void {
 			return;
 		}
 
-		const createNotice = ( window as Window & { newspackUI?: NewspackUI } )
-			.newspackUI?.notices?.createNotice;
+		const showSnackbar = getSnackbar();
 		// The snackbar announces itself, so the status region stays empty.
 		// Otherwise the button's feed announces the copy, or the feed handling
 		// the tap when the button's feed is capped and renders no region.
-		const status = createNotice
+		const status = showSnackbar
 			? null
 			: ( ownElement( ownFeed, STATUS_SELECTOR ) ??
 				ownElement( root, STATUS_SELECTOR ) );
 		const notify = ( message: string ) => {
-			if ( createNotice ) {
-				showSnackbar( createNotice, message );
+			if ( showSnackbar ) {
+				showSnackbar( message );
 			} else if ( status ) {
 				status.textContent = message;
 			}
