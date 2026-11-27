@@ -423,6 +423,7 @@ const layoutOf = ( node?: TemplateNode ) =>
 		type?: string;
 		orientation?: string;
 		justifyContent?: string;
+		flexWrap?: string;
 	};
 
 const isFlexColumn = ( node: TemplateNode ) =>
@@ -453,7 +454,7 @@ test( 'a New label on a line of its own sits directly in a vertical flex group, 
 	expect( wrong ).toEqual( [] );
 } );
 
-test( 'a New label that shares a line is the last item on it, so clearing it moves nothing', () => {
+test( 'a New label that shares a line is the last item on it, in a row that never wraps, so clearing it moves nothing', () => {
 	const wrong: string[] = [];
 
 	for ( const { slug } of LAYOUTS ) {
@@ -478,6 +479,12 @@ test( 'a New label that shares a line is the last item on it, so clearing it mov
 						.slice( parent.innerBlocks.indexOf( label ) + 1 )
 						.map( ( node ) => node.name )
 						.join( ', ' ) }`
+				);
+			}
+
+			if ( layoutOf( parent ).flexWrap !== 'nowrap' ) {
+				wrong.push(
+					`${ slug }: in a row that wraps, under ${ parent.attributes.metadata?.name }`
 				);
 			}
 		}

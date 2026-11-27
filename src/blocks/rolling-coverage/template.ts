@@ -2331,9 +2331,11 @@ function minuteEntryTemplate( slugs: string[] ): TemplateItem[] {
 
 /**
  * A Byline entry's row: the author's avatar in a narrow column that stays
- * beside the entry at every width, then the byline of the name, the time,
- * the date on entries from earlier days, on a line of its own when the
- * byline wraps, and the New label, title, content and links. The pinned entry differs only by the
+ * beside the entry at every width, then the byline, the title, content and
+ * links. The byline is the name, then a row of the time, the date on
+ * entries from earlier days and the New label that never wraps, so the
+ * label always shares the time's line; where the byline is too narrow, that
+ * row moves under the name as a whole. The pinned entry differs only by the
  * pinned label at the end of its byline row, and a Full Story Entry by the
  * breakout post's box in place of the title and content; it has the pinned
  * label too, so it takes pinned entries.
@@ -2375,16 +2377,36 @@ function bylineRow( slugs: string[], kind: EntryKind ): TemplateItem {
 					[
 						authorName( '700' ),
 						[
-							'core/post-date',
+							'core/group',
 							{
-								...POST_DATE_ATTRIBUTES,
-								format: siteTimeFormat(),
-								fontSize: 'small',
-								...mutedDateColor( slugs ),
+								className: BYLINE_TEXT_CLASS,
+								layout: { type: 'flex', flexWrap: 'nowrap' },
+								style: {
+									spacing: {
+										blockGap: 'var:preset|spacing|20',
+									},
+								},
+								metadata: {
+									name: __(
+										'Time',
+										'newspack-rolling-coverage'
+									),
+								},
 							},
+							[
+								[
+									'core/post-date',
+									{
+										...POST_DATE_ATTRIBUTES,
+										format: siteTimeFormat(),
+										fontSize: 'small',
+										...mutedDateColor( slugs ),
+									},
+								],
+								earlierDayDate( slugs ),
+								newLabel(),
+							],
 						],
-						earlierDayDate( slugs ),
-						newLabel(),
 					],
 				],
 				...( kind === 'entry'
