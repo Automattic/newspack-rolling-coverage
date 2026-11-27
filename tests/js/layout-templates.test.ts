@@ -279,14 +279,14 @@ test( "Split's Pinned group sticks, but is not sticky where it stacks on tablets
 	}
 } );
 
-test( 'every built-in layout except Alert places the New label in each entry variant', () => {
+test( 'every built-in layout except Alert and Flash places the New label in each entry variant', () => {
 	const missing: string[] = [];
 
 	for ( const { slug } of LAYOUTS ) {
 		const nodes = layoutNodes( slug );
 		const labels = findNodes( nodes, isNewLabel );
 
-		if ( slug === 'alert' ) {
+		if ( slug === 'alert' || slug === 'flash' ) {
 			expect( labels ).toEqual( [] );
 			continue;
 		}
@@ -332,17 +332,6 @@ test( 'no other layout hides its New label', () => {
 		for ( const label of findNodes( layoutNodes( slug ), isNewLabel ) ) {
 			expect( label.attributes.visuallyHidden ).toBeFalsy();
 		}
-	}
-} );
-
-test( "Flash's New label takes the bar's text color, not the accent", () => {
-	const labels = findNodes( layoutNodes( 'flash' ), isNewLabel );
-
-	expect( labels.length ).toBeGreaterThan( 0 );
-
-	for ( const label of labels ) {
-		expect( label.attributes.style?.color?.text ).toBeUndefined();
-		expect( label.attributes.textColor ).toBeUndefined();
 	}
 } );
 

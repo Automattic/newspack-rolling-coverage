@@ -59,24 +59,18 @@ const NEW_LABEL_BLOCK_NAME = 'newspack-rolling-coverage/new-label';
  * mark should show. Its text is left empty, which shows the translated
  * "New".
  *
- * @param {Object}      [options]                How the label shows.
- * @param {string|null} [options.color]          The label's text color, or
- *                                               null for the color of the
- *                                               text around it. Default the
- *                                               readable accent.
- * @param {boolean}     [options.visuallyHidden] Whether the label is for
- *                                               screen readers only, for a
- *                                               layout whose entries already
- *                                               look new. Default false.
- * @param {string}      [options.textAlign]      The label's text alignment.
+ * @param {Object}  [options]                How the label shows.
+ * @param {boolean} [options.visuallyHidden] Whether the label is for
+ *                                           screen readers only, for a
+ *                                           layout whose entries already
+ *                                           look new. Default false.
+ * @param {string}  [options.textAlign]      The label's text alignment.
  * @return {TemplateItem} The label.
  */
 function newLabel( {
-	color = READABLE_ACCENT,
 	visuallyHidden = false,
 	textAlign,
 }: {
-	color?: string | null;
 	visuallyHidden?: boolean;
 	textAlign?: string;
 } = {} ): TemplateItem {
@@ -91,7 +85,7 @@ function newLabel( {
 					...( textAlign ? { textAlign } : {} ),
 					fontWeight: '700',
 				},
-				...( color ? { color: { text: color } } : {} ),
+				color: { text: READABLE_ACCENT },
 			},
 		},
 	];
@@ -2781,7 +2775,6 @@ function flashEntryTemplate(): TemplateItem[] {
 		string,
 		Record< string, unknown >,
 	];
-	const marker = newLabel( { color: null } );
 	const entry = ( className: string, name: string ): TemplateItem => [
 		'core/group',
 		{
@@ -2790,7 +2783,7 @@ function flashEntryTemplate(): TemplateItem[] {
 			...group,
 			metadata: { name },
 		},
-		[ date, excerpt, marker ],
+		[ date, excerpt ],
 	];
 
 	return [
@@ -2826,7 +2819,6 @@ function flashEntryTemplate(): TemplateItem[] {
 					},
 				],
 				excerpt,
-				marker,
 			],
 			group
 		),

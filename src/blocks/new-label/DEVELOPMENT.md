@@ -29,7 +29,7 @@ An entry whose template holds no New Label gets only the screen-reader "New" (`n
 ## Editor
 
 - `RichText` has `disableLineBreaks`, so the label stays on one line. While `content` is empty, `editor.scss` shows the "New" placeholder at full strength rather than core's dimmed placeholder, so the canvas matches the site; the text isn't stored, so it follows the site's language.
-- `newLabel()` in `template.ts` builds the block for the built-in layouts: `use-header-font`, the `small` font size, weight 700, the readable accent as the text color unless `color: null` (Flash), an optional text alignment, and `visuallyHidden` for Minute. It leaves `content` empty, so the layouts' server copies carry no text to translate.
+- `newLabel()` in `template.ts` builds the block for the built-in layouts: `use-header-font`, the `small` font size, weight 700, the readable accent as the text color, an optional text alignment, and `visuallyHidden` for Minute. It leaves `content` empty, so the layouts' server copies carry no text to translate.
 - `isNewLabel()` matches the block by name (`NEW_LABEL_BLOCK_NAME`). `withoutNewLabel()` (`layout.ts`'s previews) and `hiddenNewLabelIds()` (`edit.tsx`) use it to show the label only on the sample previewing the newest unpinned entry.
 - `ENTRY_ALLOWED_BLOCKS` (`template.ts`) lets the block into the Feed group.
 
