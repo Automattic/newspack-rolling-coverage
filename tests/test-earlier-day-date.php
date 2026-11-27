@@ -10,8 +10,8 @@ use Newspack_Rolling_Coverage\Layout_Templates;
 use Newspack_Rolling_Coverage\Rolling_Coverage_Block;
 
 /**
- * Clock's date under the time shows only for entries that weren't published
- * on the site's current day, in the site's timezone.
+ * The date after an entry's time shows only for entries that weren't
+ * published on the site's current day, in the site's timezone.
  */
 class Test_Earlier_Day_Date extends Rolling_Coverage_TestCase {
 
@@ -113,10 +113,15 @@ class Test_Earlier_Day_Date extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Clock renders the date in the site's date format, hidden for today's
-	 * entries, and the other built-in layouts have no earlier-day date.
+	 * Every layout that shows the time renders the date in the site's date
+	 * format, hidden for today's entries, and the layouts that show a relative
+	 * date or none have no earlier-day date.
+	 *
+	 * @dataProvider time_layouts
+	 *
+	 * @param string $slug Built-in layout slug.
 	 */
-	public function test_only_clock_has_an_earlier_day_date() {
+	public function test_layouts_with_the_time_show_the_date_on_earlier_days( string $slug ) {
 		update_option( 'date_format', 'd/m/Y' );
 
 		$coverage_id = self::create_coverage();
@@ -125,7 +130,7 @@ class Test_Earlier_Day_Date extends Rolling_Coverage_TestCase {
 		self::entry_at( $coverage_id, time() );
 
 		$attributes = [ 'coverageId' => $coverage_id ];
-		$block      = parse_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' -->' . serialize_blocks( Layout_Templates::get_blocks( 'clock' ) ) . '<!-- /wp:newspack-rolling-coverage/rolling-coverage -->' )[0];
+		$block      = parse_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' -->' . serialize_blocks( Layout_Templates::get_blocks( $slug ) ) . '<!-- /wp:newspack-rolling-coverage/rolling-coverage -->' )[0];
 		$html       = Rolling_Coverage_Block::render_block( $attributes, '', new WP_Block( $block ) );
 		$dates      = new WP_HTML_Tag_Processor( $html );
 		$shown      = [];
@@ -136,8 +141,29 @@ class Test_Earlier_Day_Date extends Rolling_Coverage_TestCase {
 
 		$this->assertSame( [ false, true ], $shown, "The newest entry's date should be hidden and the older one's shown." );
 		$this->assertStringContainsString( '>' . get_the_date( 'd/m/Y', $earlier ) . '</time>', $html );
+	}
 
-		foreach ( array_diff( Layout::BUILT_IN_SLUGS, [ 'clock' ] ) as $slug ) {
+	/**
+	 * The built-in layouts that show each entry's time.
+	 *
+	 * @return array<string, string[]>
+	 */
+	public static function time_layouts(): array {
+		$slugs = [ 'default', 'byline', 'clock', 'digest', 'flash', 'margin', 'rail', 'split', 'wire' ];
+
+		return array_combine( $slugs, array_map( fn( $slug ) => [ $slug ], $slugs ) );
+	}
+
+	/**
+	 * Stream and Ticker show relative dates, and Minute and Alert no date, so
+	 * none has an earlier-day date.
+	 */
+	public function test_layouts_without_the_time_have_no_earlier_day_date() {
+		$slugs = array_keys( self::time_layouts() );
+
+		$this->assertSame( [ 'stream', 'minute', 'ticker', 'alert' ], array_values( array_diff( Layout::BUILT_IN_SLUGS, $slugs ) ) );
+
+		foreach ( array_diff( Layout::BUILT_IN_SLUGS, $slugs ) as $slug ) {
 			$this->assertStringNotContainsString( Rolling_Coverage_Block::EARLIER_DAY_DATE_CLASS, serialize_blocks( Layout_Templates::get_blocks( $slug ) ), "$slug should have no earlier-day date." );
 		}
 	}

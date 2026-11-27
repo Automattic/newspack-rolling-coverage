@@ -17,6 +17,7 @@
 import './editor-config';
 
 import { parse } from '@wordpress/block-serialization-default-parser';
+import { getSettings } from '@wordpress/date';
 import { addFilter } from '@wordpress/hooks';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -483,4 +484,144 @@ test( 'a New label that shares a line is the last item on it, so clearing it mov
 	}
 
 	expect( wrong ).toEqual( [] );
+} );
+
+const EARLIER_DAY_DATE_CLASS = 'newspack-rolling-coverage-earlier-day-date';
+
+const isPostDate = ( node: TemplateNode ) => node.name === 'core/post-date';
+
+const isEarlierDayDate = ( node: TemplateNode ) =>
+	isPostDate( node ) && hasClass( node, EARLIER_DAY_DATE_CLASS );
+
+const isRelativeDate = ( node: TemplateNode ) =>
+	isPostDate( node ) && node.attributes.format === 'human-diff';
+
+const isClockTime = ( node: TemplateNode ) =>
+	isPostDate( node ) &&
+	! isEarlierDayDate( node ) &&
+	! isRelativeDate( node );
+
+/**
+ * A variant's own blocks, without the variants nested in it, such as the
+ * groups in Split's Pinned group.
+ *
+ * @param {Object} variant The entry variant.
+ * @return {Object[]} Its blocks.
+ */
+const ownNodes = ( variant: TemplateNode ) =>
+	variant.innerBlocks.filter( ( node ) => ! isEntryVariant( node ) );
+
+/**
+ * The block that directly holds a block, in a tree.
+ *
+ * @param {Object[]} nodes The blocks.
+ * @param {Object}   child The block to find.
+ * @return {Object|undefined} Its parent.
+ */
+function parentOf(
+	nodes: TemplateNode[],
+	child: TemplateNode
+): TemplateNode | undefined {
+	return findNodes( nodes, ( node ) =>
+		node.innerBlocks.includes( child )
+	)[ 0 ];
+}
+
+const TIME_ONLY_LAYOUTS = [
+	'default',
+	'byline',
+	'clock',
+	'digest',
+	'flash',
+	'margin',
+	'rail',
+	'split',
+	'wire',
+];
+
+test( 'every entry variant that shows the time also shows the earlier-day date right after it', () => {
+	const wrong: string[] = [];
+
+	for ( const slug of TIME_ONLY_LAYOUTS ) {
+		const variants = findNodes( layoutNodes( slug ), isEntryVariant );
+
+		expect( variants.length ).toBeGreaterThanOrEqual( 2 );
+
+		for ( const variant of variants ) {
+			const own = ownNodes( variant );
+			const times = findNodes( own, isClockTime );
+			const dates = findNodes( own, isEarlierDayDate );
+			const name = `${ slug }: ${ variant.attributes.className }`;
+
+			if ( times.length !== dates.length || times.length > 1 ) {
+				wrong.push(
+					`${ name } has ${ times.length } times and ${ dates.length } earlier-day dates`
+				);
+				continue;
+			}
+
+			if ( ! dates.length ) {
+				continue;
+			}
+
+			const [ time ] = times;
+			const [ date ] = dates;
+			const parent = parentOf( [ variant ], date );
+			const before =
+				parent?.innerBlocks[ parent.innerBlocks.indexOf( date ) - 1 ];
+
+			if (
+				! before ||
+				( before !== time &&
+					! findNodes( [ before ], ( node ) => node === time )
+						.length )
+			) {
+				wrong.push( `${ name }: the date doesn't follow the time` );
+			}
+		}
+	}
+
+	expect( wrong ).toEqual( [] );
+} );
+
+test( 'every earlier-day date is small and in the site date format', () => {
+	for ( const slug of TIME_ONLY_LAYOUTS ) {
+		for ( const date of findNodes(
+			layoutNodes( slug ),
+			isEarlierDayDate
+		) ) {
+			expect( date.attributes.fontSize ).toBe( 'small' );
+			expect( date.attributes.format ).toBe(
+				getSettings().formats.date || 'F j, Y'
+			);
+			expect( date.attributes.metadata ).toMatchObject( {
+				bindings: { datetime: { source: 'core/post-data' } },
+			} );
+		}
+	}
+} );
+
+test( "Bulletin's pinned entry shows the clock time, like its other entries", () => {
+	const [ card ] = findNodes( layoutNodes( 'default' ), isPinnedCard );
+
+	expect( findNodes( [ card ], isRelativeDate ) ).toEqual( [] );
+	expect( findNodes( [ card ], isClockTime ) ).toHaveLength( 1 );
+	expect( findNodes( [ card ], isEarlierDayDate ) ).toHaveLength( 1 );
+} );
+
+test( 'Stream and Ticker keep their relative dates, and they, Minute and Alert have no earlier-day date', () => {
+	for ( const slug of [ 'stream', 'ticker' ] ) {
+		const nodes = layoutNodes( slug );
+
+		expect( findNodes( nodes, isRelativeDate ).length ).toBeGreaterThan(
+			0
+		);
+		expect( findNodes( nodes, isClockTime ) ).toEqual( [] );
+	}
+
+	for ( const slug of [ 'stream', 'ticker', 'minute', 'alert' ] ) {
+		expect( findNodes( layoutNodes( slug ), isEarlierDayDate ) ).toEqual(
+			[]
+		);
+	}
 } );

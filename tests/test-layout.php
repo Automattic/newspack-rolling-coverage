@@ -425,8 +425,7 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 
 	/**
 	 * The built-in layout shows an entry's time in the site's time format,
-	 * not the one its markup was saved with, while the pinned card keeps its
-	 * relative date.
+	 * not the one its markup was saved with, on the pinned card too.
 	 */
 	public function test_default_layout_follows_the_site_time_format() {
 		update_option( 'time_format', 'H:i' );
@@ -452,7 +451,8 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 
 		$this->assertStringContainsString( '>15:10</time>', $html );
 		$this->assertStringNotContainsString( '3:10 pm', $html );
-		$this->assertStringNotContainsString( '>14:05</time>', $html, 'The pinned card shows a relative date.' );
+		$this->assertStringContainsString( '>14:05</time>', $html, 'The pinned card shows the time.' );
+		$this->assertStringNotContainsString( 'data-rc-relative', $html );
 	}
 
 	/**
