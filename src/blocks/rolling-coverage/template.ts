@@ -3545,12 +3545,11 @@ function isSummaryCard( block: {
 /**
  * The summary card: the coverage's Summary once, above the entries, on the
  * pinned card's quiet background, with the Summary's title at the layout's
- * entry heading level, its content, and a small line saying when it was last
- * edited, in the site's time format (the `summaryUpdated` binding). The line
- * is set like the layout's entry times, in the font the themes give a Date
- * block, and the card takes the corners of the layout's own boxes. It belongs
- * to the coverage, not to each entry, and is locked in place like the entry
- * groups.
+ * entry heading level, its content, and a small line saying how long ago it
+ * was last edited (the `summaryUpdated` binding). The line is set like the
+ * layout's entry times, in the font the themes give a Date block, and the
+ * card takes the corners of the layout's own boxes. It belongs to the
+ * coverage, not to each entry, and is locked in place like the entry groups.
  *
  * @param {number}  level                        The title's heading level, the layout's
  *                                               entry titles' level.

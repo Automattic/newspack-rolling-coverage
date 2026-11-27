@@ -70,3 +70,22 @@ test( 'a Summary taken down leaves the hidden placeholder', () => {
 	expect( placeholder.getAttribute( 'data-rc-summary' ) ).toBe( '0' );
 	expect( placeholder.hidden ).toBe( true );
 } );
+
+test( 'a card a poll brings says how long ago as it shows', () => {
+	const card = shownCard();
+	const twoHoursAgo = new Date( Date.now() - 2 * 3600000 ).toISOString();
+
+	applySummaryCard(
+		card,
+		{
+			...SUMMARY,
+			modified: '2026-11-17 10:00:00',
+			html: `<div class="newspack-rolling-coverage-summary-card" data-rc-summary="7" data-modified-gmt="2026-11-17 10:00:00" data-rc-updated="Updated 10:00 am"><p>Updated <time datetime="${ twoHoursAgo }" data-rc-relative>1 min ago</time></p></div>`,
+		},
+		parse
+	);
+
+	expect( document.body.querySelector( 'time' )!.textContent ).toBe(
+		'2 hours ago'
+	);
+} );

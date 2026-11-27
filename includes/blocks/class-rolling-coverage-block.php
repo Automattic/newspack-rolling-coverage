@@ -130,10 +130,12 @@ class Rolling_Coverage_Block {
 	const SUMMARY_ATTRIBUTE = 'data-rc-summary';
 
 	/**
-	 * Attribute holding the summary card's "Updated" line as rendered, which
-	 * the view script compares with each poll's to tell when the line now
-	 * reads differently, rather than the card's text, which the browser or an
-	 * embed's script may have changed.
+	 * Attribute holding the summary card's "Updated" line in its clock-time
+	 * form (Entry_Bindings::updated_text()), which the view script compares
+	 * with each poll's to tell when a card showing the time now reads
+	 * differently, rather than the card's text, which the browser, an embed's
+	 * script or the relative dates the view script keeps current may have
+	 * changed.
 	 */
 	const SUMMARY_UPDATED_ATTRIBUTE = 'data-rc-updated';
 
@@ -288,6 +290,14 @@ class Rolling_Coverage_Block {
 	 * @var array|null
 	 */
 	private static $poll_summary_card = null;
+
+	/**
+	 * Whether the poll get_entries() answers comes from a lite page, whose
+	 * summary card shows the time of the Summary's last edit.
+	 *
+	 * @var bool
+	 */
+	private static $poll_is_lite = false;
 
 	/**
 	 * Initialize hooks.
@@ -4241,9 +4251,12 @@ class Rolling_Coverage_Block {
 	 * card, or null while the coverage has no published Summary. Every poll
 	 * URL asks for it, so the rendered card is kept in the object cache
 	 * (SUMMARY_CACHE_GROUP) until the Summary, the stored card, the coverage's
-	 * status, the "Updated" line it shows or the host page (Share links name
-	 * it) changes, or any post or term changes: a content gate, which is a
-	 * post, can start covering the Summary, and the coverage can be renamed.
+	 * status, the "Updated" line's clock-time form or the host page (Share
+	 * links name it) changes, or any post or term changes: a content gate,
+	 * which is a post, can start covering the Summary, and the coverage can be
+	 * renamed. A lite page's poll gets its own card, with the clock time. A
+	 * full page's card says how long ago as of its render, which the view
+	 * script brings up to date as it shows the card.
 	 *
 	 * @param int    $coverage_id Coverage term ID.
 	 * @param array  $stored      The stored summary card and the Feed's layout (see persist_block_config()).
@@ -4267,6 +4280,7 @@ class Rolling_Coverage_Block {
 					$parent_layout,
 					$status,
 					Entry_Bindings::updated_text( $summary ),
+					self::$poll_is_lite,
 					get_locale(),
 					self::$host_post_id,
 					wp_cache_get_last_changed( 'posts' ),
@@ -4277,7 +4291,8 @@ class Rolling_Coverage_Block {
 		$html          = wp_cache_get( $cache_key, self::SUMMARY_CACHE_GROUP );
 
 		if ( ! is_string( $html ) ) {
-			$html = self::render_summary_card( $stored['block'], $summary, $coverage_id, $status, $parent_layout );
+			$render = static fn() => self::render_summary_card( $stored['block'], $summary, $coverage_id, $status, $parent_layout );
+			$html   = self::$poll_is_lite ? Entry_Bindings::render_with_clock_time( $render ) : $render();
 
 			wp_reset_postdata();
 			wp_cache_set( $cache_key, $html, self::SUMMARY_CACHE_GROUP, DAY_IN_SECONDS );
@@ -5490,6 +5505,7 @@ class Rolling_Coverage_Block {
 		// Lite entries don't use the template.
 		$is_stale_template = null === $stored_config && ! $is_lite;
 
+		self::$poll_is_lite      = $is_lite;
 		self::$poll_summary_card = ! $is_capped && ! $is_stale_template && is_array( $config['summaryCard']['block'] ?? null ) ? $config['summaryCard'] : null;
 
 		// Forward/polling branch: the changes the page is missing, newest first.

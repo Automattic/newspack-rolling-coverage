@@ -10,7 +10,7 @@ import {
 	type SiteTimezone,
 } from './earlier-day-dates';
 
-// Relative dates, marked by the Rolling Coverage block's entries and the Coverage Status block's "Updated" time.
+// Relative dates, marked by the Rolling Coverage block's entries and summary card and the Coverage Status block's "Updated" time.
 const RELATIVE_DATE_SELECTOR = 'time[data-rc-relative][datetime]';
 
 const REFRESH_INTERVAL_MS = 60000;

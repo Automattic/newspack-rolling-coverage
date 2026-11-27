@@ -2,8 +2,8 @@
  * WordPress dependencies
  */
 import { registerBlockBindingsSource } from '@wordpress/blocks';
-import { dateI18n, getSettings } from '@wordpress/date';
-import { __, _x, sprintf } from '@wordpress/i18n';
+import { humanTimeDiff } from '@wordpress/date';
+import { __, sprintf } from '@wordpress/i18n';
 
 const ENTRY_BINDINGS_SOURCE = 'newspack-rolling-coverage/entry';
 const COVERAGE_ID_CONTEXT = 'newspack-rolling-coverage/coverageId';
@@ -38,9 +38,9 @@ function breakoutLabel(): string {
 }
 
 /**
- * When an entry was last edited, as the summary card's "Updated" line reads,
- * mirroring Entry_Bindings::updated_text(): the time in the site's time
- * format, with the date when it wasn't today.
+ * How long ago an entry was last edited, as the summary card's "Updated" line
+ * reads on the site (Entry_Bindings::updated_line()) and as the Coverage
+ * Status block previews its own.
  *
  * @param {string} modifiedGmt The entry's last edit, in UTC.
  * @return {string} The line, or an empty string without a date.
@@ -50,27 +50,10 @@ function updatedText( modifiedGmt: string | undefined ): string {
 		return '';
 	}
 
-	const modified = `${ modifiedGmt }Z`;
-
-	const { formats } = getSettings();
-	let time = dateI18n( formats.time, modified, undefined );
-
-	if (
-		dateI18n( 'Y-m-d', modified, undefined ) !==
-		dateI18n( 'Y-m-d', new Date(), undefined )
-	) {
-		time = sprintf(
-			/* translators: 1: a date in the site's date format, 2: a time in the site's time format. */
-			_x( '%1$s, %2$s', 'date and time', 'newspack-rolling-coverage' ),
-			dateI18n( formats.date, modified, undefined ),
-			time
-		);
-	}
-
 	return sprintf(
-		/* translators: %s: when the liveblog's summary was last edited, such as "3:42 pm". */
+		/* translators: %s: How long ago the liveblog's summary was last edited, e.g. "2 minutes ago". */
 		__( 'Updated %s', 'newspack-rolling-coverage' ),
-		time
+		humanTimeDiff( new Date( `${ modifiedGmt }Z` ) )
 	);
 }
 

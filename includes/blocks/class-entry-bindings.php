@@ -107,6 +107,14 @@ class Entry_Bindings {
 	const URL_CACHE_GROUP = 'newspack_rolling_coverage_url_post_id';
 
 	/**
+	 * Whether "Updated" lines render with the time of the edit while a lite
+	 * page's poll renders them (see render_with_clock_time()).
+	 *
+	 * @var bool
+	 */
+	private static $shows_clock_time = false;
+
+	/**
 	 * Initialize hooks.
 	 */
 	public static function init(): void {
@@ -175,17 +183,87 @@ class Entry_Bindings {
 				return null !== Breakout::get_published_breakout_url( $entry_id ) ? esc_html( Breakout_Label::for_post( Breakout::get_existing_breakout_id( $entry_id ) ) ) : null;
 
 			case 'summaryUpdated':
-				return self::updated_text( get_post( $entry_id ), true );
+				return self::updated_line( get_post( $entry_id ) );
 		}
 
 		return null;
 	}
 
 	/**
+	 * The summary card's "Updated" line, as markup. Where the view script
+	 * keeps relative dates current, it reads how long ago the entry was last
+	 * edited, as the Coverage Status block's "Updated 2 minutes ago" does, in
+	 * a `<time>` element marked `data-rc-relative`. Elsewhere it reads the
+	 * time of the edit (see updated_text()).
+	 *
+	 * @param WP_Post|null $entry Entry post.
+	 * @return string Escaped HTML.
+	 */
+	public static function updated_line( ?WP_Post $entry ): string {
+		if ( ! self::shows_relative_time() ) {
+			return self::updated_text( $entry, true );
+		}
+
+		$timestamp = $entry ? strtotime( $entry->post_modified_gmt . ' UTC' ) : false;
+
+		if ( false === $timestamp ) {
+			return '';
+		}
+
+		return sprintf(
+			/* translators: %s: How long ago the liveblog's summary was last edited, e.g. "2 minutes ago". */
+			esc_html__( 'Updated %s', 'newspack-rolling-coverage' ),
+			sprintf(
+				'<time datetime="%s" data-rc-relative>%s</time>',
+				esc_attr( gmdate( 'c', $timestamp ) ),
+				esc_html(
+					sprintf(
+						/* translators: %s: Time difference, e.g. "2 minutes". */
+						__( '%s ago', 'newspack-rolling-coverage' ),
+						human_time_diff( $timestamp )
+					)
+				)
+			)
+		);
+	}
+
+	/**
+	 * Whether "Updated" lines read how long ago, for a page whose view script
+	 * keeps that current. A syndication feed and a lite page, which keeps no
+	 * `data-rc-relative` and is cached for every reader, show the time of
+	 * the edit, and so does a lite page's poll, to match the card it swaps.
+	 *
+	 * @return bool
+	 */
+	public static function shows_relative_time(): bool {
+		return ! self::$shows_clock_time && ! is_feed() && ! Lite_Feed::is_lite_render();
+	}
+
+	/**
+	 * Render with "Updated" lines reading the time of the edit, for a lite
+	 * page's poll.
+	 *
+	 * @param callable $render Renders the markup.
+	 * @return string The markup.
+	 */
+	public static function render_with_clock_time( callable $render ): string {
+		$previous               = self::$shows_clock_time;
+		self::$shows_clock_time = true;
+
+		try {
+			return (string) $render();
+		} finally {
+			self::$shows_clock_time = $previous;
+		}
+	}
+
+	/**
 	 * When an entry was last edited, as the summary card's "Updated" line
-	 * reads: the time in the site's time format, with the date in the site's
-	 * date format when it wasn't today in the site's timezone. As markup, the
-	 * time is a `<time>` element carrying the edit's ISO 8601 date.
+	 * reads where nothing keeps a relative date current: the time in the
+	 * site's time format, with the date in the site's date format when it
+	 * wasn't today in the site's timezone. As markup, the time is a `<time>`
+	 * element carrying the edit's ISO 8601 date. As plain text, it marks the
+	 * card for polls (Rolling_Coverage_Block::SUMMARY_UPDATED_ATTRIBUTE).
 	 *
 	 * @param WP_Post|null $entry     Entry post.
 	 * @param bool         $as_markup Whether to return escaped HTML with a `<time>` element, rather than plain text.
