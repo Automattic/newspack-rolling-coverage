@@ -282,6 +282,19 @@ class Test_Coverage_Follow_Block extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * Nothing renders in a syndication feed, where the button can't work, so
+	 * a feed reader never shows a dead button or its stacked labels.
+	 */
+	public function test_renders_nothing_in_a_feed() {
+		$coverage_id = self::create_coverage();
+
+		$this->go_to( get_feed_link() );
+		$this->assertTrue( is_feed() );
+		$this->assertSame( '', do_blocks( self::follow( $coverage_id ) ) );
+		$this->assertSame( [], self::tags( do_blocks( self::feed( $coverage_id, self::follow() ) ) ) );
+	}
+
+	/**
 	 * Nothing renders on a lite page, which has neither the follow script nor
 	 * a push provider. A full page shows the button.
 	 */
@@ -357,7 +370,6 @@ class Test_Coverage_Follow_Block extends Rolling_Coverage_TestCase {
 		$this->assertSame( 'false', $button->get_attribute( 'aria-pressed' ) );
 		$this->assertSame( 'You’ll get alerts for Kettle River & Flood.', $button->get_attribute( 'data-on-message' ) );
 		$this->assertSame( 'Alerts for Kettle River & Flood are off.', $button->get_attribute( 'data-off-message' ) );
-		$this->assertNull( $button->get_attribute( 'data-label-following' ) );
 
 		$labels = [];
 		while ( $button->next_tag( 'span' ) ) {

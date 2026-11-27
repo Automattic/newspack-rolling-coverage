@@ -17,6 +17,10 @@ const ANNOUNCER_ID = 'newspack-rolling-coverage-follow-announcer';
 
 const FRESH_ATTRIBUTE = 'data-rc-fresh';
 
+// After the prompt closes, how long permissionChange gets to report a grant
+// before the permission is read directly.
+const PERMISSION_SETTLE_MS = 500;
+
 /**
  * Shows a button's follow state. Its labels are all in the markup, stacked by
  * the stylesheet, which shows the one for this state.
@@ -67,6 +71,17 @@ function isBusy( button: HTMLButtonElement ): boolean {
  * @param {string} text Message text.
  */
 function announce( text: string ): void {
+	getAnnouncer().textContent = text;
+}
+
+/**
+ * The visually hidden live region announce() writes to. Screen readers only
+ * announce changes to a region already on the page, so a toggle adds it as it
+ * starts.
+ *
+ * @return {HTMLElement} The region.
+ */
+function getAnnouncer(): HTMLElement {
 	let region = document.getElementById( ANNOUNCER_ID );
 
 	if ( ! region ) {
@@ -88,7 +103,7 @@ function announce( text: string ): void {
 		document.body.appendChild( region );
 	}
 
-	region.textContent = text;
+	return region;
 }
 
 /**
@@ -186,19 +201,34 @@ function requestNotificationPermission(
 	}
 
 	return new Promise( ( resolve ) => {
-		const onChange = ( permission: boolean ) => {
+		let settled = false;
+		const settle = ( permission: boolean ) => {
+			if ( settled ) {
+				return;
+			}
+			settled = true;
 			OneSignal.Notifications.removeEventListener(
 				'permissionChange',
 				onChange
 			);
 			resolve( permission );
 		};
+		const onChange = ( permission: boolean ) => settle( permission );
 
 		OneSignal.Notifications.addEventListener(
 			'permissionChange',
 			onChange
 		);
-		OneSignal.Notifications.requestPermission();
+		// A prompt the reader closes or ignores never fires permissionChange,
+		// which would leave the spinner on for good.
+		Promise.resolve( OneSignal.Notifications.requestPermission() )
+			.catch( () => undefined )
+			.then( () =>
+				window.setTimeout(
+					() => settle( OneSignal.Notifications.permission ),
+					PERMISSION_SETTLE_MS
+				)
+			);
 	} );
 }
 
@@ -293,12 +323,19 @@ function toggleFollow( button: HTMLButtonElement, tag: string ): void {
 		setStatusMessage( sibling, '' );
 	} );
 
+	if ( ! getSnackbar() ) {
+		getAnnouncer();
+	}
+
 	const finish = ( followed: boolean, onShown: () => void ) => {
 		const show = () => {
-			siblings.forEach( ( sibling ) => {
-				updateButtonState( sibling, followed );
-				setBusy( sibling, false );
-			} );
+			// Includes buttons that arrived while the toggle was pending.
+			new Set( [ ...siblings, ...buttonsForTag( tag ) ] ).forEach(
+				( sibling ) => {
+					updateButtonState( sibling, followed );
+					setBusy( sibling, false );
+				}
+			);
 			onShown();
 		};
 		const wait = MIN_PENDING_MS - ( Date.now() - startedAt );
@@ -314,7 +351,7 @@ function toggleFollow( button: HTMLButtonElement, tag: string ): void {
 		finish( willFollow, () => {
 			// Still under the pointer or focused, the button would read "Stop
 			// alerts" at once; it reads "Alerts on" until the reader moves on.
-			if ( willFollow ) {
+			if ( willFollow && button.matches( ':hover, :focus-visible' ) ) {
 				button.setAttribute( FRESH_ATTRIBUTE, '' );
 			}
 			confirmToggle(
@@ -356,7 +393,11 @@ function toggleFollow( button: HTMLButtonElement, tag: string ): void {
 					await requestNotificationPermission( OneSignal );
 
 				if ( ! granted ) {
-					revert( button.dataset.blockedMessage || '' );
+					// A closed or ignored prompt isn't a block, so it needs no message.
+					const denied =
+						typeof Notification !== 'undefined' &&
+						Notification.permission === 'denied';
+					revert( denied ? button.dataset.blockedMessage || '' : '' );
 					return;
 				}
 
@@ -421,11 +462,30 @@ document.addEventListener( 'click', ( event ) => {
 	}
 } );
 
+/**
+ * Hands a button's labels and spinner to the stylesheet. They start `hidden`
+ * so a page without it reads only the publisher's label, but a theme reset
+ * such as `[hidden] { display: none !important }` would otherwise beat the
+ * stylesheet and keep them hidden for good.
+ *
+ * @param {HTMLButtonElement[]} buttons Follow buttons.
+ */
+function showLabels( buttons: HTMLButtonElement[] ): void {
+	buttons.forEach( ( button ) =>
+		button
+			.querySelectorAll(
+				'[data-rc-label][hidden], .newspack-rolling-coverage-follow__spinner[hidden]'
+			)
+			.forEach( ( element ) => element.removeAttribute( 'hidden' ) )
+	);
+}
+
 const followButtons = Array.from(
 	document.querySelectorAll< HTMLButtonElement >( FOLLOW_BUTTON_SELECTOR )
 );
 
 if ( followButtons.length ) {
+	showLabels( followButtons );
 	syncWhenReady( followButtons );
 }
 
@@ -438,6 +498,7 @@ new MutationObserver( ( records ) => {
 	);
 
 	if ( arrived.length ) {
+		showLabels( arrived );
 		syncWhenReady( arrived );
 	}
 } ).observe( document.body, { childList: true, subtree: true } );

@@ -1077,19 +1077,12 @@ class Entry_Bindings {
 			return $block_content;
 		}
 
-		$icon = wp_get_icon( Block_Icons::CHECK );
-		$svg  = $icon ? new WP_HTML_Tag_Processor( $icon ) : null;
-
-		if ( $svg && $svg->next_tag( 'svg' ) ) {
-			$svg->set_attribute( 'fill', 'currentColor' );
-			$svg->set_attribute( 'aria-hidden', 'true' );
-			$svg->set_attribute( 'focusable', 'false' );
-		}
+		$icon = (string) wp_get_icon( 'core/check' );
 
 		$labels = sprintf(
 			'<span class="newspack-rolling-coverage-follow__labels"><span class="newspack-rolling-coverage-follow__label" data-rc-label="off">%1$s</span><span class="newspack-rolling-coverage-follow__label" data-rc-label="on" hidden>%2$s%3$s</span><span class="newspack-rolling-coverage-follow__label" data-rc-label="stop" aria-hidden="true" hidden>%4$s</span><span class="newspack-rolling-coverage-follow__spinner" aria-hidden="true" hidden></span></span>',
 			$button[2],
-			$svg ? preg_replace( '/>\s+</', '><', trim( $svg->get_updated_html() ) ) : '',
+			preg_replace( '/>\s+</', '><', trim( $icon ) ),
 			esc_html__( 'Alerts on', 'newspack-rolling-coverage' ),
 			esc_html__( 'Stop alerts', 'newspack-rolling-coverage' )
 		);

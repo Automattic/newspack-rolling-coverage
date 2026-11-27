@@ -8,12 +8,13 @@ type TestWindow = Window & {
 const ERROR = 'Something went wrong. Please try again.';
 const ON = 'You’ll get alerts for Kettle River flood.';
 const OFF = 'Alerts for Kettle River flood are off.';
+const BLOCKED = 'Notifications are blocked in your browser.';
 
 const addButtons = ( count = 1 ) => {
 	document.body.innerHTML = Array.from(
 		{ length: count },
 		() =>
-			`<div class="wp-block-button"><button class="wp-block-button__link" data-rc-follow data-tag="coverage_1" aria-pressed="false" data-error-message="${ ERROR }" data-on-message="${ ON }" data-off-message="${ OFF }"><span data-rc-label="off">Get alerts</span></button></div>`
+			`<div class="wp-block-button"><button class="wp-block-button__link" data-rc-follow data-tag="coverage_1" aria-pressed="false" data-error-message="${ ERROR }" data-blocked-message="${ BLOCKED }" data-on-message="${ ON }" data-off-message="${ OFF }"><span data-rc-label="off">Get alerts</span></button></div>`
 	).join( '' );
 
 	return Array.from( document.querySelectorAll( 'button' ) );
@@ -62,6 +63,7 @@ describe( 'the follow button', () => {
 
 	afterEach( () => {
 		jest.useRealTimers();
+		delete ( window as { Notification?: unknown } ).Notification;
 	} );
 
 	it( 'shows the spinner for at least a second, then the new state', async () => {
@@ -90,16 +92,68 @@ describe( 'the follow button', () => {
 		expect( createNotice ).toHaveBeenCalledWith( ON, 'success' );
 	} );
 
-	it( 'reads "Alerts on" until the pointer leaves after switching on', async () => {
+	it( 'reads "Alerts on" until focus leaves after switching on', async () => {
 		const [ button ] = addButtons();
+		button.focus();
 		button.click();
 		await runSdk( fakeOneSignal() );
 		jest.advanceTimersByTime( 1000 );
 
 		expect( button.hasAttribute( 'data-rc-fresh' ) ).toBe( true );
 
-		button.dispatchEvent( new Event( 'pointerout', { bubbles: true } ) );
+		button.blur();
 		expect( button.hasAttribute( 'data-rc-fresh' ) ).toBe( false );
+	} );
+
+	it( 'lets a button the reader already left read "Stop alerts" on the next hover', async () => {
+		const [ button ] = addButtons();
+		button.click();
+		await runSdk( fakeOneSignal() );
+		jest.advanceTimersByTime( 1000 );
+
+		expect( button.getAttribute( 'aria-pressed' ) ).toBe( 'true' );
+		expect( button.hasAttribute( 'data-rc-fresh' ) ).toBe( false );
+	} );
+
+	it( 'returns a button to its old state, with no message, when the prompt is closed', async () => {
+		const createNotice = jest.fn();
+		( window as TestWindow ).newspackUI = { notices: { createNotice } };
+		( window as { Notification?: unknown } ).Notification = {
+			permission: 'default',
+		};
+		const OneSignal = fakeOneSignal();
+		OneSignal.Notifications.permission = false;
+		OneSignal.Notifications.requestPermission.mockResolvedValue(
+			undefined
+		);
+
+		const [ button ] = addButtons();
+		button.click();
+		const sdk = runSdk( OneSignal );
+		await jest.advanceTimersByTimeAsync( 500 );
+		await sdk;
+		jest.advanceTimersByTime( 1000 );
+
+		expect( OneSignal.User.addTag ).not.toHaveBeenCalled();
+		expect( button.getAttribute( 'aria-pressed' ) ).toBe( 'false' );
+		expect( button.hasAttribute( 'aria-busy' ) ).toBe( false );
+		expect( createNotice ).not.toHaveBeenCalled();
+		expect( inlineMessage() ).toBeNull();
+	} );
+
+	it( 'gives the outcome to a button that arrived while the toggle was pending', async () => {
+		const [ button ] = addButtons();
+		button.click();
+
+		const late = button.cloneNode( true ) as HTMLButtonElement;
+		late.removeAttribute( 'aria-busy' );
+		late.removeAttribute( 'aria-disabled' );
+		document.body.appendChild( late );
+
+		await runSdk( fakeOneSignal() );
+		jest.advanceTimersByTime( 1000 );
+
+		expect( late.getAttribute( 'aria-pressed' ) ).toBe( 'true' );
 	} );
 
 	it( 'confirms alerts going off, naming the liveblog', async () => {
@@ -122,6 +176,9 @@ describe( 'the follow button', () => {
 	it( 'announces the change without Newspack UI', async () => {
 		const [ button ] = addButtons();
 		button.click();
+
+		expect( announcer()?.textContent ).toBe( '' );
+
 		await runSdk( fakeOneSignal() );
 		jest.advanceTimersByTime( 1000 );
 
@@ -152,6 +209,27 @@ describe( 'the follow button', () => {
 		buttons.forEach( ( button ) =>
 			expect( button.getAttribute( 'aria-pressed' ) ).toBe( 'true' )
 		);
+	} );
+
+	it( 'explains a blocked browser in the error snackbar', async () => {
+		const createNotice = jest.fn();
+		( window as TestWindow ).newspackUI = { notices: { createNotice } };
+		( window as { Notification?: unknown } ).Notification = {
+			permission: 'denied',
+		};
+		const OneSignal = fakeOneSignal();
+		OneSignal.Notifications.permission = false;
+
+		const [ button ] = addButtons();
+		button.click();
+		await runSdk( OneSignal );
+		jest.advanceTimersByTime( 1000 );
+
+		expect(
+			OneSignal.Notifications.requestPermission
+		).not.toHaveBeenCalled();
+		expect( createNotice ).toHaveBeenCalledWith( BLOCKED, 'error' );
+		expect( button.getAttribute( 'aria-pressed' ) ).toBe( 'false' );
 	} );
 
 	it( 'shows a failure in the Newspack UI snackbar and keeps the old state', () => {

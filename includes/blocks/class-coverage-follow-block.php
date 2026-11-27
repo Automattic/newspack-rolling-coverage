@@ -89,7 +89,7 @@ class Coverage_Follow_Block {
 	 * @return bool
 	 */
 	public static function should_render( string $status ): bool {
-		if ( ! Push_Notifications::is_onesignal_configured() ) {
+		if ( is_feed() || ! Push_Notifications::is_onesignal_configured() ) {
 			return false;
 		}
 

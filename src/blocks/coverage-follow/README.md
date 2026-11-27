@@ -45,6 +45,7 @@ The button is part of the block and rebuilds itself when the editor reloads, so 
 - Hovering over Alerts on, or moving keyboard focus to it, shows Stop alerts. Selecting it turns the alerts off. Right after alerts go on, the button keeps reading Alerts on until the pointer or focus moves away.
 - In a Rolling Coverage feed, the button shrinks slightly while it is pressed with a mouse, unless the reader's device is set to reduce motion.
 - The browser asks for permission to send notifications the first time.
+- If the reader closes the browser's prompt without answering, the button returns to Get alerts with no message.
 - If the reader has blocked notifications, the button returns to Get alerts and an error notice appears: "Notifications are blocked in your browser. Allow them in your browser's site settings, then try again."
 - If something fails, the button returns to its previous state and an error notice appears: "Something went wrong. Please try again."
 - An error notice stays until the reader closes it. On a site without the Newspack plugin, error messages appear under the button instead.
