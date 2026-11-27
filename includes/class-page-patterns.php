@@ -502,7 +502,7 @@ class Page_Patterns {
 			],
 			'live-page-latest-first' => [
 				'title'         => __( 'Live page, latest first', 'newspack-rolling-coverage' ),
-				'description'   => __( 'A status badge with the time of the last update, a Follow button beside the heading, and every entry in the Stream layout.', 'newspack-rolling-coverage' ),
+				'description'   => __( 'A status badge with the time of the last update and a Follow button on one line, then every entry in the Stream layout.', 'newspack-rolling-coverage' ),
 				'keywords'      => [ 'liveblog', 'live', 'latest', 'newest', 'stream' ],
 				'viewportWidth' => 1200,
 			],
