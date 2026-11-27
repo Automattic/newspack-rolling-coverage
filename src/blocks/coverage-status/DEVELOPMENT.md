@@ -13,7 +13,7 @@ For how publishers use the block, see `README.md` in this directory.
 - `showLastUpdated`: the "Updated 2 minutes ago" text. Default off.
 - `hideWhenEnded`: render nothing once the coverage ends.
 
-Text color, margin and block gap come from block supports. The wrapper is a flex layout set in `block.json`. A newly inserted block gets a muted text color from the theme palette (`mutedTextColor()`), written as a non-persistent change so it doesn't land in the undo stack.
+Text color, font size, margin and block gap come from block supports. The wrapper sets newspack-ui's extra-small size and line height, which a font size from the block's support replaces. Inside the block, `style.scss` restates the badge's newspack-ui tokens (`--newspack-ui-font-size-caption`, `--newspack-ui-spacer-half`, `-1`, `-4`) in `em`, so the badge scales with the wrapper's size and matches newspack-ui's own sizes when no size is set. The wrapper is a flex layout set in `block.json`. A newly inserted block gets a muted text color from the theme palette (`mutedTextColor()`), written as a non-persistent change so it doesn't land in the undo stack.
 
 ## Which coverage it shows
 
