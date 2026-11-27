@@ -252,6 +252,11 @@ $accent: var(--newspack-rolling-coverage-accent, var(--wp--preset--color--accent
 		align-items: baseline;
 	}
 
+	.newspack-rolling-coverage-byline-time > .wp-block-post-date:first-child {
+		flex-shrink: 0;
+		white-space: nowrap;
+	}
+
 	.newspack-rolling-coverage-earlier-day-date[hidden] {
 		display: none;
 	}
