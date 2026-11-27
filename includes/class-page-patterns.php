@@ -136,8 +136,7 @@ class Page_Patterns {
 	public static function follow( bool $full_width = false ): string {
 		$text        = __( 'Follow', 'newspack-rolling-coverage' );
 		$label       = esc_html__( 'Get alerts', 'newspack-rolling-coverage' );
-		$classes     = 'wp-block-button' . ( $full_width ? ' has-custom-width wp-block-button__width-100' : '' );
-		$button_html = "\n" . '<div class="' . $classes . '"><button type="button" class="wp-block-button__link wp-element-button">' . $label . '</button></div>' . "\n";
+		$button_html = "\n" . '<div class="wp-block-button"><button type="button" class="wp-block-button__link wp-element-button">' . $label . '</button></div>' . "\n";
 		$button      = [
 			'blockName'    => 'core/button',
 			'attrs'        => [
@@ -157,7 +156,7 @@ class Page_Patterns {
 			'innerContent' => [ $button_html ],
 		];
 		if ( $full_width ) {
-			$button['attrs']['width'] = 100;
+			$button['attrs']['style'] = [ 'dimensions' => [ 'width' => '100%' ] ];
 		}
 		$buttons = [
 			'blockName'    => 'core/buttons',
@@ -575,13 +574,13 @@ class Page_Patterns {
 			],
 			'live-page-latest-first' => [
 				'title'         => __( 'Live page, latest first', 'newspack-rolling-coverage' ),
-				'description'   => __( 'A status badge with the time of the last update and a Follow button on one line, then every entry in the Stream layout.', 'newspack-rolling-coverage' ),
+				'description'   => __( 'A status badge with the time of the last update and a Get alerts button on one line, then every entry in the Stream layout.', 'newspack-rolling-coverage' ),
 				'keywords'      => [ 'liveblog', 'live', 'latest', 'newest', 'stream' ],
 				'viewportWidth' => 1200,
 			],
 			'live-page-side-column'  => [
 				'title'         => __( 'Live page with side column', 'newspack-rolling-coverage' ),
-				'description'   => __( 'Entries under the status badge and the update timer, beside a column with a Follow button.', 'newspack-rolling-coverage' ),
+				'description'   => __( 'Entries under the status badge and the update timer, beside a column with a Get alerts button.', 'newspack-rolling-coverage' ),
 				'keywords'      => [ 'liveblog', 'live', 'sidebar', 'columns', 'follow', 'timer' ],
 				'viewportWidth' => 1200,
 			],
@@ -611,13 +610,13 @@ class Page_Patterns {
 			],
 			'follow-band'            => [
 				'title'         => __( 'Follow band', 'newspack-rolling-coverage' ),
-				'description'   => __( 'A full-width band with a Follow button, above the five latest updates.', 'newspack-rolling-coverage' ),
+				'description'   => __( 'A full-width band with a Get alerts button, above the five latest updates.', 'newspack-rolling-coverage' ),
 				'keywords'      => [ 'liveblog', 'follow', 'banner', 'band', 'wire', 'latest' ],
 				'viewportWidth' => 1200,
 			],
 			'every-live-story'       => [
 				'title'         => __( 'Every live story', 'newspack-rolling-coverage' ),
-				'description'   => __( 'A list of liveblogs, each with its status and a Follow button.', 'newspack-rolling-coverage' ),
+				'description'   => __( 'A list of liveblogs, each with its status and a Get alerts button.', 'newspack-rolling-coverage' ),
 				'keywords'      => [ 'liveblog', 'follow', 'list', 'hub', 'status', 'all' ],
 				'viewportWidth' => 1200,
 			],

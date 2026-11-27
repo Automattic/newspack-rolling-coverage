@@ -373,7 +373,7 @@ class Test_Page_Patterns extends Rolling_Coverage_TestCase {
 						],
 					],
 				],
-			] 
+			]
 		);
 
 		$this->assertSame( 'base-3', $scoreboard()['borderColor'] );
@@ -391,7 +391,7 @@ class Test_Page_Patterns extends Rolling_Coverage_TestCase {
 						],
 					],
 				],
-			] 
+			]
 		);
 
 		$this->assertArrayNotHasKey( 'borderColor', $scoreboard() );
@@ -732,7 +732,7 @@ class Test_Page_Patterns extends Rolling_Coverage_TestCase {
 		$button = $blocks[0]['innerBlocks'][0]['innerBlocks'][0];
 		$this->assertSame( 'followTag', $button['attrs']['metadata']['bindings']['url']['args']['key'] );
 		$this->assertStringContainsString( '>Get alerts</button>', $button['innerHTML'] );
-		$this->assertArrayNotHasKey( 'width', $button['attrs'] );
+		$this->assertArrayNotHasKey( 'style', $button['attrs'] );
 	}
 
 	/**
@@ -741,8 +741,8 @@ class Test_Page_Patterns extends Rolling_Coverage_TestCase {
 	public function test_follow_full_width() {
 		$button = parse_blocks( Page_Patterns::follow( true ) )[0]['innerBlocks'][0]['innerBlocks'][0];
 
-		$this->assertSame( 100, $button['attrs']['width'] );
-		$this->assertStringContainsString( 'class="wp-block-button has-custom-width wp-block-button__width-100"', $button['innerHTML'] );
+		$this->assertSame( '100%', $button['attrs']['style']['dimensions']['width'] );
+		$this->assertStringContainsString( '<div class="wp-block-button"><button', $button['innerHTML'] );
 	}
 
 	/**
