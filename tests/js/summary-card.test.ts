@@ -72,6 +72,7 @@ test( 'a Summary taken down leaves the hidden placeholder', () => {
 } );
 
 test( 'a card a poll brings says how long ago as it shows', () => {
+	document.documentElement.lang = 'en';
 	const card = shownCard();
 	const twoHoursAgo = new Date( Date.now() - 2 * 3600000 ).toISOString();
 

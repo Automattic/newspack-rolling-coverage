@@ -297,7 +297,7 @@ class Entry_Bindings {
 
 		return sprintf(
 			/* translators: %s: when the liveblog's summary was last edited, such as "3:42 pm". */
-			$as_markup ? esc_html__( 'Updated %s', 'newspack-rolling-coverage' ) : __( 'Updated %s', 'newspack-rolling-coverage' ),
+			$as_markup ? esc_html_x( 'Updated %s', 'time of day', 'newspack-rolling-coverage' ) : _x( 'Updated %s', 'time of day', 'newspack-rolling-coverage' ),
 			$time
 		);
 	}
