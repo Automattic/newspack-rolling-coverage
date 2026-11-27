@@ -213,29 +213,20 @@ class Test_Page_Patterns extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * The side column is the first column, so it stacks first on phones, and
-	 * the status badge and update timer share a row above the feed. On
-	 * desktop a spacer the row's height lines the button up with the feed.
+	 * The status badge sits above both columns, and the side column with the
+	 * alerts box is the first column, so it stacks first on phones.
 	 */
 	public function test_side_column_comes_first() {
-		$columns = parse_blocks( self::pattern( 'live-page-side-column' )['content'] )[0]['innerBlocks'];
+		$blocks  = array_values( array_filter( parse_blocks( self::pattern( 'live-page-side-column' )['content'] ), static fn( $block ) => null !== $block['blockName'] ) );
+		$columns = $blocks[1]['innerBlocks'];
 		$side    = array_values( array_filter( $columns[0]['innerBlocks'], static fn( $block ) => null !== $block['blockName'] ) );
-		$feed    = array_values( array_filter( $columns[1]['innerBlocks'], static fn( $block ) => null !== $block['blockName'] ) );
 
+		$this->assertSame( [ 'newspack-rolling-coverage/coverage-status', 'core/columns' ], array_column( $blocks, 'blockName' ) );
 		$this->assertSame( '33.33%', $columns[0]['attrs']['width'] );
-		$this->assertSame( [ 'core/spacer', 'newspack-rolling-coverage/coverage-follow' ], array_column( $side, 'blockName' ) );
-		$this->assertSame(
-			[
-				'mobile' => false,
-				'tablet' => false,
-			],
-			$side[0]['attrs']['metadata']['blockVisibility']['viewport']
-		);
-		$this->assertSame( [ 'core/group', Rolling_Coverage_Block::BLOCK_NAME ], array_column( $feed, 'blockName' ) );
-		$this->assertSame(
-			[ 'newspack-rolling-coverage/coverage-status', 'newspack-rolling-coverage/update-timer' ],
-			array_values( array_filter( array_column( $feed[0]['innerBlocks'], 'blockName' ) ) )
-		);
+		$this->assertSame( [ 'core/group' ], array_column( $side, 'blockName' ) );
+		$this->assertSame( 'base-3', $side[0]['attrs']['borderColor'] );
+		$this->assertCount( 1, self::find( $side[0]['innerBlocks'], 'newspack-rolling-coverage/coverage-follow' ) );
+		$this->assertSame( Rolling_Coverage_Block::BLOCK_NAME, array_values( array_filter( array_column( $columns[1]['innerBlocks'], 'blockName' ) ) )[0] );
 	}
 
 	/**
@@ -259,7 +250,7 @@ class Test_Page_Patterns extends Rolling_Coverage_TestCase {
 		foreach ( [ 'live-page-side-column', 'match-side' ] as $slug ) {
 			ob_start();
 			include dirname( __DIR__ ) . '/includes/patterns/' . $slug . '.php';
-			$columns = parse_blocks( ob_get_clean() )[0];
+			$columns = self::find( parse_blocks( ob_get_clean() ), 'core/columns' )[0];
 
 			$this->assertSame( Page_Patterns::FIRST_COLUMN_TO_SECOND, $columns['attrs']['className'], $slug );
 			$this->assertStringContainsString( Page_Patterns::FIRST_COLUMN_TO_SECOND, $columns['innerHTML'], $slug );
@@ -733,48 +724,5 @@ class Test_Page_Patterns extends Rolling_Coverage_TestCase {
 		$this->assertSame( 'followTag', $button['attrs']['metadata']['bindings']['url']['args']['key'] );
 		$this->assertStringContainsString( '>Get alerts</button>', $button['innerHTML'] );
 		$this->assertArrayNotHasKey( 'style', $button['attrs'] );
-	}
-
-	/**
-	 * A full-width Follow button carries the width core saves for it.
-	 */
-	public function test_follow_full_width() {
-		$button = parse_blocks( Page_Patterns::follow( true ) )[0]['innerBlocks'][0]['innerBlocks'][0];
-
-		$this->assertSame( '100%', $button['attrs']['style']['dimensions']['width'] );
-		$this->assertStringContainsString( '<div class="wp-block-button"><button', $button['innerHTML'] );
-	}
-
-	/**
-	 * The side column's Update Timer is set a size down.
-	 */
-	public function test_side_column_timer_is_small() {
-		add_filter(
-			'wp_theme_json_data_theme',
-			static fn( $data ) => $data->update_with(
-				[
-					'version'  => WP_Theme_JSON::LATEST_SCHEMA,
-					'settings' => [
-						'typography' => [
-							'defaultFontSizes' => false,
-							'fontSizes'        => [
-								[
-									'slug' => 'small',
-									'name' => 'small',
-									'size' => '1rem',
-								],
-							],
-						],
-					],
-				]
-			)
-		);
-		wp_clean_theme_json_cache();
-
-		$timers = self::find( parse_blocks( self::pattern( 'live-page-side-column' )['content'] ), 'newspack-rolling-coverage/update-timer' );
-
-		$this->assertCount( 1, $timers );
-		$this->assertSame( 'small', $timers[0]['attrs']['fontSize'] ?? null );
-		$this->assertSame( 'end', $timers[0]['attrs']['ringPosition'] ?? null );
 	}
 }

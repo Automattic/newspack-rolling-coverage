@@ -130,10 +130,9 @@ class Page_Patterns {
 	 * no `coverageId`, so it follows the liveblog of the page, or the one it
 	 * is set to once someone picks Custom.
 	 *
-	 * @param bool $full_width Whether the button fills the width of its column.
 	 * @return string Block markup.
 	 */
-	public static function follow( bool $full_width = false ): string {
+	public static function follow(): string {
 		$text        = __( 'Follow', 'newspack-rolling-coverage' );
 		$label       = esc_html__( 'Get alerts', 'newspack-rolling-coverage' );
 		$button_html = "\n" . '<div class="wp-block-button"><button type="button" class="wp-block-button__link wp-element-button">' . $label . '</button></div>' . "\n";
@@ -155,9 +154,6 @@ class Page_Patterns {
 			'innerHTML'    => $button_html,
 			'innerContent' => [ $button_html ],
 		];
-		if ( $full_width ) {
-			$button['attrs']['style'] = [ 'dimensions' => [ 'width' => '100%' ] ];
-		}
 		$buttons = [
 			'blockName'    => 'core/buttons',
 			'attrs'        => [ 'metadata' => [ 'name' => $text ] ],
@@ -193,25 +189,6 @@ class Page_Patterns {
 		);
 
 		return '<!-- wp:newspack-rolling-coverage/coverage-status ' . serialize_block_attributes( $attributes ) . ' /-->';
-	}
-
-	/**
-	 * An Update Timer block. It has no `coverageId`, so it counts down for
-	 * the liveblog of the page.
-	 *
-	 * @param string[] $sizes         Font size slugs: the first one the theme has.
-	 * @param string   $ring_position Where the ring sits beside the countdown: `start` or `end`.
-	 * @return string Block markup.
-	 */
-	public static function update_timer( array $sizes = [], string $ring_position = 'start' ): string {
-		$attributes = array_filter(
-			[
-				'ringPosition' => 'end' === $ring_position ? 'end' : null,
-				'fontSize'     => self::first_size( $sizes ),
-			]
-		);
-
-		return '<!-- wp:newspack-rolling-coverage/update-timer ' . ( $attributes ? serialize_block_attributes( $attributes ) . ' ' : '' ) . '/-->';
 	}
 
 	/**
@@ -580,7 +557,7 @@ class Page_Patterns {
 			],
 			'live-page-side-column'  => [
 				'title'         => __( 'Live page with side column', 'newspack-rolling-coverage' ),
-				'description'   => __( 'Entries under the status badge and the update timer, beside a column with a Get alerts button.', 'newspack-rolling-coverage' ),
+				'description'   => __( 'Entries under the status badge, beside a box that invites readers to get alerts.', 'newspack-rolling-coverage' ),
 				'keywords'      => [ 'liveblog', 'live', 'sidebar', 'columns', 'follow', 'timer' ],
 				'viewportWidth' => 1200,
 			],
