@@ -113,15 +113,14 @@ class Test_Earlier_Day_Date extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Every layout that shows the time renders the date in the site's date
-	 * format, hidden for today's entries, and the layouts that show a relative
-	 * date or none have no earlier-day date.
+	 * Each layout with a date after the time renders it in the site's date
+	 * format, hidden for today's entries.
 	 *
 	 * @dataProvider time_layouts
 	 *
 	 * @param string $slug Built-in layout slug.
 	 */
-	public function test_layouts_with_the_time_show_the_date_on_earlier_days( string $slug ) {
+	public function test_layouts_show_the_date_after_the_time_on_earlier_days( string $slug ) {
 		update_option( 'date_format', 'd/m/Y' );
 
 		$coverage_id = self::create_coverage();
@@ -144,24 +143,24 @@ class Test_Earlier_Day_Date extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * The built-in layouts that show each entry's time.
+	 * The built-in layouts that show the date after each entry's time.
 	 *
 	 * @return array<string, string[]>
 	 */
 	public static function time_layouts(): array {
-		$slugs = [ 'default', 'byline', 'clock', 'digest', 'flash', 'margin', 'rail', 'split', 'wire' ];
+		$slugs = [ 'default', 'byline', 'clock', 'margin', 'rail', 'split', 'wire' ];
 
 		return array_combine( $slugs, array_map( fn( $slug ) => [ $slug ], $slugs ) );
 	}
 
 	/**
-	 * Stream and Ticker show relative dates, and Minute and Alert no date, so
-	 * none has an earlier-day date.
+	 * Stream and Ticker show relative dates, Digest and Flash only the time,
+	 * and Minute and Alert no date, so none has an earlier-day date.
 	 */
-	public function test_layouts_without_the_time_have_no_earlier_day_date() {
+	public function test_other_layouts_have_no_earlier_day_date() {
 		$slugs = array_keys( self::time_layouts() );
 
-		$this->assertSame( [ 'stream', 'minute', 'ticker', 'alert' ], array_values( array_diff( Layout::BUILT_IN_SLUGS, $slugs ) ) );
+		$this->assertSame( [ 'stream', 'minute', 'ticker', 'digest', 'flash', 'alert' ], array_values( array_diff( Layout::BUILT_IN_SLUGS, $slugs ) ) );
 
 		foreach ( array_diff( Layout::BUILT_IN_SLUGS, $slugs ) as $slug ) {
 			$this->assertStringNotContainsString( Rolling_Coverage_Block::EARLIER_DAY_DATE_CLASS, serialize_blocks( Layout_Templates::get_blocks( $slug ) ), "$slug should have no earlier-day date." );

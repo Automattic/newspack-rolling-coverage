@@ -541,25 +541,14 @@ function mutedDateColor( slugs: string[] ): { textColor?: string } {
  * The date an entry was posted, small, semibold and muted, which the site
  * shows only for entries from earlier days, right after the time.
  *
- * @param {string[]} slugs            The palette's color slugs.
- * @param {Object}   [options]        How the date shows.
- * @param {string}   [options.align]  Its text alignment.
- * @param {boolean}  [options.onBar]  Whether it sits on Flash's bar, in the
- *                                    bar's text color at a regular weight.
- * @param {Object}   [options.extras] More attributes for the block.
+ * @param {string[]} slugs           The palette's color slugs.
+ * @param {Object}   [options]       How the date shows.
+ * @param {string}   [options.align] Its text alignment.
  * @return {TemplateItem} The Post Date block.
  */
 function earlierDayDate(
 	slugs: string[],
-	{
-		align,
-		onBar = false,
-		extras = {},
-	}: {
-		align?: string;
-		onBar?: boolean;
-		extras?: Record< string, unknown >;
-	} = {}
+	{ align }: { align?: string } = {}
 ): TemplateItem {
 	return [
 		'core/post-date',
@@ -568,14 +557,13 @@ function earlierDayDate(
 			format: siteDateFormat(),
 			className: EARLIER_DAY_DATE_CLASS,
 			fontSize: 'small',
-			...( onBar ? {} : mutedDateColor( slugs ) ),
+			...mutedDateColor( slugs ),
 			style: {
 				typography: {
 					...( align ? { textAlign: align } : {} ),
-					fontWeight: onBar ? '400' : '600',
+					fontWeight: '600',
 				},
 			},
-			...extras,
 		},
 	];
 }
@@ -2635,10 +2623,9 @@ function digestFooter(): TemplateItem {
 }
 
 /**
- * A Digest entry's row: the time under the New label, with the date below it
- * on entries from earlier days, in a narrow column,
- * then the headline over a short excerpt, or for a Full Story Entry Wire's
- * card.
+ * A Digest entry's row: the time under the New label in a column a little
+ * wider than the widest time, then the headline over a short excerpt, or for
+ * a Full Story Entry Wire's card.
  *
  * @param {string[]}  slugs The palette's color slugs.
  * @param {string[]}  sizes The theme's font size slugs.
@@ -2677,7 +2664,7 @@ function digestRow(
 		[
 			[
 				'core/column',
-				{ width: '7rem' },
+				{ width: '4.5rem' },
 				[
 					stack(
 						__( 'Dates', 'newspack-rolling-coverage' ),
@@ -2694,7 +2681,6 @@ function digestRow(
 									},
 								},
 							],
-							earlierDayDate( slugs ),
 						],
 						TIGHT_GAP
 					),
@@ -2788,13 +2774,12 @@ function flashBar( feed: TemplateItem ): TemplateItem {
 }
 
 /**
- * The Flash layout's per-entry template: the time, the date on entries from
- * earlier days and the entry's text in the bar's text color on one line, the
- * text cut short to fit. Phones hide the time and date. The pinned card
- * matches the regular entry, since a capped feed ignores pinning. A Full
- * Story Entry shows the time and date, the Full story label in capitals and
- * in the bar's text color, the post's title and its summary, cut short to
- * fit.
+ * The Flash layout's per-entry template: the time and the entry's text in
+ * the bar's text color on one line, the text cut short to fit. Phones hide
+ * the time. The pinned card matches the regular entry, since a capped feed
+ * ignores pinning. A Full Story Entry shows the time, the Full story label in
+ * capitals and in the bar's text color, the post's title and its summary,
+ * cut short to fit.
  *
  * @return {TemplateItem[]} The template.
  */
@@ -2820,15 +2805,6 @@ function flashEntryTemplate(): TemplateItem[] {
 			},
 		},
 	];
-	const earlierDay = earlierDayDate( [], {
-		onBar: true,
-		extras: {
-			metadata: {
-				...POST_DATE_ATTRIBUTES.metadata,
-				blockVisibility: { viewport: { mobile: false } },
-			},
-		},
-	} );
 	const excerpt: TemplateItem = [
 		'core/post-excerpt',
 		{
@@ -2850,7 +2826,7 @@ function flashEntryTemplate(): TemplateItem[] {
 			...group,
 			metadata: { name },
 		},
-		[ date, earlierDay, excerpt ],
+		[ date, excerpt ],
 	];
 
 	return [
@@ -2865,7 +2841,6 @@ function flashEntryTemplate(): TemplateItem[] {
 		fullStoryGroup(
 			[
 				date,
-				earlierDay,
 				[
 					labelName,
 					{

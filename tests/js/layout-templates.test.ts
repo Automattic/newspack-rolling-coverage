@@ -531,8 +531,6 @@ const TIME_ONLY_LAYOUTS = [
 	'default',
 	'byline',
 	'clock',
-	'digest',
-	'flash',
 	'margin',
 	'rail',
 	'split',
@@ -609,7 +607,7 @@ test( "Bulletin's pinned entry shows the clock time, like its other entries", ()
 	expect( findNodes( [ card ], isEarlierDayDate ) ).toHaveLength( 1 );
 } );
 
-test( 'Stream and Ticker keep their relative dates, and they, Minute and Alert have no earlier-day date', () => {
+test( 'Stream and Ticker keep their relative dates, and they, Minute, Digest, Flash and Alert have no earlier-day date', () => {
 	for ( const slug of [ 'stream', 'ticker' ] ) {
 		const nodes = layoutNodes( slug );
 
@@ -619,7 +617,14 @@ test( 'Stream and Ticker keep their relative dates, and they, Minute and Alert h
 		expect( findNodes( nodes, isClockTime ) ).toEqual( [] );
 	}
 
-	for ( const slug of [ 'stream', 'ticker', 'minute', 'alert' ] ) {
+	for ( const slug of [
+		'stream',
+		'ticker',
+		'minute',
+		'digest',
+		'flash',
+		'alert',
+	] ) {
 		expect( findNodes( layoutNodes( slug ), isEarlierDayDate ) ).toEqual(
 			[]
 		);
