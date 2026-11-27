@@ -75,6 +75,53 @@ function announce( text: string ): void {
 }
 
 /**
+ * Confirms a toggle in Newspack UI's snackbar, or announces it without
+ * Newspack UI. Screen readers always hear which liveblog, e.g. "You'll get
+ * alerts for “Kettle River flood”." On screen, a page with one liveblog shows
+ * only "Alerts on." or "Alerts off.", since the reader is on that liveblog; a
+ * page with buttons for several shows the full sentence. Newspack UI reads a
+ * notice out as it opens it, so the notice opens with the full sentence and
+ * then shows the short one, keeping the sentence for anyone who reads it later.
+ *
+ * @param {HTMLButtonElement} button   Follow button the reader pressed.
+ * @param {boolean}           followed Whether alerts are now on.
+ */
+function confirmToggle( button: HTMLButtonElement, followed: boolean ): void {
+	const { onNotice, offNotice, onMessage, offMessage } = button.dataset;
+	const short = ( followed ? onNotice : offNotice ) || '';
+	const full = ( followed ? onMessage : offMessage ) || short;
+	const liveblogs = new Set(
+		Array.from(
+			document.querySelectorAll< HTMLButtonElement >(
+				FOLLOW_BUTTON_SELECTOR
+			)
+		).map( ( candidate ) => candidate.dataset.tag )
+	);
+	const visible = liveblogs.size > 1 || ! short ? full : short;
+	const showSnackbar = getSnackbar();
+
+	if ( ! showSnackbar ) {
+		announce( full );
+		return;
+	}
+
+	const content = showSnackbar( full )?.querySelector(
+		'.newspack-ui__snackbar__content'
+	);
+
+	if ( content && visible !== full ) {
+		const shown = document.createElement( 'span' );
+		const spoken = document.createElement( 'span' );
+
+		shown.textContent = visible;
+		shown.setAttribute( 'aria-hidden', 'true' );
+		spoken.textContent = full;
+		spoken.className = 'screen-reader-text';
+		content.replaceChildren( shown, spoken );
+	}
+}
+
+/**
  * The visually hidden live region announce() writes to. Screen readers only
  * announce changes to a region already on the page, so a toggle adds it as it
  * starts.
@@ -104,26 +151,6 @@ function getAnnouncer(): HTMLElement {
 	}
 
 	return region;
-}
-
-/**
- * Confirms a toggle in Newspack UI's snackbar, or announces it without
- * Newspack UI.
- *
- * @param {string} text Message text.
- */
-function confirmToggle( text: string ): void {
-	if ( '' === text ) {
-		return;
-	}
-
-	const showSnackbar = getSnackbar();
-
-	if ( showSnackbar ) {
-		showSnackbar( text );
-	} else {
-		announce( text );
-	}
 }
 
 /**
@@ -359,11 +386,7 @@ function toggleFollow( button: HTMLButtonElement, tag: string ): void {
 			if ( willFollow && button.matches( ':hover, :focus-visible' ) ) {
 				button.setAttribute( FRESH_ATTRIBUTE, '' );
 			}
-			confirmToggle(
-				( willFollow
-					? button.dataset.onMessage
-					: button.dataset.offMessage ) || ''
-			);
+			confirmToggle( button, willFollow );
 		} );
 
 	const revert = ( message: string ) =>

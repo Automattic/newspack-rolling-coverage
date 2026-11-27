@@ -41,7 +41,7 @@ The button is part of the block and rebuilds itself when the editor reloads, so 
 ## What readers see
 
 - The button reads Get alerts. While the browser and push service respond, it shows a small spinner for at least a second. Then it reads Alerts on, with a check.
-- A notice names the liveblog: "You’ll get alerts for Kettle River flood." when alerts go on, and "Alerts for Kettle River flood are off." when they go off. On a site without the Newspack plugin, screen readers announce it and nothing appears on screen.
+- A notice confirms the change: "Alerts on." or "Alerts off." Screen readers hear which liveblog: "You’ll get alerts for “Kettle River flood”." or "Alerts for “Kettle River flood” are off." On a page with buttons for more than one liveblog, the notice shows that full sentence too. On a site without the Newspack plugin, screen readers announce it and nothing appears on screen.
 - Hovering over Alerts on, or moving keyboard focus to it, shows Stop alerts. Selecting it turns the alerts off. Right after alerts go on, the button keeps reading Alerts on until the pointer or focus moves away.
 - In a Rolling Coverage feed, the button shrinks slightly while it is pressed with a mouse, unless the reader's device is set to reduce motion.
 - The browser asks for permission to send notifications the first time.

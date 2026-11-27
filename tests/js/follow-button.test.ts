@@ -6,19 +6,46 @@ type TestWindow = Window & {
 };
 
 const ERROR = 'Something went wrong. Please try again.';
-const ON = 'You’ll get alerts for Kettle River flood.';
-const OFF = 'Alerts for Kettle River flood are off.';
+const ON = 'You’ll get alerts for “Kettle River flood”.';
+const OFF = 'Alerts for “Kettle River flood” are off.';
 const BLOCKED = 'Notifications are blocked in your browser.';
+const ON_SHORT = 'Alerts on.';
+const OFF_SHORT = 'Alerts off.';
 
-const addButtons = ( count = 1 ) => {
+const addButtons = ( count = 1, tags = [ 'coverage_1' ] ) => {
 	document.body.innerHTML = Array.from(
 		{ length: count },
-		() =>
-			`<div class="wp-block-button"><button class="wp-block-button__link" data-rc-follow data-tag="coverage_1" aria-pressed="false" data-error-message="${ ERROR }" data-blocked-message="${ BLOCKED }" data-on-message="${ ON }" data-off-message="${ OFF }"><span data-rc-label="off">Get alerts</span></button></div>`
+		( _, index ) =>
+			`<div class="wp-block-button"><button class="wp-block-button__link" data-rc-follow data-tag="${
+				tags[ index ] ?? tags[ 0 ]
+			}" aria-pressed="false" data-error-message="${ ERROR }" data-blocked-message="${ BLOCKED }" data-on-notice="${ ON_SHORT }" data-off-notice="${ OFF_SHORT }" data-on-message="${ ON }" data-off-message="${ OFF }"><span data-rc-label="off">Get alerts</span></button></div>`
 	).join( '' );
 
 	return Array.from( document.querySelectorAll( 'button' ) );
 };
+
+// Stands in for Newspack UI's createNotice(), which returns the notice it adds.
+const fakeCreateNotice = () =>
+	jest.fn( ( message: string ) => {
+		const item = document.createElement( 'div' );
+		const content = document.createElement( 'div' );
+
+		content.className = 'newspack-ui__snackbar__content';
+		content.textContent = message;
+		item.appendChild( content );
+		document.body.appendChild( item );
+
+		return item;
+	} );
+
+const shownText = ( notice: HTMLElement ) =>
+	Array.from(
+		notice.querySelectorAll( '.newspack-ui__snackbar__content > *' )
+	)
+		.filter( ( node ) => ! node.classList.contains( 'screen-reader-text' ) )
+		.map( ( node ) => node.textContent )
+		.join( '' ) ||
+	notice.querySelector( '.newspack-ui__snackbar__content' )?.textContent;
 
 const fakeOneSignal = () => ( {
 	Notifications: {
@@ -67,7 +94,7 @@ describe( 'the follow button', () => {
 	} );
 
 	it( 'shows the spinner for at least a second, then the new state', async () => {
-		const createNotice = jest.fn();
+		const createNotice = fakeCreateNotice();
 		( window as TestWindow ).newspackUI = { notices: { createNotice } };
 		const OneSignal = fakeOneSignal();
 
@@ -89,7 +116,39 @@ describe( 'the follow button', () => {
 		expect( button.hasAttribute( 'aria-busy' ) ).toBe( false );
 		expect( button.hasAttribute( 'aria-disabled' ) ).toBe( false );
 		expect( button.getAttribute( 'aria-pressed' ) ).toBe( 'true' );
+	} );
+
+	it( 'shows "Alerts on." on a page with one liveblog, and reads out which liveblog', async () => {
+		const createNotice = fakeCreateNotice();
+		( window as TestWindow ).newspackUI = { notices: { createNotice } };
+
+		const [ button ] = addButtons( 2 );
+		button.click();
+		await runSdk( fakeOneSignal() );
+		jest.advanceTimersByTime( 1000 );
+
+		expect( createNotice ).toHaveBeenCalledTimes( 1 );
 		expect( createNotice ).toHaveBeenCalledWith( ON, 'success' );
+
+		const notice = createNotice.mock.results[ 0 ].value as HTMLElement;
+		expect( shownText( notice ) ).toBe( ON_SHORT );
+		expect(
+			notice.querySelector( '.screen-reader-text' )?.textContent
+		).toBe( ON );
+	} );
+
+	it( 'shows the full sentence on a page with several liveblogs', async () => {
+		const createNotice = fakeCreateNotice();
+		( window as TestWindow ).newspackUI = { notices: { createNotice } };
+
+		const [ button ] = addButtons( 2, [ 'coverage_1', 'coverage_2' ] );
+		button.click();
+		await runSdk( fakeOneSignal() );
+		jest.advanceTimersByTime( 1000 );
+
+		const notice = createNotice.mock.results[ 0 ].value as HTMLElement;
+		expect( shownText( notice ) ).toBe( ON );
+		expect( notice.querySelector( '.screen-reader-text' ) ).toBeNull();
 	} );
 
 	it( 'reads "Alerts on" until focus leaves after switching on', async () => {
@@ -183,8 +242,8 @@ describe( 'the follow button', () => {
 		expect( late.getAttribute( 'aria-pressed' ) ).toBe( 'true' );
 	} );
 
-	it( 'confirms alerts going off, naming the liveblog', async () => {
-		const createNotice = jest.fn();
+	it( 'confirms alerts going off', async () => {
+		const createNotice = fakeCreateNotice();
 		( window as TestWindow ).newspackUI = { notices: { createNotice } };
 		const OneSignal = fakeOneSignal();
 
@@ -198,6 +257,9 @@ describe( 'the follow button', () => {
 		expect( button.getAttribute( 'aria-pressed' ) ).toBe( 'false' );
 		expect( button.hasAttribute( 'data-rc-fresh' ) ).toBe( false );
 		expect( createNotice ).toHaveBeenCalledWith( OFF, 'success' );
+		expect(
+			shownText( createNotice.mock.results[ 0 ].value as HTMLElement )
+		).toBe( OFF_SHORT );
 	} );
 
 	it( 'announces the change without Newspack UI', async () => {

@@ -2,11 +2,17 @@ type NoticeType = 'success' | 'error';
 
 type NewspackUI = {
 	notices?: {
-		createNotice?: ( message: string, type?: NoticeType ) => void;
+		createNotice?: (
+			message: string,
+			type?: NoticeType
+		) => HTMLElement | undefined;
 	};
 };
 
-export type ShowSnackbar = ( message: string, type?: NoticeType ) => void;
+export type ShowSnackbar = (
+	message: string,
+	type?: NoticeType
+) => HTMLElement | undefined;
 
 /**
  * Newspack UI's snackbar, when Newspack UI is on the page.
@@ -36,6 +42,6 @@ export function getSnackbar(): ShowSnackbar | null {
 			document.body.appendChild( wrapper );
 		}
 
-		createNotice( message, type );
+		return createNotice( message, type );
 	};
 }
