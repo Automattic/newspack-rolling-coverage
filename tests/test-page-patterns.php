@@ -352,7 +352,50 @@ class Test_Page_Patterns extends Rolling_Coverage_TestCase {
 		$this->assertSame( Scoreboard_Block::BLOCK_NAME, $sticky['innerBlocks'][0]['blockName'] );
 		$this->assertEmpty( self::feeds( $columns[0]['innerBlocks'] ) );
 		$this->assertCount( 1, self::feeds( $columns[1]['innerBlocks'] ) );
-		$this->assertSame( [ 'team1Name', 'team1Score', 'team2Name', 'team2Score', 'status' ], self::bound_keys( $sticky['innerBlocks'][0] ) );
+		$this->assertSame( [ 'status', 'team1Name', 'team1Score', 'team2Name', 'team2Score' ], self::bound_keys( $sticky['innerBlocks'][0] ) );
+	}
+
+	/**
+	 * The outline takes the color the theme gives separators when it has
+	 * one, else the text color.
+	 */
+	public function test_scoreboard_outline_follows_the_separator_color() {
+		$scoreboard = static fn() => parse_blocks( Page_Patterns::scoreboard( [ 'outline' => true ] ) )[0]['attrs'];
+
+		self::theme(
+			[
+				'color' => [
+					'palette' => [
+						[
+							'slug'  => 'base-3',
+							'name'  => 'Base 3',
+							'color' => '#dddddd',
+						],
+					],
+				],
+			] 
+		);
+
+		$this->assertSame( 'base-3', $scoreboard()['borderColor'] );
+		$this->assertArrayNotHasKey( 'color', $scoreboard()['style']['border'] );
+
+		remove_all_filters( 'wp_theme_json_data_theme' );
+		self::theme(
+			[
+				'color' => [
+					'palette' => [
+						[
+							'slug'  => 'accent',
+							'name'  => 'Accent',
+							'color' => '#dd3333',
+						],
+					],
+				],
+			] 
+		);
+
+		$this->assertArrayNotHasKey( 'borderColor', $scoreboard() );
+		$this->assertSame( 'currentColor', $scoreboard()['style']['border']['color'] );
 	}
 
 	/**
@@ -367,6 +410,20 @@ class Test_Page_Patterns extends Rolling_Coverage_TestCase {
 		$this->assertSame( Rolling_Coverage_Block::BLOCK_NAME, $blocks[1]['blockName'] );
 		$this->assertCount( 2, $blocks );
 		$this->assertSame( [ 'team1Name', 'team1Score', 'team2Score', 'team2Name', 'status' ], self::bound_keys( $blocks[0] ) );
+
+		$score = array_values( array_filter( $blocks[0]['innerBlocks'][0]['innerBlocks'], static fn( $block ) => ! empty( $block['blockName'] ) ) );
+
+		$this->assertSame( [ 'core/group', 'core/paragraph', 'core/group' ], array_column( $score, 'blockName' ) );
+
+		foreach ( [ $score[0], $score[2] ] as $half ) {
+			$this->assertSame(
+				[
+					'selfStretch' => 'fixed',
+					'flexSize'    => '50%',
+				],
+				$half['attrs']['style']['layout']
+			);
+		}
 	}
 
 	/**

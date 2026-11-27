@@ -275,20 +275,40 @@ class Page_Patterns {
 	 *     @type string[] $status_size Font size slugs for the status line.
 	 *     @type string   $gap         Spacing preset slug between a row's parts.
 	 *     @type bool     $accent      Set the scores in the theme's accent color.
+	 *     @type bool     $outline     A 1px border in the color the theme gives separators (Base 3 when it has one), else in the text color.
+	 *     @type bool     $status_first Put the status line above the teams. Only when stacked.
 	 *     @type array    $attributes  The Scoreboard block's own settings, such as a background.
 	 * }
 	 * @return string Block markup.
 	 */
 	public static function scoreboard( array $options ): string {
 		$options += [
-			'stacked'     => false,
-			'score_size'  => [ 'xx-large', 'huge' ],
-			'dash_size'   => [ 'x-large', 'large' ],
-			'status_size' => [ 'x-small', 'small' ],
-			'gap'         => '40',
-			'accent'      => false,
-			'attributes'  => [],
+			'stacked'      => false,
+			'score_size'   => [ 'xx-large', 'huge' ],
+			'dash_size'    => [ 'x-large', 'large' ],
+			'status_size'  => [ 'x-small', 'small' ],
+			'gap'          => '40',
+			'accent'       => false,
+			'outline'      => false,
+			'status_first' => false,
+			'attributes'   => [],
 		];
+
+		if ( $options['outline'] ) {
+			$has_base_3 = in_array( 'base-3', self::color_slugs(), true );
+
+			$options['attributes']['style']['border'] = array_filter(
+				[
+					'color' => $has_base_3 ? null : 'currentColor',
+					'style' => 'solid',
+					'width' => '1px',
+				]
+			);
+
+			if ( $has_base_3 ) {
+				$options['attributes']['borderColor'] = 'base-3';
+			}
+		}
 
 		$sizes  = self::font_size_slugs();
 		$size   = static fn( array $slugs ) => current( array_intersect( $slugs, $sizes ) );
@@ -364,16 +384,45 @@ class Page_Patterns {
 			'–'
 		);
 
-		$blocks = $options['stacked']
-			? [
+		$half = static fn( string $label, string $justify, array $parts ) => self::group(
+			[
+				'metadata' => [ 'name' => $label ],
+				'style'    => [
+					'layout'  => [
+						'selfStretch' => 'fixed',
+						'flexSize'    => '50%',
+					],
+					'spacing' => [ 'blockGap' => 'var:preset|spacing|' . $options['gap'] ],
+				],
+				'layout'   => [
+					'type'              => 'flex',
+					'flexWrap'          => 'nowrap',
+					'justifyContent'    => $justify,
+					'verticalAlignment' => 'center',
+				],
+			],
+			$parts
+		);
+
+		if ( $options['stacked'] ) {
+			$teams  = [
 				$row( __( 'First Team Row', 'newspack-rolling-coverage' ), [ $team1_name, $team1_score ] ),
 				$row( __( 'Second Team Row', 'newspack-rolling-coverage' ), [ $team2_name, $team2_score ] ),
-				$status,
-			]
-			: [
-				$row( __( 'Score', 'newspack-rolling-coverage' ), [ $team1_name, $team1_score, $dash, $team2_score, $team2_name ] ),
+			];
+			$blocks = $options['status_first'] ? array_merge( [ $status ], $teams ) : array_merge( $teams, [ $status ] );
+		} else {
+			$blocks = [
+				$row(
+					__( 'Score', 'newspack-rolling-coverage' ),
+					[
+						$half( __( 'First Team Row', 'newspack-rolling-coverage' ), 'right', [ $team1_name, $team1_score ] ),
+						$dash,
+						$half( __( 'Second Team Row', 'newspack-rolling-coverage' ), 'left', [ $team2_score, $team2_name ] ),
+					]
+				),
 				$status,
 			];
+		}
 
 		return serialize_block(
 			[

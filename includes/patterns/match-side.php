@@ -16,18 +16,15 @@ defined( 'ABSPATH' ) || exit;
 // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Block markup from serialize_block().
 echo Page_Patterns::scoreboard(
 	[
-		'accent'     => true,
-		'stacked'    => true,
-		'score_size' => [ 'xxx-large', 'huge', 'xx-large' ],
-		'gap'        => '30',
-		'attributes' => [
+		'accent'       => true,
+		'stacked'      => true,
+		'score_size'   => [ 'xxx-large', 'huge', 'xx-large' ],
+		'gap'          => '30',
+		'outline'      => true,
+		'status_first' => true,
+		'attributes'   => [
 			'showStatusAsBadge' => true,
 			'style'             => [
-				'border'  => [
-					'color' => 'currentColor',
-					'style' => 'solid',
-					'width' => '1px',
-				],
 				'spacing' => [
 					'padding'  => [
 						'top'    => 'var:preset|spacing|40',
