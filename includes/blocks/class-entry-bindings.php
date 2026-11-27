@@ -1030,15 +1030,71 @@ class Entry_Bindings {
 		}
 
 		if ( 'followTag' === $key && $button->next_tag( 'button' ) ) {
+			$coverage = get_term( (int) ( $instance->context[ self::COVERAGE_ID_CONTEXT ] ?? 0 ), Taxonomy::TAXONOMY_SLUG );
+			$name     = $coverage instanceof WP_Term ? self::plain_text( $coverage->name ) : '';
+
 			$button->set_attribute( self::FOLLOW_ATTRIBUTE, '' );
 			$button->set_attribute( 'data-tag', $instance->attributes['url'] );
-			$button->set_attribute( 'data-label-following', __( 'Following', 'newspack-rolling-coverage' ) );
+			$button->set_attribute(
+				'data-on-message',
+				'' !== $name
+					/* translators: %s: liveblog name. */
+					? sprintf( __( 'You’ll get alerts for %s.', 'newspack-rolling-coverage' ), $name )
+					: __( 'You’ll get alerts for this liveblog.', 'newspack-rolling-coverage' )
+			);
+			$button->set_attribute(
+				'data-off-message',
+				'' !== $name
+					/* translators: %s: liveblog name. */
+					? sprintf( __( 'Alerts for %s are off.', 'newspack-rolling-coverage' ), $name )
+					: __( 'Alerts for this liveblog are off.', 'newspack-rolling-coverage' )
+			);
 			$button->set_attribute( 'data-blocked-message', __( 'Notifications are blocked in your browser. Allow them in your browser\'s site settings, then try again.', 'newspack-rolling-coverage' ) );
 			$button->set_attribute( 'data-error-message', __( 'Something went wrong. Please try again.', 'newspack-rolling-coverage' ) );
 			$button->set_attribute( 'aria-pressed', 'false' );
+
+			return self::show_follow_labels( $button->get_updated_html() );
 		}
 
 		return $button->get_updated_html();
+	}
+
+	/**
+	 * Stack the follow button's labels in one cell, so the button keeps the
+	 * width of the longest and nothing beside it moves when the label changes.
+	 * The view script switches between them through `aria-pressed` and
+	 * `aria-busy`. "Alerts on" and "Stop alerts" start hidden, so a page
+	 * without the block's stylesheet still reads only the publisher's label.
+	 *
+	 * "Stop alerts" shows over "Alerts on" on hover and focus. It's hidden
+	 * from assistive tech, which hears "Alerts on" with the pressed state.
+	 *
+	 * @param string $block_content Rendered follow button.
+	 * @return string
+	 */
+	private static function show_follow_labels( string $block_content ): string {
+		if ( ! preg_match( '#(<button\b(?:[^>"\']|"[^"]*"|\'[^\']*\')*>)(.*?)(</button>)#s', $block_content, $button ) ) {
+			return $block_content;
+		}
+
+		$icon = wp_get_icon( Block_Icons::CHECK );
+		$svg  = $icon ? new WP_HTML_Tag_Processor( $icon ) : null;
+
+		if ( $svg && $svg->next_tag( 'svg' ) ) {
+			$svg->set_attribute( 'fill', 'currentColor' );
+			$svg->set_attribute( 'aria-hidden', 'true' );
+			$svg->set_attribute( 'focusable', 'false' );
+		}
+
+		$labels = sprintf(
+			'<span class="newspack-rolling-coverage-follow__labels"><span class="newspack-rolling-coverage-follow__label" data-rc-label="off">%1$s</span><span class="newspack-rolling-coverage-follow__label" data-rc-label="on" hidden>%2$s%3$s</span><span class="newspack-rolling-coverage-follow__label" data-rc-label="stop" aria-hidden="true" hidden>%4$s</span><span class="newspack-rolling-coverage-follow__spinner" aria-hidden="true" hidden></span></span>',
+			$button[2],
+			$svg ? preg_replace( '/>\s+</', '><', trim( $svg->get_updated_html() ) ) : '',
+			esc_html__( 'Alerts on', 'newspack-rolling-coverage' ),
+			esc_html__( 'Stop alerts', 'newspack-rolling-coverage' )
+		);
+
+		return str_replace( $button[0], $button[1] . $labels . $button[3], $block_content );
 	}
 
 	/**

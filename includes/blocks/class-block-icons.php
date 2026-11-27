@@ -12,7 +12,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Registers the plugin's icons so core's Icon block can show them in the
  * entry template, e.g. the pin on pinned entries, and so the share button
- * can show the link icon.
+ * can show the link icon and the follow button the check.
  */
 class Block_Icons {
 
@@ -21,6 +21,8 @@ class Block_Icons {
 	const PIN = self::COLLECTION . '/pin-small';
 
 	const LINK = self::COLLECTION . '/link';
+
+	const CHECK = self::COLLECTION . '/check';
 
 	/**
 	 * Initialize hooks.
@@ -50,6 +52,14 @@ class Block_Icons {
 			[
 				'label'     => __( 'Link', 'newspack-rolling-coverage' ),
 				'file_path' => NEWSPACK_ROLLING_COVERAGE_PLUGIN_DIR . 'assets/icons/link.svg',
+			]
+		);
+
+		wp_register_icon(
+			self::CHECK,
+			[
+				'label'     => __( 'Check', 'newspack-rolling-coverage' ),
+				'file_path' => NEWSPACK_ROLLING_COVERAGE_PLUGIN_DIR . 'assets/icons/check.svg',
 			]
 		);
 	}

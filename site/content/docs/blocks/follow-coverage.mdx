@@ -43,7 +43,7 @@ Outside a Rolling Coverage block, open the **Liveblog** panel in the block setti
 
 Select the button inside the block. Change its text, colors, and size like any other button.
 
-The text you set replaces "Follow". Once a reader follows, the button reads "Following". That text can't be changed.
+The text you set replaces "Get alerts". Once a reader turns alerts on, the button reads "Alerts on" with a check, and "Stop alerts" when they point at it. Those labels can't be changed. The button keeps the width of its longest label, so nothing beside it moves.
 
 <Screenshot label="The Follow Coverage block in the editor with the Follow button selected" src="/screenshots/blocks/follow-coverage-3.webp" width={3024} height={1964} />
 
@@ -65,10 +65,12 @@ Leave the button in place. The block rebuilds it when the editor reloads.
 
 ## What readers see
 
-- The button reads **Follow**, then **Following** after they follow. Selecting it again unfollows.
+- The button reads **Get alerts**. After a short spinner, it reads **Alerts on** with a check.
+- A notice names the liveblog: "You’ll get alerts for Kettle River flood." When alerts go off, it reads "Alerts for Kettle River flood are off."
+- Pointing at **Alerts on**, or tabbing to it, shows **Stop alerts**. Selecting it turns the alerts off.
 - The browser asks for permission to send notifications the first time.
-- If the reader has blocked notifications, a message explains how to allow them, and the button returns to **Follow**.
-- If something fails, the button returns to its previous state and a message asks them to try again.
+- If the reader has blocked notifications, a notice explains how to allow them, and the button returns to **Get alerts**.
+- If something fails, the button returns to its previous state and a notice asks them to try again.
 - Once the liveblog ends, the button no longer appears when the page loads.
 
 <Screenshot label="A page with the Follow button below the introduction" src="/screenshots/blocks/follow-coverage-4.webp" width={3024} height={1964} />

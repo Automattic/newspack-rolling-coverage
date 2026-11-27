@@ -326,7 +326,7 @@ class Test_Coverage_Follow_Block extends Rolling_Coverage_TestCase {
 		$this->assertStringStartsWith( '<div class="wp-block-buttons', $html );
 		$this->assertStringEndsWith( '</div>', $html );
 		$this->assertSame( 2, substr_count( $html, '<div' ), 'Only the Buttons and Button wrappers should render.' );
-		$this->assertStringNotContainsString( 'coverage-follow', $html );
+		$this->assertStringNotContainsString( 'wp-block-newspack-rolling-coverage-coverage-follow', $html );
 	}
 
 	/**
@@ -339,6 +339,46 @@ class Test_Coverage_Follow_Block extends Rolling_Coverage_TestCase {
 		$html = $this->render( self::follow( $coverage_id ) . self::BUTTONS_MARKUP );
 
 		$this->assertSame( [ Push_Notifications::follow_tag( $coverage_id ) ], self::tags( $html ) );
-		$this->assertSame( 1, substr_count( $html, '>Follow</button>' ) );
+		$this->assertSame( 1, substr_count( $html, 'data-rc-label="off">Follow</span>' ) );
+	}
+
+	/**
+	 * The button holds its three labels and the spinner, only the publisher's
+	 * label showing without the stylesheet, and the snackbar messages name
+	 * the liveblog.
+	 */
+	public function test_button_holds_its_labels_and_names_the_liveblog() {
+		$coverage_id = self::create_coverage( '', [ 'name' => 'Kettle River & Flood' ] );
+
+		$html   = $this->render( self::follow( $coverage_id ) );
+		$button = new WP_HTML_Tag_Processor( $html );
+
+		$this->assertTrue( $button->next_tag( 'button' ) );
+		$this->assertSame( 'false', $button->get_attribute( 'aria-pressed' ) );
+		$this->assertSame( 'You’ll get alerts for Kettle River & Flood.', $button->get_attribute( 'data-on-message' ) );
+		$this->assertSame( 'Alerts for Kettle River & Flood are off.', $button->get_attribute( 'data-off-message' ) );
+		$this->assertNull( $button->get_attribute( 'data-label-following' ) );
+
+		$labels = [];
+		while ( $button->next_tag( 'span' ) ) {
+			$label = $button->get_attribute( 'data-rc-label' );
+			if ( null !== $label ) {
+				$labels[ $label ] = [ null !== $button->get_attribute( 'hidden' ), $button->get_attribute( 'aria-hidden' ) ];
+			}
+		}
+
+		$this->assertSame(
+			[
+				'off'  => [ false, null ],
+				'on'   => [ true, null ],
+				'stop' => [ true, 'true' ],
+			],
+			$labels
+		);
+		$this->assertStringContainsString( 'data-rc-label="off">Follow</span>', $html );
+		$this->assertStringContainsString( 'Alerts on</span>', $html );
+		$this->assertStringContainsString( '>Stop alerts</span>', $html );
+		$this->assertStringContainsString( '<svg', $html );
+		$this->assertSame( 1, substr_count( $html, 'newspack-rolling-coverage-follow__spinner' ) );
 	}
 }

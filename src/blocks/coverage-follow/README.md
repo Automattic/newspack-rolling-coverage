@@ -1,6 +1,6 @@
 # Follow Coverage
 
-A button that lets readers follow a liveblog. Followers get a push notification when an entry that sends one is published. See [Sending notifications](#sending-notifications).
+A button that lets readers get alerts for a liveblog. Readers who turn alerts on get a push notification when an entry that sends one is published. See [Sending notifications](#sending-notifications).
 
 ## Requirements
 
@@ -32,18 +32,22 @@ The Settings panel shows up only when something stops the button from appearing:
 
 ## The button
 
-The block holds a standard Button block. Style it, change its text, and set its colors and size like any other button. The button's text replaces "Follow". Once a reader follows, it reads "Following", which can't be changed. Readers click it again to unfollow.
+The block holds a standard Button block. Style it, change its text, and set its colors and size like any other button. The button's text replaces "Get alerts". Once alerts are on, it reads "Alerts on" with a check, and "Stop alerts" when a reader hovers over it or moves keyboard focus to it. Those two labels can't be changed.
+
+The button keeps the width of its longest label, so a heading or text beside it doesn't move when the label changes.
 
 The button is part of the block and rebuilds itself when the editor reloads, so leave it in place.
 
 ## What readers see
 
-- The button reads Follow, then Following after they follow.
+- The button reads Get alerts. While the browser and push service respond, it shows a small spinner for at least a second. Then it reads Alerts on, with a check.
+- A notice names the liveblog: "You’ll get alerts for Kettle River flood." when alerts go on, and "Alerts for Kettle River flood are off." when they go off. On a site without the Newspack plugin, screen readers announce it and nothing appears on screen.
+- Hovering over Alerts on, or moving keyboard focus to it, shows Stop alerts. Selecting it turns the alerts off. Right after alerts go on, the button keeps reading Alerts on until the pointer or focus moves away.
 - In a Rolling Coverage feed, the button shrinks slightly while it is pressed with a mouse, unless the reader's device is set to reduce motion.
 - The browser asks for permission to send notifications the first time.
-- If the reader has blocked notifications, the button returns to Follow and an error notice appears: "Notifications are blocked in your browser. Allow them in your browser's site settings, then try again."
+- If the reader has blocked notifications, the button returns to Get alerts and an error notice appears: "Notifications are blocked in your browser. Allow them in your browser's site settings, then try again."
 - If something fails, the button returns to its previous state and an error notice appears: "Something went wrong. Please try again."
-- The notice stays until the reader closes it. On a site without the Newspack plugin, these messages appear under the button instead.
+- An error notice stays until the reader closes it. On a site without the Newspack plugin, error messages appear under the button instead.
 - Once the liveblog ends, the button no longer appears when the page loads.
 - The button doesn't appear on Lite Site's text-only pages.
 

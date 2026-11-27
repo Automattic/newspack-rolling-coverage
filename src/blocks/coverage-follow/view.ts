@@ -3,14 +3,23 @@
  */
 import { getSnackbar } from '../shared/snackbar';
 import type { OneSignalApi } from './types';
+import './style.scss';
 
 const FOLLOW_BUTTON_SELECTOR = 'button[data-rc-follow]';
 
 // How long to wait for the OneSignal SDK before treating a click as failed.
 const SDK_WAIT_TIMEOUT_MS = 10000;
 
+// The spinner shows at least this long, so a quick answer doesn't flicker.
+const MIN_PENDING_MS = 1000;
+
+const ANNOUNCER_ID = 'newspack-rolling-coverage-follow-announcer';
+
+const FRESH_ATTRIBUTE = 'data-rc-fresh';
+
 /**
- * Updates a button's label and aria-pressed for a follow state.
+ * Shows a button's follow state. Its labels are all in the markup, stacked by
+ * the stylesheet, which shows the one for this state.
  *
  * @param {HTMLButtonElement} button   Button to update.
  * @param {boolean}           followed Whether its tag is followed.
@@ -19,16 +28,87 @@ function updateButtonState(
 	button: HTMLButtonElement,
 	followed: boolean
 ): void {
-	// Until its state is first shown, the button reads the label set in the
-	// editor, so that's the "Follow" text.
-	if ( ! button.dataset.labelFollow ) {
-		button.dataset.labelFollow = button.textContent?.trim() || undefined;
+	button.setAttribute( 'aria-pressed', followed ? 'true' : 'false' );
+}
+
+/**
+ * Shows the spinner on a button while a toggle is pending, and keeps further
+ * clicks out. It stays focusable, unlike a disabled button, so keyboard focus
+ * isn't lost.
+ *
+ * @param {HTMLButtonElement} button Button to update.
+ * @param {boolean}           busy   Whether a toggle is pending.
+ */
+function setBusy( button: HTMLButtonElement, busy: boolean ): void {
+	if ( busy ) {
+		button.setAttribute( 'aria-busy', 'true' );
+		button.setAttribute( 'aria-disabled', 'true' );
+	} else {
+		button.removeAttribute( 'aria-busy' );
+		button.removeAttribute( 'aria-disabled' );
+	}
+}
+
+/**
+ * Whether a button has a toggle pending.
+ *
+ * @param {HTMLButtonElement} button Follow button element.
+ * @return {boolean} Whether it's busy.
+ */
+function isBusy( button: HTMLButtonElement ): boolean {
+	return button.getAttribute( 'aria-busy' ) === 'true';
+}
+
+/**
+ * Announces a message to screen readers without showing it, for when Newspack
+ * UI's snackbar isn't on the page. The button's own label already shows the
+ * new state.
+ *
+ * @param {string} text Message text.
+ */
+function announce( text: string ): void {
+	let region = document.getElementById( ANNOUNCER_ID );
+
+	if ( ! region ) {
+		region = document.createElement( 'div' );
+		region.id = ANNOUNCER_ID;
+		region.setAttribute( 'role', 'status' );
+		region.setAttribute( 'aria-live', 'polite' );
+		Object.assign( region.style, {
+			position: 'absolute',
+			width: '1px',
+			height: '1px',
+			margin: '-1px',
+			padding: '0',
+			overflow: 'hidden',
+			clip: 'rect(0, 0, 0, 0)',
+			whiteSpace: 'nowrap',
+			border: '0',
+		} );
+		document.body.appendChild( region );
 	}
 
-	const { labelFollow = 'Follow', labelFollowing = 'Following' } =
-		button.dataset;
-	button.textContent = followed ? labelFollowing : labelFollow;
-	button.setAttribute( 'aria-pressed', followed ? 'true' : 'false' );
+	region.textContent = text;
+}
+
+/**
+ * Confirms a toggle in Newspack UI's snackbar, or announces it without
+ * Newspack UI.
+ *
+ * @param {string} text Message text.
+ */
+function confirmToggle( text: string ): void {
+	if ( '' === text ) {
+		return;
+	}
+
+	const showSnackbar = getSnackbar();
+
+	if ( showSnackbar ) {
+		showSnackbar( text );
+	} else {
+		announce( text );
+	}
 }
 
 /**
@@ -126,7 +206,7 @@ function requestNotificationPermission(
  * Syncs every follow button's initial state from OneSignal's own synced
  * tags — the real source of truth, rather than a locally cached guess.
  *
- * Skips any button mid-click (disabled): its own pending toggle already owns
+ * Skips any button mid-click (busy): its own pending toggle already owns
  * repainting it, and this tag data predates that click.
  *
  * @param {OneSignalApi}        OneSignal OneSignal SDK instance.
@@ -140,7 +220,7 @@ function syncFollowButtons(
 		const tags = OneSignal.User.getTags() || {};
 		buttons.forEach( ( button ) => {
 			const tag = button.dataset.tag;
-			if ( tag && ! button.disabled ) {
+			if ( tag && ! isBusy( button ) ) {
 				updateButtonState( button, '1' === tags[ tag ] );
 			}
 		} );
@@ -196,35 +276,56 @@ function followButtonsIn( node: Node ): HTMLButtonElement[] {
 }
 
 /**
- * Toggles a follow button's OneSignal tag, with an optimistic UI update
- * reverted on failure.
+ * Toggles a follow button's OneSignal tag. Every button sharing the tag shows
+ * the spinner until the browser and OneSignal answer, then the new state, or
+ * the old one and an error on failure.
  *
  * @param {HTMLButtonElement} button Follow button element.
  * @param {string}            tag    The button's OneSignal tag.
  */
 function toggleFollow( button: HTMLButtonElement, tag: string ): void {
 	const willFollow = button.getAttribute( 'aria-pressed' ) !== 'true';
-
 	const siblings = buttonsForTag( tag );
+	const startedAt = Date.now();
 
 	siblings.forEach( ( sibling ) => {
-		updateButtonState( sibling, willFollow );
-		sibling.disabled = true;
+		setBusy( sibling, true );
+		setStatusMessage( sibling, '' );
 	} );
-	siblings.forEach( ( sibling ) => setStatusMessage( sibling, '' ) );
 
-	const settle = () =>
-		siblings.forEach( ( sibling ) => {
-			sibling.disabled = false;
+	const finish = ( followed: boolean, onShown: () => void ) => {
+		const show = () => {
+			siblings.forEach( ( sibling ) => {
+				updateButtonState( sibling, followed );
+				setBusy( sibling, false );
+			} );
+			onShown();
+		};
+		const wait = MIN_PENDING_MS - ( Date.now() - startedAt );
+
+		if ( wait > 0 ) {
+			window.setTimeout( show, wait );
+		} else {
+			show();
+		}
+	};
+
+	const succeed = () =>
+		finish( willFollow, () => {
+			// Still under the pointer or focused, the button would read "Stop
+			// alerts" at once; it reads "Alerts on" until the reader moves on.
+			if ( willFollow ) {
+				button.setAttribute( FRESH_ATTRIBUTE, '' );
+			}
+			confirmToggle(
+				( willFollow
+					? button.dataset.onMessage
+					: button.dataset.offMessage ) || ''
+			);
 		} );
 
-	const revert = ( message: string ) => {
-		siblings.forEach( ( sibling ) =>
-			updateButtonState( sibling, ! willFollow )
-		);
-		showError( button, message );
-		settle();
-	};
+	const revert = ( message: string ) =>
+		finish( ! willFollow, () => showError( button, message ) );
 
 	let hasResolvedSdkWait = false;
 	const timeoutId = window.setTimeout( () => {
@@ -262,12 +363,47 @@ function toggleFollow( button: HTMLButtonElement, tag: string ): void {
 				OneSignal.User.addTag( tag, '1' );
 			}
 
-			settle();
+			succeed();
 		} catch {
 			revert( button.dataset.errorMessage || '' );
 		}
 	} );
 }
+
+/**
+ * Lets a just-switched-on button show "Stop alerts" again on hover and
+ * focus, once the pointer or focus has left it.
+ *
+ * @param {Event} event Pointer or focus event.
+ */
+function clearFresh( event: Event ): void {
+	if (
+		event.target instanceof HTMLButtonElement &&
+		event.target.matches( FOLLOW_BUTTON_SELECTOR )
+	) {
+		event.target.removeAttribute( FRESH_ATTRIBUTE );
+	}
+}
+
+document.addEventListener( 'pointerout', ( event ) => {
+	const left =
+		event.target instanceof Element
+			? event.target.closest< HTMLButtonElement >(
+					FOLLOW_BUTTON_SELECTOR
+				)
+			: null;
+
+	if (
+		left &&
+		! (
+			event.relatedTarget instanceof Node &&
+			left.contains( event.relatedTarget )
+		)
+	) {
+		left.removeAttribute( FRESH_ATTRIBUTE );
+	}
+} );
+document.addEventListener( 'focusout', clearFresh );
 
 // Handled from the document, so buttons that reach the page after load work
 // too, and a button that moves within the page never gets a second handler.
@@ -280,7 +416,7 @@ document.addEventListener( 'click', ( event ) => {
 			: null;
 	const tag = button?.dataset.tag;
 
-	if ( button && tag ) {
+	if ( button && tag && ! isBusy( button ) ) {
 		toggleFollow( button, tag );
 	}
 } );
