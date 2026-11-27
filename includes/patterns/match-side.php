@@ -18,7 +18,7 @@ echo Page_Patterns::scoreboard(
 	[
 		'accent'       => true,
 		'stacked'      => true,
-		'score_size'   => [ 'xxx-large', 'huge', 'xx-large' ],
+		'score_size'   => [ 'xx-large', 'huge', 'x-large' ],
 		'gap'          => '30',
 		'outline'      => true,
 		'status_first' => true,

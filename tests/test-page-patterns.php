@@ -432,7 +432,7 @@ class Test_Page_Patterns extends Rolling_Coverage_TestCase {
 							'name' => $slug,
 							'size' => '2rem',
 						],
-						[ 'x-large', 'xxxx-large', 'xxxxx-large' ]
+						[ 'x-large', 'xxx-large', 'xxxx-large' ]
 					),
 				],
 			]
@@ -443,8 +443,8 @@ class Test_Page_Patterns extends Rolling_Coverage_TestCase {
 
 		$this->assertStringContainsString( Scoreboard_Block::DASH_CLASS, $parts[2]['attrs']['className'] );
 		$this->assertArrayNotHasKey( 'bindings', $parts[2]['attrs']['metadata'] );
-		$this->assertSame( 'xxxx-large', $parts[2]['attrs']['fontSize'] );
-		$this->assertSame( 'xxxxx-large', $parts[1]['attrs']['fontSize'] );
+		$this->assertSame( 'xxx-large', $parts[2]['attrs']['fontSize'] );
+		$this->assertSame( 'xxxx-large', $parts[1]['attrs']['fontSize'] );
 		$this->assertStringContainsString( '>–</p>', $parts[2]['innerHTML'] );
 
 		$side = self::find( parse_blocks( self::pattern( 'match-side' )['content'] ), Scoreboard_Block::BLOCK_NAME )[0];
@@ -492,9 +492,9 @@ class Test_Page_Patterns extends Rolling_Coverage_TestCase {
 									'size' => '2rem',
 								],
 								[
-									'slug' => 'xxxxx-large',
-									'name' => 'xxxxx-large',
-									'size' => '5rem',
+									'slug' => 'xxxx-large',
+									'name' => 'xxxx-large',
+									'size' => '4rem',
 								],
 							],
 						],
@@ -514,7 +514,7 @@ class Test_Page_Patterns extends Rolling_Coverage_TestCase {
 
 		$this->assertSame( 'x-large', $parts[0]['attrs']['fontSize'] );
 		$this->assertSame( 'display', $parts[0]['attrs']['fontFamily'] );
-		$this->assertSame( 'xxxxx-large', $parts[1]['attrs']['fontSize'] );
+		$this->assertSame( 'xxxx-large', $parts[1]['attrs']['fontSize'] );
 		$this->assertSame( 'contrast-3', $parts[5]['attrs']['textColor'] );
 		$this->assertArrayNotHasKey( 'fontSize', $parts[5]['attrs'] );
 		$this->assertSame( '<p class="has-text-align-right use-header-font has-display-font-family has-x-large-font-size" style="font-weight:700;line-height:1.2"></p>', $parts[0]['innerHTML'] );
