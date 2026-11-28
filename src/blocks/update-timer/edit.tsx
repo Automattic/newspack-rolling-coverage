@@ -75,7 +75,7 @@ export default function Edit( {
 	setAttributes: ( attrs: Partial< UpdateTimerAttributes > ) => void;
 	context?: Record< string, unknown >;
 } ) {
-	const { coverageId, showSpinner } = attributes;
+	const { coverageId, showSpinner, ringPosition } = attributes;
 	const [ customChosen, setCustomChosen ] = useState( false );
 
 	const {
@@ -182,6 +182,31 @@ export default function Edit( {
 					);
 	}
 
+	const ring = showSpinner !== false && (
+		<svg
+			className="newspack-rolling-coverage-update-timer__ring"
+			viewBox="0 0 18 18"
+			aria-hidden="true"
+			focusable="false"
+		>
+			<circle cx="9" cy="9" r="8" />
+			<circle
+				className="newspack-rolling-coverage-update-timer__ring-arc"
+				cx="9"
+				cy="9"
+				r="8"
+				pathLength={ 100 }
+			/>
+		</svg>
+	);
+	const text = (
+		<span className="newspack-rolling-coverage-update-timer__text">
+			{ nextCheckLabel(
+				Math.max( pollInterval, Number( config.minPollInterval ) || 0 )
+			) }
+		</span>
+	);
+
 	return (
 		<>
 			<InspectorControls>
@@ -272,34 +297,64 @@ export default function Edit( {
 							}
 						/>
 					</ToggleGroupControl>
+					{ showSpinner !== false && (
+						<ToggleGroupControl
+							__next40pxDefaultSize
+							isBlock
+							label={ __(
+								'Ring position',
+								'newspack-rolling-coverage'
+							) }
+							value={ ringPosition === 'end' ? 'end' : 'start' }
+							onChange={ ( value ) =>
+								setAttributes( {
+									ringPosition:
+										value === 'end' ? 'end' : 'start',
+								} )
+							}
+							help={ __(
+								'After keeps the ring in place when the timer sits at the end of a row, as the countdown changes length.',
+								'newspack-rolling-coverage'
+							) }
+						>
+							<ToggleGroupControlOption
+								value="start"
+								label={ _x(
+									'Before',
+									'ring position',
+									'newspack-rolling-coverage'
+								) }
+								aria-label={
+									/* translators: Screen reader name for the “Before” option. Keep the word used to translate “Before”. */
+									__(
+										'Ring before the countdown',
+										'newspack-rolling-coverage'
+									)
+								}
+							/>
+							<ToggleGroupControlOption
+								value="end"
+								label={ _x(
+									'After',
+									'ring position',
+									'newspack-rolling-coverage'
+								) }
+								aria-label={
+									/* translators: Screen reader name for the “After” option. Keep the word used to translate “After”. */
+									__(
+										'Ring after the countdown',
+										'newspack-rolling-coverage'
+									)
+								}
+							/>
+						</ToggleGroupControl>
+					) }
 				</PanelBody>
 			</InspectorControls>
 			<div { ...blockProps }>
-				{ showSpinner !== false && (
-					<svg
-						className="newspack-rolling-coverage-update-timer__ring"
-						viewBox="0 0 18 18"
-						aria-hidden="true"
-						focusable="false"
-					>
-						<circle cx="9" cy="9" r="8" />
-						<circle
-							className="newspack-rolling-coverage-update-timer__ring-arc"
-							cx="9"
-							cy="9"
-							r="8"
-							pathLength={ 100 }
-						/>
-					</svg>
-				) }
-				<span className="newspack-rolling-coverage-update-timer__text">
-					{ nextCheckLabel(
-						Math.max(
-							pollInterval,
-							Number( config.minPollInterval ) || 0
-						)
-					) }
-				</span>
+				{ ringPosition !== 'end' && ring }
+				{ text }
+				{ ringPosition === 'end' && ring }
 			</div>
 		</>
 	);

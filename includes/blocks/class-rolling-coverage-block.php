@@ -130,10 +130,12 @@ class Rolling_Coverage_Block {
 	const SUMMARY_ATTRIBUTE = 'data-rc-summary';
 
 	/**
-	 * Attribute holding the summary card's "Updated" line as rendered, which
-	 * the view script compares with each poll's to tell when the line now
-	 * reads differently, rather than the card's text, which the browser or an
-	 * embed's script may have changed.
+	 * Attribute holding the summary card's "Updated" line in its clock-time
+	 * form (Entry_Bindings::updated_text()), which the view script compares
+	 * with each poll's to tell when a card showing the time now reads
+	 * differently, rather than the card's text, which the browser, an embed's
+	 * script or the relative dates the view script keeps current may have
+	 * changed.
 	 */
 	const SUMMARY_UPDATED_ATTRIBUTE = 'data-rc-updated';
 
@@ -142,6 +144,19 @@ class Rolling_Coverage_Block {
 	 * shows.
 	 */
 	const FEED_CLASS = 'newspack-rolling-coverage-feed';
+
+	/**
+	 * Class of an entry's Post Date that shows only when the entry wasn't
+	 * published on the site's current day, as Clock's calendar date under
+	 * the time (see mark_earlier_day_entry_date()).
+	 */
+	const EARLIER_DAY_DATE_CLASS = 'newspack-rolling-coverage-earlier-day-date';
+
+	/**
+	 * Attribute holding the site's day an entry was published on, `Y-m-d`,
+	 * which the view script compares with the site's current day.
+	 */
+	const ENTRY_DAY_ATTRIBUTE = 'data-rc-day';
 
 	/**
 	 * Class of an entry, ad or Load more button placed in a grid Feed by the
@@ -277,6 +292,14 @@ class Rolling_Coverage_Block {
 	private static $poll_summary_card = null;
 
 	/**
+	 * Whether the poll get_entries() answers comes from a lite page, whose
+	 * summary card shows the time of the Summary's last edit.
+	 *
+	 * @var bool
+	 */
+	private static $poll_is_lite = false;
+
+	/**
 	 * Initialize hooks.
 	 */
 	public static function init() {
@@ -291,6 +314,7 @@ class Rolling_Coverage_Block {
 		add_filter( 'posts_where', [ __CLASS__, 'load_more_bound_where' ], 10, 2 );
 		add_filter( 'posts_where', [ __CLASS__, 'marker_where' ], 10, 2 );
 		add_filter( 'render_block_core/post-date', [ __CLASS__, 'mark_relative_entry_date' ], 10, 3 );
+		add_filter( 'render_block_core/post-date', [ __CLASS__, 'mark_earlier_day_entry_date' ], 10, 3 );
 		add_filter( 'pre_option_show_avatars', [ __CLASS__, 'show_entry_avatars' ] );
 		add_filter( 'render_block_core/avatar', [ __CLASS__, 'hide_slack_bot_byline' ], 10, 3 );
 		add_filter( 'render_block_core/avatar', [ __CLASS__, 'size_entry_avatar' ], 10, 2 );
@@ -1002,6 +1026,78 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
+	 * Marks an entry's earlier-day date with the site's day the entry was
+	 * published on, and hides it when that day is today, so only entries from
+	 * earlier days show their date. The view script checks again as the page
+	 * stays open, since a cached page can outlive the day it was made on. A
+	 * syndication feed always shows it, as nothing checks it there and the
+	 * feed is read on later days.
+	 *
+	 * Parameters stay untyped, as in mark_relative_entry_date().
+	 *
+	 * @param string   $block_content Rendered block.
+	 * @param array    $block         Parsed block.
+	 * @param WP_Block $instance      Block instance.
+	 * @return string
+	 */
+	public static function mark_earlier_day_entry_date( $block_content, $block, $instance ) {
+		if (
+			! is_string( $block_content ) ||
+			! $instance instanceof WP_Block ||
+			! self::$entry_render_depth ||
+			! in_array( self::EARLIER_DAY_DATE_CLASS, preg_split( '/\s+/', (string) ( $block['attrs']['className'] ?? '' ) ), true )
+		) {
+			return $block_content;
+		}
+
+		$date = new WP_HTML_Tag_Processor( $block_content );
+
+		if ( ! $date->next_tag() ) {
+			return $block_content;
+		}
+
+		$date->set_bookmark( 'wrapper' );
+
+		$timestamp = $date->next_tag( 'time' ) ? strtotime( (string) $date->get_attribute( 'datetime' ) ) : false;
+
+		if ( false === $timestamp ) {
+			return $block_content;
+		}
+
+		$date->seek( 'wrapper' );
+		$date->release_bookmark( 'wrapper' );
+		$date->set_attribute( self::ENTRY_DAY_ATTRIBUTE, self::site_day( $timestamp ) );
+
+		if ( ! is_feed() && self::is_site_today( $timestamp ) ) {
+			$date->set_attribute( 'hidden', true );
+		}
+
+		return $date->get_updated_html();
+	}
+
+	/**
+	 * The site's day a moment falls on, `Y-m-d` in the site's timezone.
+	 *
+	 * @param int $timestamp Unix timestamp.
+	 * @return string
+	 */
+	public static function site_day( int $timestamp ): string {
+		return (string) wp_date( 'Y-m-d', $timestamp );
+	}
+
+	/**
+	 * Whether a moment falls on the site's current day, in the site's
+	 * timezone, the one entry times are shown in.
+	 *
+	 * @param int      $timestamp Unix timestamp.
+	 * @param int|null $now       The current time, for tests; now by default.
+	 * @return bool
+	 */
+	public static function is_site_today( int $timestamp, ?int $now = null ): bool {
+		return self::site_day( $timestamp ) === self::site_day( $now ?? time() );
+	}
+
+	/**
 	 * Hides an entry's avatar and author name while the Slack bot is its
 	 * author. The rule keys on the author, so an entry an editor reassigns
 	 * to a reporter shows that reporter. render_entry() already drops them
@@ -1260,6 +1356,11 @@ class Rolling_Coverage_Block {
 					'siteKitGa4Enabled'     => $should_track_reader_events && self::is_site_kit_ga4_tracking_ready(),
 					// The view script requests entries past the caches for these users.
 					'canEditPosts'          => $can_edit_posts,
+					// For the site's current day, which shows or hides entries' earlier-day dates.
+					'timezone'              => [
+						'string' => (string) get_option( 'timezone_string' ),
+						'offset' => (float) get_option( 'gmt_offset' ),
+					],
 				]
 			);
 		}
@@ -1318,7 +1419,7 @@ class Rolling_Coverage_Block {
 		self::$host_post_id = (int) get_the_ID();
 
 		// Preload so polled entries' blocks are styled and work even if none appeared on initial render. Those include the photos Slack messages add, and Follow, Status, Update Timer and Scoreboard blocks placed in an entry or in a feed nested in one.
-		foreach ( [ 'core/buttons', 'core/button', 'core/separator', 'core/icon', 'core/image', 'core/gallery', Coverage_Status_Block::BLOCK_NAME, Update_Timer_Block::BLOCK_NAME, Scoreboard_Block::BLOCK_NAME ] as $entry_block_name ) {
+		foreach ( [ 'core/buttons', 'core/button', 'core/separator', 'core/icon', 'core/image', 'core/gallery', Coverage_Status_Block::BLOCK_NAME, Update_Timer_Block::BLOCK_NAME, Scoreboard_Block::BLOCK_NAME, Coverage_Follow_Block::BLOCK_NAME ] as $entry_block_name ) {
 			$entry_block_type = WP_Block_Type_Registry::get_instance()->get_registered( $entry_block_name );
 
 			foreach ( $entry_block_type ? $entry_block_type->style_handles : [] as $style_handle ) {
@@ -4150,9 +4251,12 @@ class Rolling_Coverage_Block {
 	 * card, or null while the coverage has no published Summary. Every poll
 	 * URL asks for it, so the rendered card is kept in the object cache
 	 * (SUMMARY_CACHE_GROUP) until the Summary, the stored card, the coverage's
-	 * status, the "Updated" line it shows or the host page (Share links name
-	 * it) changes, or any post or term changes: a content gate, which is a
-	 * post, can start covering the Summary, and the coverage can be renamed.
+	 * status, the "Updated" line's clock-time form or the host page (Share
+	 * links name it) changes, or any post or term changes: a content gate,
+	 * which is a post, can start covering the Summary, and the coverage can be
+	 * renamed. A lite page's poll gets its own card, with the clock time. A
+	 * full page's card says how long ago as of its render, which the view
+	 * script brings up to date as it shows the card.
 	 *
 	 * @param int    $coverage_id Coverage term ID.
 	 * @param array  $stored      The stored summary card and the Feed's layout (see persist_block_config()).
@@ -4176,6 +4280,7 @@ class Rolling_Coverage_Block {
 					$parent_layout,
 					$status,
 					Entry_Bindings::updated_text( $summary ),
+					self::$poll_is_lite,
 					get_locale(),
 					self::$host_post_id,
 					wp_cache_get_last_changed( 'posts' ),
@@ -4186,7 +4291,8 @@ class Rolling_Coverage_Block {
 		$html          = wp_cache_get( $cache_key, self::SUMMARY_CACHE_GROUP );
 
 		if ( ! is_string( $html ) ) {
-			$html = self::render_summary_card( $stored['block'], $summary, $coverage_id, $status, $parent_layout );
+			$render = static fn() => self::render_summary_card( $stored['block'], $summary, $coverage_id, $status, $parent_layout );
+			$html   = self::$poll_is_lite ? Entry_Bindings::render_with_clock_time( $render ) : $render();
 
 			wp_reset_postdata();
 			wp_cache_set( $cache_key, $html, self::SUMMARY_CACHE_GROUP, DAY_IN_SECONDS );
@@ -5399,6 +5505,7 @@ class Rolling_Coverage_Block {
 		// Lite entries don't use the template.
 		$is_stale_template = null === $stored_config && ! $is_lite;
 
+		self::$poll_is_lite      = $is_lite;
 		self::$poll_summary_card = ! $is_capped && ! $is_stale_template && is_array( $config['summaryCard']['block'] ?? null ) ? $config['summaryCard'] : null;
 
 		// Forward/polling branch: the changes the page is missing, newest first.

@@ -100,7 +100,7 @@ class Layout_Templates {
 	/**
 	 * What the tokens other than translations stand for on this site.
 	 *
-	 * @return array{time_format: string, muted_color: ?string, font_sizes: string[], all_updates: string}
+	 * @return array{time_format: string, date_format: string, muted_color: ?string, font_sizes: string[], all_updates: string}
 	 */
 	private static function site_values(): array {
 		$palette = wp_get_global_settings( [ 'color', 'palette' ] );
@@ -115,10 +115,12 @@ class Layout_Templates {
 		$muted       = array_values( array_intersect( self::MUTED_TEXT_COLORS, $colors ) );
 		$font_sizes  = wp_get_global_settings( [ 'typography', 'fontSizes' ] );
 		$time_format = (string) get_option( 'time_format' );
+		$date_format = (string) get_option( 'date_format' );
 		$plural      = Entry_Name::word( 2 );
 
 		return [
 			'time_format' => '' !== $time_format ? $time_format : 'g:i a',
+			'date_format' => '' !== $date_format ? $date_format : 'F j, Y',
 			'muted_color' => $muted[0] ?? null,
 			'font_sizes'  => array_column( $font_sizes['theme'] ?? [], 'slug' ),
 			'all_updates' => '' === $plural
@@ -143,6 +145,7 @@ class Layout_Templates {
 				return __( $argument, 'newspack-rolling-coverage' ); // phpcs:ignore WordPress.WP.I18n.NonSingularStringLiteralText
 			case 'all_updates':
 			case 'time_format':
+			case 'date_format':
 			case 'muted_color':
 				return $site[ $name ];
 			case 'font_size':

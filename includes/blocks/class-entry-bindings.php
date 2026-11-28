@@ -107,6 +107,14 @@ class Entry_Bindings {
 	const URL_CACHE_GROUP = 'newspack_rolling_coverage_url_post_id';
 
 	/**
+	 * Whether "Updated" lines render with the time of the edit while a lite
+	 * page's poll renders them (see render_with_clock_time()).
+	 *
+	 * @var bool
+	 */
+	private static $shows_clock_time = false;
+
+	/**
 	 * Initialize hooks.
 	 */
 	public static function init(): void {
@@ -175,17 +183,87 @@ class Entry_Bindings {
 				return null !== Breakout::get_published_breakout_url( $entry_id ) ? esc_html( Breakout_Label::for_post( Breakout::get_existing_breakout_id( $entry_id ) ) ) : null;
 
 			case 'summaryUpdated':
-				return self::updated_text( get_post( $entry_id ), true );
+				return self::updated_line( get_post( $entry_id ) );
 		}
 
 		return null;
 	}
 
 	/**
+	 * The summary card's "Updated" line, as markup. Where the view script
+	 * keeps relative dates current, it reads how long ago the entry was last
+	 * edited, as the Coverage Status block's "Updated 2 minutes ago" does, in
+	 * a `<time>` element marked `data-rc-relative`. Elsewhere it reads the
+	 * time of the edit (see updated_text()).
+	 *
+	 * @param WP_Post|null $entry Entry post.
+	 * @return string Escaped HTML.
+	 */
+	public static function updated_line( ?WP_Post $entry ): string {
+		if ( ! self::shows_relative_time() ) {
+			return self::updated_text( $entry, true );
+		}
+
+		$timestamp = $entry ? strtotime( $entry->post_modified_gmt . ' UTC' ) : false;
+
+		if ( false === $timestamp ) {
+			return '';
+		}
+
+		return sprintf(
+			/* translators: %s: How long ago the liveblog's summary was last edited, e.g. "2 minutes ago". */
+			esc_html__( 'Updated %s', 'newspack-rolling-coverage' ),
+			sprintf(
+				'<time datetime="%s" data-rc-relative>%s</time>',
+				esc_attr( gmdate( 'c', $timestamp ) ),
+				esc_html(
+					sprintf(
+						/* translators: %s: Time difference, e.g. "2 minutes". */
+						__( '%s ago', 'newspack-rolling-coverage' ),
+						human_time_diff( $timestamp )
+					)
+				)
+			)
+		);
+	}
+
+	/**
+	 * Whether "Updated" lines read how long ago, for a page whose view script
+	 * keeps that current. A syndication feed and a lite page, which keeps no
+	 * `data-rc-relative` and is cached for every reader, show the time of
+	 * the edit, and so does a lite page's poll, to match the card it swaps.
+	 *
+	 * @return bool
+	 */
+	public static function shows_relative_time(): bool {
+		return ! self::$shows_clock_time && ! is_feed() && ! Lite_Feed::is_lite_render();
+	}
+
+	/**
+	 * Render with "Updated" lines reading the time of the edit, for a lite
+	 * page's poll.
+	 *
+	 * @param callable $render Renders the markup.
+	 * @return string The markup.
+	 */
+	public static function render_with_clock_time( callable $render ): string {
+		$previous               = self::$shows_clock_time;
+		self::$shows_clock_time = true;
+
+		try {
+			return (string) $render();
+		} finally {
+			self::$shows_clock_time = $previous;
+		}
+	}
+
+	/**
 	 * When an entry was last edited, as the summary card's "Updated" line
-	 * reads: the time in the site's time format, with the date in the site's
-	 * date format when it wasn't today in the site's timezone. As markup, the
-	 * time is a `<time>` element carrying the edit's ISO 8601 date.
+	 * reads where nothing keeps a relative date current: the time in the
+	 * site's time format, with the date in the site's date format when it
+	 * wasn't today in the site's timezone. As markup, the time is a `<time>`
+	 * element carrying the edit's ISO 8601 date. As plain text, it marks the
+	 * card for polls (Rolling_Coverage_Block::SUMMARY_UPDATED_ATTRIBUTE).
 	 *
 	 * @param WP_Post|null $entry     Entry post.
 	 * @param bool         $as_markup Whether to return escaped HTML with a `<time>` element, rather than plain text.
@@ -219,7 +297,7 @@ class Entry_Bindings {
 
 		return sprintf(
 			/* translators: %s: when the liveblog's summary was last edited, such as "3:42 pm". */
-			$as_markup ? esc_html__( 'Updated %s', 'newspack-rolling-coverage' ) : __( 'Updated %s', 'newspack-rolling-coverage' ),
+			$as_markup ? esc_html_x( 'Updated %s', 'time of day', 'newspack-rolling-coverage' ) : _x( 'Updated %s', 'time of day', 'newspack-rolling-coverage' ),
 			$time
 		);
 	}
@@ -1030,15 +1108,66 @@ class Entry_Bindings {
 		}
 
 		if ( 'followTag' === $key && $button->next_tag( 'button' ) ) {
+			$coverage = get_term( (int) ( $instance->context[ self::COVERAGE_ID_CONTEXT ] ?? 0 ), Taxonomy::TAXONOMY_SLUG );
+			$name     = $coverage instanceof WP_Term ? self::plain_text( $coverage->name ) : '';
+
 			$button->set_attribute( self::FOLLOW_ATTRIBUTE, '' );
 			$button->set_attribute( 'data-tag', $instance->attributes['url'] );
-			$button->set_attribute( 'data-label-following', __( 'Following', 'newspack-rolling-coverage' ) );
+			$button->set_attribute(
+				'data-on-message',
+				'' !== $name
+					/* translators: %s: liveblog name. */
+					? sprintf( __( 'You’ll get alerts for “%s”.', 'newspack-rolling-coverage' ), $name )
+					: __( 'You’ll get alerts for this liveblog.', 'newspack-rolling-coverage' )
+			);
+			$button->set_attribute(
+				'data-off-message',
+				'' !== $name
+					/* translators: %s: liveblog name. */
+					? sprintf( __( 'Alerts for “%s” are off.', 'newspack-rolling-coverage' ), $name )
+					: __( 'Alerts for this liveblog are off.', 'newspack-rolling-coverage' )
+			);
+			$button->set_attribute( 'data-on-notice', __( 'Alerts on', 'newspack-rolling-coverage' ) );
+			$button->set_attribute( 'data-off-notice', __( 'Alerts off', 'newspack-rolling-coverage' ) );
 			$button->set_attribute( 'data-blocked-message', __( 'Notifications are blocked in your browser. Allow them in your browser\'s site settings, then try again.', 'newspack-rolling-coverage' ) );
 			$button->set_attribute( 'data-error-message', __( 'Something went wrong. Please try again.', 'newspack-rolling-coverage' ) );
 			$button->set_attribute( 'aria-pressed', 'false' );
+
+			return self::show_follow_labels( $button->get_updated_html() );
 		}
 
 		return $button->get_updated_html();
+	}
+
+	/**
+	 * Stack the follow button's labels in one cell, so the button keeps the
+	 * width of the longest and nothing beside it moves when the label changes.
+	 * The view script switches between them through `aria-pressed` and
+	 * `aria-busy`. "Alerts on" and "Stop alerts" start hidden, so a page
+	 * without the block's stylesheet still reads only the publisher's label.
+	 *
+	 * "Stop alerts" shows over "Alerts on" on hover and focus. It's hidden
+	 * from assistive tech, which hears "Alerts on" with the pressed state.
+	 *
+	 * @param string $block_content Rendered follow button.
+	 * @return string
+	 */
+	private static function show_follow_labels( string $block_content ): string {
+		if ( ! preg_match( '#(<button\b(?:[^>"\']|"[^"]*"|\'[^\']*\')*>)(.*?)(</button>)#s', $block_content, $button ) ) {
+			return $block_content;
+		}
+
+		$icon = (string) wp_get_icon( 'core/check' );
+
+		$labels = sprintf(
+			'<span class="newspack-rolling-coverage-follow__labels"><span class="newspack-rolling-coverage-follow__label" data-rc-label="off">%1$s</span><span class="newspack-rolling-coverage-follow__label" data-rc-label="on" hidden>%2$s%3$s</span><span class="newspack-rolling-coverage-follow__label" data-rc-label="stop" aria-hidden="true" hidden>%4$s</span><span class="newspack-rolling-coverage-follow__spinner" aria-hidden="true" hidden></span></span>',
+			$button[2],
+			preg_replace( '/>\s+</', '><', trim( $icon ) ),
+			esc_html__( 'Alerts on', 'newspack-rolling-coverage' ),
+			esc_html__( 'Stop alerts', 'newspack-rolling-coverage' )
+		);
+
+		return str_replace( $button[0], $button[1] . $labels . $button[3], $block_content );
 	}
 
 	/**

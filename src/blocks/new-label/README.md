@@ -4,7 +4,7 @@ Marks an entry that arrives while the reader has the page open. The label shows 
 
 ## Where to put it
 
-Place it inside an entry in a Rolling Coverage layout: the Pinned Entry, the Entry or the Full Story Entry. Every built-in layout except Alert holds one in each. The inserter only offers it inside a Rolling Coverage block, and among the blocks above or below the entries it shows nothing.
+Place it inside an entry in a Rolling Coverage layout: the Pinned Entry, the Entry or the Full Story Entry. Every built-in layout except Alert and Flash holds one in each. The inserter only offers it inside a Rolling Coverage block, and among the blocks above or below the entries it shows nothing.
 
 When the label fades away, nothing else in the entry should jump. On a line of its own, put it directly in a Stack. Sharing a line with other blocks in a Row, make it the last block on that line.
 
@@ -18,7 +18,7 @@ An entry whose layout holds no New Label shows no mark, and screen readers still
 
 - **Text.** Type the label's text in place. Left empty, it reads "New", in the site's language.
 - **Visually hidden** (in the block's Settings panel). The label is for screen readers only: readers see a new entry arrive, with no label. Minute has it on.
-- **Color and Typography.** Set the text color, size, font, appearance, line height, letter spacing, letter case and alignment like any text block. The built-in layouts show it in the accent color, small and bold, in the theme's heading font; Flash shows it in the bar's text color.
+- **Color and Typography.** Set the text color, size, font, appearance, line height, letter spacing, letter case and alignment like any text block. The built-in layouts show it in the accent color, small and bold, in the theme's heading font.
 
 ## In the editor
 

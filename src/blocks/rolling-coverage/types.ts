@@ -8,6 +8,7 @@
 import type { EVENTS } from './analytics';
 import type { BuiltInLayoutSlug } from './layouts';
 import type { Score } from '../shared/score';
+import type { SiteTimezone } from '../shared/earlier-day-dates';
 
 /**
  * A coverage term, as shown in the editor's coverage combobox.
@@ -95,6 +96,7 @@ interface FrontendConfig {
 	readerTrackingEnabled: string;
 	siteKitGa4Enabled: string;
 	canEditPosts: string;
+	timezone?: SiteTimezone;
 }
 
 /**

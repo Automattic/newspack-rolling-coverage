@@ -1,4 +1,11 @@
-.newspack-rolling-coverage-updated {
+.wp-block-newspack-rolling-coverage-coverage-status {
 	font-size: var(--newspack-ui-font-size-xs);
 	line-height: var(--newspack-ui-line-height-xs);
+
+	.newspack-ui__badge {
+		--newspack-ui-font-size-caption: calc(6em / 7);
+		--newspack-ui-spacer-half: calc(1em / 3);
+		--newspack-ui-spacer-1: calc(2em / 3);
+		--newspack-ui-spacer-4: calc(5em / 3);
+	}
 }

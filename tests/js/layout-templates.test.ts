@@ -10,6 +10,7 @@
  * - `{{all_updates}}`: the link to the coverage page, in the site's name for
  *   entries.
  * - `{{time_format}}`: the site's time format.
+ * - `{{date_format}}`: the site's date format.
  * - `{{muted_color}}`: the theme's muted text color, or none.
  * - `{{font_size:preferred|fallback}}`: the theme's font size preset.
  */
@@ -149,7 +150,12 @@ function savedHtml( blocks: ReturnType< typeof parse > ): string {
 
 test( 'the server copies of the built-in layouts match their templates (npm run build:layouts writes them)', () => {
 	const layouts = serializeLayouts(
-		{ palette: [], fontSizes: [], timeFormat: '{{time_format}}' },
+		{
+			palette: [],
+			fontSizes: [],
+			timeFormat: '{{time_format}}',
+			dateFormat: '{{date_format}}',
+		},
 		LAYOUTS
 	);
 	const outOfDate: string[] = [];
@@ -279,14 +285,14 @@ test( "Split's Pinned group sticks, but is not sticky where it stacks on tablets
 	}
 } );
 
-test( 'every built-in layout except Alert places the New label in each entry variant', () => {
+test( 'every built-in layout except Alert and Flash places the New label in each entry variant', () => {
 	const missing: string[] = [];
 
 	for ( const { slug } of LAYOUTS ) {
 		const nodes = layoutNodes( slug );
 		const labels = findNodes( nodes, isNewLabel );
 
-		if ( slug === 'alert' ) {
+		if ( slug === 'alert' || slug === 'flash' ) {
 			expect( labels ).toEqual( [] );
 			continue;
 		}
@@ -332,17 +338,6 @@ test( 'no other layout hides its New label', () => {
 		for ( const label of findNodes( layoutNodes( slug ), isNewLabel ) ) {
 			expect( label.attributes.visuallyHidden ).toBeFalsy();
 		}
-	}
-} );
-
-test( "Flash's New label takes the bar's text color, not the accent", () => {
-	const labels = findNodes( layoutNodes( 'flash' ), isNewLabel );
-
-	expect( labels.length ).toBeGreaterThan( 0 );
-
-	for ( const label of labels ) {
-		expect( label.attributes.style?.color?.text ).toBeUndefined();
-		expect( label.attributes.textColor ).toBeUndefined();
 	}
 } );
 
@@ -427,6 +422,7 @@ const layoutOf = ( node?: TemplateNode ) =>
 		type?: string;
 		orientation?: string;
 		justifyContent?: string;
+		flexWrap?: string;
 	};
 
 const isFlexColumn = ( node: TemplateNode ) =>
@@ -457,7 +453,7 @@ test( 'a New label on a line of its own sits directly in a vertical flex group, 
 	expect( wrong ).toEqual( [] );
 } );
 
-test( 'a New label that shares a line is the last item on it, so clearing it moves nothing', () => {
+test( 'a New label that shares a line is the last item on it, in a row that never wraps, so clearing it moves nothing', () => {
 	const wrong: string[] = [];
 
 	for ( const { slug } of LAYOUTS ) {
@@ -484,8 +480,129 @@ test( 'a New label that shares a line is the last item on it, so clearing it mov
 						.join( ', ' ) }`
 				);
 			}
+
+			if ( layoutOf( parent ).flexWrap !== 'nowrap' ) {
+				wrong.push(
+					`${ slug }: in a row that wraps, under ${ parent.attributes.metadata?.name }`
+				);
+			}
 		}
 	}
 
 	expect( wrong ).toEqual( [] );
+} );
+
+const EARLIER_DAY_DATE_CLASS = 'newspack-rolling-coverage-earlier-day-date';
+
+const isPostDate = ( node: TemplateNode ) => node.name === 'core/post-date';
+
+const isEarlierDayDate = ( node: TemplateNode ) =>
+	isPostDate( node ) && hasClass( node, EARLIER_DAY_DATE_CLASS );
+
+const isRelativeDate = ( node: TemplateNode ) =>
+	isPostDate( node ) && node.attributes.format === 'human-diff';
+
+const isClockTime = ( node: TemplateNode ) =>
+	isPostDate( node ) &&
+	! isEarlierDayDate( node ) &&
+	! isRelativeDate( node );
+
+/**
+ * A variant's own blocks, without the variants nested in it, such as the
+ * groups in Split's Pinned group.
+ *
+ * @param {Object} variant The entry variant.
+ * @return {Object[]} Its blocks.
+ */
+const ownNodes = ( variant: TemplateNode ) =>
+	variant.innerBlocks.filter( ( node ) => ! isEntryVariant( node ) );
+
+/**
+ * The block that directly holds a block, in a tree.
+ *
+ * @param {Object[]} nodes The blocks.
+ * @param {Object}   child The block to find.
+ * @return {Object|undefined} Its parent.
+ */
+function parentOf(
+	nodes: TemplateNode[],
+	child: TemplateNode
+): TemplateNode | undefined {
+	return findNodes( nodes, ( node ) =>
+		node.innerBlocks.includes( child )
+	)[ 0 ];
+}
+
+const TIME_ONLY_LAYOUTS = [
+	'default',
+	'byline',
+	'clock',
+	'margin',
+	'rail',
+	'split',
+	'wire',
+];
+
+test( 'every entry variant that shows the time also shows the earlier-day date right after it', () => {
+	const wrong: string[] = [];
+
+	for ( const slug of TIME_ONLY_LAYOUTS ) {
+		const variants = findNodes( layoutNodes( slug ), isEntryVariant );
+
+		expect( variants.length ).toBeGreaterThanOrEqual( 2 );
+
+		for ( const variant of variants ) {
+			const own = ownNodes( variant );
+			const times = findNodes( own, isClockTime );
+			const dates = findNodes( own, isEarlierDayDate );
+			const name = `${ slug }: ${ variant.attributes.className }`;
+
+			if ( times.length !== dates.length || times.length > 1 ) {
+				wrong.push(
+					`${ name } has ${ times.length } times and ${ dates.length } earlier-day dates`
+				);
+				continue;
+			}
+
+			if ( ! dates.length ) {
+				continue;
+			}
+
+			const [ time ] = times;
+			const [ date ] = dates;
+			const parent = parentOf( [ variant ], date );
+			const before =
+				parent?.innerBlocks[ parent.innerBlocks.indexOf( date ) - 1 ];
+
+			if (
+				! before ||
+				( before !== time &&
+					! findNodes( [ before ], ( node ) => node === time )
+						.length )
+			) {
+				wrong.push( `${ name }: the date doesn't follow the time` );
+			}
+		}
+	}
+
+	expect( wrong ).toEqual( [] );
+} );
+
+test( "Bulletin's pinned entry shows the clock time, like its other entries", () => {
+	const [ card ] = findNodes( layoutNodes( 'default' ), isPinnedCard );
+
+	expect( findNodes( [ card ], isRelativeDate ) ).toEqual( [] );
+	expect( findNodes( [ card ], isClockTime ) ).toHaveLength( 1 );
+	expect( findNodes( [ card ], isEarlierDayDate ) ).toHaveLength( 1 );
+} );
+
+test( 'Stream and Ticker keep their relative dates', () => {
+	for ( const slug of [ 'stream', 'ticker' ] ) {
+		const nodes = layoutNodes( slug );
+
+		expect( findNodes( nodes, isRelativeDate ).length ).toBeGreaterThan(
+			0
+		);
+		expect( findNodes( nodes, isClockTime ) ).toEqual( [] );
+	}
 } );

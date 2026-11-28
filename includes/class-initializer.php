@@ -42,6 +42,7 @@ class Initializer {
 		Rolling_Coverage_Block::init();
 		Lite_Feed::init();
 		Layout::init();
+		Page_Patterns::init();
 		Breakout_Post_Link_Block::init();
 		Entry_Bindings::init();
 		Block_Category::init();

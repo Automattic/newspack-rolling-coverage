@@ -51,13 +51,15 @@ Ten blocks ship with the plugin (namespace `newspack-rolling-coverage`). Each bl
 | Rolling Coverage | `rolling-coverage` | The live feed: shows a coverage's entries through a layout, checks for new ones, and loads older ones. | [README](../src/blocks/rolling-coverage/README.md), [DEVELOPMENT](../src/blocks/rolling-coverage/DEVELOPMENT.md) |
 | Breakout Post Link | `breakout-post-link` | Links an entry to its published breakout post. | [Share and Read more](../src/blocks/rolling-coverage/DEVELOPMENT.md#share-and-read-more) |
 | Share | `share` | Opens the device's share sheet for an entry's link, or copies the link where there is no share sheet. | [Share and Read more](../src/blocks/rolling-coverage/DEVELOPMENT.md#share-and-read-more) |
-| Follow Coverage | `coverage-follow` | Lets readers follow a coverage to get push notifications (requires OneSignal). | [README](../src/blocks/coverage-follow/README.md), [DEVELOPMENT](../src/blocks/coverage-follow/DEVELOPMENT.md) |
+| Follow Coverage | `coverage-follow` | Lets readers turn on push notification alerts for a coverage (requires OneSignal). | [README](../src/blocks/coverage-follow/README.md), [DEVELOPMENT](../src/blocks/coverage-follow/DEVELOPMENT.md) |
 | Coverage Status | `coverage-status` | Shows whether a coverage is Live, Paused, or Ended. | [README](../src/blocks/coverage-status/README.md), [DEVELOPMENT](../src/blocks/coverage-status/DEVELOPMENT.md) |
 | Check for Updates | `check-updates` | A button readers press to load new entries. A feed whose layout holds it stops checking for new entries on its own. | [README](../src/blocks/check-updates/README.md), [DEVELOPMENT](../src/blocks/check-updates/DEVELOPMENT.md) |
 | Update Timer | `update-timer` | Shows readers when the feed next checks for new entries, and what each check found. | [README](../src/blocks/update-timer/README.md), [DEVELOPMENT](../src/blocks/update-timer/DEVELOPMENT.md) |
 | Scoreboard | `scoreboard` | Shows a coverage's score, two teams and a status line, which can show as a Coverage Status badge, and keeps it current on open pages. Built from paragraphs bound to the `newspack-rolling-coverage/score` source. | [README](../src/blocks/scoreboard/README.md), [DEVELOPMENT](../src/blocks/scoreboard/DEVELOPMENT.md) |
 | Load More | `load-more` | The button that loads older entries, shown when the feed's Older entries setting is "Load more" button. | [README](../src/blocks/load-more/README.md), [DEVELOPMENT](../src/blocks/load-more/DEVELOPMENT.md) |
 | New Label | `new-label` | Marks an entry that arrives while the reader has the page open, until they've seen it. | [README](../src/blocks/new-label/README.md), [DEVELOPMENT](../src/blocks/new-label/DEVELOPMENT.md) |
+
+Nine page patterns in the `rolling-coverage-pages` block pattern category are registered by `Page_Patterns`. Each holds its Rolling Coverage blocks' layouts as inner blocks, with no liveblog, and none is offered in the new-page "Choose a pattern" window. See [Page patterns](../src/blocks/rolling-coverage/DEVELOPMENT.md#layouts).
 
 The feed also sends analytics events as readers see entries and when a poll fails (`coverage_entry_seen`, `coverage_poll_error`, in `src/blocks/rolling-coverage/analytics.ts`).
 
@@ -151,6 +153,8 @@ includes/
     class-ai-settings.php        Prompt settings + REST route
     class-abilities.php          WordPress Abilities API registration
     class-key-takeaways-feature.php  AI plugin per-feature model config
+  class-page-patterns.php        The "Rolling Coverage - Pages" block pattern category and its nine page patterns
+  patterns/                      One file per page pattern: the block markup `Page_Patterns` registers by `filePath`
   blocks/                        Server render callbacks for the ten blocks, entry bindings, shared layouts and their server copies (`layouts/`), breakout cards, status labels, entry name, Jump to Latest and Full story label settings, Lite Site feed support
   slack/                         Slack config, API client, content processor, media importer, author resolver, ingestion service, verifier, webhook controller, monitor
   sources/

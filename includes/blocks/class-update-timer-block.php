@@ -90,10 +90,12 @@ class Update_Timer_Block {
 
 		$ring = false === ( $attributes['showSpinner'] ?? true ) ? '' : '<svg class="newspack-rolling-coverage-update-timer__ring" viewBox="0 0 18 18" aria-hidden="true" focusable="false"><circle cx="9" cy="9" r="8"></circle><circle class="newspack-rolling-coverage-update-timer__ring-arc" cx="9" cy="9" r="8" pathLength="100"></circle></svg>';
 
+		$text = '<span class="newspack-rolling-coverage-update-timer__text"></span>';
+
 		return sprintf(
-			'<div %s hidden>%s<span class="newspack-rolling-coverage-update-timer__text"></span></div>',
+			'<div %s hidden>%s</div>',
 			get_block_wrapper_attributes( [ 'data-coverage-id' => $coverage_id ] ),
-			$ring
+			'end' === ( $attributes['ringPosition'] ?? 'start' ) ? $text . $ring : $ring . $text
 		);
 	}
 }

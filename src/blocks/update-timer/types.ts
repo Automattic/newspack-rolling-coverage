@@ -4,4 +4,5 @@
 export type UpdateTimerAttributes = {
 	coverageId: number;
 	showSpinner: boolean;
+	ringPosition: 'start' | 'end';
 };

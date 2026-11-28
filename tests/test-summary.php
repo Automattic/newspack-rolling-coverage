@@ -6,6 +6,7 @@
  */
 
 use Newspack_Rolling_Coverage\Entry_Bindings;
+use Newspack_Rolling_Coverage\Lite_Feed;
 use Newspack_Rolling_Coverage\Newest_Entry;
 use Newspack_Rolling_Coverage\Post_Type;
 use Newspack_Rolling_Coverage\Rolling_Coverage_Block;
@@ -325,7 +326,7 @@ class Test_Summary extends Rolling_Coverage_TestCase {
 		$this->assertStringContainsString( 'data-rc-summary="' . $summary_id . '"', $html );
 		$this->assertStringContainsString( '<h3 class="wp-block-post-title">What we know</h3>', $html );
 		$this->assertStringContainsString( 'River at 19.8 feet', $html );
-		$this->assertMatchesRegularExpression( '#Updated <time datetime="\d{4}-\d{2}-\d{2}T[^"]+">[^<]+</time>#', $html );
+		$this->assertMatchesRegularExpression( '#Updated <time datetime="\d{4}-\d{2}-\d{2}T[^"]+" data-rc-relative>[^<]+ ago</time>#', $html, 'The Updated line reads how long ago, as the Coverage Status block does.' );
 		$this->assertStringContainsString( 'data-entry-id="' . $entry_id . '"', $html );
 		$this->assertStringNotContainsString( 'data-entry-id="' . $summary_id . '"', $html );
 	}
@@ -465,6 +466,65 @@ class Test_Summary extends Rolling_Coverage_TestCase {
 
 		$this->assertSame( [ $terms, $posts ], [ wp_cache_get_last_changed( 'terms' ), wp_cache_get_last_changed( 'posts' ) ], 'Nothing else changed between the polls.' );
 		$this->assertSame( 3, $renders, 'Another host page renders the card again.' );
+	}
+
+	/**
+	 * Where no script keeps "how long ago" current, the "Updated" line gives
+	 * the time of the edit instead: in a syndication feed, on a lite page and
+	 * in a lite page's polls.
+	 */
+	public function test_updated_line_keeps_the_time_where_nothing_updates_it() {
+		require_once __DIR__ . '/mocks/class-lite-site.php';
+
+		update_option( 'time_format', 'g:i a' );
+		update_option( 'date_format', 'F j, Y' );
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id );
+		$summary_id = self::create_summary( $coverage_id );
+		self::set_entry_modified( $summary_id, '2026-01-05 15:42:00' );
+		$clock = '#Updated <time datetime="2026-01-05T15:42:00\+00:00">January 5, 2026, 3:42 pm</time>#';
+
+		$html = self::render( $coverage_id );
+		$poll = self::dispatch(
+			'GET',
+			"/coverages/{$coverage_id}/entries",
+			[
+				'template_key' => self::wrapper_attribute( $html, 'data-template-key' ),
+				'recent'       => 1,
+			]
+		)->get_data();
+		$this->assertStringContainsString( 'data-rc-relative', $poll['summary']['html'], 'A full page\'s poll keeps the relative line.' );
+
+		$lite_poll = self::dispatch(
+			'GET',
+			"/coverages/{$coverage_id}/entries",
+			[
+				'template_key' => self::wrapper_attribute( $html, 'data-template-key' ),
+				'recent'       => 1,
+				'lite'         => 1,
+			]
+		)->get_data();
+		$this->assertMatchesRegularExpression( $clock, $lite_poll['summary']['html'], 'A lite page\'s poll gets the time.' );
+		$this->assertStringNotContainsString( 'data-rc-relative', $lite_poll['summary']['html'] );
+
+		$render = static fn() => self::render( $coverage_id );
+		add_filter( Lite_Feed::CONTENT_FILTER, $render );
+
+		try {
+			$lite = apply_filters( Lite_Feed::CONTENT_FILTER, '' );
+		} finally {
+			remove_filter( Lite_Feed::CONTENT_FILTER, $render );
+		}
+
+		$this->assertMatchesRegularExpression( $clock, $lite, 'A lite page shows the time.' );
+		$this->assertStringNotContainsString( 'data-rc-relative', $lite );
+
+		$this->go_to( get_feed_link() );
+		$this->assertTrue( is_feed() );
+		$feed = self::render( $coverage_id );
+
+		$this->assertMatchesRegularExpression( $clock, $feed, 'A syndication feed shows the time.' );
+		$this->assertStringNotContainsString( 'data-rc-relative', $feed );
 	}
 
 	/**

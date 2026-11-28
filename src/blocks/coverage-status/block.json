@@ -62,6 +62,12 @@
 			"margin": true,
 			"blockGap": true
 		},
+		"typography": {
+			"fontSize": true,
+			"__experimentalDefaultControls": {
+				"fontSize": true
+			}
+		},
 		"__experimentalStyle": {
 			"spacing": {
 				"blockGap": "var:preset|spacing|20"

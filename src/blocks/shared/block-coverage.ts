@@ -20,7 +20,8 @@ type ParsedBlock = {
 	attrs: Record< string, unknown > | null;
 	innerBlocks: ParsedBlock[];
 };
-type FeedItem = { coverageId: number } | { ref: number };
+type FeedItem = { coverageId: number; capped: boolean } | { ref: number };
+type Feed = { id: number; capped: boolean };
 type PostRecord = {
 	status?: string;
 	password?: string;
@@ -40,17 +41,20 @@ interface BlockCoverageOptions {
 const parsedFeeds = new Map< string, FeedItem[] >();
 
 /**
- * The uncapped feeds and synced patterns in parsed blocks, in page order.
+ * The feeds and synced patterns in parsed blocks, in page order.
  *
  * @param {Object[]} blocks Parsed blocks.
- * @return {Object[]} Feed coverage IDs and pattern refs.
+ * @return {Object[]} Feeds and pattern refs.
  */
 function collectFeedItems( blocks: ParsedBlock[] ): FeedItem[] {
 	return blocks.flatMap( ( block ): FeedItem[] => {
 		if ( block.blockName === FEED_BLOCK ) {
-			return block.attrs?.latestOnly
-				? []
-				: [ { coverageId: Number( block.attrs?.coverageId ) || 0 } ];
+			return [
+				{
+					coverageId: Number( block.attrs?.coverageId ) || 0,
+					capped: !! block.attrs?.latestOnly,
+				},
+			];
 		}
 
 		if ( block.blockName === PATTERN_BLOCK ) {
@@ -66,7 +70,7 @@ function collectFeedItems( blocks: ParsedBlock[] ): FeedItem[] {
  * that content is among the most recently parsed.
  *
  * @param {string} content Saved post content.
- * @return {Object[]} Feed coverage IDs and pattern refs.
+ * @return {Object[]} Feeds and pattern refs.
  */
 function feedItems( content: string ): FeedItem[] {
 	let items = parsedFeeds.get( content );
@@ -113,10 +117,10 @@ function isProtected( record: PostRecord ): boolean {
 /**
  * The coverage a block shows or follows, decided as the site decides it:
  * the Rolling Coverage block it sits in; else its chosen coverage while that
- * exists and isn't trashed; else the first uncapped feed in the post it is
- * about, or, for a breakout post, its source entry's coverage. Templates and
- * synced patterns edited on their own have no page, so only a chosen
- * coverage counts there.
+ * exists and isn't trashed; else the first full feed in the post it is
+ * about, else, for a breakout post, its source entry's coverage, else the
+ * first capped feed. Templates and synced patterns edited on their own have
+ * no page, so only a chosen coverage counts there.
  *
  * The post is the one being edited, or, inside a Query Loop, the item the
  * block renders for. With the template shown, only feeds in the post
@@ -243,7 +247,7 @@ function useBlockCoverage( {
 				typeof postType === 'string' &&
 				( itemId !== Number( editor.getCurrentPostId() ) ||
 					postType !== currentType );
-			let feeds: number[] = [];
+			let feeds: Feed[] = [];
 			let entryId = 0;
 
 			if ( isItem ) {
@@ -263,10 +267,15 @@ function useBlockCoverage( {
 				const contentFeeds = (
 					content: string,
 					seenRefs: number[]
-				): number[] =>
-					feedItems( content ).flatMap( ( item ) => {
+				): Feed[] =>
+					feedItems( content ).flatMap( ( item ): Feed[] => {
 						if ( 'coverageId' in item ) {
-							return [ item.coverageId ];
+							return [
+								{
+									id: item.coverageId,
+									capped: item.capped,
+								},
+							];
 						}
 
 						const pattern =
@@ -307,16 +316,24 @@ function useBlockCoverage( {
 							).length > 0
 					)
 					.map( ( id ) => blockEditor.getBlockAttributes( id ) )
-					.filter( ( attributes ) => ! attributes?.latestOnly )
-					.map( ( attributes ) => Number( attributes?.coverageId ) );
+					.map( ( attributes ) => ( {
+						id: Number( attributes?.coverageId ),
+						capped: !! attributes?.latestOnly,
+					} ) );
 				entryId =
 					Number(
 						editor.getEditedPostAttribute( sourceEntryField )
 					) || 0;
 			}
 
-			let coverageId =
-				feeds.find( ( id ) => id > 0 && isUsable( id ) ) ?? 0;
+			const usable = ( capped: boolean ) =>
+				feeds.find(
+					( feed ) =>
+						feed.capped === capped &&
+						feed.id > 0 &&
+						isUsable( feed.id )
+				)?.id;
+			let coverageId = usable( false ) ?? 0;
 
 			if ( ! coverageId && entryId ) {
 				coverageId =
@@ -332,6 +349,8 @@ function useBlockCoverage( {
 							( term ) => term.meta?.[ statusMetaKey ] !== 'trash'
 						)?.id ?? 0;
 			}
+
+			coverageId = coverageId || usable( true ) || 0;
 
 			return { coverageId, isInFeed: false, isTemplate, isChosenGone };
 		},

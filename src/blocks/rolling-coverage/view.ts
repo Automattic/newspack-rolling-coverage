@@ -615,7 +615,11 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 				!! card.querySelector( ':scope > [data-entry-id]' )
 		);
 
-	const stopRelativeDates = keepRelativeDatesCurrent( root, entriesList );
+	const stopRelativeDates = keepRelativeDatesCurrent(
+		root,
+		entriesList,
+		window.newspackRollingCoverageFrontend?.timezone
+	);
 
 	const pollInterval = parseInt( root.dataset.pollInterval || '30', 10 );
 	const entryName = readEntryName( root );

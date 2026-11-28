@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-24T18:30:57+00:00\n"
+"POT-Creation-Date: 2026-11-27T20:49:26+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: newspack-rolling-coverage\n"
@@ -51,7 +51,7 @@ msgid "Abilities for managing and generating content from liveblog entries."
 msgstr ""
 
 #: includes/ai/class-abilities.php:75
-#: dist/blocks/rolling-coverage/index.js:30
+#: dist/blocks/rolling-coverage/index.js:29
 msgid "Generate Key Takeaways"
 msgstr ""
 
@@ -86,9 +86,9 @@ msgid "Failed to decode AI response as JSON: %s"
 msgstr ""
 
 #: includes/ai/class-ai-service.php:488
-#: includes/blocks/class-rolling-coverage-block.php:5139
-#: includes/blocks/class-rolling-coverage-block.php:5351
-#: includes/blocks/class-rolling-coverage-block.php:5362
+#: includes/blocks/class-rolling-coverage-block.php:5245
+#: includes/blocks/class-rolling-coverage-block.php:5457
+#: includes/blocks/class-rolling-coverage-block.php:5468
 #: includes/class-post-type.php:1572
 #: includes/class-score.php:208
 #: includes/class-taxonomy.php:350
@@ -121,7 +121,7 @@ msgid "Pin"
 msgstr ""
 
 #: includes/blocks/class-block-icons.php:51
-#: dist/blocks/rolling-coverage/index.js:28
+#: dist/blocks/rolling-coverage/index.js:27
 msgid "Link"
 msgstr ""
 
@@ -140,18 +140,18 @@ msgid "Site-wide label of the Full story link."
 msgstr ""
 
 #: includes/blocks/class-breakout-label.php:167
-#: dist/blocks/coverage-follow/index.js:5
-#: dist/blocks/rolling-coverage/index.js:3
-#: dist/blocks/rolling-coverage/index.js:6
-#: dist/blocks/scoreboard/index.js:7
+#: dist/blocks/coverage-follow/index.js:3
+#: dist/blocks/rolling-coverage/index.js:1
+#: dist/blocks/rolling-coverage/index.js:5
+#: dist/blocks/scoreboard/index.js:5
 msgid "Full story"
 msgstr ""
 
 #: includes/blocks/class-breakout-post-link-block.php:66
-#: includes/blocks/class-rolling-coverage-block.php:3357
+#: includes/blocks/class-rolling-coverage-block.php:3458
 #: dist/blocks/breakout-post-link/index.js:1
-#: dist/blocks/rolling-coverage/index.js:6
-#: dist/blocks/rolling-coverage/index.js:30
+#: dist/blocks/rolling-coverage/index.js:5
+#: dist/blocks/rolling-coverage/index.js:29
 msgid "Read more"
 msgstr ""
 
@@ -161,96 +161,130 @@ msgstr ""
 
 #. translators: %s: Time difference, e.g. "2 minutes".
 #: includes/blocks/class-coverage-status-block.php:336
+#: includes/blocks/class-entry-bindings.php:222
 #, php-format
 msgid "%s ago"
 msgstr ""
 
 #. translators: %s: How long ago the newest entry was published, e.g. "2 minutes ago".
-#. translators: %s: when the liveblog's summary was last edited, such as "3:42 pm".
+#. translators: %s: How long ago the liveblog's summary was last edited, e.g. "2 minutes ago".
 #: includes/blocks/class-coverage-status-block.php:346
-#: includes/blocks/class-entry-bindings.php:222
-#: dist/blocks/coverage-follow/index.js:5
+#: includes/blocks/class-entry-bindings.php:215
+#: dist/blocks/coverage-follow/index.js:4
 #: dist/blocks/coverage-status/index.js:12
-#: dist/blocks/rolling-coverage/index.js:3
-#: dist/blocks/scoreboard/index.js:7
+#: dist/blocks/rolling-coverage/index.js:2
+#: dist/blocks/scoreboard/index.js:6
 #, php-format,js-format
 msgid "Updated %s"
 msgstr ""
 
-#: includes/blocks/class-entry-bindings.php:133
+#: includes/blocks/class-entry-bindings.php:141
 msgid "Rolling Coverage Entry"
 msgstr ""
 
 #. translators: 1: a date in the site's date format, 2: a time in the site's time format.
-#: includes/blocks/class-entry-bindings.php:210
-#: dist/blocks/coverage-follow/index.js:4
-#: dist/blocks/rolling-coverage/index.js:2
-#: dist/blocks/scoreboard/index.js:6
-#, php-format,js-format
+#: includes/blocks/class-entry-bindings.php:288
+#, php-format
 msgctxt "date and time"
 msgid "%1$s, %2$s"
 msgstr ""
 
+#. translators: %s: when the liveblog's summary was last edited, such as "3:42 pm".
+#: includes/blocks/class-entry-bindings.php:300
+#, php-format
+msgctxt "time of day"
+msgid "Updated %s"
+msgstr ""
+
 #. translators: 1: kind of media, e.g. "Photo" or "Video", 2: its caption or description.
-#: includes/blocks/class-entry-bindings.php:720
+#: includes/blocks/class-entry-bindings.php:798
 #, php-format
 msgctxt "media label and caption"
 msgid "%1$s: %2$s"
 msgstr ""
 
 #. translators: %s: the host name of the site an embed comes from, e.g. "x.com". Stands in for the title and excerpt of an entry whose only content is that embed.
-#: includes/blocks/class-entry-bindings.php:827
+#: includes/blocks/class-entry-bindings.php:905
 #, php-format
 msgid "Embed from %s"
 msgstr ""
 
 #. translators: Stands in for the title and excerpt of an entry whose only content is a photo, alone or before the photo's caption.
-#: includes/blocks/class-entry-bindings.php:866
+#: includes/blocks/class-entry-bindings.php:944
 msgid "Photo"
 msgstr ""
 
 #. translators: Stands in for the title and excerpt of an entry whose only content is a gallery of photos, alone or before the gallery's caption.
-#: includes/blocks/class-entry-bindings.php:868
+#: includes/blocks/class-entry-bindings.php:946
 msgid "Gallery"
 msgstr ""
 
 #. translators: Stands in for the title and excerpt of an entry whose only content is a video, alone or before the video's caption.
-#: includes/blocks/class-entry-bindings.php:870
+#: includes/blocks/class-entry-bindings.php:948
 msgid "Video"
 msgstr ""
 
 #. translators: Stands in for the title and excerpt of an entry whose only content is an audio clip, alone or before the clip's caption.
-#: includes/blocks/class-entry-bindings.php:872
+#: includes/blocks/class-entry-bindings.php:950
 msgid "Audio"
 msgstr ""
 
 #. translators: Stands in for the title and excerpt of an entry whose only content is embedded from another site, such as a social media post, alone or before the embed's caption.
-#: includes/blocks/class-entry-bindings.php:874
+#: includes/blocks/class-entry-bindings.php:952
 msgid "Embed"
 msgstr ""
 
-#: includes/blocks/class-entry-bindings.php:1035
-msgid "Following"
+#. translators: %s: liveblog name.
+#: includes/blocks/class-entry-bindings.php:1120
+#, php-format
+msgid "You’ll get alerts for “%s”."
 msgstr ""
 
-#: includes/blocks/class-entry-bindings.php:1036
+#: includes/blocks/class-entry-bindings.php:1121
+msgid "You’ll get alerts for this liveblog."
+msgstr ""
+
+#. translators: %s: liveblog name.
+#: includes/blocks/class-entry-bindings.php:1127
+#, php-format
+msgid "Alerts for “%s” are off."
+msgstr ""
+
+#: includes/blocks/class-entry-bindings.php:1128
+msgid "Alerts for this liveblog are off."
+msgstr ""
+
+#: includes/blocks/class-entry-bindings.php:1130
+#: includes/blocks/class-entry-bindings.php:1166
+msgid "Alerts on"
+msgstr ""
+
+#: includes/blocks/class-entry-bindings.php:1131
+msgid "Alerts off"
+msgstr ""
+
+#: includes/blocks/class-entry-bindings.php:1132
 msgid "Notifications are blocked in your browser. Allow them in your browser's site settings, then try again."
 msgstr ""
 
-#: includes/blocks/class-entry-bindings.php:1037
+#: includes/blocks/class-entry-bindings.php:1133
 msgid "Something went wrong. Please try again."
 msgstr ""
 
-#: includes/blocks/class-entry-bindings.php:1084
+#: includes/blocks/class-entry-bindings.php:1167
+msgid "Stop alerts"
+msgstr ""
+
+#: includes/blocks/class-entry-bindings.php:1213
 #: includes/blocks/class-share-block.php:67
-#: dist/blocks/rolling-coverage/index.js:5
+#: dist/blocks/rolling-coverage/index.js:4
 #: dist/blocks/share/index.js:1
 #: dist/blocks/share/view.js:1
 msgid "Share"
 msgstr ""
 
 #. translators: 1: share button text, e.g. "Share", 2: entry title or its first words.
-#: includes/blocks/class-entry-bindings.php:1089
+#: includes/blocks/class-entry-bindings.php:1218
 #, php-format
 msgid "%1$s: %2$s"
 msgstr ""
@@ -274,14 +308,14 @@ msgstr ""
 msgid "Jump to latest"
 msgstr ""
 
-#: includes/blocks/class-layout-templates.php:125
-#: dist/blocks/rolling-coverage/index.js:6
+#: includes/blocks/class-layout-templates.php:127
+#: dist/blocks/rolling-coverage/index.js:5
 msgid "See all entries"
 msgstr ""
 
 #. translators: %s: the site's name for several liveblog entries, as it reads mid-sentence, e.g. "updates".
-#: includes/blocks/class-layout-templates.php:127
-#: dist/blocks/rolling-coverage/index.js:6
+#: includes/blocks/class-layout-templates.php:129
+#: dist/blocks/rolling-coverage/index.js:5
 #, php-format,js-format
 msgid "See all %s"
 msgstr ""
@@ -297,87 +331,87 @@ msgid "This layout is being created. Try again in a moment."
 msgstr ""
 
 #: includes/blocks/class-layout.php:552
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgctxt "layout name"
 msgid "Bulletin"
 msgstr ""
 
 #: includes/blocks/class-layout.php:553
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgctxt "layout name"
 msgid "Stream"
 msgstr ""
 
 #: includes/blocks/class-layout.php:554
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgctxt "layout name"
 msgid "Rail"
 msgstr ""
 
 #: includes/blocks/class-layout.php:555
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgctxt "layout name"
 msgid "Clock"
 msgstr ""
 
 #: includes/blocks/class-layout.php:556
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgctxt "layout name"
 msgid "Margin"
 msgstr ""
 
 #: includes/blocks/class-layout.php:557
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgctxt "layout name"
 msgid "Minute"
 msgstr ""
 
 #: includes/blocks/class-layout.php:558
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgctxt "layout name"
 msgid "Byline"
 msgstr ""
 
 #: includes/blocks/class-layout.php:559
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgctxt "layout name"
 msgid "Ticker"
 msgstr ""
 
 #: includes/blocks/class-layout.php:560
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgctxt "layout name"
 msgid "Split"
 msgstr ""
 
 #: includes/blocks/class-layout.php:561
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgctxt "layout name"
 msgid "Wire"
 msgstr ""
 
 #: includes/blocks/class-layout.php:562
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgctxt "layout name"
 msgid "Digest"
 msgstr ""
 
 #: includes/blocks/class-layout.php:563
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgctxt "layout name"
 msgid "Flash"
 msgstr ""
 
 #: includes/blocks/class-layout.php:564
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgctxt "layout name"
 msgid "Alert"
 msgstr ""
 
 #: includes/blocks/class-lite-feed.php:466
-#: includes/blocks/class-rolling-coverage-block.php:4797
+#: includes/blocks/class-rolling-coverage-block.php:4903
+#: dist/blocks/rolling-coverage/index.js:4
 #: dist/blocks/rolling-coverage/index.js:5
-#: dist/blocks/rolling-coverage/index.js:6
 msgid "Pinned"
 msgstr ""
 
@@ -387,10 +421,10 @@ msgstr ""
 
 #. translators: Button that loads older entries at the end of a liveblog's feed.
 #: includes/blocks/class-load-more-block.php:84
-#: includes/blocks/class-rolling-coverage-block.php:2213
+#: includes/blocks/class-rolling-coverage-block.php:2314
 #: dist/blocks/load-more/index.js:3
-#: dist/blocks/rolling-coverage/index.js:5
-#: dist/blocks/rolling-coverage/index.js:9
+#: dist/blocks/rolling-coverage/index.js:4
+#: dist/blocks/rolling-coverage/index.js:8
 msgid "Load more"
 msgstr ""
 
@@ -401,17 +435,17 @@ msgstr ""
 msgid "New"
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:1358
-#: dist/blocks/rolling-coverage/index.js:33
+#: includes/blocks/class-rolling-coverage-block.php:1459
+#: dist/blocks/rolling-coverage/index.js:32
 msgid "Select a liveblog to display its entries."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:1386
+#: includes/blocks/class-rolling-coverage-block.php:1487
 msgid "This liveblog is no longer available."
 msgstr ""
 
 #. translators: 1: number of liveblog entries newer than the one shown, from 1 to 10. 2: the site's own name for entries, singular or plural to match the number, as it reads mid-sentence.
-#: includes/blocks/class-rolling-coverage-block.php:2065
+#: includes/blocks/class-rolling-coverage-block.php:2166
 #: dist/blocks/rolling-coverage/view.js:6
 #, php-format,js-format
 msgid "%1$d newer %2$s"
@@ -420,7 +454,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. translators: %d: number of liveblog entries newer than the one shown, from 1 to 10.
-#: includes/blocks/class-rolling-coverage-block.php:2069
+#: includes/blocks/class-rolling-coverage-block.php:2170
 #: dist/blocks/rolling-coverage/view.js:7
 #, php-format,js-format
 msgid "%d newer entry"
@@ -429,7 +463,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. translators: 1: a round number the count of newer liveblog entries has passed: 10, 50 or 100. 2: the site's own name for entries, plural, as it reads mid-sentence.
-#: includes/blocks/class-rolling-coverage-block.php:2084
+#: includes/blocks/class-rolling-coverage-block.php:2185
 #: dist/blocks/rolling-coverage/view.js:8
 #, php-format,js-format
 msgid "%1$d+ newer %2$s"
@@ -438,7 +472,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. translators: %d: a round number the count of newer liveblog entries has passed: 10, 50 or 100.
-#: includes/blocks/class-rolling-coverage-block.php:2088
+#: includes/blocks/class-rolling-coverage-block.php:2189
 #: dist/blocks/rolling-coverage/view.js:9
 #, php-format,js-format
 msgid "%d+ newer entry"
@@ -447,50 +481,50 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. translators: %s: the site's own name for liveblog entries, plural, as it reads mid-sentence; its grammatical gender is unknown.
-#: includes/blocks/class-rolling-coverage-block.php:2102
+#: includes/blocks/class-rolling-coverage-block.php:2203
 #, php-format
 msgid "No %s yet."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:2105
+#: includes/blocks/class-rolling-coverage-block.php:2206
 msgid "No entries yet."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:3372
-#: dist/blocks/rolling-coverage/index.js:28
+#: includes/blocks/class-rolling-coverage-block.php:3473
+#: dist/blocks/rolling-coverage/index.js:27
 msgid "Coverage of this news event has concluded and this feed is now archived."
 msgstr ""
 
 #. translators: %s: Liveblog name.
-#: includes/blocks/class-rolling-coverage-block.php:3376
-#: dist/blocks/rolling-coverage/index.js:28
+#: includes/blocks/class-rolling-coverage-block.php:3477
+#: dist/blocks/rolling-coverage/index.js:27
 #, php-format,js-format
 msgid "Coverage of “%s” has concluded and this feed is now archived."
 msgstr ""
 
 #. translators: 1: the site's own name for one liveblog entry, as it reads mid-sentence; its grammatical gender is unknown. 2: the same name for several entries.
-#: includes/blocks/class-rolling-coverage-block.php:4831
+#: includes/blocks/class-rolling-coverage-block.php:4937
 #, php-format
 msgid "This %1$s is now out of date compared to newer %2$s, but is preserved as it originally appeared."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:4837
+#: includes/blocks/class-rolling-coverage-block.php:4943
 msgid "This entry is now out of date compared to newer entries, but is preserved as it originally appeared."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:5069
+#: includes/blocks/class-rolling-coverage-block.php:5175
 msgid "How many entries a capped feed shows, so a Lite or empty-key request stays capped without a stored config."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:5074
+#: includes/blocks/class-rolling-coverage-block.php:5180
 msgid "Whether a Lite Site page asks, so entries come as text, as that page renders them."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:5079
+#: includes/blocks/class-rolling-coverage-block.php:5185
 msgid "Whether a page asks for the coverage's recent changes rather than those after its own cursor, so every reader of the page asks the same URL."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:5370
+#: includes/blocks/class-rolling-coverage-block.php:5476
 msgid "One of cursor, before or recent must be provided."
 msgstr ""
 
@@ -543,11 +577,11 @@ msgstr ""
 #: includes/class-admin.php:115
 #: dist/admin.js:4
 #: dist/admin.js:188
-#: dist/blocks/coverage-follow/index.js:5
+#: dist/blocks/coverage-follow/index.js:4
 #: dist/blocks/coverage-status/index.js:5
 #: dist/blocks/new-label/index.js:1
-#: dist/blocks/scoreboard/index.js:7
-#: dist/blocks/update-timer/index.js:3
+#: dist/blocks/scoreboard/index.js:6
+#: dist/blocks/update-timer/index.js:4
 msgid "Settings"
 msgstr ""
 
@@ -606,6 +640,145 @@ msgstr ""
 msgid "Sorry, you are not allowed to create liveblogs."
 msgstr ""
 
+#. translators: %s: the plugin's name, Rolling Coverage.
+#: includes/class-page-patterns.php:57
+#, php-format
+msgid "%s - Pages"
+msgstr ""
+
+#: includes/class-page-patterns.php:58
+msgid "Ready-made pages for a liveblog."
+msgstr ""
+
+#: includes/class-page-patterns.php:136
+#: dist/blocks/coverage-follow/index.js:4
+msgid "Follow"
+msgstr ""
+
+#: includes/class-page-patterns.php:137
+#: dist/blocks/coverage-follow/index.js:4
+msgid "Get alerts"
+msgstr ""
+
+#: includes/class-page-patterns.php:327
+#: dist/blocks/scoreboard/index.js:6
+msgid "Status Line"
+msgstr ""
+
+#: includes/class-page-patterns.php:348
+#: dist/blocks/scoreboard/index.js:6
+msgid "First Team"
+msgstr ""
+
+#: includes/class-page-patterns.php:349
+#: dist/blocks/scoreboard/index.js:6
+msgid "First Team Score"
+msgstr ""
+
+#: includes/class-page-patterns.php:350
+#: dist/blocks/scoreboard/index.js:6
+msgid "Second Team Score"
+msgstr ""
+
+#: includes/class-page-patterns.php:351
+#: dist/blocks/scoreboard/index.js:6
+msgid "Second Team"
+msgstr ""
+
+#: includes/class-page-patterns.php:354
+#: dist/blocks/scoreboard/index.js:6
+msgctxt "the punctuation mark between two scores"
+msgid "Dash"
+msgstr ""
+
+#: includes/class-page-patterns.php:385
+#: includes/class-page-patterns.php:394
+msgid "First Team Row"
+msgstr ""
+
+#: includes/class-page-patterns.php:386
+#: includes/class-page-patterns.php:396
+msgid "Second Team Row"
+msgstr ""
+
+#: includes/class-page-patterns.php:392
+#: dist/admin.js:200
+#: dist/blocks/scoreboard/index.js:6
+msgid "Score"
+msgstr ""
+
+#: includes/class-page-patterns.php:547
+msgid "Live page"
+msgstr ""
+
+#: includes/class-page-patterns.php:548
+msgid "A status badge with the time of the last update, an introduction and the Clock layout."
+msgstr ""
+
+#: includes/class-page-patterns.php:553
+msgid "Live page, latest first"
+msgstr ""
+
+#: includes/class-page-patterns.php:554
+msgid "A status badge with the time of the last update and a Get alerts button on one line, then every entry in the Stream layout."
+msgstr ""
+
+#: includes/class-page-patterns.php:559
+msgid "Live page with side column"
+msgstr ""
+
+#: includes/class-page-patterns.php:560
+msgid "Entries under the status badge, beside a box that invites readers to get alerts."
+msgstr ""
+
+#: includes/class-page-patterns.php:565
+msgid "Match: scoreboard beside the feed"
+msgstr ""
+
+#: includes/class-page-patterns.php:566
+msgid "The score in a column beside the Minute layout."
+msgstr ""
+
+#: includes/class-page-patterns.php:571
+msgid "Match: centered scoreline"
+msgstr ""
+
+#: includes/class-page-patterns.php:572
+msgid "A large score centered above the Minute layout."
+msgstr ""
+
+#: includes/class-page-patterns.php:577
+msgid "Breaking news"
+msgstr ""
+
+#: includes/class-page-patterns.php:578
+msgid "An article with the latest update in a bar above the text, which goes away when the liveblog ends."
+msgstr ""
+
+#: includes/class-page-patterns.php:583
+msgid "Follow page"
+msgstr ""
+
+#: includes/class-page-patterns.php:584
+msgid "Asks readers to follow a liveblog, explains how alerts work, and shows its latest updates."
+msgstr ""
+
+#: includes/class-page-patterns.php:589
+msgid "Follow band"
+msgstr ""
+
+#: includes/class-page-patterns.php:590
+msgid "A full-width band with a Get alerts button, above the five latest updates."
+msgstr ""
+
+#: includes/class-page-patterns.php:595
+msgid "Every live story"
+msgstr ""
+
+#: includes/class-page-patterns.php:596
+msgid "A list of liveblogs, each with its status and a Get alerts button."
+msgstr ""
+
 #: includes/class-placements.php:142
 msgid "Published places that show the coverage, the main page first."
 msgstr ""
@@ -634,7 +807,7 @@ msgstr ""
 #: includes/class-placements.php:405
 #: dist/admin.js:175
 #: dist/admin.js:201
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgid "(no title)"
 msgstr ""
 
@@ -682,12 +855,12 @@ msgstr ""
 #: includes/class-post-type.php:281
 #: dist/admin.js:183
 #: dist/admin.js:186
-#: dist/blocks/rolling-coverage/index.js:10
+#: dist/blocks/rolling-coverage/index.js:9
 msgid "Entries"
 msgstr ""
 
 #: includes/class-post-type.php:282
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgid "Entry"
 msgstr ""
 
@@ -892,6 +1065,86 @@ msgstr ""
 
 #: includes/class-taxonomy.php:554
 msgid "Liveblog could not be deleted."
+msgstr ""
+
+#: includes/patterns/breaking-news.php:13
+msgid "Say what happened in one or two sentences."
+msgstr ""
+
+#: includes/patterns/breaking-news.php:29
+msgid "Tell the story: who, what, where and when."
+msgstr ""
+
+#: includes/patterns/breaking-news.php:33
+msgid "Add what readers need to do next, and what happens from here."
+msgstr ""
+
+#: includes/patterns/breaking-news.php:37
+msgid "Add background and context."
+msgstr ""
+
+#: includes/patterns/every-live-story.php:13
+msgid "Choose the stories you want alerts for. We send a short alert to your phone or computer when something important is posted."
+msgstr ""
+
+#: includes/patterns/every-live-story.php:20
+msgid "Liveblog name"
+msgstr ""
+
+#: includes/patterns/every-live-story.php:26
+msgid "One line about this liveblog."
+msgstr ""
+
+#: includes/patterns/follow-band.php:16
+msgid "Follow this story"
+msgstr ""
+
+#: includes/patterns/follow-band.php:22
+msgid "Get an alert on your phone or computer when we post an important update. No account needed."
+msgstr ""
+
+#: includes/patterns/follow-page.php:13
+msgid "Get an alert on your phone or computer when we post an important update to this story."
+msgstr ""
+
+#: includes/patterns/follow-page.php:20
+msgid "An alert when it matters"
+msgstr ""
+
+#: includes/patterns/follow-page.php:23
+msgid "We send an alert for the updates that matter, not for every entry."
+msgstr ""
+
+#: includes/patterns/follow-page.php:28
+msgid "No account needed"
+msgstr ""
+
+#: includes/patterns/follow-page.php:31
+msgid "There is nothing to sign up for. Your browser asks for permission the first time you select Get alerts."
+msgstr ""
+
+#: includes/patterns/follow-page.php:36
+msgid "Stop anytime"
+msgstr ""
+
+#: includes/patterns/follow-page.php:39
+msgid "Select the button again to stop, or turn alerts off in your browser settings."
+msgstr ""
+
+#: includes/patterns/follow-page.php:44
+msgid "Latest updates"
+msgstr ""
+
+#: includes/patterns/live-page-side-column.php:16
+msgid "Alerts on this story"
+msgstr ""
+
+#: includes/patterns/live-page-side-column.php:19
+msgid "We send an alert to your phone or computer when something important happens."
+msgstr ""
+
+#: includes/patterns/live-page.php:15
+msgid "Sum up the story in one sentence and say what readers can expect from this liveblog."
 msgstr ""
 
 #: includes/slack/class-slack-api-client.php:177
@@ -1189,7 +1442,7 @@ msgid "General"
 msgstr ""
 
 #: dist/admin.js:4
-#: dist/blocks/rolling-coverage/index.js:30
+#: dist/blocks/rolling-coverage/index.js:29
 msgid "AI"
 msgstr ""
 
@@ -1204,14 +1457,14 @@ msgstr ""
 #: dist/admin.js:4
 #: dist/admin.js:214
 #: dist/blocks/coverage-follow/index.js:1
-#: dist/blocks/coverage-follow/index.js:5
+#: dist/blocks/coverage-follow/index.js:4
 #: dist/blocks/coverage-status/index.js:3
 #: dist/blocks/coverage-status/index.js:5
-#: dist/blocks/rolling-coverage/index.js:10
+#: dist/blocks/rolling-coverage/index.js:9
 #: dist/blocks/scoreboard/index.js:3
-#: dist/blocks/scoreboard/index.js:7
+#: dist/blocks/scoreboard/index.js:6
 #: dist/blocks/update-timer/index.js:1
-#: dist/blocks/update-timer/index.js:3
+#: dist/blocks/update-timer/index.js:4
 msgid "Liveblog"
 msgstr ""
 
@@ -1263,12 +1516,12 @@ msgid "Status"
 msgstr ""
 
 #: dist/admin.js:177
-#: dist/blocks/rolling-coverage/index.js:10
+#: dist/blocks/rolling-coverage/index.js:9
 msgid "Canonical URL"
 msgstr ""
 
 #: dist/admin.js:177
-#: dist/blocks/rolling-coverage/index.js:10
+#: dist/blocks/rolling-coverage/index.js:9
 msgid "https://yourgroovydomain.com/live-coverage"
 msgstr ""
 
@@ -1277,7 +1530,7 @@ msgid "The page readers land on when they open a link to one of this liveblog's 
 msgstr ""
 
 #: dist/admin.js:177
-#: dist/blocks/rolling-coverage/index.js:30
+#: dist/blocks/rolling-coverage/index.js:29
 msgid "Advertising"
 msgstr ""
 
@@ -1286,13 +1539,13 @@ msgid "Disable ads for this liveblog, useful for emergency or other sensitive ne
 msgstr ""
 
 #: dist/admin.js:177
-#: dist/blocks/rolling-coverage/index.js:30
+#: dist/blocks/rolling-coverage/index.js:29
 msgctxt "advertising"
 msgid "Enabled"
 msgstr ""
 
 #: dist/admin.js:177
-#: dist/blocks/rolling-coverage/index.js:31
+#: dist/blocks/rolling-coverage/index.js:30
 msgctxt "advertising"
 msgid "Disabled"
 msgstr ""
@@ -1853,7 +2106,7 @@ msgstr ""
 
 #: dist/admin.js:192
 #: dist/admin.js:201
-#: dist/blocks/rolling-coverage/index.js:5
+#: dist/blocks/rolling-coverage/index.js:4
 msgid "Author"
 msgstr ""
 
@@ -1951,7 +2204,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: dist/admin.js:197
-#: dist/blocks/scoreboard/index.js:7
+#: dist/blocks/scoreboard/index.js:6
 msgid "First team"
 msgstr ""
 
@@ -1960,7 +2213,7 @@ msgid "Shown on the left."
 msgstr ""
 
 #: dist/admin.js:197
-#: dist/blocks/scoreboard/index.js:7
+#: dist/blocks/scoreboard/index.js:6
 msgid "Second team"
 msgstr ""
 
@@ -1984,11 +2237,6 @@ msgstr ""
 #: dist/admin.js:200
 #, js-format
 msgid "The score couldn’t be saved: %s"
-msgstr ""
-
-#: dist/admin.js:200
-#: dist/blocks/scoreboard/index.js:7
-msgid "Score"
 msgstr ""
 
 #: dist/admin.js:200
@@ -2083,7 +2331,7 @@ msgid "From WordPress"
 msgstr ""
 
 #: dist/admin.js:201
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgid "Summary"
 msgstr ""
 
@@ -2344,7 +2592,7 @@ msgid "%d updates in the last 10s"
 msgstr ""
 
 #: dist/admin.js:210
-#: dist/blocks/rolling-coverage/index.js:33
+#: dist/blocks/rolling-coverage/index.js:32
 msgid "Fetching entries…"
 msgstr ""
 
@@ -2554,7 +2802,7 @@ msgid "Could not copy the manifest."
 msgstr ""
 
 #: dist/admin.js:211
-#: dist/blocks/rolling-coverage/index.js:30
+#: dist/blocks/rolling-coverage/index.js:29
 #: dist/blocks/share/view.js:1
 msgid "Copied!"
 msgstr ""
@@ -2902,7 +3150,7 @@ msgid "Level"
 msgstr ""
 
 #: dist/admin.js:215
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgid "Time"
 msgstr ""
 
@@ -2966,7 +3214,7 @@ msgstr ""
 
 #: dist/blocks/coverage-follow/index.js:1
 #: dist/blocks/coverage-status/index.js:3
-#: dist/blocks/rolling-coverage/index.js:10
+#: dist/blocks/rolling-coverage/index.js:9
 #: dist/blocks/scoreboard/index.js:3
 #: dist/blocks/update-timer/index.js:1
 msgid "Loading liveblogs…"
@@ -2981,7 +3229,7 @@ msgstr ""
 
 #: dist/blocks/coverage-follow/index.js:1
 #: dist/blocks/coverage-status/index.js:3
-#: dist/blocks/rolling-coverage/index.js:10
+#: dist/blocks/rolling-coverage/index.js:9
 #: dist/blocks/scoreboard/index.js:3
 #: dist/blocks/update-timer/index.js:1
 msgid "Search for a liveblog…"
@@ -3019,41 +3267,37 @@ msgstr ""
 msgid "Custom liveblog"
 msgstr ""
 
-#: dist/blocks/coverage-follow/index.js:5
-#: dist/blocks/rolling-coverage/index.js:3
-#: dist/blocks/rolling-coverage/index.js:6
-#: dist/blocks/scoreboard/index.js:7
+#: dist/blocks/coverage-follow/index.js:4
+#: dist/blocks/rolling-coverage/index.js:2
+#: dist/blocks/rolling-coverage/index.js:5
+#: dist/blocks/scoreboard/index.js:6
 msgid "Updated"
 msgstr ""
 
-#: dist/blocks/coverage-follow/index.js:5
-msgid "Follow"
-msgstr ""
-
-#: dist/blocks/coverage-follow/index.js:5
+#: dist/blocks/coverage-follow/index.js:4
 msgid "Follows the liveblog on this page, or a breakout post’s liveblog."
 msgstr ""
 
-#: dist/blocks/coverage-follow/index.js:5
+#: dist/blocks/coverage-follow/index.js:4
 msgid "Always follows this liveblog."
 msgstr ""
 
-#: dist/blocks/coverage-follow/index.js:5
+#: dist/blocks/coverage-follow/index.js:4
 #: dist/blocks/coverage-status/index.js:5
-#: dist/blocks/scoreboard/index.js:7
+#: dist/blocks/scoreboard/index.js:6
 #: dist/blocks/update-timer/index.js:3
 msgid "This liveblog no longer exists, so the page’s liveblog is used."
 msgstr ""
 
-#: dist/blocks/coverage-follow/index.js:5
+#: dist/blocks/coverage-follow/index.js:4
 msgid "This liveblog no longer exists, so this button won't appear on the site."
 msgstr ""
 
-#: dist/blocks/coverage-follow/index.js:5
+#: dist/blocks/coverage-follow/index.js:4
 msgid "Push notifications aren't set up, so this button won't appear on the site."
 msgstr ""
 
-#: dist/blocks/coverage-follow/index.js:5
+#: dist/blocks/coverage-follow/index.js:4
 msgid "This liveblog has ended, so this button won't appear on the site."
 msgstr ""
 
@@ -3122,12 +3366,12 @@ msgid "This liveblog no longer exists, so this badge won’t appear on the site.
 msgstr ""
 
 #: dist/blocks/coverage-status/index.js:5
-#: dist/blocks/scoreboard/index.js:7
+#: dist/blocks/scoreboard/index.js:6
 msgid "Shows the liveblog on this page, or a breakout post’s liveblog."
 msgstr ""
 
 #: dist/blocks/coverage-status/index.js:5
-#: dist/blocks/scoreboard/index.js:7
+#: dist/blocks/scoreboard/index.js:6
 msgid "Always shows this liveblog."
 msgstr ""
 
@@ -3180,38 +3424,38 @@ msgid "Hide last updated"
 msgstr ""
 
 #: dist/blocks/coverage-status/index.js:9
-#: dist/blocks/rolling-coverage/index.js:21
+#: dist/blocks/rolling-coverage/index.js:20
 msgid "When ended"
 msgstr ""
 
 #: dist/blocks/coverage-status/index.js:9
-#: dist/blocks/rolling-coverage/index.js:22
+#: dist/blocks/rolling-coverage/index.js:21
 msgctxt "when ended"
 msgid "Show"
 msgstr ""
 
 #. translators: Screen reader name for the “Show” option. Keep the word used to translate “Show”.
 #: dist/blocks/coverage-status/index.js:10
-#: dist/blocks/rolling-coverage/index.js:23
+#: dist/blocks/rolling-coverage/index.js:22
 msgid "Show when ended"
 msgstr ""
 
 #: dist/blocks/coverage-status/index.js:10
-#: dist/blocks/rolling-coverage/index.js:23
+#: dist/blocks/rolling-coverage/index.js:22
 msgctxt "when ended"
 msgid "Hide"
 msgstr ""
 
 #. translators: Screen reader name for the “Hide” option. Keep the word used to translate “Hide”.
 #: dist/blocks/coverage-status/index.js:11
-#: dist/blocks/rolling-coverage/index.js:24
+#: dist/blocks/rolling-coverage/index.js:23
 msgid "Hide when ended"
 msgstr ""
 
 #: dist/blocks/load-more/index.js:1
 #: dist/blocks/load-more/index.js:3
-#: dist/blocks/rolling-coverage/index.js:3
-#: dist/blocks/rolling-coverage/index.js:5
+#: dist/blocks/rolling-coverage/index.js:2
+#: dist/blocks/rolling-coverage/index.js:4
 msgid "Load More"
 msgstr ""
 
@@ -3227,462 +3471,462 @@ msgstr ""
 msgid "Label text"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgid "Links"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgid "Full Story Label"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgid "Footer"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgid "Read More"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgid "Card"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgid "Label Row"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgid "Full Story Entry"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgid "Details"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgid "Marks"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgid "Meta"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgid "Row"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgid "Text"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgid "Image"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgid "Byline"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgid "Author + Date"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgid "Pinned Entry"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgid "Arrow"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgid "Live coverage"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgid "Liveblog Name"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgid "Dates"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgid "Body"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgid "Pinned Full Story"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgid "Feed"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgid "Side"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgid "Avatar"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgid "Header"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgid "Bar"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgid "Full time: Riverbend 2, Fresno Verde 1"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgid "Two goals from Bree Kowalski and a stoppage-time save from Petra Halvorsen. The champions' first meeting with Fresno Verde since the final ended the way the final did."
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgid "Match report"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgid "Riverbend settle the rematch with two set pieces and a late save."
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgid "Riverbend 2, Fresno Verde 1: the rematch goes the same way"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgid "Kowalski's double and Halvorsen's late save keep Riverbend top. Fresno Verde had the better of the first half and nothing to show for it."
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgid "Halvorsen at full stretch to push Renee Vargas's header over the bar, four minutes into stoppage time. The North Bank greets it like a third goal."
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgid "Kowalski again, straight off the training ground"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgid "Sonia Aguilar drives a corner to the near post, Josie Vandermeer flicks it on, and Kowalski turns it in from inside the six-yard box. 2–0 in the 61st minute."
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgid "How Riverbend turned a training-ground corner into the winner"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgid "Riverbend rehearsed the near-post flick all week, and it took Fresno Verde apart twice. Bree Kowalski and Sonia Aguilar talk us through the routine that settled the rematch."
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgid "14,213 at DS Stadium"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgid "The women's largest crowd of the season so far. Foundry Row was full two hours before kickoff."
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgid "Team news"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgid "Bethany Osei rotates less than usual for the rematch. Vandermeer captains, Kowalski leads the line and Nia Fletcher plays behind her."
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgid "The corner arc of a soccer field"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgid "An empty soccer stadium with a ball on the field"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgid "Riverbend beat Fresno Verde 2–1 at DS Stadium."
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgid "Bree Kowalski scored both goals from set pieces."
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgid "Riverbend stay top of the table on goal difference."
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgid "What we know"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgid "Loading layouts…"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgid "Choose a layout"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:6
+#: dist/blocks/rolling-coverage/index.js:5
 msgid "More entries load as readers scroll down."
 msgstr ""
 
 #. translators: “Load more” is the label of the button readers press. Keep the words used to translate it.
-#: dist/blocks/rolling-coverage/index.js:7
+#: dist/blocks/rolling-coverage/index.js:6
 msgid "Readers load more entries with a “Load more” button."
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:7
+#: dist/blocks/rolling-coverage/index.js:6
 msgid "Readers see only the first page of entries."
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:7
+#: dist/blocks/rolling-coverage/index.js:6
 msgid "Rolling Coverage layout added."
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:7
+#: dist/blocks/rolling-coverage/index.js:6
 msgid "Uses its own layout, detached from the shared one."
 msgstr ""
 
 #. translators: <name /> is the shared layout's name, such as "Rail".
-#: dist/blocks/rolling-coverage/index.js:8
+#: dist/blocks/rolling-coverage/index.js:7
 msgid "Uses the shared <name /> layout. Changes to it apply to every story that uses it."
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:8
+#: dist/blocks/rolling-coverage/index.js:7
 msgid "Uses the shared layout. Changes to it apply to every story that uses it."
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:9
+#: dist/blocks/rolling-coverage/index.js:8
 msgid "Failed to generate key takeaways."
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:9
+#: dist/blocks/rolling-coverage/index.js:8
 msgid "Key takeaways copied. Paste them into the page."
 msgstr ""
 
 #. translators: "Copy Generated Output" is the label of the button below Generated Output; use the same translation.
-#: dist/blocks/rolling-coverage/index.js:10
+#: dist/blocks/rolling-coverage/index.js:9
 msgid "Key takeaways generated. Select Copy Generated Output to copy them."
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:10
+#: dist/blocks/rolling-coverage/index.js:9
 msgid "Key takeaways copied."
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:10
+#: dist/blocks/rolling-coverage/index.js:9
 msgid "The key takeaways could not be copied. Select the text in Generated Output and copy it."
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:10
+#: dist/blocks/rolling-coverage/index.js:9
 msgid "Shared Layout"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:10
+#: dist/blocks/rolling-coverage/index.js:9
 msgid "Changes to this layout apply to every story that uses it."
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:10
+#: dist/blocks/rolling-coverage/index.js:9
 msgid "Changes to this layout apply to every story that uses it. The entries are samples."
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:10
+#: dist/blocks/rolling-coverage/index.js:9
 msgid "Layout"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:10
+#: dist/blocks/rolling-coverage/index.js:9
 msgid "Change Layout"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:10
+#: dist/blocks/rolling-coverage/index.js:9
 msgid "The page readers land on when they open a link to one of this liveblog's entries. Shared across every block connected to this liveblog."
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:10
+#: dist/blocks/rolling-coverage/index.js:9
 msgid "Use This Page"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:10
+#: dist/blocks/rolling-coverage/index.js:9
 msgid "Save this page to get its permalink."
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:10
+#: dist/blocks/rolling-coverage/index.js:9
 msgctxt "which entries the feed shows"
 msgid "Show"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:10
+#: dist/blocks/rolling-coverage/index.js:9
 msgid "Only the most recent entries. Pinned entries aren’t kept at the top."
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:10
+#: dist/blocks/rolling-coverage/index.js:9
 msgid "Every entry. Pinned entries stay at the top."
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:10
+#: dist/blocks/rolling-coverage/index.js:9
 msgctxt "which entries the feed shows"
 msgid "All"
 msgstr ""
 
 #. translators: Screen reader name for the “All” option. Keep the word used to translate “All”.
-#: dist/blocks/rolling-coverage/index.js:11
+#: dist/blocks/rolling-coverage/index.js:10
 msgid "All entries"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:11
+#: dist/blocks/rolling-coverage/index.js:10
 msgctxt "which entries the feed shows"
 msgid "Latest"
 msgstr ""
 
 #. translators: Screen reader name for the “Latest” option. Keep the word used to translate “Latest”.
-#: dist/blocks/rolling-coverage/index.js:12
+#: dist/blocks/rolling-coverage/index.js:11
 msgid "Latest entries"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:12
+#: dist/blocks/rolling-coverage/index.js:11
 msgid "Number of entries"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:12
+#: dist/blocks/rolling-coverage/index.js:11
 msgid "Link to all updates"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:12
+#: dist/blocks/rolling-coverage/index.js:11
 msgid "Links to the liveblog page. Hidden on that page."
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:12
+#: dist/blocks/rolling-coverage/index.js:11
 msgctxt "link to all updates"
 msgid "Show"
 msgstr ""
 
 #. translators: Screen reader name for the “Show” option. Keep the word used to translate “Show”.
-#: dist/blocks/rolling-coverage/index.js:13
+#: dist/blocks/rolling-coverage/index.js:12
 msgid "Show link to all updates"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:13
+#: dist/blocks/rolling-coverage/index.js:12
 msgctxt "link to all updates"
 msgid "Hide"
 msgstr ""
 
 #. translators: Screen reader name for the “Hide” option. Keep the word used to translate “Hide”.
-#: dist/blocks/rolling-coverage/index.js:14
+#: dist/blocks/rolling-coverage/index.js:13
 msgid "Hide link to all updates"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:14
-#: dist/blocks/rolling-coverage/index.js:30
+#: dist/blocks/rolling-coverage/index.js:13
+#: dist/blocks/rolling-coverage/index.js:29
 msgid "Link text"
 msgstr ""
 
 #. translators: %s: the link text the shared layout sets, e.g. "See all entries".
-#: dist/blocks/rolling-coverage/index.js:15
+#: dist/blocks/rolling-coverage/index.js:14
 #, js-format
 msgid "Leave empty to use the layout’s text, “%s”."
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:15
+#: dist/blocks/rolling-coverage/index.js:14
 msgid "Leave empty to use the layout’s text."
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:15
+#: dist/blocks/rolling-coverage/index.js:14
 msgid "Older entries"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:15
+#: dist/blocks/rolling-coverage/index.js:14
 msgid "Load on scroll"
 msgstr ""
 
 #. translators: “Load more” is the label of the button readers press. Keep the words used to translate it.
-#: dist/blocks/rolling-coverage/index.js:16
+#: dist/blocks/rolling-coverage/index.js:15
 msgid "“Load more” button"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:16
+#: dist/blocks/rolling-coverage/index.js:15
 msgid "Don’t load"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:16
+#: dist/blocks/rolling-coverage/index.js:15
 msgid "Entries per page"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:16
+#: dist/blocks/rolling-coverage/index.js:15
 msgid "How many entries the feed shows."
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:16
+#: dist/blocks/rolling-coverage/index.js:15
 msgid "How many entries show first, and how many each load of older entries adds."
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:16
+#: dist/blocks/rolling-coverage/index.js:15
 msgctxt "whether entries show their author’s name"
 msgid "Author name"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:16
+#: dist/blocks/rolling-coverage/index.js:15
 msgid "The name each author chose under “Display name publicly as” in their profile."
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:16
+#: dist/blocks/rolling-coverage/index.js:15
 msgctxt "entry author name"
 msgid "Show"
 msgstr ""
 
 #. translators: Screen reader name for the “Show” option. Keep the word used to translate “Show”.
-#: dist/blocks/rolling-coverage/index.js:17
+#: dist/blocks/rolling-coverage/index.js:16
 msgid "Show author name"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:17
+#: dist/blocks/rolling-coverage/index.js:16
 msgctxt "entry author name"
 msgid "Hide"
 msgstr ""
 
 #. translators: Screen reader name for the “Hide” option. Keep the word used to translate “Hide”.
-#: dist/blocks/rolling-coverage/index.js:18
+#: dist/blocks/rolling-coverage/index.js:17
 msgid "Hide author name"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:18
+#: dist/blocks/rolling-coverage/index.js:17
 msgctxt "whether entries show their author’s photo"
 msgid "Author avatar"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:18
+#: dist/blocks/rolling-coverage/index.js:17
 msgid "Each author’s profile picture, from their profile or Gravatar."
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:18
+#: dist/blocks/rolling-coverage/index.js:17
 msgctxt "entry author avatar"
 msgid "Show"
 msgstr ""
 
 #. translators: Screen reader name for the “Show” option. Keep the word used to translate “Show”.
-#: dist/blocks/rolling-coverage/index.js:19
+#: dist/blocks/rolling-coverage/index.js:18
 msgid "Show author avatar"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:19
+#: dist/blocks/rolling-coverage/index.js:18
 msgctxt "entry author avatar"
 msgid "Hide"
 msgstr ""
 
 #. translators: Screen reader name for the “Hide” option. Keep the word used to translate “Hide”.
-#: dist/blocks/rolling-coverage/index.js:20
+#: dist/blocks/rolling-coverage/index.js:19
 msgid "Hide author avatar"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:20
+#: dist/blocks/rolling-coverage/index.js:19
 msgid "Poll interval (seconds)"
 msgstr ""
 
 #. translators: %d: The fewest seconds this site waits between checks for new entries. "this": the Poll interval setting above.
-#: dist/blocks/rolling-coverage/index.js:21
+#: dist/blocks/rolling-coverage/index.js:20
 #, js-format
 msgid "This site waits at least %d second between checks, even when this is set lower."
 msgid_plural "This site waits at least %d seconds between checks, even when this is set lower."
@@ -3690,158 +3934,158 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. translators: %s: The status that ends a liveblog, e.g. "Ended". “Hide” is the option above; keep the word used to translate it.
-#: dist/blocks/rolling-coverage/index.js:22
+#: dist/blocks/rolling-coverage/index.js:21
 #, js-format
 msgid "Hide removes the whole block once the liveblog’s status is set to “%s” in All Liveblogs."
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:24
+#: dist/blocks/rolling-coverage/index.js:23
 msgid "Notice"
 msgstr ""
 
 #. translators: %s: The status that ends a liveblog, e.g. "Ended".
-#: dist/blocks/rolling-coverage/index.js:25
+#: dist/blocks/rolling-coverage/index.js:24
 #, js-format
 msgid "Tells readers the liveblog has ended. Shown at the top of the feed once its status is set to “%s” in All Liveblogs."
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:25
+#: dist/blocks/rolling-coverage/index.js:24
 msgctxt "ended notice"
 msgid "Show"
 msgstr ""
 
 #. translators: Screen reader name for the “Show” option. Keep the word used to translate “Show”.
-#: dist/blocks/rolling-coverage/index.js:26
+#: dist/blocks/rolling-coverage/index.js:25
 msgid "Show notice"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:26
+#: dist/blocks/rolling-coverage/index.js:25
 msgctxt "ended notice"
 msgid "Hide"
 msgstr ""
 
 #. translators: Screen reader name for the “Hide” option. Keep the word used to translate “Hide”.
-#: dist/blocks/rolling-coverage/index.js:27
+#: dist/blocks/rolling-coverage/index.js:26
 msgid "Hide notice"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:27
+#: dist/blocks/rolling-coverage/index.js:26
 msgid "Notice text"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:28
+#: dist/blocks/rolling-coverage/index.js:27
 msgid "Points readers to where the story continues."
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:28
+#: dist/blocks/rolling-coverage/index.js:27
 msgctxt "ended notice link"
 msgid "Show"
 msgstr ""
 
 #. translators: Screen reader name for the “Show” option. Keep the word used to translate “Show”.
-#: dist/blocks/rolling-coverage/index.js:29
+#: dist/blocks/rolling-coverage/index.js:28
 msgid "Show link"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:29
+#: dist/blocks/rolling-coverage/index.js:28
 msgctxt "ended notice link"
 msgid "Hide"
 msgstr ""
 
 #. translators: Screen reader name for the “Hide” option. Keep the word used to translate “Hide”.
-#: dist/blocks/rolling-coverage/index.js:30
+#: dist/blocks/rolling-coverage/index.js:29
 msgid "Hide link"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:30
+#: dist/blocks/rolling-coverage/index.js:29
 msgid "URL"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:30
+#: dist/blocks/rolling-coverage/index.js:29
 msgid "When empty, links to the liveblog's latest breakout post, if there is one."
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:30
+#: dist/blocks/rolling-coverage/index.js:29
 msgid "Sums up the latest entries in this liveblog as key takeaways and copies them, ready to paste into the page. Generate again as new entries come in."
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:30
+#: dist/blocks/rolling-coverage/index.js:29
 msgid "Edit the prompt"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:30
+#: dist/blocks/rolling-coverage/index.js:29
 msgid "Generated Output"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:30
+#: dist/blocks/rolling-coverage/index.js:29
 msgid "Copy Generated Output"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:30
+#: dist/blocks/rolling-coverage/index.js:29
 msgid "Ads"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:30
+#: dist/blocks/rolling-coverage/index.js:29
 msgid "Ads are disabled for this liveblog. Enable them in the liveblog settings to configure ad settings here."
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:30
+#: dist/blocks/rolling-coverage/index.js:29
 msgid "Enable and configure the Rolling Coverage: Entry placement in Newspack Ads to show ads."
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:30
+#: dist/blocks/rolling-coverage/index.js:29
 msgid "Not shown while the feed shows only the latest entries."
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:30
+#: dist/blocks/rolling-coverage/index.js:29
 msgid "Shows ads at a regular interval in the feed."
 msgstr ""
 
 #. translators: Screen reader name for the “Enabled” option. Keep the word used to translate “Enabled”.
-#: dist/blocks/rolling-coverage/index.js:31
+#: dist/blocks/rolling-coverage/index.js:30
 msgid "Advertising enabled"
 msgstr ""
 
 #. translators: Screen reader name for the “Disabled” option. Keep the word used to translate “Disabled”.
-#: dist/blocks/rolling-coverage/index.js:32
+#: dist/blocks/rolling-coverage/index.js:31
 msgid "Advertising disabled"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:32
+#: dist/blocks/rolling-coverage/index.js:31
 msgid "Ads interval"
 msgstr ""
 
 #. translators: 1: the entry the first ad follows, 2: the entry the second ad follows, 3: the entry the third ad follows.
-#: dist/blocks/rolling-coverage/index.js:33
+#: dist/blocks/rolling-coverage/index.js:32
 #, js-format
 msgid "Up to 3 ads, after entries %1$d, %2$d and %3$d. New entries that arrive while the page is open get one at this interval, with no limit."
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:33
+#: dist/blocks/rolling-coverage/index.js:32
 msgid "Edit Layout"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:33
+#: dist/blocks/rolling-coverage/index.js:32
 msgid "Detach"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:33
+#: dist/blocks/rolling-coverage/index.js:32
 msgid "Choose a layout for the liveblog's entries."
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:33
+#: dist/blocks/rolling-coverage/index.js:32
 msgid "Choose"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:33
+#: dist/blocks/rolling-coverage/index.js:32
 msgid "This liveblog has been trashed and is no longer available. Select a different liveblog or restore it from the Rolling Coverage admin."
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:33
+#: dist/blocks/rolling-coverage/index.js:32
 msgid "This feed is hidden on the site because the liveblog has ended."
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:33
+#: dist/blocks/rolling-coverage/index.js:32
 msgid "No published entries yet — showing the template only. Add entries to this liveblog to preview real content here."
 msgstr ""
 
@@ -3955,67 +4199,43 @@ msgstr ""
 msgid "No new entries"
 msgstr ""
 
-#: dist/blocks/scoreboard/index.js:7
+#: dist/blocks/scoreboard/index.js:6
 msgid "Home team"
 msgstr ""
 
-#: dist/blocks/scoreboard/index.js:7
+#: dist/blocks/scoreboard/index.js:6
 msgid "Away team"
 msgstr ""
 
-#: dist/blocks/scoreboard/index.js:7
+#: dist/blocks/scoreboard/index.js:6
 msgid "Second half"
 msgstr ""
 
-#: dist/blocks/scoreboard/index.js:7
+#: dist/blocks/scoreboard/index.js:6
 msgid "First team score"
 msgstr ""
 
-#: dist/blocks/scoreboard/index.js:7
+#: dist/blocks/scoreboard/index.js:6
 msgid "Second team score"
 msgstr ""
 
-#: dist/blocks/scoreboard/index.js:7
+#: dist/blocks/scoreboard/index.js:6
 msgid "Status line"
 msgstr ""
 
-#: dist/blocks/scoreboard/index.js:7
-msgid "Dash"
-msgstr ""
-
-#: dist/blocks/scoreboard/index.js:7
-msgid "First Team"
-msgstr ""
-
-#: dist/blocks/scoreboard/index.js:7
-msgid "First Team Score"
-msgstr ""
-
-#: dist/blocks/scoreboard/index.js:7
-msgid "Second Team Score"
-msgstr ""
-
-#: dist/blocks/scoreboard/index.js:7
-msgid "Second Team"
-msgstr ""
-
-#: dist/blocks/scoreboard/index.js:7
-msgid "Status Line"
-msgstr ""
-
-#: dist/blocks/scoreboard/index.js:7
+#: dist/blocks/scoreboard/index.js:6
 msgid "This liveblog no longer exists, so this scoreboard won’t appear on the site."
 msgstr ""
 
-#: dist/blocks/scoreboard/index.js:7
+#: dist/blocks/scoreboard/index.js:6
 msgid "This liveblog has no score, so the scoreboard won’t appear on the site. Add one at the top of the liveblog’s entries. Until then, a sample score shows here."
 msgstr ""
 
-#: dist/blocks/scoreboard/index.js:7
+#: dist/blocks/scoreboard/index.js:6
 msgid "Show status as a badge"
 msgstr ""
 
-#: dist/blocks/scoreboard/index.js:7
+#: dist/blocks/scoreboard/index.js:6
 msgid "Pick its style in the Badge menu of the liveblog’s score row, above its entries."
 msgstr ""
 
@@ -4041,47 +4261,75 @@ msgstr ""
 msgid "This liveblog no longer exists, so this timer won’t appear on the site."
 msgstr ""
 
-#: dist/blocks/update-timer/index.js:3
+#. translators: %d: seconds until the page next checks for new liveblog entries; the trailing "s" abbreviates seconds.
+#: dist/blocks/update-timer/index.js:4
+#: dist/blocks/update-timer/view.js:2
+#, js-format
+msgid "Next check in %ds"
+msgstr ""
+
+#: dist/blocks/update-timer/index.js:4
 msgid "Counts down to the next check of the liveblog on this page."
 msgstr ""
 
-#: dist/blocks/update-timer/index.js:3
+#: dist/blocks/update-timer/index.js:4
 msgid "Always counts down for this liveblog."
 msgstr ""
 
-#: dist/blocks/update-timer/index.js:3
+#: dist/blocks/update-timer/index.js:4
 msgid "Ring"
 msgstr ""
 
-#: dist/blocks/update-timer/index.js:3
+#: dist/blocks/update-timer/index.js:4
 msgid "Fills beside the countdown until the next check, then spins while the check runs. It doesn’t spin for readers who ask their device for reduced motion."
 msgstr ""
 
-#: dist/blocks/update-timer/index.js:3
+#: dist/blocks/update-timer/index.js:4
 msgctxt "ring"
 msgid "Show"
 msgstr ""
 
 #. translators: Screen reader name for the “Show” option. Keep the word used to translate “Show”.
-#: dist/blocks/update-timer/index.js:4
+#: dist/blocks/update-timer/index.js:5
 msgid "Show ring"
 msgstr ""
 
-#: dist/blocks/update-timer/index.js:4
+#: dist/blocks/update-timer/index.js:5
 msgctxt "ring"
 msgid "Hide"
 msgstr ""
 
 #. translators: Screen reader name for the “Hide” option. Keep the word used to translate “Hide”.
-#: dist/blocks/update-timer/index.js:5
+#: dist/blocks/update-timer/index.js:6
 msgid "Hide ring"
 msgstr ""
 
-#. translators: %d: seconds until the page next checks for new liveblog entries; the trailing "s" abbreviates seconds.
 #: dist/blocks/update-timer/index.js:6
-#: dist/blocks/update-timer/view.js:2
-#, js-format
-msgid "Next check in %ds"
+msgid "Ring position"
+msgstr ""
+
+#: dist/blocks/update-timer/index.js:6
+msgid "After keeps the ring in place when the timer sits at the end of a row, as the countdown changes length."
+msgstr ""
+
+#: dist/blocks/update-timer/index.js:6
+msgctxt "ring position"
+msgid "Before"
+msgstr ""
+
+#. translators: Screen reader name for the “Before” option. Keep the word used to translate “Before”.
+#: dist/blocks/update-timer/index.js:7
+msgid "Ring before the countdown"
+msgstr ""
+
+#: dist/blocks/update-timer/index.js:7
+msgctxt "ring position"
+msgid "After"
+msgstr ""
+
+#. translators: Screen reader name for the “After” option. Keep the word used to translate “After”.
+#: dist/blocks/update-timer/index.js:8
+msgid "Ring after the countdown"
 msgstr ""
 
 #. translators: %s: the Full story label every other broken-out story shows.
