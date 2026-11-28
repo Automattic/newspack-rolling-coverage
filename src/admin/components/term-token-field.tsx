@@ -49,40 +49,6 @@ interface TermTokenFieldProps {
 
 const EMPTY: PickedTerm[] = [];
 
-// Every suggestion query run, by taxonomy, so a save that creates terms can
-// invalidate them all, searches included.
-const usedQueries = new Map<
-	string,
-	Map< string, Record< string, unknown > >
->();
-
-/**
- * The suggestion queries the field has run for a taxonomy.
- *
- * @param {string} taxonomy Taxonomy slug.
- * @return {Object[]} The queries, as passed to `getEntityRecords`.
- */
-function getTermQueries( taxonomy: string ): Record< string, unknown >[] {
-	return [ ...( usedQueries.get( taxonomy )?.values() ?? [] ) ];
-}
-
-/**
- * Records a suggestion query for getTermQueries().
- *
- * @param {string} taxonomy Taxonomy slug.
- * @param {Object} query    The query.
- * @return {Object} The query.
- */
-function trackQuery< T extends Record< string, unknown > >(
-	taxonomy: string,
-	query: T
-): T {
-	const queries = usedQueries.get( taxonomy ) ?? new Map();
-	queries.set( JSON.stringify( query ), query );
-	usedQueries.set( taxonomy, queries );
-	return query;
-}
-
 const toKey = ( label: string ) => label.trim().toLowerCase();
 
 /**
@@ -124,10 +90,10 @@ function TermTokenField( {
 				? ( select( coreStore ).getEntityRecords(
 						'taxonomy',
 						taxonomy,
-						trackQuery( taxonomy, {
+						{
 							...TERMS_QUERY,
 							...( search ? { search } : {} ),
-						} )
+						}
 					) as PickedTerm[] | null )
 				: null,
 		[ isOpen, taxonomy, search ]
@@ -348,4 +314,4 @@ function TermTokenField( {
 	);
 }
 
-export { TermTokenField, getTermQueries };
+export { TermTokenField };

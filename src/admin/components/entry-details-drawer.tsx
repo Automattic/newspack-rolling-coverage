@@ -29,7 +29,7 @@ import { useAdminContext } from '../hooks/useAdminContext';
 import { editEntriesDetails } from '../utils/entries-api';
 import { notifyError, notifySuccess } from '../utils/notices';
 import { formatSiteDateTime } from '../utils/site-date';
-import { TermTokenField, getTermQueries } from './term-token-field';
+import { TermTokenField } from './term-token-field';
 import type {
 	Entry,
 	EntryDetailsChanges,
@@ -319,7 +319,8 @@ function EntryDetailsDrawer( {
 		isSlugDirty ||
 		isDateDirty;
 	const [ search, setSearch ] = useState( '' );
-	const { invalidateResolution } = useDispatch( coreStore );
+	const { invalidateResolution, invalidateResolutionForStoreSelector } =
+		useDispatch( coreStore );
 	const [ isBusy, setIsBusy ] = useState( false );
 	const [ error, setError ] = useState( '' );
 
@@ -457,23 +458,11 @@ function EntryDetailsDrawer( {
 				entryId,
 			] )
 		);
-		// So terms created by this save are suggested next time, in searches too.
-		(
-			[
-				[ 'category', changes.categories ],
-				[ 'post_tag', changes.tags ],
-			] as const
-		 ).forEach( ( [ taxonomy, termChanges ] ) => {
-			if ( termChanges?.names.length ) {
-				getTermQueries( taxonomy ).forEach( ( query ) =>
-					invalidateResolution( 'getEntityRecords', [
-						'taxonomy',
-						taxonomy,
-						query,
-					] )
-				);
-			}
-		} );
+		// Terms this save created show in every term list next time, the
+		// editor's own panels included, whose queries can't be targeted.
+		if ( changes.categories?.names.length || changes.tags?.names.length ) {
+			invalidateResolutionForStoreSelector( 'getEntityRecords' );
+		}
 
 		// WordPress only makes a slug unique when the entry is published or
 		// scheduled, so a draft's slug isn't final yet.

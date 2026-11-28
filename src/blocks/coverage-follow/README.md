@@ -56,7 +56,7 @@ The button is part of the block and rebuilds itself when the editor reloads, so 
 
 A notification goes out when an entry is published and one of these is true:
 
-- **Notify subscribers when this entry publishes** is ticked in the entry's Push Notifications panel, in the entry editor's sidebar. The panel shows on entries that aren't published yet, and only when OneSignal is set up.
+- **Notify subscribers when this entry publishes** is ticked in the entry's Push Notifications panel, in the sidebar of the entry editor or of Quick Edit. The panel shows on entries that aren't published yet, and only when OneSignal is set up.
 - The entry came from Slack. Slack entries are included automatically, unless they contain only an image.
 
 Only readers who followed that liveblog are notified. The notification links to the entry on the liveblog's canonical URL, so the liveblog needs one. If it doesn't, the Push Notifications panel warns you and no notification is sent. An entry notifies once.

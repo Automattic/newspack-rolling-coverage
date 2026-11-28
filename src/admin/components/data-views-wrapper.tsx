@@ -3,7 +3,7 @@
  */
 import type { ComponentType, ReactNode } from 'react';
 import { DataViews } from '@wordpress/dataviews/wp';
-import { useMemo } from '@wordpress/element';
+import { useEffect, useMemo, useRef } from '@wordpress/element';
 import { Stack } from '@wordpress/ui';
 
 /**
@@ -71,6 +71,10 @@ function InlineFiltersLayout( { header }: { header?: ReactNode } ) {
  * Type-safe wrapper around WordPress DataViews that fills in default props
  * (getItemId, defaultLayouts, isItemClickable) so consumers don't have to, and
  * lays out the shared list toolbar with declared filters as chips.
+ *
+ * DataViews makes the list inert while it loads, which drops focus to the
+ * page, so once loading ends the wrapper gives focus back to the element in
+ * the list that last had it, unless focus has moved elsewhere meanwhile.
  */
 function DataViewsWrapper< T extends { id: number | string } >( {
 	data,
@@ -81,6 +85,7 @@ function DataViewsWrapper< T extends { id: number | string } >( {
 	paginationInfo,
 	isLoading,
 	onClickItem,
+	isItemClickable,
 	header,
 	defaultLayouts,
 	config,
@@ -106,6 +111,24 @@ function DataViewsWrapper< T extends { id: number | string } >( {
 		[ view, fitColumns ]
 	);
 
+	const lastFocusedRef = useRef< HTMLElement | null >( null );
+	const wasLoadingRef = useRef( isLoading );
+	useEffect( () => {
+		if ( wasLoadingRef.current && ! isLoading ) {
+			const element = lastFocusedRef.current;
+			window.requestAnimationFrame( () => {
+				const active = element?.ownerDocument.activeElement;
+				if (
+					element?.isConnected &&
+					( ! active || active === element.ownerDocument.body )
+				) {
+					element.focus();
+				}
+			} );
+		}
+		wasLoadingRef.current = isLoading;
+	}, [ isLoading ] );
+
 	const titleWidth = useMemo(
 		() => titleColumnWidth( view, fitColumns ),
 		[ view, fitColumns ]
@@ -114,6 +137,9 @@ function DataViewsWrapper< T extends { id: number | string } >( {
 	return (
 		<div
 			className="newspack-rolling-coverage-dataviews"
+			onFocus={ ( event ) => {
+				lastFocusedRef.current = event.target;
+			} }
 			style={
 				titleWidth
 					? ( {
@@ -134,7 +160,11 @@ function DataViewsWrapper< T extends { id: number | string } >( {
 				paginationInfo={ paginationInfo }
 				isLoading={ isLoading }
 				defaultLayouts={ defaultLayouts ?? { table: {} } }
-				isItemClickable={ onClickItem ? () => true : undefined }
+				isItemClickable={
+					onClickItem
+						? ( isItemClickable ?? ( () => true ) )
+						: undefined
+				}
 				onClickItem={ onClickItem }
 				config={ config }
 				getItemId={ ( item: T ) => String( item.id ) }

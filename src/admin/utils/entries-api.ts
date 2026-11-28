@@ -1,7 +1,7 @@
 /**
  * WordPress dependencies
  */
-import apiFetch from '@wordpress/api-fetch';
+import apiFetch, { type APIFetchMiddleware } from '@wordpress/api-fetch';
 import { store as coreStore } from '@wordpress/core-data';
 import { dispatch } from '@wordpress/data';
 
@@ -31,11 +31,35 @@ import type {
 
 const SYNC_INTERVAL_MS = 10000;
 
+let newEntryPreload: APIFetchMiddleware | null = null;
+let isNewEntryPreloadRegistered = false;
+
+/**
+ * Hands the latest new entry's response to api-fetch's preloading
+ * middleware. api-fetch can't remove a middleware, so one is registered for
+ * the page's lifetime and each new entry replaces what it serves.
+ *
+ * @param {Record<string, unknown>} preload - Responses keyed by request path.
+ */
+function preloadNewEntry( preload: Record< string, unknown > ): void {
+	newEntryPreload = apiFetch.createPreloadingMiddleware( preload );
+	if ( isNewEntryPreloadRegistered ) {
+		return;
+	}
+	isNewEntryPreloadRegistered = true;
+	apiFetch.use( ( options, next ) =>
+		newEntryPreload ? newEntryPreload( options, next ) : next( options )
+	);
+}
+
 /**
  * Starts a new entry in a coverage for Quick Edit to open: an empty
  * auto-draft, which the first save turns into a draft or publishes. With
  * `isSummary`, it starts a new auto-draft of the coverage's Summary
  * instead, which the server refuses while the coverage has a saved one.
+ * The response carries the new entry as the core entries route returns it,
+ * which is handed to api-fetch's preloading middleware so the editor opens
+ * it without a second round trip.
  *
  * @param {string}  restNamespace - REST namespace URL (from config.restBaseUrls.restNamespace).
  * @param {number}  coverageId    - The coverage term ID the entry is added to.
@@ -48,11 +72,18 @@ async function createEntry(
 	isSummary = false
 ): Promise< CreateEntryResult > {
 	try {
-		const entry = await apiFetch< { id: number } >( {
+		const entry = await apiFetch< {
+			id: number;
+			preload?: Record< string, unknown >;
+		} >( {
 			url: `${ restNamespace }coverages/${ coverageId }/entries`,
 			method: 'POST',
 			...( isSummary ? { data: { summary: true } } : {} ),
 		} );
+
+		if ( entry.preload && Object.keys( entry.preload ).length ) {
+			preloadNewEntry( entry.preload );
+		}
 
 		return { success: true, id: entry.id };
 	} catch ( error ) {

@@ -1,0 +1,96 @@
+/**
+ * External dependencies
+ */
+import type { ComponentType, ReactNode } from 'react';
+import { Component } from '@wordpress/element';
+import { PanelBody } from '@wordpress/components';
+import {
+	PluginDocumentSettingPanel,
+	PostTaxonomiesPanel,
+} from '@wordpress/editor';
+import { getPlugin } from '@wordpress/plugins';
+import { __ } from '@wordpress/i18n';
+
+/**
+ * Internal dependencies
+ */
+import {
+	PushNotificationsControl,
+	useCanOptInToNotify,
+} from '../../entry-editor/push-notifications-control';
+
+/**
+ * Editor plugins whose document panels Quick Edit shows. The admin page
+ * loads every plugin's editor scripts for its blocks, so the rest stay in
+ * the full editor to keep Quick Edit light.
+ */
+const ALLOWED_PLUGINS = [ 'plugin-coauthors-document-setting' ];
+
+const DocumentSettingPanelSlot = (
+	PluginDocumentSettingPanel as unknown as { Slot: ComponentType }
+ ).Slot;
+const TaxonomiesPanel = PostTaxonomiesPanel as unknown as ComponentType;
+
+/**
+ * Drops a plugin's panel when it throws, so another plugin's error can't
+ * take Quick Edit down with it. That includes panels plugins can filter,
+ * such as the term selectors. A panel's content renders where the slot
+ * is, not where the plugin is, so the slot needs one too.
+ */
+class PluginPanelBoundary extends Component<
+	{ children: ReactNode },
+	{ hasError: boolean }
+> {
+	state = { hasError: false };
+
+	static getDerivedStateFromError() {
+		return { hasError: true };
+	}
+
+	render() {
+		return this.state.hasError ? null : this.props.children;
+	}
+}
+
+/**
+ * The panels below the Entry tab's summary: Push Notifications while the
+ * entry can still opt in, the allowed editor plugins' panels, such as
+ * Co-Authors Plus's Authors, then Categories and Tags.
+ *
+ * @param {Object}  props           Component props.
+ * @param {boolean} props.canNotify Whether push notifications are set up.
+ */
+function QuickEditSettingsPanels( { canNotify }: { canNotify: boolean } ) {
+	const canOptIn = useCanOptInToNotify();
+	const plugins = ALLOWED_PLUGINS.map( ( name ) => getPlugin( name ) ).filter(
+		( plugin ): plugin is NonNullable< typeof plugin > => Boolean( plugin )
+	);
+
+	return (
+		<>
+			{ canNotify && canOptIn && (
+				<PanelBody
+					title={ __(
+						'Push Notifications',
+						'newspack-rolling-coverage'
+					) }
+				>
+					<PushNotificationsControl />
+				</PanelBody>
+			) }
+			{ plugins.map( ( { name, render: Render } ) => (
+				<PluginPanelBoundary key={ name }>
+					<Render />
+				</PluginPanelBoundary>
+			) ) }
+			<PluginPanelBoundary>
+				<DocumentSettingPanelSlot />
+			</PluginPanelBoundary>
+			<PluginPanelBoundary>
+				<TaxonomiesPanel />
+			</PluginPanelBoundary>
+		</>
+	);
+}
+
+export { QuickEditSettingsPanels };
