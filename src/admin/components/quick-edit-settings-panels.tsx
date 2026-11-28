@@ -33,7 +33,8 @@ const TaxonomiesPanel = PostTaxonomiesPanel as unknown as ComponentType;
 
 /**
  * Drops a plugin's panel when it throws, so another plugin's error can't
- * take Quick Edit down with it. A panel's content renders where the slot
+ * take Quick Edit down with it. That includes panels plugins can filter,
+ * such as the term selectors. A panel's content renders where the slot
  * is, not where the plugin is, so the slot needs one too.
  */
 class PluginPanelBoundary extends Component<
@@ -85,7 +86,9 @@ function QuickEditSettingsPanels( { canNotify }: { canNotify: boolean } ) {
 			<PluginPanelBoundary>
 				<DocumentSettingPanelSlot />
 			</PluginPanelBoundary>
-			<TaxonomiesPanel />
+			<PluginPanelBoundary>
+				<TaxonomiesPanel />
+			</PluginPanelBoundary>
 		</>
 	);
 }
