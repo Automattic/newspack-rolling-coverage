@@ -4,7 +4,10 @@
 import type { ComponentType, ReactNode } from 'react';
 import { Component } from '@wordpress/element';
 import { PanelBody } from '@wordpress/components';
-import { PluginDocumentSettingPanel } from '@wordpress/editor';
+import {
+	PluginDocumentSettingPanel,
+	PostTaxonomiesPanel,
+} from '@wordpress/editor';
 import { getPlugin } from '@wordpress/plugins';
 import { __ } from '@wordpress/i18n';
 
@@ -26,6 +29,7 @@ const ALLOWED_PLUGINS = [ 'plugin-coauthors-document-setting' ];
 const DocumentSettingPanelSlot = (
 	PluginDocumentSettingPanel as unknown as { Slot: ComponentType }
  ).Slot;
+const TaxonomiesPanel = PostTaxonomiesPanel as unknown as ComponentType;
 
 /**
  * Drops a plugin's panel when it throws, so another plugin's error can't
@@ -49,8 +53,8 @@ class PluginPanelBoundary extends Component<
 
 /**
  * The panels below the Entry tab's summary: Push Notifications while the
- * entry can still opt in, and the allowed editor plugins' panels, such as
- * Co-Authors Plus's Authors.
+ * entry can still opt in, the allowed editor plugins' panels, such as
+ * Co-Authors Plus's Authors, then Categories and Tags.
  *
  * @param {Object}  props           Component props.
  * @param {boolean} props.canNotify Whether push notifications are set up.
@@ -81,6 +85,7 @@ function QuickEditSettingsPanels( { canNotify }: { canNotify: boolean } ) {
 			<PluginPanelBoundary>
 				<DocumentSettingPanelSlot />
 			</PluginPanelBoundary>
+			<TaxonomiesPanel />
 		</>
 	);
 }

@@ -337,6 +337,7 @@ class Admin {
 			[ '/wp/v2/global-styles/' . $global_styles_id, 'OPTIONS' ],
 			'/wp/v2/global-styles/' . $global_styles_id . '?context=' . $global_styles,
 			'/wp/v2/block-patterns/categories',
+			'/wp/v2/taxonomies?context=edit',
 			// Must match core-data's request for the site's base data, field order included.
 			'/?_fields=' . implode(
 				',',
